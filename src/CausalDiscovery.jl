@@ -1,5 +1,5 @@
 module CausalDiscovery
 
-greet() = print("Hello World!")
+include("CISC.jl")
 
 end # module

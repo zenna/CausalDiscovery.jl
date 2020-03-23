@@ -3,5 +3,6 @@ using Test
 
 @testset "CausalDiscovery.jl" begin
   # Write your own tests here.
-  @test true
+  include("CISC.jl")
 end
+
