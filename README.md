@@ -5,4 +5,4 @@
 [![Build Status](https://travis-ci.org/zenna/CausalDiscovery.jl.svg?branch=master)](https://travis-ci.com/zenna/CausalDiscovery.jl)
 [![Codecov](https://codecov.io/gh/zenna/CausalDiscovery.jl/branch/master/graph/badge.svg)](https://codecov.io/gh/zenna/CausalDiscovery.jl)
 
-[Styleguide](styleguide.md)
+[Guide to contributing code](contribguide.md)

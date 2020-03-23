@@ -2,7 +2,8 @@
 
 - Never push to master (unless you have a very good reason).  Push to a branch and submit a pull request to merge into master.
 - Consequently, aster should always be in a state of its tests passing
-- Write informative comments.  "done", "push", "ok", are not good comments.  It can be annoying to write comments but remember they are not for you, they are for other people (and your future self who has forgotten the present).  See See https://dev.to/jacobherrington/how-to-write-useful-commit-messages-my-commit-message-template-20n9
+- Write informative comments.  "done", "push", "ok", are not good comments.  It can be annoying to write comments but remember they are not for you, they are for other people (and your future self who has forgotten the present).  See [this guide on writing useful commit messages](https://dev.to/jacobherrington/how-to-write-useful-commit-messages-my-commit-message-template-20n9)
+
 
 # Testing
 Write tests for all non-trivial code you write.
