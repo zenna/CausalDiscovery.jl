@@ -133,3 +133,5 @@ end
 likelihoods = [fairprob, biasedprob, markovprob]
 println(analyticoptimalexp([1/3,1/3,1/3],allpriorsamp,likelihoods,experiments, 100000))
 println(analyticoptimalexp([1/2,1/2],markovbiasedsamp,[markovprob,biasedprob],experiments, 100000))
+println(coinoptimalseq([1/3,1/3,1/3],[((1,1,0,0),1),((0,1,0,0),0)],10000))
+println(coinoptimal([1/3,1/3,1/3],10000))

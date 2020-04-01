@@ -1,5 +1,7 @@
+
 module OptimalDesign
-export Model, optimalexp, approxutility,approxKL,postsamp,countdict,analyticoptimalexp,approxKL,exactpost
+using StatsBase
+export Model, optimalexp, approxutility,approxKL,postsamp,countdict,analyticoptimalexp,approxKL,exactpost,coinoptimal,coinoptimalseq
 #a model is a struct of a name and a function which takes an experiment and outputs an observation
 struct Model
   name
@@ -136,12 +138,141 @@ function analyticoptimalexp(prior,priorsamp,likelihoods,experiments,samples)
   bestexp = -1
   for exp in experiments
     u = analyticutil(prior,priorsamp,likelihoods,exp,samples)
-    println(exp,u)
+    #println(exp,u)
     if u >= max
       max = u
       bestexp = exp
     end
   end
   bestexp
+end
+"""
+hard coded functions for doing the coins
+"""
+n_exps = 1
+function biasedfunc(exp,n)
+  if sum(exp) == 4
+    phead = 5/6
+  elseif sum(exp) == 3
+    phead = 2/3
+  elseif sum(exp) == 2
+    phead = 1/2
+  elseif sum(exp) == 1
+    phead = 1/3
+  else
+    phead = 1/6
+  end
+  [Int(rand() < phead) for i in 1:n]
+end
+m_biased = Model("biased",(exp) -> biasedfunc(exp,n_exps))
+"""
+markov model, from paper
+"""
+function markovfunc(exp,n)
+  transitions = 0
+  for i in 1:3
+    if exp[i] != exp[i+1]
+      transitions += 1
+    end
+  end
+  if transitions == 3
+    t_prob = 4/5
+  elseif transitions == 2
+    t_prob = 3/5
+  elseif transitions == 1
+    t_prob = 2/5
+  elseif transitions == 0
+    t_prob = 1/5
+  end
+  if rand() < t_prob
+    1 - exp[4]
+  else
+    exp[4]
+  end
+  vals=[]
+  for i in 1:n
+    if rand() < t_prob
+      push!(vals, 1 - exp[4])
+    else
+      push!(vals, exp[4])
+    end
+  end
+  vals
+end
+m_markov = Model("markov",(exp) -> markovfunc(exp,n_exps))
+"""
+fair model
+"""
+function fairfunc(exp,n)
+  [rand(0:1) for i in 1:n]
+end
+m_fair = Model("fair", (exp) -> fairfunc(exp,n_exps))
+
+function markovprob(exp,data)
+  transitions = 0
+  for i in 1:3
+    if exp[i] != exp[i+1]
+      transitions += 1
+    end
+  end
+  if transitions == 3
+    t_prob = 4/5
+  elseif transitions == 2
+    t_prob = 3/5
+  elseif transitions == 1
+    t_prob = 2/5
+  elseif transitions == 0
+    t_prob = 1/5
+  end
+  if exp[4] == 1
+    p_head = 1 - t_prob
+  else
+    p_head = t_prob
+  end
+  heads = sum(data)
+  p_head^heads * (1 - p_head)^(length(data) - heads)
+end
+#probability of data under fair model
+function fairprob(exp,data)
+  0.5 ^ (length(data))
+end
+function biasedprob(exp,data)
+  if sum(exp) == 4
+    p_head = 5/6
+  elseif sum(exp) == 3
+    p_head = 2/3
+  elseif sum(exp) == 2
+    p_head = 1/2
+  elseif sum(exp) == 1
+    p_head = 1/3
+  else
+    p_head = 1/6
+  end
+  heads = sum(data)
+  p_head^heads * (1 - p_head)^(length(data) - heads)
+end
+function coinposterior(prior,sequence)
+  newpost = copy(prior)
+  likelihoods = [fairprob, biasedprob, markovprob]
+  for (exp,data) in sequence
+    newpost = exactpost(prior,likelihoods,exp,data)
+  end
+  newpost
+end
+function coinoptimalseq(prior,sequence,samples)
+  newprior = coinposterior(prior, sequence)
+  #println(newprior)
+  coinoptimal(newprior,samples)
+end
+#outputs best exp given belief and sample size
+function coinoptimal(prior,samples)
+  models = [m_fair,m_biased,m_markov]
+  weights = ProbabilityWeights(prior)
+  likelihoods = [fairprob, biasedprob, markovprob]
+  #println(newprior)
+  experiments = [[1,1,1,1],[1,1,1,0],[1,1,0,1],[1,1,0,0],[1,0,1,1],[1,0,1,0],
+  [1,0,0,1],[1,0,0,0],[0,1,1,1],[0,1,1,0],[0,1,0,1],[0,1,0,0],[0,0,1,1],[0,0,1,0],
+  [0,0,0,1],[0,0,0,0]]
+  analyticoptimalexp(prior,() -> sample(models,weights),likelihoods,experiments,samples)
 end
 end # module
