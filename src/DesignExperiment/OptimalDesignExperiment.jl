@@ -1,7 +1,7 @@
 
 module OptimalDesign
 using StatsBase
-export Model, optimalexp, approxutility,approxKL,postsamp,countdict,analyticoptimalexp,approxKL,exactpost,coinoptimal,coinoptimalseq
+export Model, optimalexp, approxutility,approxKL,postsamp,countdict,analyticoptimalexp,approxKL,exactpost,coinoptimal,coinoptimalseq,coinposterior
 #a model is a struct of a name and a function which takes an experiment and outputs an observation
 struct Model
   name
