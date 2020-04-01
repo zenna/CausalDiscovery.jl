@@ -4,6 +4,7 @@ using Flux, Flux.Data.MNIST, Statistics
 using Flux: onehotbatch, onecold, crossentropy, throttle
 using Base.Iterators: repeated
 export int_to_experiment, fake_OED, generate_data
+using Distributions: Uniform
 ##mapping from int to sequence 
 int_to_experiment=Dict(
     1 => "HHHH", 
