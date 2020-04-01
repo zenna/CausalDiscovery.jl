@@ -1,9 +1,9 @@
+module OED_NN
 using Flux
-using Distributions
 using Flux, Flux.Data.MNIST, Statistics
 using Flux: onehotbatch, onecold, crossentropy, throttle
 using Base.Iterators: repeated
-
+export int_to_experiment, fake_OED, generate_data
 ##mapping from int to sequence 
 int_to_experiment=Dict(
     1 => "HHHH", 
@@ -24,16 +24,10 @@ int_to_experiment=Dict(
     16 => "TTTT"
 )
 
-# using CUDAapi
-if has_cuda()
-    @info "CUDA is on"
-    import CuArrays
-    CuArrays.allowscalar(false)
+"""
+Fake Optimal experiment design agent that makes arbitrary decisions
 
-## Generate data
-
-
-
+"""
 function fake_OED(prior)
     p1,p2,p3=prior
     max_val=max(p1,p2,p3)
@@ -46,27 +40,11 @@ function fake_OED(prior)
     end
 end
 
-##mapping from int to sequence 
-int_to_experiment=Dict(
-    1 => "HHHH", 
-    2 => "HHHT", 
-    3 => "HHTH",
-    4 => "HTHH",
-    5 => "THHH",
-    6 => "HHTT",
-    7 => "TTHH",
-    8 => "HTHT",
-    9 => "THTH",
-    10 => "HTTH",
-    11 => "THHT",
-    12 => "TTTH",
-    13 => "TTHT",
-    14 => "THTT",
-    15 => "HTTT",
-    16 => "TTTT"
-)
 
-##Generate fake priors, in the future learn these with a NN\
+"""
+Generates data from the fake OED
+
+"""
 function generate_data(n_samples,epochs)
     priors=zeros(Float64,(3,n_samples))
     for idx in 1:n_samples
@@ -85,23 +63,33 @@ function generate_data(n_samples,epochs)
     return repeated((X,Y),epochs),X,Y
 end
 
-model=Chain(
-Dense(3,16,relu),
-Dense(16,32,relu),
-Dense(32,16,relu),
-    softmax)|> gpu
+"""
+Generates data from Arbitrary OED with: 
+n_classes-> Number of experiments (to generate a one hot encoding)
+OED -> optimal experiment design model that takes a prior as input and outputs an integer value experiment
+n_samples-> number of data samples to generate
+For now this just generates random priors. 
+NOTE: This function assumes that the experiments are mapped to integer values from 0 to n experiments
 
-loss(x, y) = crossentropy(model(x), y)
-accuracy(x, y) = mean(onecold(cpu(model(x))) .== onecold(cpu(y)))
+"""
+function generate_custom_data(n_classes,OED,n_samples,epochs)
+    priors=zeros(Float64,(3,n_samples))
+    for idx in 1:n_samples
+        first_prior=rand(Uniform(0.0,0.99),1)[1]
+        second_prior=rand(Uniform(0.0,1-first_prior),1)[1]
+        third_prior=1.0-first_prior-second_prior
+        prior=[first_prior,second_prior,third_prior]
+        priors[:,idx]=prior
+    end
+    labels=Any[]
+    for prior in eachcol(priors)
+        push!(labels,OED(prior))
+    end
+    Y=onehotbatch(labels,0:n_classes)|> gpu
+    X=priors |> gpu
+    return repeated((X,Y),epochs),X,Y
+end
 
-train_dataset,train_x,train_y=generate_data(8000,500)
-test_dataset,test_x,test_y=generate_data(100,1)
-evalcb=() -> @show (loss(train_x,train_y))
-opt=ADAM()
 
-ps=Flux.params(model)
-Flux.train!(loss, ps, train_dataset, opt, cb = throttle(evalcb, 10))
-println("Training accuracy:")
-@show accuracy(train_x, train_y)
-println("Testing accuracy:")
-@show accuracy(test_x, test_y)
+
+end 
