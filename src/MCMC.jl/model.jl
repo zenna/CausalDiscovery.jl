@@ -1,7 +1,7 @@
 module Model
 
 include("./grammar.jl")
-
+Pkg.add("Random")
 using .Grammar, Random, Distributions
 
 """ ----- STRUCTS ----- """
