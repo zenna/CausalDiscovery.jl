@@ -27,8 +27,7 @@ Dense(32,16,relu),
 loss(x, y) = crossentropy(model(x), y)
 accuracy(x, y) = mean(onecold(cpu(model(x))) .== onecold(cpu(y)))
 
-# train_dataset,train_x,train_y=generate_data(8000,500)
-# test_dataset,test_x,test_y=generate_data(100,1)
+
 evalcb=() -> @show (loss(x_train,y_train))
 opt=ADAM()
 

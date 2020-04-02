@@ -6,11 +6,28 @@ using Base.Iterators: repeated
 export int_to_experiment, fake_OED, generate_data
 using Distributions: Uniform
 
-
+experiment_to_int=Dict(
+    "1111"=>1, 
+    "1110" => 2 , 
+    "1101" => 3,
+    "1011"=> 4,
+    "0111" => 5,
+    "1100" => 6,
+    "0011" => 7,
+    "1010" => 8,
+    "0101" => 9,
+    "1001" => 10,
+    "0110" => 11,
+    "0001" => 12,
+    "0010" => 13,
+    "0100" => 14,
+    "1000" => 15,
+    "0000" => 0
+)
 
 """
 Fake Optimal experiment design agent that makes arbitrary decisions
-
+prior : distribution over models
 """
 function fake_OED(prior)
     p1,p2,p3=prior
@@ -56,24 +73,7 @@ For now this just generates random priors.
 NOTE: This function assumes that the experiments are mapped to integer values from 0 to n experiments
 
 """
-experiment_to_int=Dict(
-    "1111"=>1, 
-    "1110" => 2 , 
-    "1101" => 3,
-    "1011"=> 4,
-    "0111" => 5,
-    "1100" => 6,
-    "0011" => 7,
-    "1010" => 8,
-    "0101" => 9,
-    "1001" => 10,
-    "0110" => 11,
-    "0001" => 12,
-    "0010" => 13,
-    "0100" => 14,
-    "1000" => 15,
-    "0000" => 0
-)
+
 function generate_custom_data(n_classes,OED,n_samples,epochs,sample_size)
     priors=zeros(Float64,(3,n_samples))
     for idx in 1:n_samples
@@ -96,7 +96,6 @@ function generate_custom_data(n_classes,OED,n_samples,epochs,sample_size)
     X=priors |> gpu
     return repeated((X,Y),epochs),X,Y
 end
-
 
 
 end 

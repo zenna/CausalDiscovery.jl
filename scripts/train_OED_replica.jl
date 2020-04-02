@@ -1,5 +1,4 @@
-push!( LOAD_PATH, "./" )
-include("/Users/francismccann/Urop2020/CausalDiscovery.jl/src/OED_NN.jl")
+using CausalDiscovery.OED_NN
 using CUDAapi
 using Flux
 using Flux, Flux.Data.MNIST, Statistics
@@ -11,6 +10,11 @@ if has_cuda()
     import CuArrays
     CuArrays.allowscalar(false)
 end
+
+EPOCHS=500
+train_dataset_size=8000
+test_dataset_size=100
+
 model=Chain(
 Dense(3,16,relu),
 Dense(16,32,relu),
@@ -20,8 +24,8 @@ Dense(32,16,relu),
 loss(x, y) = crossentropy(model(x), y)
 accuracy(x, y) = mean(onecold(cpu(model(x))) .== onecold(cpu(y)))
 
-train_dataset,train_x,train_y=generate_data(8000,500)
-test_dataset,test_x,test_y=generate_data(100,1)
+train_dataset,train_x,train_y=generate_data(train_dataset_size,EPOCHS)
+test_dataset,test_x,test_y=generate_data(test_dataset_size,1)
 evalcb=() -> @show (loss(train_x,train_y))
 opt=ADAM()
 
