@@ -1,6 +1,5 @@
-using CausalDiscovery.MCMC.Model, CausalDiscovery.MCMC.Grammar
+using CausalDiscovery.MCMC.Model
 
-include("../src/MCMC.jl/grammar.jl")
 include("../src/MCMC.jl/model.jl")
 
 #tree1
