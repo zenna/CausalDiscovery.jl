@@ -6,25 +6,7 @@ using Base.Iterators: repeated
 export int_to_experiment, fake_OED, generate_data
 using Distributions: Uniform
 
-##mapping from int to sequence 
-int_to_experiment=Dict(
-    1 => "HHHH", 
-    2 => "HHHT", 
-    3 => "HHTH",
-    4 => "HTHH",
-    5 => "THHH",
-    6 => "HHTT",
-    7 => "TTHH",
-    8 => "HTHT",
-    9 => "THTH",
-    10 => "HTTH",
-    11 => "THHT",
-    12 => "TTTH",
-    13 => "TTHT",
-    14 => "THTT",
-    15 => "HTTT",
-    16 => "TTTT"
-)
+
 
 """
 Fake Optimal experiment design agent that makes arbitrary decisions
@@ -74,7 +56,25 @@ For now this just generates random priors.
 NOTE: This function assumes that the experiments are mapped to integer values from 0 to n experiments
 
 """
-function generate_custom_data(n_classes,OED,n_samples,epochs)
+experiment_to_int=Dict(
+    "1111"=>1, 
+    "1110" => 2 , 
+    "1101" => 3,
+    "1011"=> 4,
+    "0111" => 5,
+    "1100" => 6,
+    "0011" => 7,
+    "1010" => 8,
+    "0101" => 9,
+    "1001" => 10,
+    "0110" => 11,
+    "0001" => 12,
+    "0010" => 13,
+    "0100" => 14,
+    "1000" => 15,
+    "0000" => 0
+)
+function generate_custom_data(n_classes,OED,n_samples,epochs,sample_size)
     priors=zeros(Float64,(3,n_samples))
     for idx in 1:n_samples
         first_prior=rand(Uniform(0.0,0.99),1)[1]
@@ -85,9 +85,14 @@ function generate_custom_data(n_classes,OED,n_samples,epochs)
     end
     labels=Any[]
     for prior in eachcol(priors)
-        push!(labels,OED(prior))
+        exp=OED(prior,sample_size)
+        sequence=""
+        for num in exp
+            sequence=sequence*string(num)
+        end
+        push!(labels,experiment_to_int[sequence])
     end
-    Y=onehotbatch(labels,0:n_classes)|> gpu
+    Y=onehotbatch(labels,0:n_classes-1)|> gpu
     X=priors |> gpu
     return repeated((X,Y),epochs),X,Y
 end
