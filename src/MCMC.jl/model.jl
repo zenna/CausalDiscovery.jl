@@ -1,6 +1,8 @@
 module Model
 
 include("./grammar.jl")
+import Pkg; Pkg.add("Random")
+import Pkg; Pkg.add("Distributions")
 
 using .Grammar
 using Random
