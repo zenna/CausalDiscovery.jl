@@ -22,15 +22,15 @@ NODE                                := DEFINITION
 
 /** BELOW ARE TERMINAL NODES */
 (node_index 13)  bool_binary_op     := '&' | '|'
-(node_index 14)  num_binary_op      := '+' | '-' | '*' | '\' 
+(node_index 14)  num_binary_op      := '+' | '-' | '*' | '\'
 
-(node_index 15) bool_var            := 'bool_var_1' | 'bool_var_2' | ... | 'bool_var_5' 
+(node_index 15) bool_var            := 'bool_var_1' | 'bool_var_2' | ... | 'bool_var_5'
 (node_index 16) int_var             := 'int_var_1' | 'int_var_2' | ... | 'int_var_5'
 (node_index 17) float_var           := 'float_var_1' | 'float_var_2' | ... | 'float_var_5'
 
 (node_index 18) bernoulli_params    := '0.0' | '0.1' | '0.2' | '0.3' | ... | '1.0'
 (node_index 19) normal_params       := /* finite number of (mean, variance) pairs */
-(node_index 20) uniform_params      := /* finite number of [start, end] intervals */ 
+(node_index 20) uniform_params      := /* finite number of [start, end] intervals */
 
 (node_index 21) float_dist          := Normal ( normal_params ) | Uniform( uniform_params )
 
@@ -133,20 +133,20 @@ nonterminal_indices_to_child_symbols = Dict(
           ["bool_var", "bool_var"],
           ["int_var", "int_var"],
           ["float_var", "float_var"]],
-    6 => [["bool_var", "bool_binary_op", "bool_var", "bool_var_list"], 
-          ["int_var", "num_binary_op", "int_var", "int_var_list"], 
+    6 => [["bool_var", "bool_binary_op", "bool_var", "bool_var_list"],
+          ["int_var", "num_binary_op", "int_var", "int_var_list"],
           ["float_var", "num_binary_op", "float_var", "float_var_list"]],
     7 => [["bool_var", "bool_var", "bool_var", "bool_var"],
           ["int_var", "bool_var", "int_var", "int_var"],
           ["float_var", "bool_var", "float_var", "float_var"]],
-    8 => [["bool_var", "bool_var_list"], 
+    8 => [["bool_var", "bool_var_list"],
           ["bool_var"]],
-    9 => [["int_var", "int_var_list"], 
+    9 => [["int_var", "int_var_list"],
           ["int_var"]],
-    10 => [["float_var", "float_var_list"], 
+    10 => [["float_var", "float_var_list"],
           ["float_var"]],
-    11 => [["bool_var"], 
-           ["int_var"], 
+    11 => [["bool_var"],
+           ["int_var"],
            ["float_var"]],
     12 => [["bernoulli_params"]],
     21 => [["normal_params"], ["uniform_params"]]

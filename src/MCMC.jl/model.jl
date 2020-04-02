@@ -1,7 +1,11 @@
 module Model
 
 include("./grammar.jl")
+
 using .Grammar
+using Random
+using Distributions
+
 """ ----- STRUCTS ----- """
 
 abstract type Node end
@@ -9,16 +13,16 @@ abstract type Node end
 """ Non-Terminal Node Struct """
 mutable struct NonTerminalNode <: Node
     tag # binary tuple (i, k) from non_terminal_id (N_i) and production_rule_id (R_ik)
-    symbol # string representing grammar symbol 
+    symbol # string representing grammar symbol
     node_position # tuple representing position of node in parse tree (a_E)
-    prob # probability associated with production_rule_id k 
+    prob # probability associated with production_rule_id k
     parent # parent node
     children # ordered list of child nodes
 end
 
 """ Terminal Node Struct """
 mutable struct TerminalNode <: Node
-    tag # binary tuple (i, k) from non_terminal_id (N_i) and production_rule_id (R_ik) 
+    tag # binary tuple (i, k) from non_terminal_id (N_i) and production_rule_id (R_ik)
     symbol # string representing grammar symbol
     node_position # tuple representing position of node in parse tree (a_E)
     prob # probability associated with terminal distribution
@@ -27,7 +31,7 @@ mutable struct TerminalNode <: Node
 end
 
 """ Empty Node Initializers """
-NonTerminalNode() = NonTerminalNode((), (), nothing, 1, nothing, []) 
+NonTerminalNode() = NonTerminalNode((), (), nothing, 1, nothing, [])
 TerminalNode() = TerminalNode((), (), 1, nothing, nothing, :())
 
 """ Tagged Parse Tree Struct """
@@ -39,6 +43,15 @@ end
 """ ----- METHODS ----- """
 
 """ Recursively construct random TaggedParseTree """
+function generateTree(rng)
+    Random.seed!(rng)
+    # initialize tree object and root node object
+    node_positions = []
+    root = generateTreeHelper(1, "expr", nothing, node_positions)
+    tree = TaggedParseTree(root, node_positions)
+    tree
+end
+
 function generateTree()
     # initialize tree object and root node object
     node_positions = []
@@ -52,7 +65,7 @@ function generateTreeHelper(node_index, symbol, parent_node, node_positions)
     node = isTerminalIndex(node_index) ? TerminalNode() : NonTerminalNode()
     node.parent = parent_node
 
-    # sample production rule 
+    # sample production rule
     production_rule_index, prob = getProductionRuleIndexAndProb(node_index)
     node.tag = (node_index, production_rule_index)
     node.symbol = symbol
@@ -63,9 +76,9 @@ function generateTreeHelper(node_index, symbol, parent_node, node_positions)
         node.value = getTerminalValue(node_index, production_rule_index)
 
         # construct new node_position
-        node_position = tuplejoin(parent_node.node_position, node.tag) 
+        node_position = tuplejoin(parent_node.node_position, node.tag)
         node.node_position = node_position
-        push!(node_positions, node_position)        
+        push!(node_positions, node_position)
     else
         # construct new node_position
         if (parent_node === nothing)
@@ -75,7 +88,7 @@ function generateTreeHelper(node_index, symbol, parent_node, node_positions)
         end
         node.node_position = node_position
         push!(node_positions, node_position)
-        
+
         # construct child nodes
         child_node_symbols = getSymbolsOfProductionRule(node_index, production_rule_index)
         for child_index in 1:length(child_node_symbols)
@@ -89,7 +102,7 @@ function generateTreeHelper(node_index, symbol, parent_node, node_positions)
 end
 
 """ Compute log probability of sampling TaggedParseTree """
-function getPriorLogProb(tree::TaggedParseTree) 
+function getPriorLogProb(tree::TaggedParseTree)
     getPriorLogProbHelper(tree.root_node)
 end
 
@@ -106,7 +119,7 @@ function getPriorLogProbHelper(node::Node)
 end
 
 """ Compute probability of sampling TaggedParseTree """
-function getPriorProb(tree::TaggedParseTree) 
+function getPriorProb(tree::TaggedParseTree)
     getPriorProbHelper(tree.root_node)
 end
 
@@ -126,15 +139,19 @@ function getConditionalLogProb(tree1::TaggedParseTree, tree2::TaggedParseTree)
     node_positions_1 = tree1.node_positions
     node_positions_2 = tree2.node_positions
 
-    intersection = intersect(node_positions_1, node_positions_2)
+    #find the node_positions only in tree2
+    tree2_only = setdiff(node_positions_2, node_positions_1)
+
     sum = 0.0
-    for pos in intersection
-        if pos == ()
-            sum += getPriorProb(tree2)
-        else
-            # find node at position pos in tree 2
-            node = findNodeWithPosition(tree2.root_node, pos)
-            sum += getPriorProbHelper(node)
+    #Loop through the node positions in tree2 and calculate the probability of
+    #getting the resulting tree from the current node if it is an ancestor of
+    #the node that is changed
+    for pos in node_positions_2
+        if length(pos)<=length(tree1_only[1])
+            if pos == tree1_only[1][1:length(pos)]
+                node = findNodeWithPosition(tree2.root_node, pos)
+                sum += getPriorProbHelper(node)
+            end
         end
     end
     return log(sum/length(node_positions_1))
@@ -147,23 +164,31 @@ function proposeTree(tree::TaggedParseTree)
 
     if (length(node_position) == 2)
         generateTree()
-    else    
-        # find node with uniformly randomly chosen node position    
+    else
+        # find node with uniformly randomly chosen node position
         node = findNodeWithPosition(copied_tree.root_node, node_position)
-        
+        #find the current position of the node so the new node can be inserted at the same location
+        node_index = findfirst(map(x->x == node, node.parent.children))
+
         # remove that node from node.parent.children
         if (node.parent !== nothing)
             filter!(child_node -> child_node.node_position != node_position, node.parent.children)
         end
-    
+
         filter!(pos -> !(length(pos) >= length(node_position) && pos[1:length(node_position)] == node_position), node_positions)
-    
         # generate new node at node_position
-        new_node = generateTreeHelper(node.tag[1], node.symbol, node.parent, node_positions)    
-    
+        new_node = generateTreeHelper(node.tag[1], node.symbol, node.parent, node_positions)
+
         # add new_node to new_node.parent.children
         if (node.parent !== nothing)
-            push!(new_node.parent.children, new_node)
+            if node_index>1
+                store = node.parent.children[1:node_index-1]
+            else
+                store = []
+            end
+            append!(append!(store, [new_node]), node.parent.children[node_index:length(node.parent.children)])
+            node.parent.children = store
+
         end
         copied_tree
     end
@@ -227,12 +252,12 @@ function getExprHelper(node::NonTerminalNode, arr)
         getExprHelper(children[2], arr)
     elseif (node_index == 4) # unary_endo_expr | binary_endo_expr | ternary_endo_expr
         getExprHelper(children[1], arr)
-    elseif (node_index == 5) # '!' bool_var | var 
+    elseif (node_index == 5) # '!' bool_var | var
         if (rule_index == 1)
             getExprHelper(children[1], arr)
             push!(arr, " = !")
             getExprHelper(children[2], arr)
-        elseif (rule_index == 2 || rule_index == 3 || rule_index == 4) 
+        elseif (rule_index == 2 || rule_index == 3 || rule_index == 4)
             getExprHelper(children[1], arr)
             push!(arr, " = ")
             getExprHelper(children[2], arr)
@@ -267,7 +292,7 @@ function getExprHelper(node::NonTerminalNode, arr)
     elseif (node_index == 12) # Bernoulli( bernoulli_params )
         push!(arr, "Bernoulli(")
         getExprHelper(children[1], arr)
-        push!(arr, ")")        
+        push!(arr, ")")
     elseif (node_index == 21)  # Normal ( normal_params ) | Uniform( uniform_params )
         if (rule_index == 1)
             push!(arr, "Normal")
