@@ -1,4 +1,4 @@
-using CausalDiscovery.OED_NN: int_to_experiment,fake_OED,generate_data
+using CausalDiscovery.OED_NN
 
 @testset "fake_OED" begin
   train_dataset,train_x,train_y=generate_data(8000,500)

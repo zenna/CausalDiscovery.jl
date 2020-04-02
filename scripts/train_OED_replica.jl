@@ -1,4 +1,5 @@
-using CausalDiscovery.OED_NN: int_to_experiment,fake_OED,generate_data
+push!( LOAD_PATH, "./" )
+include("/Users/francismccann/Urop2020/CausalDiscovery.jl/src/OED_NN.jl")
 using CUDAapi
 using Flux
 using Flux, Flux.Data.MNIST, Statistics
@@ -19,8 +20,8 @@ Dense(32,16,relu),
 loss(x, y) = crossentropy(model(x), y)
 accuracy(x, y) = mean(onecold(cpu(model(x))) .== onecold(cpu(y)))
 
-train_dataset,train_x,train_y=CausalDiscovery.generate_data(8000,500)
-test_dataset,test_x,test_y=CausalDiscovery.generate_data(100,1)
+train_dataset,train_x,train_y=generate_data(8000,500)
+test_dataset,test_x,test_y=generate_data(100,1)
 evalcb=() -> @show (loss(train_x,train_y))
 opt=ADAM()
 
