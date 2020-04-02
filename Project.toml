@@ -3,6 +3,10 @@ uuid = "d351d3f1-f7cd-4969-9389-1799ca719ed5"
 authors = ["Zenna Tavares"]
 version = "0.1.0"
 
+[deps]
+Distributions = "31c24e10-a181-5473-b8eb-7969acd0382f"
+Random = "9a3f8284-a2c9-5f02-9a11-845980a1fd5c"
+
 [compat]
 julia = "1"
 

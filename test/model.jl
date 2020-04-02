@@ -1,6 +1,6 @@
-# using CausalDiscovery.Model
+using CausalDiscovery.Model: generateTree, proposeTree, findNodeWithPosition, getExpr, getConditionalLogProb, getPriorProb
+# using CausalDiscovery.Grammer:
 
-include("../src/MCMC.jl/model.jl")
 
 #tree1
 # TaggedParseTree(

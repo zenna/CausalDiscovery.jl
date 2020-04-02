@@ -4,5 +4,5 @@ using Test
 @testset "CausalDiscovery.jl" begin
   # Write your own tests here.
   include("CISC.jl")
-  include("MCMC.jl")
+  include("model.jl")
 end

@@ -1,7 +1,7 @@
 module Model
 
 include("./grammar.jl")
-Pkg.add("Random")
+
 using .Grammar, Random, Distributions
 
 """ ----- STRUCTS ----- """
@@ -145,8 +145,8 @@ function getConditionalLogProb(tree1::TaggedParseTree, tree2::TaggedParseTree)
     #getting the resulting tree from the current node if it is an ancestor of
     #the node that is changed
     for pos in node_positions_2
-        if length(pos)<=length(tree1_only[1])
-            if pos == tree1_only[1][1:length(pos)]
+        if length(pos)<=length(tree2_only[1])
+            if pos == tree2_only[1][1:length(pos)]
                 node = findNodeWithPosition(tree2.root_node, pos)
                 sum += getPriorProbHelper(node)
             end
