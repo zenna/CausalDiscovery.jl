@@ -1,5 +1,5 @@
 module Grammar
-export tuplejoin, isTerminalIndex, getTerminalValue, getProductionRuleIndexAndProb, getNodeIndexFromSymbol, getSymbolsOfProductionRule,
+export tuplejoin, isTerminalIndex, getTerminalValue, getProductionRuleIndexAndProb, getNodeIndexFromSymbol, getSymbolsOfProductionRule
 
 """
 Grammar:
