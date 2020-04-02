@@ -1,8 +1,8 @@
 module Model
 
 include("./grammar.jl")
-
 using .Grammar, Random, Distributions
+export Node, NonTerminalNode, TerminalNode, TaggedParseTree, generateTree, getPriorLogProb, getPriorProb, getConditionalLogProb, proposeTree, getExpr
 
 """ ----- STRUCTS ----- """
 
