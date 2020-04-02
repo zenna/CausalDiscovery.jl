@@ -1,5 +1,7 @@
-import Pkg; Pkg.add("CausalDiscovery")
-using CausalDiscovery.MCMC
+using CausalDiscovery.MCMC.Model, CausalDiscovery.MCMC.Grammar
+
+include("../src/MCMC.jl/grammar.jl")
+include("../src/MCMC.jl/model.jl")
 
 #tree1
 # TaggedParseTree(
