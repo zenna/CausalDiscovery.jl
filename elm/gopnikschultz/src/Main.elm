@@ -93,11 +93,11 @@ view : Model -> Html Msg
 view model =
   div [][
     div [] [
-        button [onClick Original] [ Html.text "Original"],
-        button [onClick Cylinder] [Html.text "Blue Cylinder"],
-        button [onClick Box] [Html.text "Yellow Box"],
-        button [onClick Both] [Html.text "Both"]
-        ],
+      button [onClick Original] [ Html.text "Original"],
+      button [onClick Cylinder] [Html.text "Blue Cylinder"],
+      button [onClick Box] [Html.text "Yellow Box"],
+      button [onClick Both] [Html.text "Both"]
+    ],
     div [][model]
   ]
 
