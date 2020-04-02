@@ -2,9 +2,7 @@ module Model
 
 include("./grammar.jl")
 
-using .Grammar
-using Random
-using Distributions
+using .Grammar, Random, Distributions
 
 """ ----- STRUCTS ----- """
 
