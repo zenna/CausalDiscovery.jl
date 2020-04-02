@@ -1,5 +1,5 @@
 
-module OptimalDesign
+module OptimalDesignExperiment
 using StatsBase
 export Model, optimalexp, approxutility,approxKL,postsamp,countdict,analyticoptimalexp,approxKL,exactpost,coinoptimal,coinoptimalseq,coinposterior
 #a model is a struct of a name and a function which takes an experiment and outputs an observation
@@ -49,7 +49,7 @@ end
 """
 calculate the approximate KL-divergence between two samplers dist1, dist2
 """
-KL_sample_size = 100000
+KL_sample_size = 10000
 function approxKL(dist1,dist2)
   #firstsamples = [dist1() for i in 1:KL_sample_size]
   #secondsamples = [dist2() for i in 1:KL_sample_size]
@@ -80,7 +80,7 @@ function approxutility(exp,priorsamp)
       total += div
       KLdict[data] = div
     end
-    println(i)
+    #println(i)
   end
   total / util_sample_size
 end

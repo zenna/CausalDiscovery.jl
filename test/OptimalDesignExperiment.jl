@@ -1,5 +1,4 @@
-include("OptimalDesignExperiment.jl")
-using .OptimalDesign, Test
+using CausalDiscovery.OptimalDesignExperiment
 #all experiment sequences
 experiments = [[1,1,1,1],[1,1,1,0],[1,1,0,1],[1,1,0,0],[1,0,1,1],[1,0,1,0],
 [1,0,0,1],[1,0,0,0],[0,1,1,1],[0,1,1,0],[0,1,0,1],[0,1,0,0],[0,0,1,1],[0,0,1,0],
@@ -81,8 +80,6 @@ end
 function fairbiasedsamp()
   rand([m_fair,m_biased])
 end
-#@test optimalexp(allpriorsamp,experiments) in [[0,0,0,0],[1,1,1,1]]
-#@test optimalexp(markovbiasedsamp,experiments) in [[1,0,1,0],[0,1,0,1]]
 """
 faster special case of coin
 """
@@ -131,7 +128,11 @@ function biasedprob(exp,data)
   p_head^heads * (1 - p_head)^(length(data) - heads)
 end
 likelihoods = [fairprob, biasedprob, markovprob]
-println(analyticoptimalexp([1/3,1/3,1/3],allpriorsamp,likelihoods,experiments, 100000))
-println(analyticoptimalexp([1/2,1/2],markovbiasedsamp,[markovprob,biasedprob],experiments, 100000))
-println(coinoptimalseq([1/3,1/3,1/3],[((1,1,0,0),1),((0,1,0,0),0)],10000))
-println(coinoptimal([1/3,1/3,1/3],10000))
+@testset "CausalDiscovery.OptimalDesignExperiment" begin
+  @test optimalexp(allpriorsamp,experiments) in [[0,0,0,0],[1,1,1,1]]
+  @test optimalexp(markovbiasedsamp,experiments) in [[1,0,1,0],[0,1,0,1]]
+  @test analyticoptimalexp([1/3,1/3,1/3],allpriorsamp,likelihoods,experiments, 100000) in [[0,0,0,0],[1,1,1,1]]
+  @test analyticoptimalexp([1/2,1/2],markovbiasedsamp,[markovprob,biasedprob],experiments, 100000) in [[0,1,0,1],[1,0,1,0]]
+  @test coinoptimalseq([1/3,1/3,1/3],[((1,1,0,0),1),((0,1,0,0),0)],10000) in [[0,0,0,0],[1,1,1,1]]
+  @test coinoptimal([1/3,1/3,1/3],10000) in [[0,0,0,0],[1,1,1,1]]
+end
