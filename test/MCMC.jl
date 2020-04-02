@@ -1,4 +1,4 @@
-using CausalDiscovery.Model
+# using CausalDiscovery.Model
 
 include("../src/MCMC.jl/model.jl")
 
