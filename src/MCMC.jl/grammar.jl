@@ -1,5 +1,5 @@
 module Grammar
-export tuplejoin, isTerminalIndex, getTerminalValue, getProductionRuleIndexAndProb, getNodeIndexFromSymbol, getSymbolsOfProductionRule, getNodeIndex
+export tuplejoin, isTerminalIndex, getTerminalValue, getProductionRuleIndexAndProb, getNodeIndexFromSymbol, getSymbolsOfProductionRule,
 
 """
 Grammar:
@@ -107,14 +107,6 @@ function getProductionRuleIndexAndProb(node_index)
         throw(ArgumentError(""))
     end
     return rand(production_rule_indices), 1/length(production_rule_indices)
-end
-
-function getNodeIndex(symbol)
-    return symbols_to_node_indices[symbol]
-end
-
-function getSymbol(node_index, production_rule_index)
-    return nonterminal_indices_to_child_symbols[node_index][production_rule_index]
 end
 
 """ ----- GRAMMAR DATA STRUCTURES ----- """

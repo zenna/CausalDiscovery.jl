@@ -105,7 +105,7 @@ function getPriorLogProb(tree::TaggedParseTree)
 end
 
 function getPriorLogProbHelper(node::Node)
-    node_index = getNodeIndex(node.symbol)
+    node_index = getNodeIndexFromSymbol(node.symbol)
     log_prob = log(node.prob)
     if (!isTerminalIndex(node_index))
         log_prob = log(node.prob)
@@ -122,7 +122,7 @@ function getPriorProb(tree::TaggedParseTree)
 end
 
 function getPriorProbHelper(node::Node)
-    node_index = getNodeIndex(node.symbol)
+    node_index = getNodeIndexFromSymbol(node.symbol)
     prob = node.prob
     if (!isTerminalIndex(node_index))
         for child in node.children
@@ -230,7 +230,7 @@ function getExprHelper(node::TerminalNode, arr)
 end
 
 function getExprHelper(node::NonTerminalNode, arr)
-    node_index = getNodeIndex(node.symbol)
+    node_index = getNodeIndexFromSymbol(node.symbol)
     rule_index = node.tag[2]
     children = node.children
 
