@@ -1,5 +1,5 @@
-push!( LOAD_PATH, "./" )
-include("/Users/francismccann/Urop2020/CausalDiscovery.jl/src/OED_NN.jl")
+using CausalDiscovery.OED_NN
+using CausalDiscovery.OptimalDesign
 using CUDAapi
 using Flux
 using Flux, Flux.Data.MNIST, Statistics
@@ -13,10 +13,10 @@ if has_cuda()
 end
 EPOCHS=100
 OED_n_samples=1000
-train_dataset_size=5000
-test_dataset_size=100
+train_dataset_size=10000
+test_dataset_size=1000
 
-train_dataset,x_train,y_train=generate_custom_data(16,coinoptimal,train_dataset_size,Epochs,OED_n_samples)
+train_dataset,x_train,y_train=generate_custom_data(16,coinoptimal,train_dataset_size,EPOCHS,OED_n_samples)
 test_dataset,x_test,y_test=generate_custom_data(16,coinoptimal,test_dataset_size,1,OED_n_samples)
 model=Chain(
 Dense(3,16,relu),

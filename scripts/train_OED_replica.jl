@@ -12,8 +12,8 @@ if has_cuda()
 end
 
 EPOCHS=500
-train_dataset_size=8000
-test_dataset_size=100
+train_dataset_size=10000
+test_dataset_size=1000
 
 model=Chain(
 Dense(3,16,relu),

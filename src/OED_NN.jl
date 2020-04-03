@@ -3,7 +3,7 @@ using Flux
 using Flux, Flux.Data.MNIST, Statistics
 using Flux: onehotbatch, onecold, crossentropy, throttle
 using Base.Iterators: repeated
-export int_to_experiment, fake_OED, generate_data
+export int_to_experiment, fake_OED, generate_data, generate_priors, generate_custom_data
 using Distributions: Uniform
 
 experiment_to_int=Dict(
@@ -41,12 +41,11 @@ function fake_OED(prior)
     end
 end
 
-
 """
-Generates data from the fake OED
-
+generates random prior Distributions
 """
-function generate_data(n_samples,epochs)
+
+function  generate_priors(n_samples)
     priors=zeros(Float64,(3,n_samples))
     for idx in 1:n_samples
         first_prior=rand(Uniform(0.0,0.99),1)[1]
@@ -55,6 +54,14 @@ function generate_data(n_samples,epochs)
         prior=[first_prior,second_prior,third_prior]
         priors[:,idx]=prior
     end
+    return priors
+end
+"""
+Generates data from the fake OED
+
+"""
+function generate_data(n_samples,epochs)
+    priors=generate_priors(n_samples)
     labels=Any[]
     for prior in eachcol(priors)
         push!(labels,fake_OED(prior))
@@ -75,14 +82,7 @@ NOTE: This function assumes that the experiments are mapped to integer values fr
 """
 
 function generate_custom_data(n_classes,OED,n_samples,epochs,sample_size)
-    priors=zeros(Float64,(3,n_samples))
-    for idx in 1:n_samples
-        first_prior=rand(Uniform(0.0,0.99),1)[1]
-        second_prior=rand(Uniform(0.0,1-first_prior),1)[1]
-        third_prior=1.0-first_prior-second_prior
-        prior=[first_prior,second_prior,third_prior]
-        priors[:,idx]=prior
-    end
+    priors=generate_priors(n_samples)
     labels=Any[]
     for prior in eachcol(priors)
         exp=OED(prior,sample_size)
