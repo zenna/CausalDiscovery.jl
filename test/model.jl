@@ -1,4 +1,4 @@
-using CausalDiscovery.Model: generateTree, proposeTree, findNodeWithPosition, getExpr, getConditionalLogProb, getPriorProb
+using CausalDiscovery.Model: generateTree, proposeTree, findNodeWithPosition, getExpr, getConditionalLogProb, getPriorProb, getPriorLogProb
 # using CausalDiscovery.Grammer:
 
 
@@ -44,6 +44,11 @@ using CausalDiscovery.Model: generateTree, proposeTree, findNodeWithPosition, ge
     #test getPriorProb with proposed tree
     priorProb = getPriorProb(proposed)
     @test(isapprox(priorProb, expectedProb; .01))
+
+    #test getPriorLogProb
+    priorLogProb = getPriorLogProb(proposed)
+    expected = log(expectedProb)
+    @test(isapprox(priorLogProb, expected; 0.01))
 
     #testing conditional
     expectedConditional = log((1/6)*(1/5) + (1/6)*.00625 + (1/30)*(1/8) + (1/30)*(1/16))

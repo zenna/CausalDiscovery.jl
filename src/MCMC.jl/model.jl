@@ -10,27 +10,27 @@ abstract type Node end
 
 """ Non-Terminal Node Struct """
 mutable struct NonTerminalNode <: Node
-    tag # binary tuple (i, k) from non_terminal_id (N_i) and production_rule_id (R_ik)
-    symbol # string representing grammar symbol
-    node_position # tuple representing position of node in parse tree (a_E)
-    prob # probability associated with production_rule_id k
-    parent # parent node
-    children # ordered list of child nodes
+    tag:: Tuple  # binary tuple (i, k) from non_terminal_id (N_i) and production_rule_id (R_ik)
+    symbol  # string representing grammar symbol
+    node_position  # tuple representing position of node in parse tree (a_E)
+    prob:: Float64  # probability associated with production_rule_id k
+    parent  # parent node
+    children:: Array{Node} # ordered list of child nodes
 end
 
 """ Terminal Node Struct """
 mutable struct TerminalNode <: Node
-    tag # binary tuple (i, k) from non_terminal_id (N_i) and production_rule_id (R_ik)
-    symbol # string representing grammar symbol
+    tag:: Tuple  # binary tuple (i, k) from non_terminal_id (N_i) and production_rule_id (R_ik)
+    symbol  # string representing grammar symbol
     node_position # tuple representing position of node in parse tree (a_E)
-    prob # probability associated with terminal distribution
+    prob:: Float64 # probability associated with terminal distribution
     parent # parent node
     value # value of terminal node
 end
 
 """ Empty Node Initializers """
-NonTerminalNode() = NonTerminalNode((), (), nothing, 1, nothing, [])
-TerminalNode() = TerminalNode((), (), 1, nothing, nothing, :())
+NonTerminalNode() = NonTerminalNode((), (), 0, 1, nothing, [])
+TerminalNode() = TerminalNode((), (), 1, 0, nothing, :())
 
 """ Tagged Parse Tree Struct """
 mutable struct TaggedParseTree
@@ -41,6 +41,7 @@ end
 """ ----- METHODS ----- """
 
 """ Recursively construct random TaggedParseTree """
+
 function generateTree(rng)
     Random.seed!(rng)
     # initialize tree object and root node object
@@ -50,13 +51,7 @@ function generateTree(rng)
     tree
 end
 
-function generateTree()
-    # initialize tree object and root node object
-    node_positions = []
-    root = generateTreeHelper(1, "expr", nothing, node_positions)
-    tree = TaggedParseTree(root, node_positions)
-    tree
-end
+generateTree() = generateTree(Random.GLOBAL_RNG)
 
 """ Recursive helper function for constructing random TaggedParseTree """
 function generateTreeHelper(node_index, symbol, parent_node, node_positions)
