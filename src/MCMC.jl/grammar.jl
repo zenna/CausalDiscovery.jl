@@ -1,5 +1,5 @@
 module Grammar
-export tuplejoin, isTerminalIndex, getTerminalValue, getProductionRuleIndexAndProb, getNodeIndexFromSymbol, getSymbolsOfProductionRule
+export tuplejoin, isTerminalIndex, getTerminalValue, getProductionRuleIndexAndProb, getNodeIndexFromSymbol, getSymbolsOfProductionRule, add, subtract, mul, div
 
 """
 Grammar:
@@ -36,6 +36,52 @@ NODE                                := DEFINITION
 
 """
 
+""" Binary Operators """
+function add(args...)
+    total = 0
+    for arg in args
+        total += arg
+    end
+    total
+end
+
+function subtract(args...)
+    total = args[1]
+    for (i,) in enumerate(args)
+        if i != 1
+            total -= args[i]
+        end
+    end
+    total
+end
+
+function mul(args...)
+    total = 1
+    for arg in args
+        total *= arg
+    end
+    total
+end
+
+function div(args...) 
+    total = args[1]
+    for (i,) in enumerate(args)
+        if i != 1
+            if args[i] != 0
+                total /= args[i]
+            else
+                if total >= 0
+                    Inf
+                else
+                    -Inf
+                end
+            end
+        end
+    end
+    total
+end
+
+
 
 """ ----- GRAMMAR-RELATED UTILITY FUNCTIONS ----- """
 
@@ -60,7 +106,7 @@ function getTerminalValue(terminal_node_index, production_rule_index)
         if (terminal_node_index == 13)
             values = [:and, :or]
         elseif (terminal_node_index == 14)
-            values = [:plus, :subtract, :mul, :div]
+            values = [:add, :subtract, :mul, :div]
         elseif (terminal_node_index == 15)
             values = [:bool_var_1, :bool_var_2, :bool_var_3, :bool_var_4, :bool_var_5]
         elseif (terminal_node_index == 16)

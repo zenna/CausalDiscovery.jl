@@ -1,7 +1,8 @@
 module Model
 
 include("./grammar.jl")
-using .Grammar, Random, Distributions
+include("./CausalModels.jl")
+using .Grammar, .CausalModels, Random, Distributions
 export Node, NonTerminalNode, TerminalNode, TaggedParseTree, generateTree, getPriorLogProb, getPriorProb, getConditionalLogProb, proposeTree, getExpr
 
 """ ----- STRUCTS ----- """
@@ -40,8 +41,26 @@ end
 
 """ ----- METHODS ----- """
 
-""" Recursively construct random TaggedParseTree """
+""" Compute likelihood of data given TaggedParseTree """
+function getLikelihood(tree::TaggedParseTree, data::NamedTuple)
+    if (!isValid(tree))
+        0
+    else
+        treeExpr = getExpr(tree)
+        eval(SEM(treeExpr))
+        
+        # compute probability of data given tree 
+        
+    end
+end
 
+""" Check if TaggedParseTree is valid w.r.t variable order/contains data variables """
+function isValid(tree::TaggedParseTree, data::NamedTuple)
+
+end
+
+
+""" Recursively construct random TaggedParseTree """
 function generateTree(rng)
     Random.seed!(rng)
     # initialize tree object and root node object
