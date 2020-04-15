@@ -63,7 +63,7 @@ function mul(args...)
     total
 end
 
-function div(args...) 
+function div(args...)
     total = args[1]
     for (i,) in enumerate(args)
         if i != 1
@@ -118,7 +118,7 @@ function getTerminalValue(terminal_node_index, production_rule_index)
         elseif (terminal_node_index == 19)
             values = [(0, 1), (0, 0.5)]
         elseif (terminal_node_index == 20)
-            values = [[0, 1], [0, 0.5]]
+            values = [(0, 1), (0, 0.5)]
         end
         values[production_rule_index]
     else

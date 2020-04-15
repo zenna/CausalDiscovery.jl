@@ -2,8 +2,8 @@ module Model
 
 include("./grammar.jl")
 include("./CausalModels.jl")
-using .Grammar, .CausalModels, Random, Distributions
-export Node, NonTerminalNode, TerminalNode, TaggedParseTree, generateTree, getPriorLogProb, getPriorProb, getConditionalLogProb, proposeTree, getExpr, getLikelihood, isValid
+using .Grammar, .CausalModels, Random, Distributions, .SEMLang
+export Node, NonTerminalNode, TerminalNode, TaggedParseTree, generateTree, getPriorLogProb, getPriorProb, getConditionalLogProb, proposeTree, getExpr, isValid, getLikelihood
 
 """ ----- STRUCTS ----- """
 
@@ -65,9 +65,22 @@ function getLikelihood(tree::TaggedParseTree, data::NamedTuple)
     end
 end
 
+
 """ Check if TaggedParseTree is valid w.r.t variable order/contains data variables """
 function isValid(tree::TaggedParseTree, data::NamedTuple)
-
+    try
+        eval(SEM(getExpr(tree)))
+        variables = []
+        for name in keys(data)
+            push!(variables, name)
+        end
+        for var in variables
+            eval(var)
+        end
+    catch
+        return false
+    end
+    return true
 end
 
 
@@ -321,9 +334,8 @@ function getExprHelper(node::NonTerminalNode, arr)
             push!(arr, "Normal")
             getExprHelper(children[1], arr)
         elseif (rule_index == 2)
-            push!(arr, "Uniform(")
+            push!(arr, "Uniform")
             getExprHelper(children[1], arr)
-            push!(arr, ")")
         end
     else
         throw(ArgumentError(""))

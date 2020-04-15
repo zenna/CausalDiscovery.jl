@@ -1,4 +1,5 @@
-using CausalDiscovery.Model: generateTree, proposeTree, findNodeWithPosition, getExpr, getConditionalLogProb, getPriorProb, getPriorLogProb
+using CausalDiscovery.Model: generateTree, proposeTree, findNodeWithPosition, getExpr, getConditionalLogProb, getPriorProb, getPriorLogProb, isValid
+
 # using CausalDiscovery.Grammer:
 
 
@@ -67,4 +68,14 @@ using CausalDiscovery.Model: generateTree, proposeTree, findNodeWithPosition, ge
     expectedConditional = log((1/6)*(1/25)*((1/48)+(1/24)+(1/12)+(1/4)))
     conditional = getConditionalLogProb(tree3, proposed)
     @test(isapprox(conditional, expectedConditional; 0.01))
+
+    new_tree = generateTree(3)
+    #bool_var_4 = bool_var_5
+    #bool_var_5 ~ Bernoulli(0.1)
+    @test(isValid(new_tree, (a = "a",)) == false)
+
+    new_tree = generateTree(5)
+
+    @test(isValid(new_tree, (bool_var_4 = 1,)) == true)
+    @test(isValid(new_tree, (bool_var_7 = 1,)) == false)
 end
