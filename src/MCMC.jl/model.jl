@@ -40,9 +40,33 @@ mutable struct TaggedParseTree
 end
 
 """ ----- METHODS ----- """
+# Carries out the calculations for a markov chain with unknown
+# variables and bayesian-synthesis
+function markovChain(X, n, variables)
+    E = generateTree(variables)
+    for i in range(n)
+        E = generateNewExpression(X, E)
+    end
+    return E
+end
 
-""" Compute likelihood of data given TaggedParseTree 
-    CURRENTLY SHOULD ONLY BE USED WITH OBSERVATION DATA THAT ARE 
+# Creates a new tree and evaluates the likelihood then accepts
+# or returns the old tree
+function generateNewExpression(X, E)
+    newE = proposeTree(E)
+    lik = getLikelihood(E, X)
+    newLik = getLikelihood(newE, X)
+    p = min(1, length(E.node_positions)*newLik/(length(newE.node_positions)*Lik))
+    r = rand(Float64, (0,1))
+    if r<p
+        return newE
+    else
+        return E
+    end
+end
+
+""" Compute likelihood of data given TaggedParseTree
+    CURRENTLY SHOULD ONLY BE USED WITH OBSERVATION DATA THAT ARE
     DISCRETE DISTRIBUTIONS, E.G. BOOLEAN VARIABLES AND CATEGORICAL
     VARIABLES (need to add support for cateogorical variables to grammar)
 """
@@ -52,8 +76,8 @@ function getLikelihood(tree::TaggedParseTree, data::NamedTuple)
     else
         treeExpr = getExpr(tree)
         eval(SEM(treeExpr))
-        
-        # compute probability of data given tree 
+
+        # compute probability of data given tree
         # deconstruct data into array of variables and corresponding array of values
         variables = []
         values = []
@@ -85,7 +109,7 @@ end
 
 
 """ Recursively construct random TaggedParseTree """
-function generateTree(rng)
+function generateTree(rng::Int64)
     Random.seed!(rng)
     # initialize tree object and root node object
     node_positions = []
@@ -95,6 +119,10 @@ function generateTree(rng)
 end
 
 generateTree() = generateTree(Random.GLOBAL_RNG)
+
+function generateTree(variables::NamedTuple)
+    # do some stuff
+end
 
 """ Recursive helper function for constructing random TaggedParseTree """
 function generateTreeHelper(node_index, symbol, parent_node, node_positions)
