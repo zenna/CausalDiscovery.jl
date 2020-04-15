@@ -2,7 +2,7 @@
 module SEMLang
 
 # export @SEM, interpret, SEMSyntaxError
-export @SEM
+export SEM
 using ..CausalCore: ExogenousVariable, EndogenousVariable
 
 struct SEMSyntaxError <: Exception
@@ -39,7 +39,7 @@ function SEM(sem)
         throw(SEMSyntaxError())
       end
       push!(semlines, expr)
-    end    
+    end
   end
   Expr(:block, semlines...)
 end
