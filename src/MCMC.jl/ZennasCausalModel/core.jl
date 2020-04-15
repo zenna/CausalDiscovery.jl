@@ -1,108 +1,123 @@
 module CausalCore
 
-using Distributions: Distribution
+using Distributions
 using Statistics
-export ExogenousVariable, EndogenousVariable, intervene, randomsample, prob, cond
-
-abstract type Variable end
-
-"An exogenous variable with `dist` as prior distribution"
-struct ExogenousVariable{D <: Distribution} <: Variable
-  name::Symbol
-  dist::D
-end
-
-Base.show(io::IO, u::ExogenousVariable) = Base.print(io, "$(u.name) ~ $(u.dist)")
+export ExogenousVariable, EndogenousVariable, intervene, randomsample, prob
 
 """
-Endogenous variable `f(args)` where a ∈ args is:
-constant, exogenous or endogenous variable
+Struct for an exogenous variable.
 """
-struct EndogenousVariable{F, ARGS} <: Variable
-  func::F 
-  args::ARGS
+struct ExogenousVariable
+    name
+    distribution
 end
 
+"""
+Struct for an endogenous variable.
+"""
+struct EndogenousVariable
+    operator
+    parents
+end
 
-Base.show(io::IO, v::EndogenousVariable) = Base.print(io, "$(v.func)($(v.args...))")
+"""
+Evalutes an endogenous variable given values of parent variables.
+"""
+function (u::EndogenousVariable)(u_)
+    evaluated_vars = map(parent -> (parent)(u_), u.parents)
+    return reduce(u.operator, evaluated_vars)
+end
 
-# Treat constants as constant functions, i.e. f(x) = c
-apply(constant, u) = constant
-
-# u(u_)
-apply(u::ExogenousVariable, u_) = u_[u.name]
-
-"`v(u)` -- apply `v` to context `u`"
-apply(v::EndogenousVariable, u_) =
-  v.func(map(parent -> apply(parent, u_), v.args)...)
-
-# f(x) = apply(f, x)
-(v::Variable)(u) = apply(v, u)
-
-intervene(U::ExogenousVariable, X, x) = U
-
-function intervene(V::EndogenousVariable, X, x)
-  if V == X
-    EndogenousVariable(identity, (x,))
-  else
-    newargs = map(V.args) do parent
-      if parent == X
-        x
-      else
-        intervene(parent, X, x)
-      end
+"""
+Finds exogenous variable value from list of exogenous variable values.
+"""
+function (u::ExogenousVariable)(u_)
+    for name in keys(u_)
+        if u.name == name
+            return getindex(u_, name)
+        end
     end
-    EndogenousVariable(V.func, newargs)
+end
+
+"""
+Randomly samples value from a variable.
+"""
+function randomsample(u)
+    parent_values = Dict{Any,Any}()
+    randomsample_helper(u, parent_values)
+end
+
+function randomsample_helper(u::EndogenousVariable, dict::Dict{Any, Any})
+    if haskey(dict, u.name)
+      getindex(dict, u.name)
+    else
+      sample_values = map(parent -> randomsample_helper(parent, dict), u.parents)
+      val = u.operator(sample_values...)
+      push!(dict, u.name => val)
+      val
+    end
+end
+
+function randomsample_helper(u::ExogenousVariable, dict::Dict{Any, Any})
+    if haskey(dict, u.name)
+        getindex(dict, u.name)
+    else
+        val = rand(u.distribution)
+        push!(dict, u.name => val)
+        val
+    end
+end
+
+function randomsample_helper(u::Array, dict::Dict{Any, Any})
+  sample_values = []
+  for variable in u
+    sample_value = randomsample_helper(variable, dict)
+    push!(sample_values, sample_value)
   end
+  sample_values
 end
 
-## Sampling
-struct SampleU
-  vals::Dict{Symbol, Any}
-end
-
-function apply(u::ExogenousVariable, u_::SampleU)
-  get!(() -> rand(u.dist), u_.vals, u.name)
-end
-
-"Sample estimate of probability using `n` samples"
-prob(v; n = 1000000) = Statistics.mean([randomsample(v) for i = 1:n])
-
-"Conditional Endogenous Variable `A | B`"
-struct CondEndogenousVariable{A, B} <: Variable
-  a::A    # Arbitrary endogenous variable
-  b::B    # Boolean valued endogenous variable
-end
-
-"`a | b` -- `a` given that `b` is true"
-cond(a, b) = CondEndogenousVariable(a, b)
-
-"Error to be thrown when `v(u)` violates conditions`"
-struct UnsatisfiedCondition <: Exception
-end
-
-function apply(v::CondEndogenousVariable, u)
-  if Bool(v.b(u))
-    v.a(u)
-  else
-    throw(UnsatisfiedCondition())
-  end
-end
-
-"Sample from `v`"
-function randomsample(v)
-  # rejection sampling -- retry if unsatcondition thrown
-  while true
-    try
-      return v(SampleU(Dict()))
-    catch e
-      if e isa UnsatisfiedCondition
-        # do nothing
-      else
-        rethrow(e)
-      end
+"""
+Compute probability that u == val.
+"""
+function prob(u, val)
+  NSAMPS = 100000
+  total = 0
+  for i=1:NSAMPS
+    if randomsample(u) == val    
+      total += 1
     end
   end
+  total/NSAMPS
+end
+
+"""
+Constructs new endogenous variable based on an intervention of an existing variable.
+@param u1: endogenous variable that undergoes intervention.
+@param u2: exogenous variable that takes deterministic value under intervention.
+@param val: value of exogenous variable under intervention.
+"""
+function intervene(u1::EndogenousVariable, u2::ExogenousVariable, val) 
+    new_parents = map(parent -> intervene(parent, u2, val), u1.parents)
+    EndogenousVariable(u1.operator, new_parents)
+end
+
+"""
+Constructs new, deterministic exogenous variable based on an intervention.
+@param u1: exogenous variable that undergoes intervention.
+@param u2: exogenous variable that takes deterministic value under intervention.
+@param val: value of exogenous variable under intervention.
+"""
+function intervene(u1::ExogenousVariable, u2::ExogenousVariable, val) 
+    if (u1.name == u2.name)
+        if val == 0
+            ExogenousVariable(u1.name, Bernoulli(0))
+        else
+            ExogenousVariable(u1.name, Bernoulli(1))
+        end        
+    else
+        u1
+    end
 end
 
 end

@@ -3,7 +3,7 @@ module Model
 include("./grammar.jl")
 include("./CausalModels.jl")
 using .Grammar, .CausalModels, Random, Distributions
-export Node, NonTerminalNode, TerminalNode, TaggedParseTree, generateTree, getPriorLogProb, getPriorProb, getConditionalLogProb, proposeTree, getExpr
+export Node, NonTerminalNode, TerminalNode, TaggedParseTree, generateTree, getPriorLogProb, getPriorProb, getConditionalLogProb, proposeTree, getExpr, getLikelihood, isValid
 
 """ ----- STRUCTS ----- """
 
@@ -41,16 +41,27 @@ end
 
 """ ----- METHODS ----- """
 
-""" Compute likelihood of data given TaggedParseTree """
+""" Compute likelihood of data given TaggedParseTree 
+    CURRENTLY SHOULD ONLY BE USED WITH OBSERVATION DATA THAT ARE 
+    DISCRETE DISTRIBUTIONS, E.G. BOOLEAN VARIABLES AND CATEGORICAL
+    VARIABLES (need to add support for cateogorical variables to grammar)
+"""
 function getLikelihood(tree::TaggedParseTree, data::NamedTuple)
-    if (!isValid(tree))
+    if (!isValid(tree, data))
         0
     else
         treeExpr = getExpr(tree)
         eval(SEM(treeExpr))
         
         # compute probability of data given tree 
-        
+        # deconstruct data into array of variables and corresponding array of values
+        variables = []
+        values = []
+        for (var_name, val) in zip(keys(data), data)
+            push!(variables, eval(var_name))
+            push!(values, val)
+        end
+        prob(variables, values)
     end
 end
 
