@@ -1,12 +1,12 @@
 module Engine exposing (..)
 
 import List
-import Color
+import Color exposing (..)
 
 -- An object is a body
 type Object
   = Circle
-  | Box Position Int Int RGBA -- Origin Width Height Color (Scene -> Object)
+  | Box Position Int Int Color -- Origin Width Height Color (Scene -> Object)
 
 -- A Scalar field 
 type Field = FieldA | FieldB
@@ -21,30 +21,33 @@ type alias Scene = List Entity
 
 -- Premultiplied RGBA (red, green, blue, alpha)
 -- type alias RGBA = (Float, Float64, Float64, Float64)
-type alias RGBA = { red : Float, green : Float, blue : Float, alpha : Float }
+-- type alias Color = { red : Float, green : Float, blue : Float, alpha : Float }
 
-transparent = {red = 0.0, green = 0.0, blue = 0.0, alpha = 0.0}
-red = {red = 1.0, green = 0.0, blue = 0.0, alpha = 1.0}
-green = {red = 0.0, green = 1.0, blue = 0.0, alpha = 1.0}
-blue = {red = 0.0, green = 0.0, blue = 1.0, alpha = 1.0}
-type alias Pixel = { rgba : RGBA, pos : Position }
+transparent = fromRgba {red = 0.0, green = 0.0, blue = 0.0, alpha = 0.0}
+-- red = {red = 1.0, green = 0.0, blue = 0.0, alpha = 1.0}
+-- green = {red = 0.0, green = 1.0, blue = 0.0, alpha = 1.0}
+-- blue = {red = 0.0, green = 0.0, blue = 1.0, alpha = 1.0}
+type alias Pixel = { rgba : Color, pos : Position }
 
-alphacompose : RGBA -> RGBA -> RGBA
-alphacompose p q = 
+alphacompose : Color -> Color -> Color
+alphacompose p_ q_ = 
   let
+    p = toRgba p_
+    q = toRgba q_
     pacompl = 1 - p.alpha
     f = \ca cb -> ca + cb * pacompl
-  in
-  {
-    red = f p.red q.red,
-    green = f p.green q.green,
-    blue = f p.blue q.blue,
-    alpha = p.alpha + q.alpha * pacompl
-  }
+  in 
+  fromRgba
+    {
+      red = f p.red q.red,
+      green = f p.green q.green,
+      blue = f p.blue q.blue,
+      alpha = p.alpha + q.alpha * pacompl
+    }
   
 
 -- Alpha composition of multiple objects
-alphacomposeMany : List RGBA -> RGBA
+alphacomposeMany : List Color -> Color
 alphacomposeMany rgbs = 
   case rgbs of
     [] -> transparent
@@ -80,14 +83,14 @@ render scene width height =
 -- A Position is an (x, y) pair
 type alias Position = (Int, Int)
 
-field : Entity -> Position -> RGBA
+field : Entity -> Position -> Color
 field entity pos =
   case entity of
     ObjectTag object -> fieldObject object pos
     FieldTag fieldtag -> transparent
     ParticlesTag particletag -> transparent
 
-fieldObject : Object -> Position -> RGBA
+fieldObject : Object -> Position -> Color
 fieldObject object (x, y) = 
   case object of
     Box orig boxx boxy color -> transparent
