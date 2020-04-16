@@ -3,7 +3,7 @@ module Model
 include("./grammar.jl")
 include("./CausalModels.jl")
 using .Grammar, .CausalModels, Random, Distributions, .SEMLang
-export Node, NonTerminalNode, TerminalNode, TaggedParseTree, generateTree, getPriorLogProb, getPriorProb, getConditionalLogProb, proposeTree, getExpr, isValid, getLikelihood
+export Node, NonTerminalNode, TerminalNode, TaggedParseTree, generateTree, getPriorLogProb, getPriorProb, getConditionalLogProb, proposeTree, getExpr, isValid, getLikelihood, markovChain
 
 """ ----- STRUCTS ----- """
 
@@ -40,25 +40,58 @@ mutable struct TaggedParseTree
 end
 
 """ ----- METHODS ----- """
+# Set all variables to nothing
+function setVariablesToNothing()
+    strs = []
+    for index=1:5
+        for prefix in ["bool_var_", "float_var_", "int_var_"]
+            push!(strs, prefix)
+            push!(strs, string(index))
+            push!(strs, " = nothing;")
+        end
+    end
+    expr = Meta.parse(join(strs,""))
+    eval(expr)
+end
+
 # Carries out the calculations for a markov chain with unknown
-# variables and bayesian-synthesis
-function markovChain(X, n, variables)
-    E = generateTree(variables)
-    for i in range(n)
-        E = generateNewExpression(X, E)
+# variables and bayesian-synthesis.
+# X = observed data, n = number of iterations, variables = how many 
+# float, int, and bool variables to use
+function markovChain(observed_data::NamedTuple, num_iterations::Int64=1000, variables=nothing)
+    setVariablesToNothing()
+    if variables === nothing
+        E = generateTree()    
+    else
+        E = generateTree(variables)        
+    end
+
+    for i=1:num_iterations
+        println(join(["iteration: ", string(i)],""))
+        E = generateNewExpression(E, observed_data)
     end
     return E
 end
 
 # Creates a new tree and evaluates the likelihood then accepts
 # or returns the old tree
-function generateNewExpression(X, E)
-    newE = proposeTree(E)
-    lik = getLikelihood(E, X)
-    newLik = getLikelihood(newE, X)
-    p = min(1, length(E.node_positions)*newLik/(length(newE.node_positions)*Lik))
-    r = rand(Float64, (0,1))
-    if r<p
+function generateNewExpression(E, observed_data, variables=nothing)
+    if variables === nothing
+        newE = proposeTree(E)
+    else
+        newE = proposeTree(E, variables)
+    end
+    lik = getLikelihood(E, observed_data)
+    setVariablesToNothing()
+    newLik = getLikelihood(newE, observed_data)
+    setVariablesToNothing()
+    if lik == 0
+        p = 1
+    else
+        p = min(1, length(E.node_positions)*newLik/(length(newE.node_positions)*lik))
+    end
+    r = rand(Distributions.Uniform(0,1))
+    if r<=p
         return newE
     else
         return E
@@ -70,8 +103,8 @@ end
     DISCRETE DISTRIBUTIONS, E.G. BOOLEAN VARIABLES AND CATEGORICAL
     VARIABLES (need to add support for cateogorical variables to grammar)
 """
-function getLikelihood(tree::TaggedParseTree, data::NamedTuple)
-    if (!isValid(tree, data))
+function getLikelihood(tree::TaggedParseTree, observed_data::NamedTuple)
+    if (!isValid(tree, observed_data))
         0
     else
         treeExpr = getExpr(tree)
@@ -81,7 +114,7 @@ function getLikelihood(tree::TaggedParseTree, data::NamedTuple)
         # deconstruct data into array of variables and corresponding array of values
         variables = []
         values = []
-        for (var_name, val) in zip(keys(data), data)
+        for (var_name, val) in zip(keys(observed_data), observed_data)
             push!(variables, eval(var_name))
             push!(values, val)
         end
@@ -91,25 +124,43 @@ end
 
 
 """ Check if TaggedParseTree is valid w.r.t variable order/contains data variables """
-function isValid(tree::TaggedParseTree, data::NamedTuple)
+function isValid(tree::TaggedParseTree, observed_data::NamedTuple)
     try
-        eval(SEM(getExpr(tree)))
+        expr = getExpr(tree)
+        eval(SEM(expr))
+
+        # extract variables from expr; check if any extracted variable 
+        # is nothing; if so, return false
+        str_expr = repr(expr)
+        for index=1:5
+            for prefix in ["bool_var_", "int_var_", "float_var_"]
+                var_name = join([prefix, string(index)], "")
+                if (occursin(var_name, str_expr))
+                    if (eval(Meta.parse(var_name)) === nothing)
+                        return false
+                    end
+                end
+            end
+        end
+
         variables = []
-        for name in keys(data)
+        for name in keys(observed_data)
             push!(variables, name)
         end
         for var in variables
-            eval(var)
+            if !(occursin(string(var), str_expr))
+                return false
+            end
         end
+        true
     catch
-        return false
+        false
     end
-    return true
 end
 
 
 """ Recursively construct random TaggedParseTree """
-function generateTree(rng::Int64)
+function generateTree(rng::Random.AbstractRNG)
     Random.seed!(rng)
     # initialize tree object and root node object
     node_positions = []

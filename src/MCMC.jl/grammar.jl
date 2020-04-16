@@ -1,5 +1,5 @@
 module Grammar
-export tuplejoin, isTerminalIndex, getTerminalValue, getProductionRuleIndexAndProb, getNodeIndexFromSymbol, getSymbolsOfProductionRule, add, subtract, mul, div
+export tuplejoin, isTerminalIndex, getTerminalValue, getProductionRuleIndexAndProb, getNodeIndexFromSymbol, getSymbolsOfProductionRule, add, subtract, mul, divide
 
 """
 Grammar:
@@ -63,7 +63,7 @@ function mul(args...)
     total
 end
 
-function div(args...)
+function divide(args...)
     total = args[1]
     for (i,) in enumerate(args)
         if i != 1
@@ -80,7 +80,6 @@ function div(args...)
     end
     total
 end
-
 
 
 """ ----- GRAMMAR-RELATED UTILITY FUNCTIONS ----- """
@@ -106,7 +105,7 @@ function getTerminalValue(terminal_node_index, production_rule_index)
         if (terminal_node_index == 13)
             values = [:and, :or]
         elseif (terminal_node_index == 14)
-            values = [:add, :subtract, :mul, :div]
+            values = [:add, :subtract, :mul, :divide]
         elseif (terminal_node_index == 15)
             values = [:bool_var_1, :bool_var_2, :bool_var_3, :bool_var_4, :bool_var_5]
         elseif (terminal_node_index == 16)
