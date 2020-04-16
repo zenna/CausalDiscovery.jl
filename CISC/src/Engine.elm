@@ -1,11 +1,12 @@
 module Engine exposing (..)
 
 import List
+import Color
 
 -- An object is a body
 type Object
   = Circle
-  | Box Pos Int Int RGBA -- Origin Width Height Color (Scene -> Object)
+  | Box Position Int Int RGBA -- Origin Width Height Color (Scene -> Object)
 
 -- A Scalar field 
 type Field = FieldA | FieldB
@@ -20,25 +21,25 @@ type alias Scene = List Entity
 
 -- Premultiplied RGBA (red, green, blue, alpha)
 -- type alias RGBA = (Float, Float64, Float64, Float64)
-type alias RGBA = { r : Float, g : Float, b : Float, a : Float }
+type alias RGBA = { red : Float, green : Float, blue : Float, alpha : Float }
 
-transparent = {r = 0.0, g = 0.0, b = 0.0, a = 0.0}
-red = {r = 1.0, g = 0.0, b = 0.0, a = 1.0}
-green = {r = 0.0, g = 1.0, b = 0.0, a = 1.0}
-blue = {r = 0.0, g = 0.0, b = 1.0, a = 1.0}
+transparent = {red = 0.0, green = 0.0, blue = 0.0, alpha = 0.0}
+red = {red = 1.0, green = 0.0, blue = 0.0, alpha = 1.0}
+green = {red = 0.0, green = 1.0, blue = 0.0, alpha = 1.0}
+blue = {red = 0.0, green = 0.0, blue = 1.0, alpha = 1.0}
 type alias Pixel = { rgba : RGBA, pos : Position }
 
 alphacompose : RGBA -> RGBA -> RGBA
 alphacompose p q = 
   let
-    pacompl = 1 - p.a
+    pacompl = 1 - p.alpha
     f = \ca cb -> ca + cb * pacompl
   in
   {
-    r = f p.r q.r,
-    g = f p.g q.g,
-    b = f p.b q.b,
-    a = p.a + q.b * pacompl
+    red = f p.red q.red,
+    green = f p.green q.green,
+    blue = f p.blue q.blue,
+    alpha = p.alpha + q.alpha * pacompl
   }
   
 
@@ -52,7 +53,7 @@ alphacomposeMany rgbs =
     a::b::c -> List.foldl alphacompose a (b::c)
 
 -- An Image is a collection of Pixels
-type alias Image = List Pixel
+type alias Image = {pixels : List Pixel, width : Int, height : Int }
 
 type alias Width = Int
 type alias Height = Int
@@ -64,10 +65,17 @@ cartesian xs ys =
     (\x -> List.map ( \y -> (x, y) ) ys )
     xs
 
+-- Grid of pixels
+grid width height = cartesian (List.range 0 width) (List.range 0 height)
+
 -- Render object 
 render : Scene -> Width -> Height -> Image 
 render scene width height = 
-  List.map (\pos -> renderpixel scene pos) (cartesian (List.range 0 width) (List.range 0 height))
+  {
+    pixels = List.map (\pos -> renderpixel scene pos) (grid width height),
+    width = width,
+    height = height
+  }
 
 -- A Position is an (x, y) pair
 type alias Position = (Int, Int)
@@ -113,10 +121,6 @@ renderpixel scene pos =
 
 -- Render a scene to an svg
 -- rendertosvg : Scene -> Svg
-
--- Car Example
-car = Box (1, 1) 3 4 red
-tank = Box (2, 2) 1 2 yellow
 
 -- Questions
 -- How can the tank origin be tied to the box origin?
