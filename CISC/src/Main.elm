@@ -19,8 +19,8 @@ fakerenderpixel maxwidth maxheight ((x, y) as pos) =
   { rgba = Color.rgba 1.0 0.0 i i, pos = pos }
 
 -- A fake image
-gamewidth = 10
-gameheight = 10
+gamewidth = 5
+gameheight = 5
 
 fakeimage : Image
 fakeimage =
