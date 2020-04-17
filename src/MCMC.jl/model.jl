@@ -56,14 +56,14 @@ end
 
 # Carries out the calculations for a markov chain with unknown
 # variables and bayesian-synthesis.
-# X = observed data, n = number of iterations, variables = how many 
+# X = observed data, n = number of iterations, variables = how many
 # float, int, and bool variables to use
 function markovChain(observed_data::NamedTuple, num_iterations::Int64=1000, variables=nothing)
     setVariablesToNothing()
     if variables === nothing
-        E = generateTree()    
+        E = generateTree()
     else
-        E = generateTree(variables)        
+        E = generateTree(variables)
     end
 
     for i=1:num_iterations
@@ -129,7 +129,7 @@ function isValid(tree::TaggedParseTree, observed_data::NamedTuple)
         expr = getExpr(tree)
         eval(SEM(expr))
 
-        # extract variables from expr; check if any extracted variable 
+        # extract variables from expr; check if any extracted variable
         # is nothing; if so, return false
         str_expr = repr(expr)
         for index=1:5
@@ -143,11 +143,7 @@ function isValid(tree::TaggedParseTree, observed_data::NamedTuple)
             end
         end
 
-        variables = []
-        for name in keys(observed_data)
-            push!(variables, name)
-        end
-        for var in variables
+        for var in keys(observed_data)
             if !(occursin(string(var), str_expr))
                 return false
             end
@@ -160,7 +156,7 @@ end
 
 
 """ Recursively construct random TaggedParseTree """
-function generateTree(rng::Random.AbstractRNG)
+function generateTree(rng::Int64)
     Random.seed!(rng)
     # initialize tree object and root node object
     node_positions = []
@@ -170,6 +166,8 @@ function generateTree(rng::Random.AbstractRNG)
 end
 
 generateTree() = generateTree(Random.GLOBAL_RNG)
+
+# generateTree(rng::Int64) = generateTree(Random.AbstractRNG(rng))
 
 function generateTree(variables::NamedTuple)
     # do some stuff
