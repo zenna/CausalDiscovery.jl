@@ -26,7 +26,7 @@ clearScreen width height =
   shapes [ fill Color.white ] [ rect ( 0, 0 ) (toFloat width) (toFloat height) ]
 
 rectAtPos {rgba, pos} width height = 
-  shapes [ fill Color.red ] [ rect (toFloat (Tuple.first pos), toFloat (Tuple.second pos)) width height ]
+  shapes [ fill rgba ] [ rect (toFloat (Tuple.first pos) * width, toFloat (Tuple.second pos) * height) width height ]
 
 render image width height =
   let
