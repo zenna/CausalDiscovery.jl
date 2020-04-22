@@ -19,15 +19,13 @@ type Entity = ObjectTag Object | FieldTag Field | ParticlesTag Particles
 -- A Scene is simply a collection of entities
 type alias Scene = List Entity
 
--- Premultiplied RGBA (red, green, blue, alpha)
--- type alias RGBA = (Float, Float64, Float64, Float64)
--- type alias Color = { red : Float, green : Float, blue : Float, alpha : Float }
-
 transparent = fromRgba {red = 0.0, green = 0.0, blue = 0.0, alpha = 0.0}
--- red = {red = 1.0, green = 0.0, blue = 0.0, alpha = 1.0}
--- green = {red = 0.0, green = 1.0, blue = 0.0, alpha = 1.0}
--- blue = {red = 0.0, green = 0.0, blue = 1.0, alpha = 1.0}
-type alias Pixel = { rgba : Color, pos : Position }
+
+type alias Pixel =
+  { 
+    rgba : Color,
+    pos : Position
+  }
 
 alphacompose : Color -> Color -> Color
 alphacompose p_ q_ = 
@@ -50,7 +48,7 @@ alphacompose p_ q_ =
 alphacomposeMany : List Color -> Color
 alphacomposeMany rgbs = 
   case rgbs of
-    [] -> transparent
+    [] -> Color.red
     [x] -> x
     [x1, x2] -> alphacompose x1 x2
     a::b::c -> List.foldl alphacompose a (b::c)
@@ -83,17 +81,29 @@ render scene width height =
 -- A Position is an (x, y) pair
 type alias Position = (Int, Int)
 
+-- A Position `pos` what is the rgb of `entity`
 field : Entity -> Position -> Color
 field entity pos =
   case entity of
     ObjectTag object -> fieldObject object pos
-    FieldTag fieldtag -> transparent
+    FieldTag fieldtag -> Color.yellow
     ParticlesTag particletag -> transparent
+
+-- Is position within box?
+posInBox : Position -> Position -> Int -> Int  -> Bool
+posInBox (x, y) (origx, origy) boxwidth boxheight =
+  let
+    xlb = origx
+    xub = origx + boxwidth
+    ylb = origy
+    yub = origy + boxheight
+  in
+  x >= xlb && x <= xub && y >= ylb && y <= yub
 
 fieldObject : Object -> Position -> Color
 fieldObject object (x, y) = 
   case object of
-    Box orig boxx boxy color -> transparent
+    Box orig boxx boxy color -> if (posInBox (x, y) orig boxx boxy) then color else transparent
     Circle -> red
       
 
@@ -107,10 +117,7 @@ renderpixel scene pos =
       pos = pos
     }
 
-
- 
-
--- Update an object
+-- --  Update an object
 -- updateObject : Object -> Scene -> Object
 -- updateObject object scene =
 --   case object of
@@ -121,9 +128,6 @@ renderpixel scene pos =
 
 -- --- Update a scene
 -- update msg scene = List.map updateObject scene
-
--- Render a scene to an svg
--- rendertosvg : Scene -> Svg
 
 -- Questions
 -- How can the tank origin be tied to the box origin?

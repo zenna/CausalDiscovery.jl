@@ -11,7 +11,8 @@
             "elm/html": "1.0.0",
             "elm/svg": "1.0.1",
             "avh4/elm-color": "1.0.0",
-            "joakin/elm-canvas": "4.2.1"
+            "joakin/elm-canvas": "4.2.1",
+            "evancz/elm-playground": "1.0.3"
         },
         "indirect": {
             "elm/json": "1.1.3",
