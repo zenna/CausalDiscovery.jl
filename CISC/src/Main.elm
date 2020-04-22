@@ -14,7 +14,7 @@ scene : Scene
 scene = [ObjectTag tank, ObjectTag car]
 gasPumpPos = (1, 1)
 -- gasPumpPressed computer = computer == gasPumpPos
-gasPumpPressed computer = False
+gasPumpPressed computer = computer.mouse.click
 maxGas = 3
 
 moveObject object x y =

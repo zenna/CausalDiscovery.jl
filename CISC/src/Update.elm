@@ -61,6 +61,7 @@ mouseMove x y mouse =
 pomdpUpdate updateMemory msg (POMDP memory computer) =
   case msg of
     Tick time ->
+      -- POMDP computer memory 
       POMDP (updateMemory computer memory) <|
         if computer.mouse.click
         then { computer | time = Time time, mouse = mouseClick False computer.mouse }
