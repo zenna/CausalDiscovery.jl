@@ -34,7 +34,7 @@ update computer {objects, latent} =
   let
     tankLevel = latent
     newTank = if gasPumpPressed computer then maxGas else tankLevel - 1
-    moveObjects = List.map (\o -> move o 1 1) objects
+    moveObjects = if tankLevel > 0 then List.map (\o -> move o 1 1) objects else objects
   in
   { 
     objects = moveObjects,
