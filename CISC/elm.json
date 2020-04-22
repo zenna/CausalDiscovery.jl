@@ -14,9 +14,12 @@
             "elm/svg": "1.0.1",
             "elm/time": "1.0.0",
             "evancz/elm-playground": "1.0.3",
-            "joakin/elm-canvas": "4.2.1"
+            "joakin/elm-canvas": "4.2.1",
+            "mpizenberg/elm-pointer-events": "4.0.2"
         },
         "indirect": {
+            "elm/bytes": "1.0.8",
+            "elm/file": "1.0.5",
             "elm/url": "1.0.0",
             "elm/virtual-dom": "1.0.2"
         }

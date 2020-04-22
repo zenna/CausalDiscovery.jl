@@ -1,6 +1,6 @@
 module Main exposing (..)
 
-import Render exposing (..)
+-- import Render exposing (..)
 import Engine exposing (..)
 import Color
 import Update exposing (..)
