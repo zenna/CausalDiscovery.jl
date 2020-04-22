@@ -18,7 +18,7 @@ view image width height =
         ]
         [ Canvas.toHtml
             ( width, height )
-            [ style "border" "10px solid rgba(0,0,0,0.1)" ]
+            [ ]
             (clearScreen width height :: render image width height)
         ]
 
@@ -26,7 +26,7 @@ clearScreen width height =
   shapes [ fill Color.white ] [ rect ( 0, 0 ) (toFloat width) (toFloat height) ]
 
 rectAtPos {rgba, pos} width height = 
-  shapes [ fill rgba ] [ rect (toFloat (Tuple.first pos) * width, toFloat (Tuple.second pos) * height) width height ]
+  shapes [ fill rgba, stroke Color.black ] [ rect (toFloat (Tuple.first pos) * width, toFloat (Tuple.second pos) * height) width height ]
 
 render image width height =
   let
