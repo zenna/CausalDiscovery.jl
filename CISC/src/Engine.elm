@@ -51,7 +51,10 @@ alphacomposeMany rgbs =
     [] -> Color.red
     [x] -> x
     [x1, x2] -> alphacompose x1 x2
+    [x1, x2, x3] -> alphacompose (alphacompose x1 x2) x3
     a::b::c -> List.foldl alphacompose a (b::c)
+
+
 
 -- An Image is a collection of Pixels
 type alias Image = {pixels : List Pixel, width : Int, height : Int }

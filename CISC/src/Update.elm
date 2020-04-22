@@ -22,8 +22,8 @@ import Html.Events.Extra.Mouse as Mouse
 
 htmlwidth = 400
 htmlheight = 400
-gamewidth = 8
-gameheight = 8
+gamewidth = 16
+gameheight = 16
 
 -- SUBSCRIPTIONS
 
