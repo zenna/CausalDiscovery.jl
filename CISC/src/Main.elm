@@ -13,14 +13,23 @@ tank = Box (2, 2) 1 2 Color.red
 scene : Scene
 scene = [ObjectTag tank, ObjectTag car]
 gasPumpPos = (1, 1)
-gasPumpPressed computer = computer == gasPumpPos
+-- gasPumpPressed computer = computer == gasPumpPos
+gasPumpPressed computer = False
 maxGas = 3
 
-move object x y =
+moveObject object x y =
   case object of
     Box (x_, y_) width height color -> Box (x + x_, y + y_) width height color
     Circle -> Circle
 
+move entity x y = 
+  case entity of
+    ObjectTag object -> ObjectTag (moveObject object x y)
+    FieldTag field -> FieldTag field
+    ParticlesTag particles -> ParticlesTag particles
+
+type alias Model = {objects : List Entity, latent : Int}
+update : Computer -> Model -> Model
 update computer {objects, latent} = 
   let
     tankLevel = latent
