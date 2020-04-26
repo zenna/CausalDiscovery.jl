@@ -67,10 +67,14 @@ function markovChain(observed_data::NamedTuple, num_iterations::Int64=1000, vari
     end
 
     for i=1:num_iterations
-        println(join(["iteration: ", string(i)],""))
+        #println(join(["iteration: ", string(i)],""))
         E = generateNewExpression(E, observed_data)
     end
-    return E
+    if getLikelihood(E, observed_data) > 0
+        E
+    else
+        nothing
+    end
 end
 
 # Creates a new tree and evaluates the likelihood then accepts
@@ -85,6 +89,7 @@ function generateNewExpression(E, observed_data, variables=nothing)
     setVariablesToNothing()
     newLik = getLikelihood(newE, observed_data)
     setVariablesToNothing()
+    println(join(["lik: ", string(lik), " newLik: ", string(newLik), " "]," "))
     if lik == 0
         p = 1
     else
@@ -148,6 +153,7 @@ function isValid(tree::TaggedParseTree, observed_data::NamedTuple)
                 return false
             end
         end
+        #println("here!")
         true
     catch
         false
