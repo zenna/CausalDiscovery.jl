@@ -16,8 +16,8 @@ import Browser.Events exposing (onAnimationFrameDelta)
 import Html exposing (Html, div, text)
 import Html.Attributes exposing (style)
 import String
+import List
 import Html.Events.Extra.Mouse as Mouse
-
 
 
 htmlwidth = 400
