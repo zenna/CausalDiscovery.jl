@@ -148,8 +148,10 @@ function isValid(tree::TaggedParseTree, observed_data::NamedTuple)
             end
         end
 
-        for var in keys(observed_data)
-            if !(occursin(string(var), str_expr))
+
+        for name in keys(observed_data)
+            #println(name)
+            if !(occursin(string(name), str_expr))
                 return false
             end
         end

@@ -60,37 +60,18 @@ newBarrier (x, y) =
 
 yPos seed =
   Random.step (Random.int 0 15) seed
-  --if current==0 then
-  --      (3, 15)
-  --else if current==3 then
-  --  (9, 15)
-  --else if current==9 then
-  --  (15, 15)
-  --else if current==15 then
-  --  (4, 15)
-  --else if current==4 then
-  --  (7, 15)
-  --else if current==7 then
-  --  (8, 15)
-  --else if current==8 then
-  --  (2, 15)
-  --else if current==2 then
-  --  (13, 15)
-  --else if current==13 then
-  --  (0, 15)
-  --else
-  --  (-1, 15)
 
+
+getX computer = round (computer.mouse.x/25 - 0.5)
+getY computer = round (computer.mouse.y/25 - 0.5)
 
 gasPumpPressed computer = computer.mouse.click
 
--- type alias Model = {objects : List Entity, latent : Int}
--- update : Computer -> Model -> Model
 update computer {objects, latent} =
   let
 
     (carOrigx, carOrigy) = latent.carOrig
-    (newBarrierX, newBarrierY) = if gasPumpPressed computer then (computer.mouse.x/25, computer.mouse.y/25) else latent.barrierOrigin
+    (newBarrierX, newBarrierY) = if gasPumpPressed computer then (toFloat (getX computer), toFloat (getY computer)) else latent.barrierOrigin
     newBarrierOrig = (round newBarrierX, round newBarrierY)
     newBarrierPositions = getBarrierPositions newBarrierOrig
     newBarrierList = [makeBarrier (round newBarrierX, round newBarrierY)]
