@@ -80,87 +80,6 @@ function A9(fun, a, b, c, d, e, f, g, h, i) {
 console.warn('Compiled in DEV mode. Follow the advice at https://elm-lang.org/0.19.1/optimize for better performance and smaller assets.');
 
 
-var _List_Nil_UNUSED = { $: 0 };
-var _List_Nil = { $: '[]' };
-
-function _List_Cons_UNUSED(hd, tl) { return { $: 1, a: hd, b: tl }; }
-function _List_Cons(hd, tl) { return { $: '::', a: hd, b: tl }; }
-
-
-var _List_cons = F2(_List_Cons);
-
-function _List_fromArray(arr)
-{
-	var out = _List_Nil;
-	for (var i = arr.length; i--; )
-	{
-		out = _List_Cons(arr[i], out);
-	}
-	return out;
-}
-
-function _List_toArray(xs)
-{
-	for (var out = []; xs.b; xs = xs.b) // WHILE_CONS
-	{
-		out.push(xs.a);
-	}
-	return out;
-}
-
-var _List_map2 = F3(function(f, xs, ys)
-{
-	for (var arr = []; xs.b && ys.b; xs = xs.b, ys = ys.b) // WHILE_CONSES
-	{
-		arr.push(A2(f, xs.a, ys.a));
-	}
-	return _List_fromArray(arr);
-});
-
-var _List_map3 = F4(function(f, xs, ys, zs)
-{
-	for (var arr = []; xs.b && ys.b && zs.b; xs = xs.b, ys = ys.b, zs = zs.b) // WHILE_CONSES
-	{
-		arr.push(A3(f, xs.a, ys.a, zs.a));
-	}
-	return _List_fromArray(arr);
-});
-
-var _List_map4 = F5(function(f, ws, xs, ys, zs)
-{
-	for (var arr = []; ws.b && xs.b && ys.b && zs.b; ws = ws.b, xs = xs.b, ys = ys.b, zs = zs.b) // WHILE_CONSES
-	{
-		arr.push(A4(f, ws.a, xs.a, ys.a, zs.a));
-	}
-	return _List_fromArray(arr);
-});
-
-var _List_map5 = F6(function(f, vs, ws, xs, ys, zs)
-{
-	for (var arr = []; vs.b && ws.b && xs.b && ys.b && zs.b; vs = vs.b, ws = ws.b, xs = xs.b, ys = ys.b, zs = zs.b) // WHILE_CONSES
-	{
-		arr.push(A5(f, vs.a, ws.a, xs.a, ys.a, zs.a));
-	}
-	return _List_fromArray(arr);
-});
-
-var _List_sortBy = F2(function(f, xs)
-{
-	return _List_fromArray(_List_toArray(xs).sort(function(a, b) {
-		return _Utils_cmp(f(a), f(b));
-	}));
-});
-
-var _List_sortWith = F2(function(f, xs)
-{
-	return _List_fromArray(_List_toArray(xs).sort(function(a, b) {
-		var ord = A2(f, a, b);
-		return ord === $elm$core$Basics$EQ ? 0 : ord === $elm$core$Basics$LT ? -1 : 1;
-	}));
-});
-
-
-
 var _JsArray_empty = [];
 
 function _JsArray_singleton(value)
@@ -790,6 +709,87 @@ function _Utils_ap(xs, ys)
 	}
 	return root;
 }
+
+
+
+var _List_Nil_UNUSED = { $: 0 };
+var _List_Nil = { $: '[]' };
+
+function _List_Cons_UNUSED(hd, tl) { return { $: 1, a: hd, b: tl }; }
+function _List_Cons(hd, tl) { return { $: '::', a: hd, b: tl }; }
+
+
+var _List_cons = F2(_List_Cons);
+
+function _List_fromArray(arr)
+{
+	var out = _List_Nil;
+	for (var i = arr.length; i--; )
+	{
+		out = _List_Cons(arr[i], out);
+	}
+	return out;
+}
+
+function _List_toArray(xs)
+{
+	for (var out = []; xs.b; xs = xs.b) // WHILE_CONS
+	{
+		out.push(xs.a);
+	}
+	return out;
+}
+
+var _List_map2 = F3(function(f, xs, ys)
+{
+	for (var arr = []; xs.b && ys.b; xs = xs.b, ys = ys.b) // WHILE_CONSES
+	{
+		arr.push(A2(f, xs.a, ys.a));
+	}
+	return _List_fromArray(arr);
+});
+
+var _List_map3 = F4(function(f, xs, ys, zs)
+{
+	for (var arr = []; xs.b && ys.b && zs.b; xs = xs.b, ys = ys.b, zs = zs.b) // WHILE_CONSES
+	{
+		arr.push(A3(f, xs.a, ys.a, zs.a));
+	}
+	return _List_fromArray(arr);
+});
+
+var _List_map4 = F5(function(f, ws, xs, ys, zs)
+{
+	for (var arr = []; ws.b && xs.b && ys.b && zs.b; ws = ws.b, xs = xs.b, ys = ys.b, zs = zs.b) // WHILE_CONSES
+	{
+		arr.push(A4(f, ws.a, xs.a, ys.a, zs.a));
+	}
+	return _List_fromArray(arr);
+});
+
+var _List_map5 = F6(function(f, vs, ws, xs, ys, zs)
+{
+	for (var arr = []; vs.b && ws.b && xs.b && ys.b && zs.b; vs = vs.b, ws = ws.b, xs = xs.b, ys = ys.b, zs = zs.b) // WHILE_CONSES
+	{
+		arr.push(A5(f, vs.a, ws.a, xs.a, ys.a, zs.a));
+	}
+	return _List_fromArray(arr);
+});
+
+var _List_sortBy = F2(function(f, xs)
+{
+	return _List_fromArray(_List_toArray(xs).sort(function(a, b) {
+		return _Utils_cmp(f(a), f(b));
+	}));
+});
+
+var _List_sortWith = F2(function(f, xs)
+{
+	return _List_fromArray(_List_toArray(xs).sort(function(a, b) {
+		var ord = A2(f, a, b);
+		return ord === $elm$core$Basics$EQ ? 0 : ord === $elm$core$Basics$LT ? -1 : 1;
+	}));
+});
 
 
 
@@ -1641,6 +1641,43 @@ function _Json_addEntry(func)
 }
 
 var _Json_encodeNull = _Json_wrap(null);
+
+
+
+var _Bitwise_and = F2(function(a, b)
+{
+	return a & b;
+});
+
+var _Bitwise_or = F2(function(a, b)
+{
+	return a | b;
+});
+
+var _Bitwise_xor = F2(function(a, b)
+{
+	return a ^ b;
+});
+
+function _Bitwise_complement(a)
+{
+	return ~a;
+};
+
+var _Bitwise_shiftLeftBy = F2(function(offset, a)
+{
+	return a << offset;
+});
+
+var _Bitwise_shiftRightBy = F2(function(offset, a)
+{
+	return a >> offset;
+});
+
+var _Bitwise_shiftRightZfBy = F2(function(offset, a)
+{
+	return a >>> offset;
+});
 
 
 
@@ -4401,8 +4438,6 @@ function _Time_getZoneName()
 		callback(_Scheduler_succeed(name));
 	});
 }
-var $elm$core$Basics$EQ = {$: 'EQ'};
-var $elm$core$Basics$LT = {$: 'LT'};
 var $elm$core$List$cons = _List_cons;
 var $elm$core$Elm$JsArray$foldr = _JsArray_foldr;
 var $elm$core$Array$foldr = F3(
@@ -4480,99 +4515,9 @@ var $elm$core$Set$toList = function (_v0) {
 	var dict = _v0.a;
 	return $elm$core$Dict$keys(dict);
 };
+var $elm$core$Basics$EQ = {$: 'EQ'};
 var $elm$core$Basics$GT = {$: 'GT'};
-var $author$project$Magnet$initMobileMagnetMinus = _Utils_Tuple2(4, 8);
-var $author$project$Magnet$initMobileMagnetPlus = _Utils_Tuple2(4, 7);
-var $author$project$Engine$Box = F4(
-	function (a, b, c, d) {
-		return {$: 'Box', a: a, b: b, c: c, d: d};
-	});
-var $author$project$Engine$ObjectTag = function (a) {
-	return {$: 'ObjectTag', a: a};
-};
-var $avh4$elm_color$Color$RgbaSpace = F4(
-	function (a, b, c, d) {
-		return {$: 'RgbaSpace', a: a, b: b, c: c, d: d};
-	});
-var $elm$core$Basics$fdiv = _Basics_fdiv;
-var $avh4$elm_color$Color$blue = A4($avh4$elm_color$Color$RgbaSpace, 52 / 255, 101 / 255, 164 / 255, 1.0);
-var $author$project$Magnet$fixedMagnetMinusX = 7;
-var $author$project$Magnet$fixedMagnetMinusY = 8;
-var $author$project$Magnet$fixedMagnetPlusX = 7;
-var $author$project$Magnet$fixedMagnetPlusY = 7;
-var $avh4$elm_color$Color$green = A4($avh4$elm_color$Color$RgbaSpace, 115 / 255, 210 / 255, 22 / 255, 1.0);
-var $avh4$elm_color$Color$red = A4($avh4$elm_color$Color$RgbaSpace, 204 / 255, 0 / 255, 0 / 255, 1.0);
-var $author$project$Magnet$objectsFromOrig = F2(
-	function (_v0, _v1) {
-		var xPlus = _v0.a;
-		var yPlus = _v0.b;
-		var xMinus = _v1.a;
-		var yMinus = _v1.b;
-		var upBox = A4(
-			$author$project$Engine$Box,
-			_Utils_Tuple2(7, 0),
-			0,
-			0,
-			$avh4$elm_color$Color$green);
-		var rightBox = A4(
-			$author$project$Engine$Box,
-			_Utils_Tuple2(15, 7),
-			0,
-			0,
-			$avh4$elm_color$Color$green);
-		var mobileMagnetPlus = A4(
-			$author$project$Engine$Box,
-			_Utils_Tuple2(xPlus, yPlus),
-			0,
-			0,
-			$avh4$elm_color$Color$red);
-		var mobileMagnetMinus = A4(
-			$author$project$Engine$Box,
-			_Utils_Tuple2(xMinus, yMinus),
-			0,
-			0,
-			$avh4$elm_color$Color$blue);
-		var leftBox = A4(
-			$author$project$Engine$Box,
-			_Utils_Tuple2(0, 7),
-			0,
-			0,
-			$avh4$elm_color$Color$green);
-		var fixedMagnetPlus = A4(
-			$author$project$Engine$Box,
-			_Utils_Tuple2($author$project$Magnet$fixedMagnetPlusX, $author$project$Magnet$fixedMagnetPlusY),
-			0,
-			0,
-			$avh4$elm_color$Color$red);
-		var fixedMagnetMinus = A4(
-			$author$project$Engine$Box,
-			_Utils_Tuple2($author$project$Magnet$fixedMagnetMinusX, $author$project$Magnet$fixedMagnetMinusY),
-			0,
-			0,
-			$avh4$elm_color$Color$blue);
-		var downBox = A4(
-			$author$project$Engine$Box,
-			_Utils_Tuple2(7, 15),
-			0,
-			0,
-			$avh4$elm_color$Color$green);
-		return _List_fromArray(
-			[
-				$author$project$Engine$ObjectTag(fixedMagnetPlus),
-				$author$project$Engine$ObjectTag(fixedMagnetMinus),
-				$author$project$Engine$ObjectTag(mobileMagnetPlus),
-				$author$project$Engine$ObjectTag(mobileMagnetMinus),
-				$author$project$Engine$ObjectTag(upBox),
-				$author$project$Engine$ObjectTag(downBox),
-				$author$project$Engine$ObjectTag(leftBox),
-				$author$project$Engine$ObjectTag(rightBox)
-			]);
-	});
-var $author$project$Magnet$initScene = A2($author$project$Magnet$objectsFromOrig, $author$project$Magnet$initMobileMagnetPlus, $author$project$Magnet$initMobileMagnetMinus);
-var $author$project$Update$POMDP = F2(
-	function (a, b) {
-		return {$: 'POMDP', a: a, b: b};
-	});
+var $elm$core$Basics$LT = {$: 'LT'};
 var $elm$core$Result$Err = function (a) {
 	return {$: 'Err', a: a};
 };
@@ -4821,6 +4766,7 @@ var $elm$core$Array$Array_elm_builtin = F4(
 	});
 var $elm$core$Elm$JsArray$empty = _JsArray_empty;
 var $elm$core$Basics$ceiling = _Basics_ceiling;
+var $elm$core$Basics$fdiv = _Basics_fdiv;
 var $elm$core$Basics$logBase = F2(
 	function (base, number) {
 		return _Basics_log(number) / _Basics_log(base);
@@ -4967,9 +4913,158 @@ var $elm$core$Result$isOk = function (result) {
 		return false;
 	}
 };
+var $elm$json$Json$Decode$succeed = _Json_succeed;
+var $author$project$Traffic$barrierOrig = _Utils_Tuple2(7, 4);
+var $author$project$Traffic$barrierPoss = _List_fromArray(
+	[
+		_Utils_Tuple2(7, 4),
+		_Utils_Tuple2(8, 4)
+	]);
+var $author$project$Traffic$carPos = _Utils_Tuple2(0, 15);
+var $author$project$Traffic$carPoss = _List_fromArray(
+	[
+		_Utils_Tuple2(0, 15)
+	]);
+var $author$project$Engine$Box = F4(
+	function (a, b, c, d) {
+		return {$: 'Box', a: a, b: b, c: c, d: d};
+	});
+var $author$project$Engine$ObjectTag = function (a) {
+	return {$: 'ObjectTag', a: a};
+};
+var $avh4$elm_color$Color$RgbaSpace = F4(
+	function (a, b, c, d) {
+		return {$: 'RgbaSpace', a: a, b: b, c: c, d: d};
+	});
+var $avh4$elm_color$Color$red = A4($avh4$elm_color$Color$RgbaSpace, 204 / 255, 0 / 255, 0 / 255, 1.0);
+var $author$project$Traffic$makeBarrier = function (_v0) {
+	var x = _v0.a;
+	var y = _v0.b;
+	return $author$project$Engine$ObjectTag(
+		A4(
+			$author$project$Engine$Box,
+			_Utils_Tuple2(x, y),
+			1,
+			0,
+			$avh4$elm_color$Color$red));
+};
+var $author$project$Traffic$barrierList = _List_fromArray(
+	[
+		$author$project$Traffic$makeBarrier($author$project$Traffic$barrierOrig)
+	]);
+var $avh4$elm_color$Color$green = A4($avh4$elm_color$Color$RgbaSpace, 115 / 255, 210 / 255, 22 / 255, 1.0);
+var $author$project$Traffic$car = function (_v0) {
+	var x = _v0.a;
+	var y = _v0.b;
+	return $author$project$Engine$ObjectTag(
+		A4(
+			$author$project$Engine$Box,
+			_Utils_Tuple2(x, y),
+			0,
+			0,
+			$avh4$elm_color$Color$green));
+};
+var $elm$core$List$foldrHelper = F4(
+	function (fn, acc, ctr, ls) {
+		if (!ls.b) {
+			return acc;
+		} else {
+			var a = ls.a;
+			var r1 = ls.b;
+			if (!r1.b) {
+				return A2(fn, a, acc);
+			} else {
+				var b = r1.a;
+				var r2 = r1.b;
+				if (!r2.b) {
+					return A2(
+						fn,
+						a,
+						A2(fn, b, acc));
+				} else {
+					var c = r2.a;
+					var r3 = r2.b;
+					if (!r3.b) {
+						return A2(
+							fn,
+							a,
+							A2(
+								fn,
+								b,
+								A2(fn, c, acc)));
+					} else {
+						var d = r3.a;
+						var r4 = r3.b;
+						var res = (ctr > 500) ? A3(
+							$elm$core$List$foldl,
+							fn,
+							acc,
+							$elm$core$List$reverse(r4)) : A4($elm$core$List$foldrHelper, fn, acc, ctr + 1, r4);
+						return A2(
+							fn,
+							a,
+							A2(
+								fn,
+								b,
+								A2(
+									fn,
+									c,
+									A2(fn, d, res))));
+					}
+				}
+			}
+		}
+	});
+var $elm$core$List$foldr = F3(
+	function (fn, acc, ls) {
+		return A4($elm$core$List$foldrHelper, fn, acc, 0, ls);
+	});
+var $elm$core$List$map = F2(
+	function (f, xs) {
+		return A3(
+			$elm$core$List$foldr,
+			F2(
+				function (x, acc) {
+					return A2(
+						$elm$core$List$cons,
+						f(x),
+						acc);
+				}),
+			_List_Nil,
+			xs);
+	});
+var $author$project$Traffic$carList = A2($elm$core$List$map, $author$project$Traffic$car, $author$project$Traffic$carPoss);
+var $author$project$Traffic$objectsFromOrig = F2(
+	function (cars, barrier) {
+		return _Utils_ap(cars, barrier);
+	});
+var $author$project$Traffic$initScene = A2($author$project$Traffic$objectsFromOrig, $author$project$Traffic$carList, $author$project$Traffic$barrierList);
+var $elm$random$Random$Seed = F2(
+	function (a, b) {
+		return {$: 'Seed', a: a, b: b};
+	});
+var $elm$core$Bitwise$shiftRightZfBy = _Bitwise_shiftRightZfBy;
+var $elm$random$Random$next = function (_v0) {
+	var state0 = _v0.a;
+	var incr = _v0.b;
+	return A2($elm$random$Random$Seed, ((state0 * 1664525) + incr) >>> 0, incr);
+};
+var $elm$random$Random$initialSeed = function (x) {
+	var _v0 = $elm$random$Random$next(
+		A2($elm$random$Random$Seed, 0, 1013904223));
+	var state1 = _v0.a;
+	var incr = _v0.b;
+	var state2 = (state1 + x) >>> 0;
+	return $elm$random$Random$next(
+		A2($elm$random$Random$Seed, state2, incr));
+};
+var $author$project$Traffic$origSeed = $elm$random$Random$initialSeed(42);
+var $author$project$Update$POMDP = F2(
+	function (a, b) {
+		return {$: 'POMDP', a: a, b: b};
+	});
 var $elm$json$Json$Decode$map = _Json_map1;
 var $elm$json$Json$Decode$map2 = _Json_map2;
-var $elm$json$Json$Decode$succeed = _Json_succeed;
 var $elm$virtual_dom$VirtualDom$toHandlerInt = function (handler) {
 	switch (handler.$) {
 		case 'Normal':
@@ -5137,75 +5232,6 @@ var $elm$core$Task$Perform = function (a) {
 };
 var $elm$core$Task$succeed = _Scheduler_succeed;
 var $elm$core$Task$init = $elm$core$Task$succeed(_Utils_Tuple0);
-var $elm$core$List$foldrHelper = F4(
-	function (fn, acc, ctr, ls) {
-		if (!ls.b) {
-			return acc;
-		} else {
-			var a = ls.a;
-			var r1 = ls.b;
-			if (!r1.b) {
-				return A2(fn, a, acc);
-			} else {
-				var b = r1.a;
-				var r2 = r1.b;
-				if (!r2.b) {
-					return A2(
-						fn,
-						a,
-						A2(fn, b, acc));
-				} else {
-					var c = r2.a;
-					var r3 = r2.b;
-					if (!r3.b) {
-						return A2(
-							fn,
-							a,
-							A2(
-								fn,
-								b,
-								A2(fn, c, acc)));
-					} else {
-						var d = r3.a;
-						var r4 = r3.b;
-						var res = (ctr > 500) ? A3(
-							$elm$core$List$foldl,
-							fn,
-							acc,
-							$elm$core$List$reverse(r4)) : A4($elm$core$List$foldrHelper, fn, acc, ctr + 1, r4);
-						return A2(
-							fn,
-							a,
-							A2(
-								fn,
-								b,
-								A2(
-									fn,
-									c,
-									A2(fn, d, res))));
-					}
-				}
-			}
-		}
-	});
-var $elm$core$List$foldr = F3(
-	function (fn, acc, ls) {
-		return A4($elm$core$List$foldrHelper, fn, acc, 0, ls);
-	});
-var $elm$core$List$map = F2(
-	function (f, xs) {
-		return A3(
-			$elm$core$List$foldr,
-			F2(
-				function (x, acc) {
-					return A2(
-						$elm$core$List$cons,
-						f(x),
-						acc);
-				}),
-			_List_Nil,
-			xs);
-	});
 var $elm$core$Task$andThen = _Scheduler_andThen;
 var $elm$core$Task$map = F2(
 	function (func, taskA) {
@@ -7297,172 +7323,254 @@ var $elm$core$List$filter = F2(
 			_List_Nil,
 			list);
 	});
-var $author$project$Magnet$minusInvalid = _List_fromArray(
-	[
-		_Utils_Tuple2(7, 9),
-		_Utils_Tuple2(6, 8),
-		_Utils_Tuple2(8, 8)
-	]);
-var $author$project$Magnet$moveDown = _List_fromArray(
-	[
-		_Utils_Tuple2(
-		_Utils_Tuple2(7, 4),
-		_Utils_Tuple2(7, 5)),
-		_Utils_Tuple2(
-		_Utils_Tuple2(6, 5),
-		_Utils_Tuple2(7, 5)),
-		_Utils_Tuple2(
-		_Utils_Tuple2(8, 5),
-		_Utils_Tuple2(7, 5))
-	]);
-var $author$project$Magnet$moveLeft = _List_fromArray(
-	[
-		_Utils_Tuple2(
-		_Utils_Tuple2(9, 6),
-		_Utils_Tuple2(9, 7)),
-		_Utils_Tuple2(
-		_Utils_Tuple2(10, 7),
-		_Utils_Tuple2(9, 7)),
-		_Utils_Tuple2(
-		_Utils_Tuple2(9, 8),
-		_Utils_Tuple2(9, 7)),
-		_Utils_Tuple2(
-		_Utils_Tuple2(9, 8),
-		_Utils_Tuple2(10, 8)),
-		_Utils_Tuple2(
-		_Utils_Tuple2(9, 8),
-		_Utils_Tuple2(9, 9))
-	]);
-var $author$project$Magnet$moveRight = _List_fromArray(
-	[
-		_Utils_Tuple2(
-		_Utils_Tuple2(5, 8),
-		_Utils_Tuple2(4, 8)),
-		_Utils_Tuple2(
-		_Utils_Tuple2(5, 8),
-		_Utils_Tuple2(5, 9)),
-		_Utils_Tuple2(
-		_Utils_Tuple2(4, 7),
-		_Utils_Tuple2(5, 7)),
-		_Utils_Tuple2(
-		_Utils_Tuple2(5, 6),
-		_Utils_Tuple2(5, 7)),
-		_Utils_Tuple2(
-		_Utils_Tuple2(5, 8),
-		_Utils_Tuple2(5, 7))
-	]);
-var $author$project$Magnet$moveUp = _List_fromArray(
-	[
-		_Utils_Tuple2(
-		_Utils_Tuple2(7, 10),
-		_Utils_Tuple2(7, 11)),
-		_Utils_Tuple2(
-		_Utils_Tuple2(7, 10),
-		_Utils_Tuple2(6, 10)),
-		_Utils_Tuple2(
-		_Utils_Tuple2(7, 10),
-		_Utils_Tuple2(8, 10))
-	]);
-var $elm$core$Basics$neq = _Utils_notEqual;
-var $author$project$Magnet$plusInvalid = _List_fromArray(
-	[
-		_Utils_Tuple2(6, 7),
-		_Utils_Tuple2(7, 6),
-		_Utils_Tuple2(8, 7)
-	]);
-var $elm$core$Maybe$withDefault = F2(
-	function (_default, maybe) {
-		if (maybe.$ === 'Just') {
-			var value = maybe.a;
-			return value;
-		} else {
-			return _default;
+var $author$project$Traffic$gasPumpPressed = function (computer) {
+	return computer.mouse.click;
+};
+var $author$project$Traffic$getBarrierPositions = function (_v0) {
+	var x = _v0.a;
+	var y = _v0.b;
+	return _List_fromArray(
+		[
+			_Utils_Tuple2(x, y),
+			_Utils_Tuple2(x + 1, y)
+		]);
+};
+var $author$project$Traffic$getX = function (computer) {
+	return $elm$core$Basics$round((computer.mouse.x / 25) - 0.5);
+};
+var $author$project$Traffic$getY = function (computer) {
+	return $elm$core$Basics$round((computer.mouse.y / 25) - 0.5);
+};
+var $elm$core$List$any = F2(
+	function (isOkay, list) {
+		any:
+		while (true) {
+			if (!list.b) {
+				return false;
+			} else {
+				var x = list.a;
+				var xs = list.b;
+				if (isOkay(x)) {
+					return true;
+				} else {
+					var $temp$isOkay = isOkay,
+						$temp$list = xs;
+					isOkay = $temp$isOkay;
+					list = $temp$list;
+					continue any;
+				}
+			}
 		}
 	});
-var $author$project$Magnet$update = F2(
+var $elm$core$Basics$not = _Basics_not;
+var $author$project$Traffic$moveCar = F2(
+	function (_v0, positions) {
+		var x = _v0.a;
+		var y = _v0.b;
+		var moveUp = A2(
+			$elm$core$List$any,
+			function (input) {
+				return _Utils_eq(
+					_Utils_Tuple2(
+						$elm$core$Basics$round(x),
+						$elm$core$Basics$round(y) - 1),
+					input);
+			},
+			positions);
+		var moveRight = A2(
+			$elm$core$List$any,
+			function (input) {
+				return _Utils_eq(
+					_Utils_Tuple2(
+						$elm$core$Basics$round(x) + 1,
+						$elm$core$Basics$round(y)),
+					input);
+			},
+			positions) || (((x + 1) > 15) || A2(
+			$elm$core$List$any,
+			function (input) {
+				return _Utils_eq(
+					_Utils_Tuple2(
+						$elm$core$Basics$round(x) + 1,
+						$elm$core$Basics$round(y) + 1),
+					input);
+			},
+			positions));
+		var moveLeft = A2(
+			$elm$core$List$any,
+			function (input) {
+				return _Utils_eq(
+					_Utils_Tuple2(
+						$elm$core$Basics$round(x) - 1,
+						$elm$core$Basics$round(y)),
+					input);
+			},
+			positions) || (((x - 1) < 0) || A2(
+			$elm$core$List$any,
+			function (input) {
+				return _Utils_eq(
+					_Utils_Tuple2(
+						$elm$core$Basics$round(x) - 1,
+						$elm$core$Basics$round(y) + 1),
+					input);
+			},
+			positions));
+		return (!moveUp) ? _Utils_Tuple2(
+			$elm$core$Basics$round(x),
+			$elm$core$Basics$round(y) - 1) : ((!moveRight) ? _Utils_Tuple2(
+			$elm$core$Basics$round(x) + 1,
+			$elm$core$Basics$round(y)) : ((!moveLeft) ? _Utils_Tuple2(
+			$elm$core$Basics$round(x) - 1,
+			$elm$core$Basics$round(y)) : _Utils_Tuple2(
+			$elm$core$Basics$round(x),
+			$elm$core$Basics$round(y))));
+	});
+var $elm$core$Basics$negate = function (n) {
+	return -n;
+};
+var $elm$random$Random$Generator = function (a) {
+	return {$: 'Generator', a: a};
+};
+var $elm$core$Bitwise$and = _Bitwise_and;
+var $elm$core$Bitwise$xor = _Bitwise_xor;
+var $elm$random$Random$peel = function (_v0) {
+	var state = _v0.a;
+	var word = (state ^ (state >>> ((state >>> 28) + 4))) * 277803737;
+	return ((word >>> 22) ^ word) >>> 0;
+};
+var $elm$random$Random$int = F2(
+	function (a, b) {
+		return $elm$random$Random$Generator(
+			function (seed0) {
+				var _v0 = (_Utils_cmp(a, b) < 0) ? _Utils_Tuple2(a, b) : _Utils_Tuple2(b, a);
+				var lo = _v0.a;
+				var hi = _v0.b;
+				var range = (hi - lo) + 1;
+				if (!((range - 1) & range)) {
+					return _Utils_Tuple2(
+						(((range - 1) & $elm$random$Random$peel(seed0)) >>> 0) + lo,
+						$elm$random$Random$next(seed0));
+				} else {
+					var threshhold = (((-range) >>> 0) % range) >>> 0;
+					var accountForBias = function (seed) {
+						accountForBias:
+						while (true) {
+							var x = $elm$random$Random$peel(seed);
+							var seedN = $elm$random$Random$next(seed);
+							if (_Utils_cmp(x, threshhold) < 0) {
+								var $temp$seed = seedN;
+								seed = $temp$seed;
+								continue accountForBias;
+							} else {
+								return _Utils_Tuple2((x % range) + lo, seedN);
+							}
+						}
+					};
+					return accountForBias(seed0);
+				}
+			});
+	});
+var $elm$random$Random$step = F2(
+	function (_v0, seed) {
+		var generator = _v0.a;
+		return generator(seed);
+	});
+var $author$project$Traffic$yPos = function (seed) {
+	return A2(
+		$elm$random$Random$step,
+		A2($elm$random$Random$int, 0, 15),
+		seed);
+};
+var $author$project$Traffic$update = F2(
 	function (computer, _v0) {
 		var objects = _v0.objects;
 		var latent = _v0.latent;
-		var upPressed = computer.mouse.click && (computer.mouse.y < 100);
-		var rotatePressed = computer.mouse.click && ((computer.mouse.y > 100) && ((computer.mouse.y < 300) && ((computer.mouse.x > 100) && (computer.mouse.x < 300))));
-		var rightPressed = computer.mouse.click && (computer.mouse.x > 300);
-		var leftPressed = computer.mouse.click && (computer.mouse.x < 100);
-		var downPressed = computer.mouse.click && (computer.mouse.y > 300);
-		var _v1 = latent.mobileMagnetPlus;
-		var mobileMagnetPlusX = _v1.a;
-		var mobileMagnetPlusY = _v1.b;
-		var proposedPlusX = leftPressed ? (mobileMagnetPlusX - 1) : (rightPressed ? (mobileMagnetPlusX + 1) : mobileMagnetPlusX);
-		var proposedPlusY = upPressed ? (mobileMagnetPlusY - 1) : (downPressed ? (mobileMagnetPlusY + 1) : mobileMagnetPlusY);
-		var equalsProposedPlus = function (a) {
-			return _Utils_eq(
-				_Utils_Tuple2(proposedPlusX, proposedPlusY),
-				a);
-		};
-		var _v2 = latent.mobileMagnetMinus;
-		var mobileMagnetMinusX = _v2.a;
-		var mobileMagnetMinusY = _v2.b;
-		var proposedMinusX = (rotatePressed && (!_Utils_eq(mobileMagnetMinusX, mobileMagnetPlusX))) ? mobileMagnetPlusX : ((rotatePressed && (_Utils_cmp(mobileMagnetMinusY, mobileMagnetPlusY) > 0)) ? (mobileMagnetPlusX + 1) : ((rotatePressed && (_Utils_cmp(mobileMagnetMinusY, mobileMagnetPlusY) < 0)) ? (mobileMagnetPlusX - 1) : (rightPressed ? (mobileMagnetMinusX + 1) : (leftPressed ? (mobileMagnetMinusX - 1) : mobileMagnetMinusX))));
-		var proposedMinusY = (rotatePressed && (!_Utils_eq(mobileMagnetMinusY, mobileMagnetPlusY))) ? mobileMagnetPlusY : ((rotatePressed && (_Utils_cmp(mobileMagnetMinusX, mobileMagnetPlusX) > 0)) ? (mobileMagnetPlusY - 1) : ((rotatePressed && (_Utils_cmp(mobileMagnetMinusX, mobileMagnetPlusX) < 0)) ? (mobileMagnetPlusY + 1) : (upPressed ? (mobileMagnetMinusY - 1) : (downPressed ? (mobileMagnetMinusY + 1) : mobileMagnetMinusY))));
-		var equalsProposed = function (a) {
-			return A2(
-				$elm$core$Maybe$withDefault,
-				_Utils_eq(
-					_Utils_Tuple2(
-						_Utils_Tuple2(proposedPlusX, proposedPlusY),
-						_Utils_Tuple2(proposedMinusX, proposedMinusY)),
-					a),
-				$elm$core$Maybe$Nothing);
-		};
-		var equalsProposedMinus = function (a) {
-			return _Utils_eq(
-				_Utils_Tuple2(proposedMinusX, proposedMinusY),
-				a);
-		};
-		var invalid = _Utils_eq(
-			_Utils_Tuple2(proposedPlusX, proposedPlusY),
-			_Utils_Tuple2(7, 7)) || (_Utils_eq(
-			_Utils_Tuple2(proposedPlusX, proposedPlusY),
-			_Utils_Tuple2(7, 8)) || (_Utils_eq(
-			_Utils_Tuple2(proposedMinusX, proposedMinusY),
-			_Utils_Tuple2(7, 7)) || _Utils_eq(
-			_Utils_Tuple2(proposedMinusX, proposedMinusY),
-			_Utils_Tuple2(7, 8))));
-		var finalMinusX = (!(!$elm$core$List$length(
-			A2($elm$core$List$filter, equalsProposed, $author$project$Magnet$moveRight)))) ? (proposedMinusX + 1) : ((!(!$elm$core$List$length(
-			A2($elm$core$List$filter, equalsProposed, $author$project$Magnet$moveLeft)))) ? (proposedMinusX - 1) : (invalid ? mobileMagnetMinusX : (($elm$core$List$length(
-			A2($elm$core$List$filter, equalsProposedPlus, $author$project$Magnet$plusInvalid)) > 0) ? mobileMagnetMinusX : (($elm$core$List$length(
-			A2($elm$core$List$filter, equalsProposedMinus, $author$project$Magnet$minusInvalid)) > 0) ? mobileMagnetMinusX : proposedMinusX))));
-		var finalMinusY = (!(!$elm$core$List$length(
-			A2($elm$core$List$filter, equalsProposed, $author$project$Magnet$moveUp)))) ? (proposedMinusY - 1) : ((!(!$elm$core$List$length(
-			A2($elm$core$List$filter, equalsProposed, $author$project$Magnet$moveDown)))) ? (proposedMinusY + 1) : (invalid ? mobileMagnetMinusY : (($elm$core$List$length(
-			A2($elm$core$List$filter, equalsProposedPlus, $author$project$Magnet$plusInvalid)) > 0) ? mobileMagnetMinusY : (($elm$core$List$length(
-			A2($elm$core$List$filter, equalsProposedMinus, $author$project$Magnet$minusInvalid)) > 0) ? mobileMagnetMinusY : proposedMinusY))));
-		var newMinus = _Utils_Tuple2(finalMinusX, finalMinusY);
-		var finalPlusX = (!(!$elm$core$List$length(
-			A2($elm$core$List$filter, equalsProposed, $author$project$Magnet$moveRight)))) ? (proposedPlusX + 1) : ((!(!$elm$core$List$length(
-			A2($elm$core$List$filter, equalsProposed, $author$project$Magnet$moveLeft)))) ? (proposedPlusX - 1) : (invalid ? mobileMagnetPlusX : (($elm$core$List$length(
-			A2($elm$core$List$filter, equalsProposedPlus, $author$project$Magnet$plusInvalid)) > 0) ? mobileMagnetPlusX : (($elm$core$List$length(
-			A2($elm$core$List$filter, equalsProposedMinus, $author$project$Magnet$minusInvalid)) > 0) ? mobileMagnetPlusX : proposedPlusX))));
-		var finalPlusY = (!(!$elm$core$List$length(
-			A2($elm$core$List$filter, equalsProposed, $author$project$Magnet$moveUp)))) ? (proposedPlusY - 1) : ((!(!$elm$core$List$length(
-			A2($elm$core$List$filter, equalsProposed, $author$project$Magnet$moveDown)))) ? (proposedPlusY + 1) : (invalid ? mobileMagnetPlusY : (($elm$core$List$length(
-			A2($elm$core$List$filter, equalsProposedPlus, $author$project$Magnet$plusInvalid)) > 0) ? mobileMagnetPlusY : (($elm$core$List$length(
-			A2($elm$core$List$filter, equalsProposedMinus, $author$project$Magnet$minusInvalid)) > 0) ? mobileMagnetPlusY : proposedPlusY))));
-		var newPlus = _Utils_Tuple2(finalPlusX, finalPlusY);
-		var movedObjects = A2($author$project$Magnet$objectsFromOrig, newPlus, newMinus);
+		var movedCars = A2(
+			$elm$core$List$filter,
+			function (_v7) {
+				var x = _v7.a;
+				var y = _v7.b;
+				return _Utils_cmp(y, -1) > 0;
+			},
+			A2(
+				$elm$core$List$map,
+				function (_v8) {
+					var x = _v8.a;
+					var y = _v8.b;
+					return A2(
+						$author$project$Traffic$moveCar,
+						_Utils_Tuple2(x, y),
+						_Utils_ap(latent.carPositions, latent.barrierPositions));
+				},
+				latent.carPositions));
+		var movedCarObjects = A2($elm$core$List$map, $author$project$Traffic$car, movedCars);
+		var _v1 = $author$project$Traffic$yPos(latent.randSeed);
+		var newX1 = _v1.a;
+		var newSeed1 = _v1.b;
+		var _v2 = $author$project$Traffic$yPos(newSeed1);
+		var newX2 = _v2.a;
+		var newSeed2 = _v2.b;
+		var _v3 = $author$project$Traffic$yPos(newSeed2);
+		var newX3 = _v3.a;
+		var newSeed3 = _v3.b;
+		var _v4 = $author$project$Traffic$yPos(newSeed3);
+		var newX4 = _v4.a;
+		var newSeed4 = _v4.b;
+		var newOrig4 = _Utils_Tuple2(newX4, 15);
+		var newCar4 = $author$project$Traffic$car(newOrig4);
+		var newOrig3 = _Utils_Tuple2(newX3, 15);
+		var newCar3 = $author$project$Traffic$car(newOrig3);
+		var newOrig2 = _Utils_Tuple2(newX2, 15);
+		var newCar2 = $author$project$Traffic$car(newOrig2);
+		var newOrig = _Utils_Tuple2(newX1, 15);
+		var allCarPos = _Utils_ap(
+			movedCars,
+			_List_fromArray(
+				[newOrig, newOrig2, newOrig3, newOrig4]));
+		var newCar1 = $author$project$Traffic$car(newOrig);
+		var newCarList = _Utils_ap(
+			movedCarObjects,
+			_List_fromArray(
+				[newCar1, newCar2, newCar3, newCar4]));
+		var _v5 = $author$project$Traffic$gasPumpPressed(computer) ? _Utils_Tuple2(
+			$author$project$Traffic$getX(computer),
+			$author$project$Traffic$getY(computer)) : latent.barrierOrigin;
+		var newBarrierX = _v5.a;
+		var newBarrierY = _v5.b;
+		var newBarrierList = _List_fromArray(
+			[
+				$author$project$Traffic$makeBarrier(
+				_Utils_Tuple2(
+					$elm$core$Basics$round(newBarrierX),
+					$elm$core$Basics$round(newBarrierY)))
+			]);
+		var movedObjects = A2($author$project$Traffic$objectsFromOrig, newCarList, newBarrierList);
+		var newBarrierOrig = _Utils_Tuple2(
+			$elm$core$Basics$round(newBarrierX),
+			$elm$core$Basics$round(newBarrierY));
+		var newBarrierPositions = $author$project$Traffic$getBarrierPositions(newBarrierOrig);
+		var _v6 = latent.carOrig;
+		var carOrigx = _v6.a;
+		var carOrigy = _v6.b;
 		return {
-			latent: {mobileMagnetMinus: newMinus, mobileMagnetPlus: newPlus},
+			latent: {
+				barrierOrigin: _Utils_Tuple2(newBarrierX, newBarrierY),
+				barrierPositions: newBarrierPositions,
+				carOrig: newOrig2,
+				carPositions: allCarPos,
+				randSeed: newSeed4
+			},
 			objects: movedObjects
 		};
 	});
-var $author$project$Magnet$main = A2(
+var $author$project$Traffic$main = A2(
 	$author$project$Update$pomdp,
 	{
-		latent: {mobileMagnetMinus: $author$project$Magnet$initMobileMagnetMinus, mobileMagnetPlus: $author$project$Magnet$initMobileMagnetPlus},
-		objects: $author$project$Magnet$initScene
+		latent: {barrierOrigin: $author$project$Traffic$barrierOrig, barrierPositions: $author$project$Traffic$barrierPoss, carOrig: $author$project$Traffic$carPos, carPositions: $author$project$Traffic$carPoss, randSeed: $author$project$Traffic$origSeed},
+		objects: $author$project$Traffic$initScene
 	},
-	$author$project$Magnet$update);
-var $author$project$Main$magnet = $author$project$Magnet$main;
-var $author$project$Main$main = $author$project$Main$magnet;
+	$author$project$Traffic$update);
+var $author$project$Main$traffic = $author$project$Traffic$main;
+var $author$project$Main$main = $author$project$Main$traffic;
 _Platform_export({'Main':{'init':$author$project$Main$main(
 	$elm$json$Json$Decode$succeed(_Utils_Tuple0))(0)}});}(this));

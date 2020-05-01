@@ -16,8 +16,8 @@ import Browser.Events exposing (onAnimationFrameDelta)
 import Html exposing (Html, div, text)
 import Html.Attributes exposing (style)
 import String
+import List
 import Html.Events.Extra.Mouse as Mouse
-
 
 
 htmlwidth = 400
@@ -178,7 +178,7 @@ view image width height computer =
         , style "justify-content" "center"
         , style "align-items" "center"
         ]
-        [ div [] [ Html.text (String.fromFloat (mouseX computer)) ],
+        [ -- div [] [ Html.text (String.fromFloat (mouseX computer)) ],
           Canvas.toHtml
             ( width, height )
             [ Mouse.onDown (.offsetPos >> StartAt) ]

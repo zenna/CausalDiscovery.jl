@@ -80,87 +80,6 @@ function A9(fun, a, b, c, d, e, f, g, h, i) {
 console.warn('Compiled in DEV mode. Follow the advice at https://elm-lang.org/0.19.1/optimize for better performance and smaller assets.');
 
 
-var _List_Nil_UNUSED = { $: 0 };
-var _List_Nil = { $: '[]' };
-
-function _List_Cons_UNUSED(hd, tl) { return { $: 1, a: hd, b: tl }; }
-function _List_Cons(hd, tl) { return { $: '::', a: hd, b: tl }; }
-
-
-var _List_cons = F2(_List_Cons);
-
-function _List_fromArray(arr)
-{
-	var out = _List_Nil;
-	for (var i = arr.length; i--; )
-	{
-		out = _List_Cons(arr[i], out);
-	}
-	return out;
-}
-
-function _List_toArray(xs)
-{
-	for (var out = []; xs.b; xs = xs.b) // WHILE_CONS
-	{
-		out.push(xs.a);
-	}
-	return out;
-}
-
-var _List_map2 = F3(function(f, xs, ys)
-{
-	for (var arr = []; xs.b && ys.b; xs = xs.b, ys = ys.b) // WHILE_CONSES
-	{
-		arr.push(A2(f, xs.a, ys.a));
-	}
-	return _List_fromArray(arr);
-});
-
-var _List_map3 = F4(function(f, xs, ys, zs)
-{
-	for (var arr = []; xs.b && ys.b && zs.b; xs = xs.b, ys = ys.b, zs = zs.b) // WHILE_CONSES
-	{
-		arr.push(A3(f, xs.a, ys.a, zs.a));
-	}
-	return _List_fromArray(arr);
-});
-
-var _List_map4 = F5(function(f, ws, xs, ys, zs)
-{
-	for (var arr = []; ws.b && xs.b && ys.b && zs.b; ws = ws.b, xs = xs.b, ys = ys.b, zs = zs.b) // WHILE_CONSES
-	{
-		arr.push(A4(f, ws.a, xs.a, ys.a, zs.a));
-	}
-	return _List_fromArray(arr);
-});
-
-var _List_map5 = F6(function(f, vs, ws, xs, ys, zs)
-{
-	for (var arr = []; vs.b && ws.b && xs.b && ys.b && zs.b; vs = vs.b, ws = ws.b, xs = xs.b, ys = ys.b, zs = zs.b) // WHILE_CONSES
-	{
-		arr.push(A5(f, vs.a, ws.a, xs.a, ys.a, zs.a));
-	}
-	return _List_fromArray(arr);
-});
-
-var _List_sortBy = F2(function(f, xs)
-{
-	return _List_fromArray(_List_toArray(xs).sort(function(a, b) {
-		return _Utils_cmp(f(a), f(b));
-	}));
-});
-
-var _List_sortWith = F2(function(f, xs)
-{
-	return _List_fromArray(_List_toArray(xs).sort(function(a, b) {
-		var ord = A2(f, a, b);
-		return ord === $elm$core$Basics$EQ ? 0 : ord === $elm$core$Basics$LT ? -1 : 1;
-	}));
-});
-
-
-
 var _JsArray_empty = [];
 
 function _JsArray_singleton(value)
@@ -790,6 +709,87 @@ function _Utils_ap(xs, ys)
 	}
 	return root;
 }
+
+
+
+var _List_Nil_UNUSED = { $: 0 };
+var _List_Nil = { $: '[]' };
+
+function _List_Cons_UNUSED(hd, tl) { return { $: 1, a: hd, b: tl }; }
+function _List_Cons(hd, tl) { return { $: '::', a: hd, b: tl }; }
+
+
+var _List_cons = F2(_List_Cons);
+
+function _List_fromArray(arr)
+{
+	var out = _List_Nil;
+	for (var i = arr.length; i--; )
+	{
+		out = _List_Cons(arr[i], out);
+	}
+	return out;
+}
+
+function _List_toArray(xs)
+{
+	for (var out = []; xs.b; xs = xs.b) // WHILE_CONS
+	{
+		out.push(xs.a);
+	}
+	return out;
+}
+
+var _List_map2 = F3(function(f, xs, ys)
+{
+	for (var arr = []; xs.b && ys.b; xs = xs.b, ys = ys.b) // WHILE_CONSES
+	{
+		arr.push(A2(f, xs.a, ys.a));
+	}
+	return _List_fromArray(arr);
+});
+
+var _List_map3 = F4(function(f, xs, ys, zs)
+{
+	for (var arr = []; xs.b && ys.b && zs.b; xs = xs.b, ys = ys.b, zs = zs.b) // WHILE_CONSES
+	{
+		arr.push(A3(f, xs.a, ys.a, zs.a));
+	}
+	return _List_fromArray(arr);
+});
+
+var _List_map4 = F5(function(f, ws, xs, ys, zs)
+{
+	for (var arr = []; ws.b && xs.b && ys.b && zs.b; ws = ws.b, xs = xs.b, ys = ys.b, zs = zs.b) // WHILE_CONSES
+	{
+		arr.push(A4(f, ws.a, xs.a, ys.a, zs.a));
+	}
+	return _List_fromArray(arr);
+});
+
+var _List_map5 = F6(function(f, vs, ws, xs, ys, zs)
+{
+	for (var arr = []; vs.b && ws.b && xs.b && ys.b && zs.b; vs = vs.b, ws = ws.b, xs = xs.b, ys = ys.b, zs = zs.b) // WHILE_CONSES
+	{
+		arr.push(A5(f, vs.a, ws.a, xs.a, ys.a, zs.a));
+	}
+	return _List_fromArray(arr);
+});
+
+var _List_sortBy = F2(function(f, xs)
+{
+	return _List_fromArray(_List_toArray(xs).sort(function(a, b) {
+		return _Utils_cmp(f(a), f(b));
+	}));
+});
+
+var _List_sortWith = F2(function(f, xs)
+{
+	return _List_fromArray(_List_toArray(xs).sort(function(a, b) {
+		var ord = A2(f, a, b);
+		return ord === $elm$core$Basics$EQ ? 0 : ord === $elm$core$Basics$LT ? -1 : 1;
+	}));
+});
 
 
 
@@ -4401,8 +4401,6 @@ function _Time_getZoneName()
 		callback(_Scheduler_succeed(name));
 	});
 }
-var $elm$core$Basics$EQ = {$: 'EQ'};
-var $elm$core$Basics$LT = {$: 'LT'};
 var $elm$core$List$cons = _List_cons;
 var $elm$core$Elm$JsArray$foldr = _JsArray_foldr;
 var $elm$core$Array$foldr = F3(
@@ -4480,99 +4478,9 @@ var $elm$core$Set$toList = function (_v0) {
 	var dict = _v0.a;
 	return $elm$core$Dict$keys(dict);
 };
+var $elm$core$Basics$EQ = {$: 'EQ'};
 var $elm$core$Basics$GT = {$: 'GT'};
-var $author$project$Magnet$initMobileMagnetMinus = _Utils_Tuple2(4, 8);
-var $author$project$Magnet$initMobileMagnetPlus = _Utils_Tuple2(4, 7);
-var $author$project$Engine$Box = F4(
-	function (a, b, c, d) {
-		return {$: 'Box', a: a, b: b, c: c, d: d};
-	});
-var $author$project$Engine$ObjectTag = function (a) {
-	return {$: 'ObjectTag', a: a};
-};
-var $avh4$elm_color$Color$RgbaSpace = F4(
-	function (a, b, c, d) {
-		return {$: 'RgbaSpace', a: a, b: b, c: c, d: d};
-	});
-var $elm$core$Basics$fdiv = _Basics_fdiv;
-var $avh4$elm_color$Color$blue = A4($avh4$elm_color$Color$RgbaSpace, 52 / 255, 101 / 255, 164 / 255, 1.0);
-var $author$project$Magnet$fixedMagnetMinusX = 7;
-var $author$project$Magnet$fixedMagnetMinusY = 8;
-var $author$project$Magnet$fixedMagnetPlusX = 7;
-var $author$project$Magnet$fixedMagnetPlusY = 7;
-var $avh4$elm_color$Color$green = A4($avh4$elm_color$Color$RgbaSpace, 115 / 255, 210 / 255, 22 / 255, 1.0);
-var $avh4$elm_color$Color$red = A4($avh4$elm_color$Color$RgbaSpace, 204 / 255, 0 / 255, 0 / 255, 1.0);
-var $author$project$Magnet$objectsFromOrig = F2(
-	function (_v0, _v1) {
-		var xPlus = _v0.a;
-		var yPlus = _v0.b;
-		var xMinus = _v1.a;
-		var yMinus = _v1.b;
-		var upBox = A4(
-			$author$project$Engine$Box,
-			_Utils_Tuple2(7, 0),
-			0,
-			0,
-			$avh4$elm_color$Color$green);
-		var rightBox = A4(
-			$author$project$Engine$Box,
-			_Utils_Tuple2(15, 7),
-			0,
-			0,
-			$avh4$elm_color$Color$green);
-		var mobileMagnetPlus = A4(
-			$author$project$Engine$Box,
-			_Utils_Tuple2(xPlus, yPlus),
-			0,
-			0,
-			$avh4$elm_color$Color$red);
-		var mobileMagnetMinus = A4(
-			$author$project$Engine$Box,
-			_Utils_Tuple2(xMinus, yMinus),
-			0,
-			0,
-			$avh4$elm_color$Color$blue);
-		var leftBox = A4(
-			$author$project$Engine$Box,
-			_Utils_Tuple2(0, 7),
-			0,
-			0,
-			$avh4$elm_color$Color$green);
-		var fixedMagnetPlus = A4(
-			$author$project$Engine$Box,
-			_Utils_Tuple2($author$project$Magnet$fixedMagnetPlusX, $author$project$Magnet$fixedMagnetPlusY),
-			0,
-			0,
-			$avh4$elm_color$Color$red);
-		var fixedMagnetMinus = A4(
-			$author$project$Engine$Box,
-			_Utils_Tuple2($author$project$Magnet$fixedMagnetMinusX, $author$project$Magnet$fixedMagnetMinusY),
-			0,
-			0,
-			$avh4$elm_color$Color$blue);
-		var downBox = A4(
-			$author$project$Engine$Box,
-			_Utils_Tuple2(7, 15),
-			0,
-			0,
-			$avh4$elm_color$Color$green);
-		return _List_fromArray(
-			[
-				$author$project$Engine$ObjectTag(fixedMagnetPlus),
-				$author$project$Engine$ObjectTag(fixedMagnetMinus),
-				$author$project$Engine$ObjectTag(mobileMagnetPlus),
-				$author$project$Engine$ObjectTag(mobileMagnetMinus),
-				$author$project$Engine$ObjectTag(upBox),
-				$author$project$Engine$ObjectTag(downBox),
-				$author$project$Engine$ObjectTag(leftBox),
-				$author$project$Engine$ObjectTag(rightBox)
-			]);
-	});
-var $author$project$Magnet$initScene = A2($author$project$Magnet$objectsFromOrig, $author$project$Magnet$initMobileMagnetPlus, $author$project$Magnet$initMobileMagnetMinus);
-var $author$project$Update$POMDP = F2(
-	function (a, b) {
-		return {$: 'POMDP', a: a, b: b};
-	});
+var $elm$core$Basics$LT = {$: 'LT'};
 var $elm$core$Result$Err = function (a) {
 	return {$: 'Err', a: a};
 };
@@ -4821,6 +4729,7 @@ var $elm$core$Array$Array_elm_builtin = F4(
 	});
 var $elm$core$Elm$JsArray$empty = _JsArray_empty;
 var $elm$core$Basics$ceiling = _Basics_ceiling;
+var $elm$core$Basics$fdiv = _Basics_fdiv;
 var $elm$core$Basics$logBase = F2(
 	function (base, number) {
 		return _Basics_log(number) / _Basics_log(base);
@@ -4967,9 +4876,154 @@ var $elm$core$Result$isOk = function (result) {
 		return false;
 	}
 };
+var $elm$json$Json$Decode$succeed = _Json_succeed;
+var $author$project$WaterPlug$drawPlug = _Utils_Tuple2(6, 0);
+var $author$project$WaterPlug$drawVase = _Utils_Tuple2(2, 0);
+var $author$project$WaterPlug$drawWater = _Utils_Tuple2(10, 0);
+var $author$project$Engine$Box = F4(
+	function (a, b, c, d) {
+		return {$: 'Box', a: a, b: b, c: c, d: d};
+	});
+var $author$project$Engine$ObjectTag = function (a) {
+	return {$: 'ObjectTag', a: a};
+};
+var $avh4$elm_color$Color$RgbaSpace = F4(
+	function (a, b, c, d) {
+		return {$: 'RgbaSpace', a: a, b: b, c: c, d: d};
+	});
+var $avh4$elm_color$Color$orange = A4($avh4$elm_color$Color$RgbaSpace, 245 / 255, 121 / 255, 0 / 255, 1.0);
+var $author$project$WaterPlug$plugSpot = function (_v0) {
+	var x = _v0.a;
+	var y = _v0.b;
+	return $author$project$Engine$ObjectTag(
+		A4(
+			$author$project$Engine$Box,
+			_Utils_Tuple2(x, y),
+			0,
+			0,
+			$avh4$elm_color$Color$orange));
+};
+var $avh4$elm_color$Color$black = A4($avh4$elm_color$Color$RgbaSpace, 0 / 255, 0 / 255, 0 / 255, 1.0);
+var $author$project$WaterPlug$startPos = _Utils_Tuple2(14, 0);
+var $author$project$WaterPlug$startButton = $author$project$Engine$ObjectTag(
+	A4($author$project$Engine$Box, $author$project$WaterPlug$startPos, 0, 0, $avh4$elm_color$Color$black));
+var $avh4$elm_color$Color$purple = A4($avh4$elm_color$Color$RgbaSpace, 117 / 255, 80 / 255, 123 / 255, 1.0);
+var $author$project$WaterPlug$vaseSpot = function (_v0) {
+	var x = _v0.a;
+	var y = _v0.b;
+	return $author$project$Engine$ObjectTag(
+		A4(
+			$author$project$Engine$Box,
+			_Utils_Tuple2(x, y),
+			0,
+			0,
+			$avh4$elm_color$Color$purple));
+};
+var $avh4$elm_color$Color$blue = A4($avh4$elm_color$Color$RgbaSpace, 52 / 255, 101 / 255, 164 / 255, 1.0);
+var $author$project$WaterPlug$waterSpot = function (_v0) {
+	var x = _v0.a;
+	var y = _v0.b;
+	return $author$project$Engine$ObjectTag(
+		A4(
+			$author$project$Engine$Box,
+			_Utils_Tuple2(x, y),
+			0,
+			0,
+			$avh4$elm_color$Color$blue));
+};
+var $author$project$WaterPlug$buttons = _List_fromArray(
+	[
+		$author$project$WaterPlug$vaseSpot($author$project$WaterPlug$drawVase),
+		$author$project$WaterPlug$plugSpot($author$project$WaterPlug$drawPlug),
+		$author$project$WaterPlug$waterSpot($author$project$WaterPlug$drawWater),
+		$author$project$WaterPlug$startButton
+	]);
+var $elm$core$List$foldrHelper = F4(
+	function (fn, acc, ctr, ls) {
+		if (!ls.b) {
+			return acc;
+		} else {
+			var a = ls.a;
+			var r1 = ls.b;
+			if (!r1.b) {
+				return A2(fn, a, acc);
+			} else {
+				var b = r1.a;
+				var r2 = r1.b;
+				if (!r2.b) {
+					return A2(
+						fn,
+						a,
+						A2(fn, b, acc));
+				} else {
+					var c = r2.a;
+					var r3 = r2.b;
+					if (!r3.b) {
+						return A2(
+							fn,
+							a,
+							A2(
+								fn,
+								b,
+								A2(fn, c, acc)));
+					} else {
+						var d = r3.a;
+						var r4 = r3.b;
+						var res = (ctr > 500) ? A3(
+							$elm$core$List$foldl,
+							fn,
+							acc,
+							$elm$core$List$reverse(r4)) : A4($elm$core$List$foldrHelper, fn, acc, ctr + 1, r4);
+						return A2(
+							fn,
+							a,
+							A2(
+								fn,
+								b,
+								A2(
+									fn,
+									c,
+									A2(fn, d, res))));
+					}
+				}
+			}
+		}
+	});
+var $elm$core$List$foldr = F3(
+	function (fn, acc, ls) {
+		return A4($elm$core$List$foldrHelper, fn, acc, 0, ls);
+	});
+var $elm$core$List$map = F2(
+	function (f, xs) {
+		return A3(
+			$elm$core$List$foldr,
+			F2(
+				function (x, acc) {
+					return A2(
+						$elm$core$List$cons,
+						f(x),
+						acc);
+				}),
+			_List_Nil,
+			xs);
+	});
+var $author$project$WaterPlug$makePlug = function (pPositions) {
+	return A2($elm$core$List$map, $author$project$WaterPlug$plugSpot, pPositions);
+};
+var $author$project$WaterPlug$makeVase = function (vPositions) {
+	return A2($elm$core$List$map, $author$project$WaterPlug$vaseSpot, vPositions);
+};
+var $author$project$WaterPlug$makeWater = function (wPositions) {
+	return A2($elm$core$List$map, $author$project$WaterPlug$waterSpot, wPositions);
+};
+var $author$project$WaterPlug$mode = 1;
+var $author$project$WaterPlug$plugPositions = _List_Nil;
+var $author$project$Update$POMDP = F2(
+	function (a, b) {
+		return {$: 'POMDP', a: a, b: b};
+	});
 var $elm$json$Json$Decode$map = _Json_map1;
 var $elm$json$Json$Decode$map2 = _Json_map2;
-var $elm$json$Json$Decode$succeed = _Json_succeed;
 var $elm$virtual_dom$VirtualDom$toHandlerInt = function (handler) {
 	switch (handler.$) {
 		case 'Normal':
@@ -5137,75 +5191,6 @@ var $elm$core$Task$Perform = function (a) {
 };
 var $elm$core$Task$succeed = _Scheduler_succeed;
 var $elm$core$Task$init = $elm$core$Task$succeed(_Utils_Tuple0);
-var $elm$core$List$foldrHelper = F4(
-	function (fn, acc, ctr, ls) {
-		if (!ls.b) {
-			return acc;
-		} else {
-			var a = ls.a;
-			var r1 = ls.b;
-			if (!r1.b) {
-				return A2(fn, a, acc);
-			} else {
-				var b = r1.a;
-				var r2 = r1.b;
-				if (!r2.b) {
-					return A2(
-						fn,
-						a,
-						A2(fn, b, acc));
-				} else {
-					var c = r2.a;
-					var r3 = r2.b;
-					if (!r3.b) {
-						return A2(
-							fn,
-							a,
-							A2(
-								fn,
-								b,
-								A2(fn, c, acc)));
-					} else {
-						var d = r3.a;
-						var r4 = r3.b;
-						var res = (ctr > 500) ? A3(
-							$elm$core$List$foldl,
-							fn,
-							acc,
-							$elm$core$List$reverse(r4)) : A4($elm$core$List$foldrHelper, fn, acc, ctr + 1, r4);
-						return A2(
-							fn,
-							a,
-							A2(
-								fn,
-								b,
-								A2(
-									fn,
-									c,
-									A2(fn, d, res))));
-					}
-				}
-			}
-		}
-	});
-var $elm$core$List$foldr = F3(
-	function (fn, acc, ls) {
-		return A4($elm$core$List$foldrHelper, fn, acc, 0, ls);
-	});
-var $elm$core$List$map = F2(
-	function (f, xs) {
-		return A3(
-			$elm$core$List$foldr,
-			F2(
-				function (x, acc) {
-					return A2(
-						$elm$core$List$cons,
-						f(x),
-						acc);
-				}),
-			_List_Nil,
-			xs);
-	});
 var $elm$core$Task$andThen = _Scheduler_andThen;
 var $elm$core$Task$map = F2(
 	function (func, taskA) {
@@ -6047,6 +6032,7 @@ var $author$project$Engine$alphacompose = F2(
 				red: A2(f, p.red, q.red)
 			});
 	});
+var $avh4$elm_color$Color$red = A4($avh4$elm_color$Color$RgbaSpace, 204 / 255, 0 / 255, 0 / 255, 1.0);
 var $author$project$Engine$alphacomposeMany = function (rgbs) {
 	if (!rgbs.b) {
 		return $avh4$elm_color$Color$red;
@@ -6442,7 +6428,6 @@ var $mpizenberg$elm_pointer_events$Html$Events$Extra$Mouse$onWithOptions = F3(
 				$mpizenberg$elm_pointer_events$Html$Events$Extra$Mouse$eventDecoder));
 	});
 var $mpizenberg$elm_pointer_events$Html$Events$Extra$Mouse$onDown = A2($mpizenberg$elm_pointer_events$Html$Events$Extra$Mouse$onWithOptions, 'mousedown', $mpizenberg$elm_pointer_events$Html$Events$Extra$Mouse$defaultOptions);
-var $avh4$elm_color$Color$black = A4($avh4$elm_color$Color$RgbaSpace, 0 / 255, 0 / 255, 0 / 255, 1.0);
 var $elm$core$Tuple$second = function (_v0) {
 	var y = _v0.b;
 	return y;
@@ -7286,183 +7271,199 @@ var $author$project$Update$pomdp = F2(
 		return $elm$browser$Browser$element(
 			{init: init, subscriptions: subscriptions, update: update, view: view_});
 	});
-var $elm$core$List$filter = F2(
-	function (isGood, list) {
-		return A3(
-			$elm$core$List$foldr,
-			F2(
-				function (x, xs) {
-					return isGood(x) ? A2($elm$core$List$cons, x, xs) : xs;
-				}),
-			_List_Nil,
-			list);
-	});
-var $author$project$Magnet$minusInvalid = _List_fromArray(
-	[
-		_Utils_Tuple2(7, 9),
-		_Utils_Tuple2(6, 8),
-		_Utils_Tuple2(8, 8)
-	]);
-var $author$project$Magnet$moveDown = _List_fromArray(
-	[
-		_Utils_Tuple2(
-		_Utils_Tuple2(7, 4),
-		_Utils_Tuple2(7, 5)),
-		_Utils_Tuple2(
-		_Utils_Tuple2(6, 5),
-		_Utils_Tuple2(7, 5)),
-		_Utils_Tuple2(
-		_Utils_Tuple2(8, 5),
-		_Utils_Tuple2(7, 5))
-	]);
-var $author$project$Magnet$moveLeft = _List_fromArray(
-	[
-		_Utils_Tuple2(
-		_Utils_Tuple2(9, 6),
-		_Utils_Tuple2(9, 7)),
-		_Utils_Tuple2(
-		_Utils_Tuple2(10, 7),
-		_Utils_Tuple2(9, 7)),
-		_Utils_Tuple2(
-		_Utils_Tuple2(9, 8),
-		_Utils_Tuple2(9, 7)),
-		_Utils_Tuple2(
-		_Utils_Tuple2(9, 8),
-		_Utils_Tuple2(10, 8)),
-		_Utils_Tuple2(
-		_Utils_Tuple2(9, 8),
-		_Utils_Tuple2(9, 9))
-	]);
-var $author$project$Magnet$moveRight = _List_fromArray(
-	[
-		_Utils_Tuple2(
-		_Utils_Tuple2(5, 8),
-		_Utils_Tuple2(4, 8)),
-		_Utils_Tuple2(
-		_Utils_Tuple2(5, 8),
-		_Utils_Tuple2(5, 9)),
-		_Utils_Tuple2(
-		_Utils_Tuple2(4, 7),
-		_Utils_Tuple2(5, 7)),
-		_Utils_Tuple2(
-		_Utils_Tuple2(5, 6),
-		_Utils_Tuple2(5, 7)),
-		_Utils_Tuple2(
-		_Utils_Tuple2(5, 8),
-		_Utils_Tuple2(5, 7))
-	]);
-var $author$project$Magnet$moveUp = _List_fromArray(
-	[
-		_Utils_Tuple2(
-		_Utils_Tuple2(7, 10),
-		_Utils_Tuple2(7, 11)),
-		_Utils_Tuple2(
-		_Utils_Tuple2(7, 10),
-		_Utils_Tuple2(6, 10)),
-		_Utils_Tuple2(
-		_Utils_Tuple2(7, 10),
-		_Utils_Tuple2(8, 10))
-	]);
 var $elm$core$Basics$neq = _Utils_notEqual;
-var $author$project$Magnet$plusInvalid = _List_fromArray(
-	[
-		_Utils_Tuple2(6, 7),
-		_Utils_Tuple2(7, 6),
-		_Utils_Tuple2(8, 7)
-	]);
-var $elm$core$Maybe$withDefault = F2(
-	function (_default, maybe) {
-		if (maybe.$ === 'Just') {
-			var value = maybe.a;
-			return value;
-		} else {
-			return _default;
+var $author$project$WaterPlug$addToPlug = F2(
+	function (_v0, currentMode) {
+		var x = _v0.a;
+		var y = _v0.b;
+		return (currentMode !== 2) ? _List_Nil : ((y < 2) ? _List_Nil : _List_fromArray(
+			[
+				_Utils_Tuple2(x, y)
+			]));
+	});
+var $author$project$WaterPlug$addToVase = F2(
+	function (_v0, currentMode) {
+		var x = _v0.a;
+		var y = _v0.b;
+		return (currentMode !== 1) ? _List_Nil : ((y < 2) ? _List_Nil : _List_fromArray(
+			[
+				_Utils_Tuple2(x, y)
+			]));
+	});
+var $author$project$WaterPlug$addToWater = F2(
+	function (_v0, currentMode) {
+		var x = _v0.a;
+		var y = _v0.b;
+		return (currentMode !== 3) ? _List_Nil : ((y < 2) ? _List_Nil : _List_fromArray(
+			[
+				_Utils_Tuple2(x, y)
+			]));
+	});
+var $author$project$WaterPlug$gasPumpPressed = function (computer) {
+	return computer.mouse.click;
+};
+var $author$project$WaterPlug$getX = function (computer) {
+	return $elm$core$Basics$round((computer.mouse.x / 25) - 0.5);
+};
+var $author$project$WaterPlug$getY = function (computer) {
+	return $elm$core$Basics$round((computer.mouse.y / 25) - 0.5);
+};
+var $author$project$WaterPlug$modeTransition = F2(
+	function (_v0, prevMode) {
+		var x = _v0.a;
+		var y = _v0.b;
+		return _Utils_eq(
+			_Utils_Tuple2(x, y),
+			$author$project$WaterPlug$drawVase) ? 1 : (_Utils_eq(
+			_Utils_Tuple2(x, y),
+			$author$project$WaterPlug$drawPlug) ? 2 : (_Utils_eq(
+			_Utils_Tuple2(x, y),
+			$author$project$WaterPlug$drawWater) ? 3 : (_Utils_eq(
+			_Utils_Tuple2(x, y),
+			$author$project$WaterPlug$startPos) ? 4 : prevMode)));
+	});
+var $elm$core$Basics$not = _Basics_not;
+var $elm$core$List$any = F2(
+	function (isOkay, list) {
+		any:
+		while (true) {
+			if (!list.b) {
+				return false;
+			} else {
+				var x = list.a;
+				var xs = list.b;
+				if (isOkay(x)) {
+					return true;
+				} else {
+					var $temp$isOkay = isOkay,
+						$temp$list = xs;
+					isOkay = $temp$isOkay;
+					list = $temp$list;
+					continue any;
+				}
+			}
 		}
 	});
-var $author$project$Magnet$update = F2(
+var $author$project$WaterPlug$waterMove = F4(
+	function (_v0, vase, water, left) {
+		var x = _v0.a;
+		var y = _v0.b;
+		var moveRight = A2(
+			$elm$core$List$any,
+			function (input) {
+				return _Utils_eq(
+					_Utils_Tuple2(x + 1, y),
+					input);
+			},
+			_Utils_ap(vase, water)) || (((x + 1) > 15) || A2(
+			$elm$core$List$any,
+			function (input) {
+				return _Utils_eq(
+					_Utils_Tuple2(x + 1, y - 1),
+					input);
+			},
+			water));
+		var moveLeft = A2(
+			$elm$core$List$any,
+			function (input) {
+				return _Utils_eq(
+					_Utils_Tuple2(x - 1, y),
+					input);
+			},
+			_Utils_ap(vase, water)) || (((x - 1) < 0) || A2(
+			$elm$core$List$any,
+			function (input) {
+				return _Utils_eq(
+					_Utils_Tuple2(x - 1, y - 1),
+					input);
+			},
+			water));
+		var moveDown = A2(
+			$elm$core$List$any,
+			function (input) {
+				return _Utils_eq(
+					_Utils_Tuple2(x, y + 1),
+					input);
+			},
+			_Utils_ap(vase, water)) || ((y + 1) > 15);
+		return (!moveDown) ? _Utils_Tuple2(x, y + 1) : (((!moveRight) && (!left)) ? _Utils_Tuple2(x + 1, y) : (((!moveLeft) && left) ? _Utils_Tuple2(x - 1, y) : _Utils_Tuple2(x, y)));
+	});
+var $author$project$WaterPlug$update = F2(
 	function (computer, _v0) {
 		var objects = _v0.objects;
 		var latent = _v0.latent;
-		var upPressed = computer.mouse.click && (computer.mouse.y < 100);
-		var rotatePressed = computer.mouse.click && ((computer.mouse.y > 100) && ((computer.mouse.y < 300) && ((computer.mouse.x > 100) && (computer.mouse.x < 300))));
-		var rightPressed = computer.mouse.click && (computer.mouse.x > 300);
-		var leftPressed = computer.mouse.click && (computer.mouse.x < 100);
-		var downPressed = computer.mouse.click && (computer.mouse.y > 300);
-		var _v1 = latent.mobileMagnetPlus;
-		var mobileMagnetPlusX = _v1.a;
-		var mobileMagnetPlusY = _v1.b;
-		var proposedPlusX = leftPressed ? (mobileMagnetPlusX - 1) : (rightPressed ? (mobileMagnetPlusX + 1) : mobileMagnetPlusX);
-		var proposedPlusY = upPressed ? (mobileMagnetPlusY - 1) : (downPressed ? (mobileMagnetPlusY + 1) : mobileMagnetPlusY);
-		var equalsProposedPlus = function (a) {
-			return _Utils_eq(
-				_Utils_Tuple2(proposedPlusX, proposedPlusY),
-				a);
-		};
-		var _v2 = latent.mobileMagnetMinus;
-		var mobileMagnetMinusX = _v2.a;
-		var mobileMagnetMinusY = _v2.b;
-		var proposedMinusX = (rotatePressed && (!_Utils_eq(mobileMagnetMinusX, mobileMagnetPlusX))) ? mobileMagnetPlusX : ((rotatePressed && (_Utils_cmp(mobileMagnetMinusY, mobileMagnetPlusY) > 0)) ? (mobileMagnetPlusX + 1) : ((rotatePressed && (_Utils_cmp(mobileMagnetMinusY, mobileMagnetPlusY) < 0)) ? (mobileMagnetPlusX - 1) : (rightPressed ? (mobileMagnetMinusX + 1) : (leftPressed ? (mobileMagnetMinusX - 1) : mobileMagnetMinusX))));
-		var proposedMinusY = (rotatePressed && (!_Utils_eq(mobileMagnetMinusY, mobileMagnetPlusY))) ? mobileMagnetPlusY : ((rotatePressed && (_Utils_cmp(mobileMagnetMinusX, mobileMagnetPlusX) > 0)) ? (mobileMagnetPlusY - 1) : ((rotatePressed && (_Utils_cmp(mobileMagnetMinusX, mobileMagnetPlusX) < 0)) ? (mobileMagnetPlusY + 1) : (upPressed ? (mobileMagnetMinusY - 1) : (downPressed ? (mobileMagnetMinusY + 1) : mobileMagnetMinusY))));
-		var equalsProposed = function (a) {
-			return A2(
-				$elm$core$Maybe$withDefault,
-				_Utils_eq(
-					_Utils_Tuple2(
-						_Utils_Tuple2(proposedPlusX, proposedPlusY),
-						_Utils_Tuple2(proposedMinusX, proposedMinusY)),
-					a),
-				$elm$core$Maybe$Nothing);
-		};
-		var equalsProposedMinus = function (a) {
-			return _Utils_eq(
-				_Utils_Tuple2(proposedMinusX, proposedMinusY),
-				a);
-		};
-		var invalid = _Utils_eq(
-			_Utils_Tuple2(proposedPlusX, proposedPlusY),
-			_Utils_Tuple2(7, 7)) || (_Utils_eq(
-			_Utils_Tuple2(proposedPlusX, proposedPlusY),
-			_Utils_Tuple2(7, 8)) || (_Utils_eq(
-			_Utils_Tuple2(proposedMinusX, proposedMinusY),
-			_Utils_Tuple2(7, 7)) || _Utils_eq(
-			_Utils_Tuple2(proposedMinusX, proposedMinusY),
-			_Utils_Tuple2(7, 8))));
-		var finalMinusX = (!(!$elm$core$List$length(
-			A2($elm$core$List$filter, equalsProposed, $author$project$Magnet$moveRight)))) ? (proposedMinusX + 1) : ((!(!$elm$core$List$length(
-			A2($elm$core$List$filter, equalsProposed, $author$project$Magnet$moveLeft)))) ? (proposedMinusX - 1) : (invalid ? mobileMagnetMinusX : (($elm$core$List$length(
-			A2($elm$core$List$filter, equalsProposedPlus, $author$project$Magnet$plusInvalid)) > 0) ? mobileMagnetMinusX : (($elm$core$List$length(
-			A2($elm$core$List$filter, equalsProposedMinus, $author$project$Magnet$minusInvalid)) > 0) ? mobileMagnetMinusX : proposedMinusX))));
-		var finalMinusY = (!(!$elm$core$List$length(
-			A2($elm$core$List$filter, equalsProposed, $author$project$Magnet$moveUp)))) ? (proposedMinusY - 1) : ((!(!$elm$core$List$length(
-			A2($elm$core$List$filter, equalsProposed, $author$project$Magnet$moveDown)))) ? (proposedMinusY + 1) : (invalid ? mobileMagnetMinusY : (($elm$core$List$length(
-			A2($elm$core$List$filter, equalsProposedPlus, $author$project$Magnet$plusInvalid)) > 0) ? mobileMagnetMinusY : (($elm$core$List$length(
-			A2($elm$core$List$filter, equalsProposedMinus, $author$project$Magnet$minusInvalid)) > 0) ? mobileMagnetMinusY : proposedMinusY))));
-		var newMinus = _Utils_Tuple2(finalMinusX, finalMinusY);
-		var finalPlusX = (!(!$elm$core$List$length(
-			A2($elm$core$List$filter, equalsProposed, $author$project$Magnet$moveRight)))) ? (proposedPlusX + 1) : ((!(!$elm$core$List$length(
-			A2($elm$core$List$filter, equalsProposed, $author$project$Magnet$moveLeft)))) ? (proposedPlusX - 1) : (invalid ? mobileMagnetPlusX : (($elm$core$List$length(
-			A2($elm$core$List$filter, equalsProposedPlus, $author$project$Magnet$plusInvalid)) > 0) ? mobileMagnetPlusX : (($elm$core$List$length(
-			A2($elm$core$List$filter, equalsProposedMinus, $author$project$Magnet$minusInvalid)) > 0) ? mobileMagnetPlusX : proposedPlusX))));
-		var finalPlusY = (!(!$elm$core$List$length(
-			A2($elm$core$List$filter, equalsProposed, $author$project$Magnet$moveUp)))) ? (proposedPlusY - 1) : ((!(!$elm$core$List$length(
-			A2($elm$core$List$filter, equalsProposed, $author$project$Magnet$moveDown)))) ? (proposedPlusY + 1) : (invalid ? mobileMagnetPlusY : (($elm$core$List$length(
-			A2($elm$core$List$filter, equalsProposedPlus, $author$project$Magnet$plusInvalid)) > 0) ? mobileMagnetPlusY : (($elm$core$List$length(
-			A2($elm$core$List$filter, equalsProposedMinus, $author$project$Magnet$minusInvalid)) > 0) ? mobileMagnetPlusY : proposedPlusY))));
-		var newPlus = _Utils_Tuple2(finalPlusX, finalPlusY);
-		var movedObjects = A2($author$project$Magnet$objectsFromOrig, newPlus, newMinus);
+		var newMode = A2(
+			$author$project$WaterPlug$modeTransition,
+			_Utils_Tuple2(
+				$author$project$WaterPlug$getX(computer),
+				$author$project$WaterPlug$getY(computer)),
+			latent.varMode);
+		var newVase = $author$project$WaterPlug$gasPumpPressed(computer) ? _Utils_ap(
+			latent.vasePos,
+			A2(
+				$author$project$WaterPlug$addToVase,
+				_Utils_Tuple2(
+					$author$project$WaterPlug$getX(computer),
+					$author$project$WaterPlug$getY(computer)),
+				newMode)) : latent.vasePos;
+		var removePlug = newMode === 4;
+		var newPlug = removePlug ? _List_Nil : ($author$project$WaterPlug$gasPumpPressed(computer) ? _Utils_ap(
+			latent.plugPos,
+			A2(
+				$author$project$WaterPlug$addToPlug,
+				_Utils_Tuple2(
+					$author$project$WaterPlug$getX(computer),
+					$author$project$WaterPlug$getY(computer)),
+				newMode)) : latent.plugPos);
+		var tempWater = $author$project$WaterPlug$gasPumpPressed(computer) ? _Utils_ap(
+			latent.waterPos,
+			A2(
+				$author$project$WaterPlug$addToWater,
+				_Utils_Tuple2(
+					$author$project$WaterPlug$getX(computer),
+					$author$project$WaterPlug$getY(computer)),
+				newMode)) : latent.waterPos;
+		var newWater = A2(
+			$elm$core$List$map,
+			function (_v1) {
+				var x = _v1.a;
+				var y = _v1.b;
+				return A4(
+					$author$project$WaterPlug$waterMove,
+					_Utils_Tuple2(x, y),
+					_Utils_ap(newVase, newPlug),
+					tempWater,
+					latent.left);
+			},
+			tempWater);
+		var newScene = _Utils_ap(
+			$author$project$WaterPlug$buttons,
+			_Utils_ap(
+				$author$project$WaterPlug$makeVase(newVase),
+				_Utils_ap(
+					$author$project$WaterPlug$makePlug(newPlug),
+					$author$project$WaterPlug$makeWater(newWater))));
 		return {
-			latent: {mobileMagnetMinus: newMinus, mobileMagnetPlus: newPlus},
-			objects: movedObjects
+			latent: {left: !latent.left, plugPos: newPlug, varMode: newMode, vasePos: newVase, waterPos: newWater},
+			objects: newScene
 		};
 	});
-var $author$project$Magnet$main = A2(
+var $author$project$WaterPlug$vasePositions = _List_Nil;
+var $author$project$WaterPlug$waterPositions = _List_Nil;
+var $author$project$WaterPlug$main = A2(
 	$author$project$Update$pomdp,
 	{
-		latent: {mobileMagnetMinus: $author$project$Magnet$initMobileMagnetMinus, mobileMagnetPlus: $author$project$Magnet$initMobileMagnetPlus},
-		objects: $author$project$Magnet$initScene
+		latent: {left: true, plugPos: $author$project$WaterPlug$plugPositions, varMode: $author$project$WaterPlug$mode, vasePos: $author$project$WaterPlug$vasePositions, waterPos: $author$project$WaterPlug$waterPositions},
+		objects: _Utils_ap(
+			$author$project$WaterPlug$buttons,
+			_Utils_ap(
+				$author$project$WaterPlug$makeVase($author$project$WaterPlug$vasePositions),
+				_Utils_ap(
+					$author$project$WaterPlug$makePlug($author$project$WaterPlug$plugPositions),
+					$author$project$WaterPlug$makeWater($author$project$WaterPlug$waterPositions))))
 	},
-	$author$project$Magnet$update);
-var $author$project$Main$magnet = $author$project$Magnet$main;
-var $author$project$Main$main = $author$project$Main$magnet;
+	$author$project$WaterPlug$update);
+var $author$project$Main$waterPlug = $author$project$WaterPlug$main;
+var $author$project$Main$main = $author$project$Main$waterPlug;
 _Platform_export({'Main':{'init':$author$project$Main$main(
 	$elm$json$Json$Decode$succeed(_Utils_Tuple0))(0)}});}(this));

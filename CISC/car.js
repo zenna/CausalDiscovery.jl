@@ -4401,6 +4401,8 @@ function _Time_getZoneName()
 		callback(_Scheduler_succeed(name));
 	});
 }
+var $author$project$Car$maxGas = 3;
+var $author$project$Car$initGas = $author$project$Car$maxGas;
 var $elm$core$Basics$EQ = {$: 'EQ'};
 var $elm$core$Basics$LT = {$: 'LT'};
 var $elm$core$List$cons = _List_cons;
@@ -4481,8 +4483,7 @@ var $elm$core$Set$toList = function (_v0) {
 	return $elm$core$Dict$keys(dict);
 };
 var $elm$core$Basics$GT = {$: 'GT'};
-var $author$project$Magnet$initMobileMagnetMinus = _Utils_Tuple2(4, 8);
-var $author$project$Magnet$initMobileMagnetPlus = _Utils_Tuple2(4, 7);
+var $author$project$Car$initOrig = _Utils_Tuple2(1, 1);
 var $author$project$Engine$Box = F4(
 	function (a, b, c, d) {
 		return {$: 'Box', a: a, b: b, c: c, d: d};
@@ -4490,85 +4491,46 @@ var $author$project$Engine$Box = F4(
 var $author$project$Engine$ObjectTag = function (a) {
 	return {$: 'ObjectTag', a: a};
 };
+var $elm$core$Basics$add = _Basics_add;
 var $avh4$elm_color$Color$RgbaSpace = F4(
 	function (a, b, c, d) {
 		return {$: 'RgbaSpace', a: a, b: b, c: c, d: d};
 	});
 var $elm$core$Basics$fdiv = _Basics_fdiv;
-var $avh4$elm_color$Color$blue = A4($avh4$elm_color$Color$RgbaSpace, 52 / 255, 101 / 255, 164 / 255, 1.0);
-var $author$project$Magnet$fixedMagnetMinusX = 7;
-var $author$project$Magnet$fixedMagnetMinusY = 8;
-var $author$project$Magnet$fixedMagnetPlusX = 7;
-var $author$project$Magnet$fixedMagnetPlusY = 7;
 var $avh4$elm_color$Color$green = A4($avh4$elm_color$Color$RgbaSpace, 115 / 255, 210 / 255, 22 / 255, 1.0);
-var $avh4$elm_color$Color$red = A4($avh4$elm_color$Color$RgbaSpace, 204 / 255, 0 / 255, 0 / 255, 1.0);
-var $author$project$Magnet$objectsFromOrig = F2(
-	function (_v0, _v1) {
-		var xPlus = _v0.a;
-		var yPlus = _v0.b;
-		var xMinus = _v1.a;
-		var yMinus = _v1.b;
-		var upBox = A4(
+var $elm$core$Basics$sub = _Basics_sub;
+var $avh4$elm_color$Color$white = A4($avh4$elm_color$Color$RgbaSpace, 255 / 255, 255 / 255, 255 / 255, 1.0);
+var $avh4$elm_color$Color$yellow = A4($avh4$elm_color$Color$RgbaSpace, 237 / 255, 212 / 255, 0 / 255, 1.0);
+var $author$project$Car$objectsFromOrig = F2(
+	function (_v0, tankLevel) {
+		var x = _v0.a;
+		var y = _v0.b;
+		var tank = A4(
 			$author$project$Engine$Box,
-			_Utils_Tuple2(7, 0),
+			_Utils_Tuple2(x + 1, y + 1),
 			0,
-			0,
-			$avh4$elm_color$Color$green);
-		var rightBox = A4(
+			2,
+			$avh4$elm_color$Color$white);
+		var gas = A4(
 			$author$project$Engine$Box,
-			_Utils_Tuple2(15, 7),
+			_Utils_Tuple2(x + 1, y + 1),
 			0,
-			0,
-			$avh4$elm_color$Color$green);
-		var mobileMagnetPlus = A4(
+			tankLevel - 1,
+			$avh4$elm_color$Color$yellow);
+		var car = A4(
 			$author$project$Engine$Box,
-			_Utils_Tuple2(xPlus, yPlus),
-			0,
-			0,
-			$avh4$elm_color$Color$red);
-		var mobileMagnetMinus = A4(
-			$author$project$Engine$Box,
-			_Utils_Tuple2(xMinus, yMinus),
-			0,
-			0,
-			$avh4$elm_color$Color$blue);
-		var leftBox = A4(
-			$author$project$Engine$Box,
-			_Utils_Tuple2(0, 7),
-			0,
-			0,
-			$avh4$elm_color$Color$green);
-		var fixedMagnetPlus = A4(
-			$author$project$Engine$Box,
-			_Utils_Tuple2($author$project$Magnet$fixedMagnetPlusX, $author$project$Magnet$fixedMagnetPlusY),
-			0,
-			0,
-			$avh4$elm_color$Color$red);
-		var fixedMagnetMinus = A4(
-			$author$project$Engine$Box,
-			_Utils_Tuple2($author$project$Magnet$fixedMagnetMinusX, $author$project$Magnet$fixedMagnetMinusY),
-			0,
-			0,
-			$avh4$elm_color$Color$blue);
-		var downBox = A4(
-			$author$project$Engine$Box,
-			_Utils_Tuple2(7, 15),
-			0,
-			0,
+			_Utils_Tuple2(x, y),
+			2,
+			4,
 			$avh4$elm_color$Color$green);
 		return _List_fromArray(
 			[
-				$author$project$Engine$ObjectTag(fixedMagnetPlus),
-				$author$project$Engine$ObjectTag(fixedMagnetMinus),
-				$author$project$Engine$ObjectTag(mobileMagnetPlus),
-				$author$project$Engine$ObjectTag(mobileMagnetMinus),
-				$author$project$Engine$ObjectTag(upBox),
-				$author$project$Engine$ObjectTag(downBox),
-				$author$project$Engine$ObjectTag(leftBox),
-				$author$project$Engine$ObjectTag(rightBox)
+				$author$project$Engine$ObjectTag(gas),
+				$author$project$Engine$ObjectTag(tank),
+				$author$project$Engine$ObjectTag(car)
 			]);
 	});
-var $author$project$Magnet$initScene = A2($author$project$Magnet$objectsFromOrig, $author$project$Magnet$initMobileMagnetPlus, $author$project$Magnet$initMobileMagnetMinus);
+var $author$project$Car$initScene = A2($author$project$Car$objectsFromOrig, $author$project$Car$initOrig, $author$project$Car$maxGas);
 var $author$project$Update$POMDP = F2(
 	function (a, b) {
 		return {$: 'POMDP', a: a, b: b};
@@ -4595,7 +4557,6 @@ var $elm$json$Json$Decode$OneOf = function (a) {
 	return {$: 'OneOf', a: a};
 };
 var $elm$core$Basics$False = {$: 'False'};
-var $elm$core$Basics$add = _Basics_add;
 var $elm$core$Maybe$Just = function (a) {
 	return {$: 'Just', a: a};
 };
@@ -4654,7 +4615,6 @@ var $elm$core$List$length = function (xs) {
 };
 var $elm$core$List$map2 = _List_map2;
 var $elm$core$Basics$le = _Utils_le;
-var $elm$core$Basics$sub = _Basics_sub;
 var $elm$core$List$rangeHelp = F3(
 	function (lo, hi, list) {
 		rangeHelp:
@@ -6047,6 +6007,7 @@ var $author$project$Engine$alphacompose = F2(
 				red: A2(f, p.red, q.red)
 			});
 	});
+var $avh4$elm_color$Color$red = A4($avh4$elm_color$Color$RgbaSpace, 204 / 255, 0 / 255, 0 / 255, 1.0);
 var $author$project$Engine$alphacomposeMany = function (rgbs) {
 	if (!rgbs.b) {
 		return $avh4$elm_color$Color$red;
@@ -6120,7 +6081,6 @@ var $author$project$Engine$fieldObject = F2(
 			return $avh4$elm_color$Color$red;
 		}
 	});
-var $avh4$elm_color$Color$yellow = A4($avh4$elm_color$Color$RgbaSpace, 237 / 255, 212 / 255, 0 / 255, 1.0);
 var $author$project$Engine$field = F2(
 	function (entity, pos) {
 		switch (entity.$) {
@@ -6310,7 +6270,6 @@ var $joakin$elm_canvas$Canvas$shapes = F2(
 					drawable: $joakin$elm_canvas$Canvas$Internal$Canvas$DrawableShapes(ss)
 				}));
 	});
-var $avh4$elm_color$Color$white = A4($avh4$elm_color$Color$RgbaSpace, 255 / 255, 255 / 255, 255 / 255, 1.0);
 var $author$project$Update$clearScreen = F2(
 	function (width, height) {
 		return A2(
@@ -7286,183 +7245,33 @@ var $author$project$Update$pomdp = F2(
 		return $elm$browser$Browser$element(
 			{init: init, subscriptions: subscriptions, update: update, view: view_});
 	});
-var $elm$core$List$filter = F2(
-	function (isGood, list) {
-		return A3(
-			$elm$core$List$foldr,
-			F2(
-				function (x, xs) {
-					return isGood(x) ? A2($elm$core$List$cons, x, xs) : xs;
-				}),
-			_List_Nil,
-			list);
-	});
-var $author$project$Magnet$minusInvalid = _List_fromArray(
-	[
-		_Utils_Tuple2(7, 9),
-		_Utils_Tuple2(6, 8),
-		_Utils_Tuple2(8, 8)
-	]);
-var $author$project$Magnet$moveDown = _List_fromArray(
-	[
-		_Utils_Tuple2(
-		_Utils_Tuple2(7, 4),
-		_Utils_Tuple2(7, 5)),
-		_Utils_Tuple2(
-		_Utils_Tuple2(6, 5),
-		_Utils_Tuple2(7, 5)),
-		_Utils_Tuple2(
-		_Utils_Tuple2(8, 5),
-		_Utils_Tuple2(7, 5))
-	]);
-var $author$project$Magnet$moveLeft = _List_fromArray(
-	[
-		_Utils_Tuple2(
-		_Utils_Tuple2(9, 6),
-		_Utils_Tuple2(9, 7)),
-		_Utils_Tuple2(
-		_Utils_Tuple2(10, 7),
-		_Utils_Tuple2(9, 7)),
-		_Utils_Tuple2(
-		_Utils_Tuple2(9, 8),
-		_Utils_Tuple2(9, 7)),
-		_Utils_Tuple2(
-		_Utils_Tuple2(9, 8),
-		_Utils_Tuple2(10, 8)),
-		_Utils_Tuple2(
-		_Utils_Tuple2(9, 8),
-		_Utils_Tuple2(9, 9))
-	]);
-var $author$project$Magnet$moveRight = _List_fromArray(
-	[
-		_Utils_Tuple2(
-		_Utils_Tuple2(5, 8),
-		_Utils_Tuple2(4, 8)),
-		_Utils_Tuple2(
-		_Utils_Tuple2(5, 8),
-		_Utils_Tuple2(5, 9)),
-		_Utils_Tuple2(
-		_Utils_Tuple2(4, 7),
-		_Utils_Tuple2(5, 7)),
-		_Utils_Tuple2(
-		_Utils_Tuple2(5, 6),
-		_Utils_Tuple2(5, 7)),
-		_Utils_Tuple2(
-		_Utils_Tuple2(5, 8),
-		_Utils_Tuple2(5, 7))
-	]);
-var $author$project$Magnet$moveUp = _List_fromArray(
-	[
-		_Utils_Tuple2(
-		_Utils_Tuple2(7, 10),
-		_Utils_Tuple2(7, 11)),
-		_Utils_Tuple2(
-		_Utils_Tuple2(7, 10),
-		_Utils_Tuple2(6, 10)),
-		_Utils_Tuple2(
-		_Utils_Tuple2(7, 10),
-		_Utils_Tuple2(8, 10))
-	]);
-var $elm$core$Basics$neq = _Utils_notEqual;
-var $author$project$Magnet$plusInvalid = _List_fromArray(
-	[
-		_Utils_Tuple2(6, 7),
-		_Utils_Tuple2(7, 6),
-		_Utils_Tuple2(8, 7)
-	]);
-var $elm$core$Maybe$withDefault = F2(
-	function (_default, maybe) {
-		if (maybe.$ === 'Just') {
-			var value = maybe.a;
-			return value;
-		} else {
-			return _default;
-		}
-	});
-var $author$project$Magnet$update = F2(
+var $author$project$Car$gasPumpPressed = function (computer) {
+	return computer.mouse.click;
+};
+var $author$project$Car$update = F2(
 	function (computer, _v0) {
 		var objects = _v0.objects;
 		var latent = _v0.latent;
-		var upPressed = computer.mouse.click && (computer.mouse.y < 100);
-		var rotatePressed = computer.mouse.click && ((computer.mouse.y > 100) && ((computer.mouse.y < 300) && ((computer.mouse.x > 100) && (computer.mouse.x < 300))));
-		var rightPressed = computer.mouse.click && (computer.mouse.x > 300);
-		var leftPressed = computer.mouse.click && (computer.mouse.x < 100);
-		var downPressed = computer.mouse.click && (computer.mouse.y > 300);
-		var _v1 = latent.mobileMagnetPlus;
-		var mobileMagnetPlusX = _v1.a;
-		var mobileMagnetPlusY = _v1.b;
-		var proposedPlusX = leftPressed ? (mobileMagnetPlusX - 1) : (rightPressed ? (mobileMagnetPlusX + 1) : mobileMagnetPlusX);
-		var proposedPlusY = upPressed ? (mobileMagnetPlusY - 1) : (downPressed ? (mobileMagnetPlusY + 1) : mobileMagnetPlusY);
-		var equalsProposedPlus = function (a) {
-			return _Utils_eq(
-				_Utils_Tuple2(proposedPlusX, proposedPlusY),
-				a);
-		};
-		var _v2 = latent.mobileMagnetMinus;
-		var mobileMagnetMinusX = _v2.a;
-		var mobileMagnetMinusY = _v2.b;
-		var proposedMinusX = (rotatePressed && (!_Utils_eq(mobileMagnetMinusX, mobileMagnetPlusX))) ? mobileMagnetPlusX : ((rotatePressed && (_Utils_cmp(mobileMagnetMinusY, mobileMagnetPlusY) > 0)) ? (mobileMagnetPlusX + 1) : ((rotatePressed && (_Utils_cmp(mobileMagnetMinusY, mobileMagnetPlusY) < 0)) ? (mobileMagnetPlusX - 1) : (rightPressed ? (mobileMagnetMinusX + 1) : (leftPressed ? (mobileMagnetMinusX - 1) : mobileMagnetMinusX))));
-		var proposedMinusY = (rotatePressed && (!_Utils_eq(mobileMagnetMinusY, mobileMagnetPlusY))) ? mobileMagnetPlusY : ((rotatePressed && (_Utils_cmp(mobileMagnetMinusX, mobileMagnetPlusX) > 0)) ? (mobileMagnetPlusY - 1) : ((rotatePressed && (_Utils_cmp(mobileMagnetMinusX, mobileMagnetPlusX) < 0)) ? (mobileMagnetPlusY + 1) : (upPressed ? (mobileMagnetMinusY - 1) : (downPressed ? (mobileMagnetMinusY + 1) : mobileMagnetMinusY))));
-		var equalsProposed = function (a) {
-			return A2(
-				$elm$core$Maybe$withDefault,
-				_Utils_eq(
-					_Utils_Tuple2(
-						_Utils_Tuple2(proposedPlusX, proposedPlusY),
-						_Utils_Tuple2(proposedMinusX, proposedMinusY)),
-					a),
-				$elm$core$Maybe$Nothing);
-		};
-		var equalsProposedMinus = function (a) {
-			return _Utils_eq(
-				_Utils_Tuple2(proposedMinusX, proposedMinusY),
-				a);
-		};
-		var invalid = _Utils_eq(
-			_Utils_Tuple2(proposedPlusX, proposedPlusY),
-			_Utils_Tuple2(7, 7)) || (_Utils_eq(
-			_Utils_Tuple2(proposedPlusX, proposedPlusY),
-			_Utils_Tuple2(7, 8)) || (_Utils_eq(
-			_Utils_Tuple2(proposedMinusX, proposedMinusY),
-			_Utils_Tuple2(7, 7)) || _Utils_eq(
-			_Utils_Tuple2(proposedMinusX, proposedMinusY),
-			_Utils_Tuple2(7, 8))));
-		var finalMinusX = (!(!$elm$core$List$length(
-			A2($elm$core$List$filter, equalsProposed, $author$project$Magnet$moveRight)))) ? (proposedMinusX + 1) : ((!(!$elm$core$List$length(
-			A2($elm$core$List$filter, equalsProposed, $author$project$Magnet$moveLeft)))) ? (proposedMinusX - 1) : (invalid ? mobileMagnetMinusX : (($elm$core$List$length(
-			A2($elm$core$List$filter, equalsProposedPlus, $author$project$Magnet$plusInvalid)) > 0) ? mobileMagnetMinusX : (($elm$core$List$length(
-			A2($elm$core$List$filter, equalsProposedMinus, $author$project$Magnet$minusInvalid)) > 0) ? mobileMagnetMinusX : proposedMinusX))));
-		var finalMinusY = (!(!$elm$core$List$length(
-			A2($elm$core$List$filter, equalsProposed, $author$project$Magnet$moveUp)))) ? (proposedMinusY - 1) : ((!(!$elm$core$List$length(
-			A2($elm$core$List$filter, equalsProposed, $author$project$Magnet$moveDown)))) ? (proposedMinusY + 1) : (invalid ? mobileMagnetMinusY : (($elm$core$List$length(
-			A2($elm$core$List$filter, equalsProposedPlus, $author$project$Magnet$plusInvalid)) > 0) ? mobileMagnetMinusY : (($elm$core$List$length(
-			A2($elm$core$List$filter, equalsProposedMinus, $author$project$Magnet$minusInvalid)) > 0) ? mobileMagnetMinusY : proposedMinusY))));
-		var newMinus = _Utils_Tuple2(finalMinusX, finalMinusY);
-		var finalPlusX = (!(!$elm$core$List$length(
-			A2($elm$core$List$filter, equalsProposed, $author$project$Magnet$moveRight)))) ? (proposedPlusX + 1) : ((!(!$elm$core$List$length(
-			A2($elm$core$List$filter, equalsProposed, $author$project$Magnet$moveLeft)))) ? (proposedPlusX - 1) : (invalid ? mobileMagnetPlusX : (($elm$core$List$length(
-			A2($elm$core$List$filter, equalsProposedPlus, $author$project$Magnet$plusInvalid)) > 0) ? mobileMagnetPlusX : (($elm$core$List$length(
-			A2($elm$core$List$filter, equalsProposedMinus, $author$project$Magnet$minusInvalid)) > 0) ? mobileMagnetPlusX : proposedPlusX))));
-		var finalPlusY = (!(!$elm$core$List$length(
-			A2($elm$core$List$filter, equalsProposed, $author$project$Magnet$moveUp)))) ? (proposedPlusY - 1) : ((!(!$elm$core$List$length(
-			A2($elm$core$List$filter, equalsProposed, $author$project$Magnet$moveDown)))) ? (proposedPlusY + 1) : (invalid ? mobileMagnetPlusY : (($elm$core$List$length(
-			A2($elm$core$List$filter, equalsProposedPlus, $author$project$Magnet$plusInvalid)) > 0) ? mobileMagnetPlusY : (($elm$core$List$length(
-			A2($elm$core$List$filter, equalsProposedMinus, $author$project$Magnet$minusInvalid)) > 0) ? mobileMagnetPlusY : proposedPlusY))));
-		var newPlus = _Utils_Tuple2(finalPlusX, finalPlusY);
-		var movedObjects = A2($author$project$Magnet$objectsFromOrig, newPlus, newMinus);
+		var tankLevel = latent.tankLevel;
+		var newTank = $author$project$Car$gasPumpPressed(computer) ? $author$project$Car$maxGas : (tankLevel - 1);
+		var _v1 = latent.carOrig;
+		var carOrigx = _v1.a;
+		var carOrigy = _v1.b;
+		var newOrig = (tankLevel > 0) ? _Utils_Tuple2(carOrigx + 1, carOrigy + 1) : latent.carOrig;
+		var movedObjects = A2($author$project$Car$objectsFromOrig, newOrig, newTank);
 		return {
-			latent: {mobileMagnetMinus: newMinus, mobileMagnetPlus: newPlus},
+			latent: {carOrig: newOrig, tankLevel: newTank},
 			objects: movedObjects
 		};
 	});
-var $author$project$Magnet$main = A2(
+var $author$project$Car$main = A2(
 	$author$project$Update$pomdp,
 	{
-		latent: {mobileMagnetMinus: $author$project$Magnet$initMobileMagnetMinus, mobileMagnetPlus: $author$project$Magnet$initMobileMagnetPlus},
-		objects: $author$project$Magnet$initScene
+		latent: {carOrig: $author$project$Car$initOrig, tankLevel: $author$project$Car$initGas},
+		objects: $author$project$Car$initScene
 	},
-	$author$project$Magnet$update);
-var $author$project$Main$magnet = $author$project$Magnet$main;
-var $author$project$Main$main = $author$project$Main$magnet;
+	$author$project$Car$update);
+var $author$project$Main$car = $author$project$Car$main;
+var $author$project$Main$main = $author$project$Main$car;
 _Platform_export({'Main':{'init':$author$project$Main$main(
 	$elm$json$Json$Decode$succeed(_Utils_Tuple0))(0)}});}(this));
