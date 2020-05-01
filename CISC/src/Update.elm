@@ -178,7 +178,7 @@ view image width height computer =
         , style "justify-content" "center"
         , style "align-items" "center"
         ]
-        [ div [] [ Html.text (String.fromFloat (mouseX computer)) ],
+        [ -- div [] [ Html.text (String.fromFloat (mouseX computer)) ],
           Canvas.toHtml
             ( width, height )
             [ Mouse.onDown (.offsetPos >> StartAt) ]
