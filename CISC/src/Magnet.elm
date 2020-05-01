@@ -4,6 +4,7 @@ module Magnet exposing (..)
 import Engine exposing (..)
 import Color
 import Update exposing (..)
+import Random
 
 fixedMagnetPlusX = 7
 fixedMagnetPlusY = 7
@@ -61,6 +62,7 @@ update computer {objects, latent} =
     (mobileMagnetMinusX, mobileMagnetMinusY) = latent.mobileMagnetMinus
     
     rotatePressed = computer.mouse.click && computer.mouse.y > 100 && computer.mouse.y < 300 && computer.mouse.x > 100 && computer.mouse.x < 300
+
 
     upPressed = computer.mouse.click && computer.mouse.y < 100 -- computer.keyboard.up
     downPressed = computer.mouse.click && computer.mouse.y > 300 -- computer.keyboard.down
