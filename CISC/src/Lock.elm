@@ -65,7 +65,7 @@ update computer {objects, latent} =
     newkeyy = if inYBounds (keyy+1) && down then keyy + 1 else if inYBounds (keyy-1) && up then keyy - 1 else keyy
     newkeyx = if inXBounds (keyx+1) && right then keyx + 1 else if inXBounds (keyx-1) && left then keyx - 1 else keyx
     currKeyLocation = (newkeyx, newkeyy)
-    currLockValue = if currKeyLocation == lockHoleLocation then True else latent.unlocked -- CHANGE BASED ON IF YOU WANT IT TO REMAIN LOCKED OR UNLOCKED
+    currLockValue = if currKeyLocation == lockHoleLocation then True else False -- CHANGE BASED ON IF YOU WANT IT TO REMAIN LOCKED OR UNLOCKED
     movedObjects = objectsFromOrig currKeyLocation currLockValue
   in
   { 

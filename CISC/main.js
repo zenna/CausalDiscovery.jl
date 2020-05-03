@@ -7291,7 +7291,7 @@ var $author$project$Lock$update = F2(
 		var newkeyx = ($author$project$Lock$inXBounds(keyx + 1) && right) ? (keyx + 1) : (($author$project$Lock$inXBounds(keyx - 1) && left) ? (keyx - 1) : keyx);
 		var newkeyy = ($author$project$Lock$inYBounds(keyy + 1) && down) ? (keyy + 1) : (($author$project$Lock$inYBounds(keyy - 1) && up) ? (keyy - 1) : keyy);
 		var currKeyLocation = _Utils_Tuple2(newkeyx, newkeyy);
-		var currLockValue = _Utils_eq(currKeyLocation, $author$project$Lock$lockHoleLocation) ? true : latent.unlocked;
+		var currLockValue = _Utils_eq(currKeyLocation, $author$project$Lock$lockHoleLocation) ? true : false;
 		var movedObjects = A2($author$project$Lock$objectsFromOrig, currKeyLocation, currLockValue);
 		return {
 			latent: {keyLocation: currKeyLocation, unlocked: currLockValue},
