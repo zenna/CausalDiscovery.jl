@@ -4402,6 +4402,9 @@ function _Time_getZoneName()
 	});
 }
 var $elm$core$Basics$False = {$: 'False'};
+var $elm$core$Dict$RBEmpty_elm_builtin = {$: 'RBEmpty_elm_builtin'};
+var $elm$core$Dict$empty = $elm$core$Dict$RBEmpty_elm_builtin;
+var $author$project$Lock$initHistory = $elm$core$Dict$empty;
 var $elm$core$Basics$EQ = {$: 'EQ'};
 var $elm$core$Basics$LT = {$: 'LT'};
 var $elm$core$List$cons = _List_cons;
@@ -4543,6 +4546,177 @@ var $author$project$Lock$objectsFromOrig = F2(
 			]);
 	});
 var $author$project$Lock$initScene = A2($author$project$Lock$objectsFromOrig, $author$project$Lock$initKeyLocation, $author$project$Lock$initUnlockedState);
+var $elm$core$Basics$add = _Basics_add;
+var $elm$core$Basics$and = _Basics_and;
+var $elm$core$Basics$gt = _Utils_gt;
+var $elm$core$Basics$ge = _Utils_ge;
+var $elm$core$Basics$le = _Utils_le;
+var $elm$core$Basics$sub = _Basics_sub;
+var $author$project$Lock$inXBounds = function (proposedX) {
+	return ((_Utils_cmp(proposedX, 16 - ($author$project$Lock$lockHoleWidth + 1)) < 1) && (proposedX >= 0)) ? true : false;
+};
+var $author$project$Lock$inYBounds = function (proposedY) {
+	return ((_Utils_cmp(proposedY, 16 - ($author$project$Lock$lockHoleLength + 1)) < 1) && (proposedY >= 0)) ? true : false;
+};
+var $elm$core$Basics$lt = _Utils_lt;
+var $author$project$Lock$update = F2(
+	function (computer, _v0) {
+		var objects = _v0.objects;
+		var latent = _v0.latent;
+		var up = computer.mouse.click && (computer.mouse.y < 75);
+		var time = latent.timeStep;
+		var right = computer.mouse.click && (computer.mouse.x > 325);
+		var newtime = time + 1;
+		var left = computer.mouse.click && (computer.mouse.x < 75);
+		var down = computer.mouse.click && (computer.mouse.y > 325);
+		var _v1 = latent.keyLocation;
+		var keyx = _v1.a;
+		var keyy = _v1.b;
+		var newkeyx = ($author$project$Lock$inXBounds(keyx + 1) && right) ? (keyx + 1) : (($author$project$Lock$inXBounds(keyx - 1) && left) ? (keyx - 1) : keyx);
+		var newkeyy = ($author$project$Lock$inYBounds(keyy + 1) && down) ? (keyy + 1) : (($author$project$Lock$inYBounds(keyy - 1) && up) ? (keyy - 1) : keyy);
+		var currKeyLocation = _Utils_Tuple2(newkeyx, newkeyy);
+		var currLockValue = _Utils_eq(currKeyLocation, $author$project$Lock$lockHoleLocation) ? true : false;
+		var movedObjects = A2($author$project$Lock$objectsFromOrig, currKeyLocation, currLockValue);
+		return {
+			latent: {keyLocation: currKeyLocation, timeStep: newtime, unlocked: currLockValue},
+			objects: movedObjects
+		};
+	});
+var $author$project$Update$Model = F2(
+	function (objects, latent) {
+		return {latent: latent, objects: objects};
+	});
+var $author$project$Update$ModelV2 = F3(
+	function (objects, latent, history) {
+		return {history: history, latent: latent, objects: objects};
+	});
+var $elm$core$Dict$Black = {$: 'Black'};
+var $elm$core$Dict$RBNode_elm_builtin = F5(
+	function (a, b, c, d, e) {
+		return {$: 'RBNode_elm_builtin', a: a, b: b, c: c, d: d, e: e};
+	});
+var $elm$core$Dict$Red = {$: 'Red'};
+var $elm$core$Dict$balance = F5(
+	function (color, key, value, left, right) {
+		if ((right.$ === 'RBNode_elm_builtin') && (right.a.$ === 'Red')) {
+			var _v1 = right.a;
+			var rK = right.b;
+			var rV = right.c;
+			var rLeft = right.d;
+			var rRight = right.e;
+			if ((left.$ === 'RBNode_elm_builtin') && (left.a.$ === 'Red')) {
+				var _v3 = left.a;
+				var lK = left.b;
+				var lV = left.c;
+				var lLeft = left.d;
+				var lRight = left.e;
+				return A5(
+					$elm$core$Dict$RBNode_elm_builtin,
+					$elm$core$Dict$Red,
+					key,
+					value,
+					A5($elm$core$Dict$RBNode_elm_builtin, $elm$core$Dict$Black, lK, lV, lLeft, lRight),
+					A5($elm$core$Dict$RBNode_elm_builtin, $elm$core$Dict$Black, rK, rV, rLeft, rRight));
+			} else {
+				return A5(
+					$elm$core$Dict$RBNode_elm_builtin,
+					color,
+					rK,
+					rV,
+					A5($elm$core$Dict$RBNode_elm_builtin, $elm$core$Dict$Red, key, value, left, rLeft),
+					rRight);
+			}
+		} else {
+			if ((((left.$ === 'RBNode_elm_builtin') && (left.a.$ === 'Red')) && (left.d.$ === 'RBNode_elm_builtin')) && (left.d.a.$ === 'Red')) {
+				var _v5 = left.a;
+				var lK = left.b;
+				var lV = left.c;
+				var _v6 = left.d;
+				var _v7 = _v6.a;
+				var llK = _v6.b;
+				var llV = _v6.c;
+				var llLeft = _v6.d;
+				var llRight = _v6.e;
+				var lRight = left.e;
+				return A5(
+					$elm$core$Dict$RBNode_elm_builtin,
+					$elm$core$Dict$Red,
+					lK,
+					lV,
+					A5($elm$core$Dict$RBNode_elm_builtin, $elm$core$Dict$Black, llK, llV, llLeft, llRight),
+					A5($elm$core$Dict$RBNode_elm_builtin, $elm$core$Dict$Black, key, value, lRight, right));
+			} else {
+				return A5($elm$core$Dict$RBNode_elm_builtin, color, key, value, left, right);
+			}
+		}
+	});
+var $elm$core$Basics$compare = _Utils_compare;
+var $elm$core$Dict$insertHelp = F3(
+	function (key, value, dict) {
+		if (dict.$ === 'RBEmpty_elm_builtin') {
+			return A5($elm$core$Dict$RBNode_elm_builtin, $elm$core$Dict$Red, key, value, $elm$core$Dict$RBEmpty_elm_builtin, $elm$core$Dict$RBEmpty_elm_builtin);
+		} else {
+			var nColor = dict.a;
+			var nKey = dict.b;
+			var nValue = dict.c;
+			var nLeft = dict.d;
+			var nRight = dict.e;
+			var _v1 = A2($elm$core$Basics$compare, key, nKey);
+			switch (_v1.$) {
+				case 'LT':
+					return A5(
+						$elm$core$Dict$balance,
+						nColor,
+						nKey,
+						nValue,
+						A3($elm$core$Dict$insertHelp, key, value, nLeft),
+						nRight);
+				case 'EQ':
+					return A5($elm$core$Dict$RBNode_elm_builtin, nColor, nKey, value, nLeft, nRight);
+				default:
+					return A5(
+						$elm$core$Dict$balance,
+						nColor,
+						nKey,
+						nValue,
+						nLeft,
+						A3($elm$core$Dict$insertHelp, key, value, nRight));
+			}
+		}
+	});
+var $elm$core$Dict$insert = F3(
+	function (key, value, dict) {
+		var _v0 = A3($elm$core$Dict$insertHelp, key, value, dict);
+		if ((_v0.$ === 'RBNode_elm_builtin') && (_v0.a.$ === 'Red')) {
+			var _v1 = _v0.a;
+			var k = _v0.b;
+			var v = _v0.c;
+			var l = _v0.d;
+			var r = _v0.e;
+			return A5($elm$core$Dict$RBNode_elm_builtin, $elm$core$Dict$Black, k, v, l, r);
+		} else {
+			var x = _v0;
+			return x;
+		}
+	});
+var $author$project$Update$updateTracker = function (updateFunction) {
+	var newUpdate = F2(
+		function (computer, state) {
+			var stateOut = A2(
+				updateFunction,
+				computer,
+				A2($author$project$Update$Model, state.objects, state.latent));
+			var timeStep = stateOut.latent.timeStep;
+			var newHistory = A3(
+				$elm$core$Dict$insert,
+				timeStep,
+				{latent: stateOut.latent, objects: stateOut.objects},
+				state.history);
+			return A3($author$project$Update$ModelV2, stateOut.objects, stateOut.latent, newHistory);
+		});
+	return newUpdate;
+};
+var $author$project$Lock$loggedUpdate = $author$project$Update$updateTracker($author$project$Lock$update);
 var $author$project$Update$POMDP = F2(
 	function (a, b) {
 		return {$: 'POMDP', a: a, b: b};
@@ -4568,13 +4742,11 @@ var $elm$core$Result$Ok = function (a) {
 var $elm$json$Json$Decode$OneOf = function (a) {
 	return {$: 'OneOf', a: a};
 };
-var $elm$core$Basics$add = _Basics_add;
 var $elm$core$Maybe$Just = function (a) {
 	return {$: 'Just', a: a};
 };
 var $elm$core$Maybe$Nothing = {$: 'Nothing'};
 var $elm$core$String$all = _String_all;
-var $elm$core$Basics$and = _Basics_and;
 var $elm$core$Basics$append = _Utils_append;
 var $elm$json$Json$Encode$encode = _Json_encode;
 var $elm$core$String$fromInt = _String_fromNumber;
@@ -4626,8 +4798,6 @@ var $elm$core$List$length = function (xs) {
 		xs);
 };
 var $elm$core$List$map2 = _List_map2;
-var $elm$core$Basics$le = _Utils_le;
-var $elm$core$Basics$sub = _Basics_sub;
 var $elm$core$List$rangeHelp = F3(
 	function (lo, hi, list) {
 		rangeHelp:
@@ -4816,7 +4986,6 @@ var $elm$core$Basics$apR = F2(
 	});
 var $elm$core$Basics$floor = _Basics_floor;
 var $elm$core$Elm$JsArray$length = _JsArray_length;
-var $elm$core$Basics$gt = _Utils_gt;
 var $elm$core$Basics$max = F2(
 	function (x, y) {
 		return (_Utils_cmp(x, y) > 0) ? x : y;
@@ -4892,7 +5061,6 @@ var $elm$core$Array$builderToArray = F2(
 		}
 	});
 var $elm$core$Basics$idiv = _Basics_idiv;
-var $elm$core$Basics$lt = _Utils_lt;
 var $elm$core$Array$initializeHelp = F5(
 	function (fn, fromIndex, len, nodeList, tail) {
 		initializeHelp:
@@ -5287,11 +5455,8 @@ var $elm$time$Time$State = F2(
 	function (taggers, processes) {
 		return {processes: processes, taggers: taggers};
 	});
-var $elm$core$Dict$RBEmpty_elm_builtin = {$: 'RBEmpty_elm_builtin'};
-var $elm$core$Dict$empty = $elm$core$Dict$RBEmpty_elm_builtin;
 var $elm$time$Time$init = $elm$core$Task$succeed(
 	A2($elm$time$Time$State, $elm$core$Dict$empty, $elm$core$Dict$empty));
-var $elm$core$Basics$compare = _Utils_compare;
 var $elm$core$Dict$get = F2(
 	function (targetKey, dict) {
 		get:
@@ -5321,114 +5486,6 @@ var $elm$core$Dict$get = F2(
 						continue get;
 				}
 			}
-		}
-	});
-var $elm$core$Dict$Black = {$: 'Black'};
-var $elm$core$Dict$RBNode_elm_builtin = F5(
-	function (a, b, c, d, e) {
-		return {$: 'RBNode_elm_builtin', a: a, b: b, c: c, d: d, e: e};
-	});
-var $elm$core$Dict$Red = {$: 'Red'};
-var $elm$core$Dict$balance = F5(
-	function (color, key, value, left, right) {
-		if ((right.$ === 'RBNode_elm_builtin') && (right.a.$ === 'Red')) {
-			var _v1 = right.a;
-			var rK = right.b;
-			var rV = right.c;
-			var rLeft = right.d;
-			var rRight = right.e;
-			if ((left.$ === 'RBNode_elm_builtin') && (left.a.$ === 'Red')) {
-				var _v3 = left.a;
-				var lK = left.b;
-				var lV = left.c;
-				var lLeft = left.d;
-				var lRight = left.e;
-				return A5(
-					$elm$core$Dict$RBNode_elm_builtin,
-					$elm$core$Dict$Red,
-					key,
-					value,
-					A5($elm$core$Dict$RBNode_elm_builtin, $elm$core$Dict$Black, lK, lV, lLeft, lRight),
-					A5($elm$core$Dict$RBNode_elm_builtin, $elm$core$Dict$Black, rK, rV, rLeft, rRight));
-			} else {
-				return A5(
-					$elm$core$Dict$RBNode_elm_builtin,
-					color,
-					rK,
-					rV,
-					A5($elm$core$Dict$RBNode_elm_builtin, $elm$core$Dict$Red, key, value, left, rLeft),
-					rRight);
-			}
-		} else {
-			if ((((left.$ === 'RBNode_elm_builtin') && (left.a.$ === 'Red')) && (left.d.$ === 'RBNode_elm_builtin')) && (left.d.a.$ === 'Red')) {
-				var _v5 = left.a;
-				var lK = left.b;
-				var lV = left.c;
-				var _v6 = left.d;
-				var _v7 = _v6.a;
-				var llK = _v6.b;
-				var llV = _v6.c;
-				var llLeft = _v6.d;
-				var llRight = _v6.e;
-				var lRight = left.e;
-				return A5(
-					$elm$core$Dict$RBNode_elm_builtin,
-					$elm$core$Dict$Red,
-					lK,
-					lV,
-					A5($elm$core$Dict$RBNode_elm_builtin, $elm$core$Dict$Black, llK, llV, llLeft, llRight),
-					A5($elm$core$Dict$RBNode_elm_builtin, $elm$core$Dict$Black, key, value, lRight, right));
-			} else {
-				return A5($elm$core$Dict$RBNode_elm_builtin, color, key, value, left, right);
-			}
-		}
-	});
-var $elm$core$Dict$insertHelp = F3(
-	function (key, value, dict) {
-		if (dict.$ === 'RBEmpty_elm_builtin') {
-			return A5($elm$core$Dict$RBNode_elm_builtin, $elm$core$Dict$Red, key, value, $elm$core$Dict$RBEmpty_elm_builtin, $elm$core$Dict$RBEmpty_elm_builtin);
-		} else {
-			var nColor = dict.a;
-			var nKey = dict.b;
-			var nValue = dict.c;
-			var nLeft = dict.d;
-			var nRight = dict.e;
-			var _v1 = A2($elm$core$Basics$compare, key, nKey);
-			switch (_v1.$) {
-				case 'LT':
-					return A5(
-						$elm$core$Dict$balance,
-						nColor,
-						nKey,
-						nValue,
-						A3($elm$core$Dict$insertHelp, key, value, nLeft),
-						nRight);
-				case 'EQ':
-					return A5($elm$core$Dict$RBNode_elm_builtin, nColor, nKey, value, nLeft, nRight);
-				default:
-					return A5(
-						$elm$core$Dict$balance,
-						nColor,
-						nKey,
-						nValue,
-						nLeft,
-						A3($elm$core$Dict$insertHelp, key, value, nRight));
-			}
-		}
-	});
-var $elm$core$Dict$insert = F3(
-	function (key, value, dict) {
-		var _v0 = A3($elm$core$Dict$insertHelp, key, value, dict);
-		if ((_v0.$ === 'RBNode_elm_builtin') && (_v0.a.$ === 'Red')) {
-			var _v1 = _v0.a;
-			var k = _v0.b;
-			var v = _v0.c;
-			var l = _v0.d;
-			var r = _v0.e;
-			return A5($elm$core$Dict$RBNode_elm_builtin, $elm$core$Dict$Black, k, v, l, r);
-		} else {
-			var x = _v0;
-			return x;
 		}
 	});
 var $elm$time$Time$addMySub = F2(
@@ -6058,7 +6115,6 @@ var $author$project$Engine$alphacomposeMany = function (rgbs) {
 		}
 	}
 };
-var $elm$core$Basics$ge = _Utils_ge;
 var $author$project$Engine$posInBox = F4(
 	function (_v0, _v1, boxwidth, boxheight) {
 		var x = _v0.a;
@@ -7271,40 +7327,14 @@ var $author$project$Update$pomdp = F2(
 		return $elm$browser$Browser$element(
 			{init: init, subscriptions: subscriptions, update: update, view: view_});
 	});
-var $author$project$Lock$inXBounds = function (proposedX) {
-	return ((_Utils_cmp(proposedX, 16 - ($author$project$Lock$lockHoleWidth + 1)) < 1) && (proposedX >= 0)) ? true : false;
-};
-var $author$project$Lock$inYBounds = function (proposedY) {
-	return ((_Utils_cmp(proposedY, 16 - ($author$project$Lock$lockHoleLength + 1)) < 1) && (proposedY >= 0)) ? true : false;
-};
-var $author$project$Lock$update = F2(
-	function (computer, _v0) {
-		var objects = _v0.objects;
-		var latent = _v0.latent;
-		var up = computer.mouse.click && (computer.mouse.y < 75);
-		var right = computer.mouse.click && (computer.mouse.x > 325);
-		var left = computer.mouse.click && (computer.mouse.x < 75);
-		var down = computer.mouse.click && (computer.mouse.y > 325);
-		var _v1 = latent.keyLocation;
-		var keyx = _v1.a;
-		var keyy = _v1.b;
-		var newkeyx = ($author$project$Lock$inXBounds(keyx + 1) && right) ? (keyx + 1) : (($author$project$Lock$inXBounds(keyx - 1) && left) ? (keyx - 1) : keyx);
-		var newkeyy = ($author$project$Lock$inYBounds(keyy + 1) && down) ? (keyy + 1) : (($author$project$Lock$inYBounds(keyy - 1) && up) ? (keyy - 1) : keyy);
-		var currKeyLocation = _Utils_Tuple2(newkeyx, newkeyy);
-		var currLockValue = _Utils_eq(currKeyLocation, $author$project$Lock$lockHoleLocation) ? true : false;
-		var movedObjects = A2($author$project$Lock$objectsFromOrig, currKeyLocation, currLockValue);
-		return {
-			latent: {keyLocation: currKeyLocation, unlocked: currLockValue},
-			objects: movedObjects
-		};
-	});
 var $author$project$Lock$main = A2(
 	$author$project$Update$pomdp,
 	{
-		latent: {keyLocation: $author$project$Lock$initKeyLocation, unlocked: false},
+		history: $author$project$Lock$initHistory,
+		latent: {keyLocation: $author$project$Lock$initKeyLocation, timeStep: 0, unlocked: false},
 		objects: $author$project$Lock$initScene
 	},
-	$author$project$Lock$update);
+	$author$project$Lock$loggedUpdate);
 var $author$project$Main$main = $author$project$Lock$main;
 _Platform_export({'Main':{'init':$author$project$Main$main(
 	$elm$json$Json$Decode$succeed(_Utils_Tuple0))(0)}});}(this));

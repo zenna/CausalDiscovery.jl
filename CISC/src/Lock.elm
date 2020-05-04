@@ -4,6 +4,9 @@ module Lock exposing (..)
 import Engine exposing (..)
 import Color
 import Update exposing (..)
+import String.Conversions
+import File.Download as Download
+import Dict
 
 -- Lock Example
 
@@ -34,7 +37,7 @@ objectsFromOrig (x,y) unlocked =
 initScene : Scene
 initScene = objectsFromOrig initKeyLocation initUnlockedState
 
--- Gas Pump
+initHistory = Dict.empty
 
 mouseClicked computer = computer.mouse.click
 
@@ -52,25 +55,43 @@ move entity x y =
     FieldTag field -> FieldTag field
     ParticlesTag particles -> ParticlesTag particles
 
+print mytext = Download.string mytext
 -- type alias Model = {objects : List Entity, latent : Int}
 -- update : Computer -> Model -> Model
 update computer {objects, latent} = 
   let
+
+    -- Defining User Input
     up = computer.mouse.click && computer.mouse.y < 75
     down = computer.mouse.click && computer.mouse.y > 325
     left = computer.mouse.click && computer.mouse.x < 75
     right = computer.mouse.click && computer.mouse.x > 325
 
+    -- Getting previous state
+
     (keyx, keyy) = latent.keyLocation
+    time = latent.timeStep
+
+    -- Updating current location
     newkeyy = if inYBounds (keyy+1) && down then keyy + 1 else if inYBounds (keyy-1) && up then keyy - 1 else keyy
     newkeyx = if inXBounds (keyx+1) && right then keyx + 1 else if inXBounds (keyx-1) && left then keyx - 1 else keyx
     currKeyLocation = (newkeyx, newkeyy)
+
+    -- Updating timestep
+    newtime = time + 1
+
+    -- Updating lock status
     currLockValue = if currKeyLocation == lockHoleLocation then True else False -- CHANGE BASED ON IF YOU WANT IT TO REMAIN LOCKED OR UNLOCKED
+
+    -- Updating collection of all objects in the scene
     movedObjects = objectsFromOrig currKeyLocation currLockValue
+
   in
   { 
     objects = movedObjects,
-    latent = {keyLocation = currKeyLocation, unlocked = currLockValue}
+    latent = {keyLocation = currKeyLocation, unlocked = currLockValue, timeStep = newtime}
   }
+
+loggedUpdate = updateTracker update
   
-main = pomdp {objects = initScene, latent = {keyLocation = initKeyLocation, unlocked = False}} update
+main = pomdp {objects = initScene, latent = {keyLocation = initKeyLocation, unlocked = False, timeStep = 0}, history = initHistory} loggedUpdate

@@ -17,7 +17,8 @@ import Html exposing (Html, div, text)
 import Html.Attributes exposing (style)
 import String
 import Html.Events.Extra.Mouse as Mouse
-
+import File.Download as Download
+import Dict exposing (Dict)
 
 
 htmlwidth = 400
@@ -201,3 +202,25 @@ render image width height =
     
   in
   (List.map (\pixel -> rectAtPos pixel widthRatio heightRatio) image.pixels)
+
+--save : String -> Cmd msg
+--save text = Download.string "record.txt" "text/plain" text
+
+type alias Latent = {keyLocation : (Int, Int), unlocked : Bool, timeStep : Int}
+type alias Model = {objects : List Entity, latent : Latent}
+type alias ModelV2 = {objects : List Entity, latent : Latent, history : Dict Int {latent : Latent, objects : List Entity}}
+updateTracker : (Computer -> Model -> Model) -> (Computer -> ModelV2 -> ModelV2)
+
+
+--updateTracker : (Computer -> state -> state) -> (Computer -> newState -> newState)
+updateTracker updateFunction =
+  let
+    newUpdate computer state =
+      let
+        stateOut = updateFunction computer (Model state.objects state.latent)
+        timeStep = stateOut.latent.timeStep
+        newHistory = Dict.insert timeStep {objects=stateOut.objects, latent=stateOut.latent} state.history
+      in
+        ModelV2 stateOut.objects stateOut.latent newHistory
+  in
+    newUpdate
