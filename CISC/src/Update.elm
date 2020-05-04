@@ -107,7 +107,7 @@ pomdpUpdate updateMemory msg (POMDP memory computer) =
       POMDP memory { computer | mouse = mouseMove x y computer.mouse}
 
     Download ->
-      Download.string "record.txt" "text/plain" " "
+      Download.string "record.txt" "text/plain" "text"
 
 
     -- MouseButton isDown ->
@@ -143,8 +143,9 @@ initialComputer =
 
 type Time = Time Time.Posix
 
-type POMDP state =
-  POMDP state Computer 
+type POMDP state msg =
+  POMDP state Computer
+  | Cmd msg
 
 -- A POMDP 
 pomdp ({objects, latent} as scene) dynamics =
@@ -155,7 +156,7 @@ pomdp ({objects, latent} as scene) dynamics =
         Cmd.none
       )
 
-    update msg model =
+    update msg model = 
       ( 
         pomdpUpdate dynamics msg model
       , Cmd.none
@@ -217,9 +218,6 @@ type alias Latent = {keyLocation : (Int, Int), unlocked : Bool, timeStep : Int}
 type alias Model = {objects : List Entity, latent : Latent}
 type alias ModelV2 = {objects : List Entity, latent : Latent, history : Dict Int {latent : Latent, objects : List Entity}}
 updateTracker : (Computer -> Model -> Model) -> (Computer -> ModelV2 -> ModelV2)
-
-
---updateTracker : (Computer -> state -> state) -> (Computer -> newState -> newState)
 updateTracker updateFunction =
   let
     newUpdate computer state =
