@@ -13,12 +13,14 @@ import Canvas.Settings exposing (..)
 import Canvas.Settings.Advanced exposing (..)
 import Color
 import Browser.Events exposing (onAnimationFrameDelta)
-import Html exposing (Html, div, text)
+import Html exposing (Html, div, text, button)
 import Html.Attributes exposing (style)
 import String
 import Html.Events.Extra.Mouse as Mouse
 import File.Download as Download
 import Dict exposing (Dict)
+import Html.Events exposing (onClick)
+
 
 
 htmlwidth = 400
@@ -37,6 +39,7 @@ type Msg =
   -- | MouseMove Float Float
   | MouseClick
   | StartAt ( Float, Float)
+  | Download
   -- | MouseButton Bool
 
 pomdpSubscriptions : Sub Msg
@@ -102,6 +105,10 @@ pomdpUpdate updateMemory msg (POMDP memory computer) =
 
     StartAt (x, y) ->
       POMDP memory { computer | mouse = mouseMove x y computer.mouse}
+
+    Download ->
+      Download.string "record.txt" "text/plain" " "
+
 
     -- MouseButton isDown ->
     --   Game vis memory { computer | mouse = mouseDown isDown computer.mouse }
@@ -179,7 +186,7 @@ view image width height computer =
         , style "justify-content" "center"
         , style "align-items" "center"
         ]
-        [ div [] [ Html.text (String.fromFloat (mouseX computer)) ],
+        [ div [] [button [onClick Download] [Html.text "Download Log"], div[][], Html.text (String.fromFloat (mouseX computer))],
           Canvas.toHtml
             ( width, height )
             [ Mouse.onDown (.offsetPos >> StartAt) ]

@@ -6192,6 +6192,7 @@ var $author$project$Engine$render = F3(
 var $author$project$Update$StartAt = function (a) {
 	return {$: 'StartAt', a: a};
 };
+var $elm$html$Html$button = _VirtualDom_node('button');
 var $joakin$elm_canvas$Canvas$Internal$Canvas$Fill = function (a) {
 	return {$: 'Fill', a: a};
 };
@@ -7277,6 +7278,14 @@ var $author$project$Update$view = F4(
 					_List_Nil,
 					_List_fromArray(
 						[
+							A2(
+							$elm$html$Html$button,
+							_List_Nil,
+							_List_fromArray(
+								[
+									$elm$html$Html$text('Download Log')
+								])),
+							A2($elm$html$Html$div, _List_Nil, _List_Nil),
 							$elm$html$Html$text(
 							$elm$core$String$fromFloat(
 								$author$project$Update$mouseX(computer)))
