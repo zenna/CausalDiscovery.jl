@@ -74,13 +74,14 @@ mouseX computer =
 
 -- pomdpUpdate : (Computer -> memory -> memory) -> Msg -> Game memory -> Game memory
 pomdpUpdate updateMemory msg (POMDP memory computer) =
+  
   case msg of
     Tick time ->
       -- POMDP computer memory 
-      POMDP (updateMemory computer memory) <|
+      (POMDP (updateMemory computer memory) <|
         if computer.mouse.click
         then { computer | time = Time time, mouse = mouseClick False computer.mouse }
-        else { computer | time = Time time }
+        else { computer | time = Time time }, Cmd.none)
 
     -- GotViewport {viewport} ->
     --   Game vis memory { computer | screen = toScreen viewport.width viewport.height }
@@ -101,14 +102,13 @@ pomdpUpdate updateMemory msg (POMDP memory computer) =
     --   POMDP memory { computer | mouse = mouseMove x y computer.mouse }
 
     MouseClick ->
-      POMDP memory { computer | mouse = mouseClick True computer.mouse }
+      (POMDP memory { computer | mouse = mouseClick True computer.mouse }, Cmd.none)
 
     StartAt (x, y) ->
-      POMDP memory { computer | mouse = mouseMove x y computer.mouse}
+      (POMDP memory { computer | mouse = mouseMove x y computer.mouse}, Cmd.none)
 
     Download ->
-      Download.string "record.txt" "text/plain" "text"
-
+      (POMDP memory computer, (Download.string "record.txt" "text/plain" "text"))
 
     -- MouseButton isDown ->
     --   Game vis memory { computer | mouse = mouseDown isDown computer.mouse }
@@ -143,9 +143,8 @@ initialComputer =
 
 type Time = Time Time.Posix
 
-type POMDP state msg =
+type POMDP state =
   POMDP state Computer
-  | Cmd msg
 
 -- A POMDP 
 pomdp ({objects, latent} as scene) dynamics =
@@ -156,11 +155,7 @@ pomdp ({objects, latent} as scene) dynamics =
         Cmd.none
       )
 
-    update msg model = 
-      ( 
-        pomdpUpdate dynamics msg model
-      , Cmd.none
-      )
+    update msg model = pomdpUpdate dynamics msg model
     
     view_ (POMDP scene_ computer) =
       let

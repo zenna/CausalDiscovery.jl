@@ -4401,6 +4401,184 @@ function _Time_getZoneName()
 		callback(_Scheduler_succeed(name));
 	});
 }
+
+
+
+// DECODER
+
+var _File_decoder = _Json_decodePrim(function(value) {
+	// NOTE: checks if `File` exists in case this is run on node
+	return (typeof File !== 'undefined' && value instanceof File)
+		? $elm$core$Result$Ok(value)
+		: _Json_expecting('a FILE', value);
+});
+
+
+// METADATA
+
+function _File_name(file) { return file.name; }
+function _File_mime(file) { return file.type; }
+function _File_size(file) { return file.size; }
+
+function _File_lastModified(file)
+{
+	return $elm$time$Time$millisToPosix(file.lastModified);
+}
+
+
+// DOWNLOAD
+
+var _File_downloadNode;
+
+function _File_getDownloadNode()
+{
+	return _File_downloadNode || (_File_downloadNode = document.createElement('a'));
+}
+
+var _File_download = F3(function(name, mime, content)
+{
+	return _Scheduler_binding(function(callback)
+	{
+		var blob = new Blob([content], {type: mime});
+
+		// for IE10+
+		if (navigator.msSaveOrOpenBlob)
+		{
+			navigator.msSaveOrOpenBlob(blob, name);
+			return;
+		}
+
+		// for HTML5
+		var node = _File_getDownloadNode();
+		var objectUrl = URL.createObjectURL(blob);
+		node.href = objectUrl;
+		node.download = name;
+		_File_click(node);
+		URL.revokeObjectURL(objectUrl);
+	});
+});
+
+function _File_downloadUrl(href)
+{
+	return _Scheduler_binding(function(callback)
+	{
+		var node = _File_getDownloadNode();
+		node.href = href;
+		node.download = '';
+		node.origin === location.origin || (node.target = '_blank');
+		_File_click(node);
+	});
+}
+
+
+// IE COMPATIBILITY
+
+function _File_makeBytesSafeForInternetExplorer(bytes)
+{
+	// only needed by IE10 and IE11 to fix https://github.com/elm/file/issues/10
+	// all other browsers can just run `new Blob([bytes])` directly with no problem
+	//
+	return new Uint8Array(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+}
+
+function _File_click(node)
+{
+	// only needed by IE10 and IE11 to fix https://github.com/elm/file/issues/11
+	// all other browsers have MouseEvent and do not need this conditional stuff
+	//
+	if (typeof MouseEvent === 'function')
+	{
+		node.dispatchEvent(new MouseEvent('click'));
+	}
+	else
+	{
+		var event = document.createEvent('MouseEvents');
+		event.initMouseEvent('click', true, true, window, 0, 0, 0, 0, 0, false, false, false, false, 0, null);
+		document.body.appendChild(node);
+		node.dispatchEvent(event);
+		document.body.removeChild(node);
+	}
+}
+
+
+// UPLOAD
+
+var _File_node;
+
+function _File_uploadOne(mimes)
+{
+	return _Scheduler_binding(function(callback)
+	{
+		_File_node = document.createElement('input');
+		_File_node.type = 'file';
+		_File_node.accept = A2($elm$core$String$join, ',', mimes);
+		_File_node.addEventListener('change', function(event)
+		{
+			callback(_Scheduler_succeed(event.target.files[0]));
+		});
+		_File_click(_File_node);
+	});
+}
+
+function _File_uploadOneOrMore(mimes)
+{
+	return _Scheduler_binding(function(callback)
+	{
+		_File_node = document.createElement('input');
+		_File_node.type = 'file';
+		_File_node.multiple = true;
+		_File_node.accept = A2($elm$core$String$join, ',', mimes);
+		_File_node.addEventListener('change', function(event)
+		{
+			var elmFiles = _List_fromArray(event.target.files);
+			callback(_Scheduler_succeed(_Utils_Tuple2(elmFiles.a, elmFiles.b)));
+		});
+		_File_click(_File_node);
+	});
+}
+
+
+// CONTENT
+
+function _File_toString(blob)
+{
+	return _Scheduler_binding(function(callback)
+	{
+		var reader = new FileReader();
+		reader.addEventListener('loadend', function() {
+			callback(_Scheduler_succeed(reader.result));
+		});
+		reader.readAsText(blob);
+		return function() { reader.abort(); };
+	});
+}
+
+function _File_toBytes(blob)
+{
+	return _Scheduler_binding(function(callback)
+	{
+		var reader = new FileReader();
+		reader.addEventListener('loadend', function() {
+			callback(_Scheduler_succeed(new DataView(reader.result)));
+		});
+		reader.readAsArrayBuffer(blob);
+		return function() { reader.abort(); };
+	});
+}
+
+function _File_toUrl(blob)
+{
+	return _Scheduler_binding(function(callback)
+	{
+		var reader = new FileReader();
+		reader.addEventListener('loadend', function() {
+			callback(_Scheduler_succeed(reader.result));
+		});
+		reader.readAsDataURL(blob);
+		return function() { reader.abort(); };
+	});
+}
+
 var $elm$core$Basics$False = {$: 'False'};
 var $elm$core$Dict$RBEmpty_elm_builtin = {$: 'RBEmpty_elm_builtin'};
 var $elm$core$Dict$empty = $elm$core$Dict$RBEmpty_elm_builtin;
@@ -5968,6 +6146,13 @@ var $author$project$Update$mouseMove = F3(
 			mouse,
 			{x: x, y: y});
 	});
+var $elm$file$File$Download$string = F3(
+	function (name, mime, content) {
+		return A2(
+			$elm$core$Task$perform,
+			$elm$core$Basics$never,
+			A3(_File_download, name, mime, content));
+	});
 var $author$project$Update$pomdpUpdate = F3(
 	function (updateMemory, msg, _v0) {
 		var memory = _v0.a;
@@ -5975,40 +6160,50 @@ var $author$project$Update$pomdpUpdate = F3(
 		switch (msg.$) {
 			case 'Tick':
 				var time = msg.a;
-				return A2(
-					$author$project$Update$POMDP,
-					A2(updateMemory, computer, memory),
-					computer.mouse.click ? _Utils_update(
-						computer,
-						{
-							mouse: A2($author$project$Update$mouseClick, false, computer.mouse),
-							time: $author$project$Update$Time(time)
-						}) : _Utils_update(
-						computer,
-						{
-							time: $author$project$Update$Time(time)
-						}));
+				return _Utils_Tuple2(
+					A2(
+						$author$project$Update$POMDP,
+						A2(updateMemory, computer, memory),
+						computer.mouse.click ? _Utils_update(
+							computer,
+							{
+								mouse: A2($author$project$Update$mouseClick, false, computer.mouse),
+								time: $author$project$Update$Time(time)
+							}) : _Utils_update(
+							computer,
+							{
+								time: $author$project$Update$Time(time)
+							})),
+					$elm$core$Platform$Cmd$none);
 			case 'MouseClick':
-				return A2(
-					$author$project$Update$POMDP,
-					memory,
-					_Utils_update(
-						computer,
-						{
-							mouse: A2($author$project$Update$mouseClick, true, computer.mouse)
-						}));
-			default:
+				return _Utils_Tuple2(
+					A2(
+						$author$project$Update$POMDP,
+						memory,
+						_Utils_update(
+							computer,
+							{
+								mouse: A2($author$project$Update$mouseClick, true, computer.mouse)
+							})),
+					$elm$core$Platform$Cmd$none);
+			case 'StartAt':
 				var _v2 = msg.a;
 				var x = _v2.a;
 				var y = _v2.b;
-				return A2(
-					$author$project$Update$POMDP,
-					memory,
-					_Utils_update(
-						computer,
-						{
-							mouse: A3($author$project$Update$mouseMove, x, y, computer.mouse)
-						}));
+				return _Utils_Tuple2(
+					A2(
+						$author$project$Update$POMDP,
+						memory,
+						_Utils_update(
+							computer,
+							{
+								mouse: A3($author$project$Update$mouseMove, x, y, computer.mouse)
+							})),
+					$elm$core$Platform$Cmd$none);
+			default:
+				return _Utils_Tuple2(
+					A2($author$project$Update$POMDP, memory, computer),
+					A3($elm$file$File$Download$string, 'record.txt', 'text/plain', 'text'));
 		}
 	});
 var $elm$core$List$append = F2(
@@ -6189,6 +6384,7 @@ var $author$project$Engine$render = F3(
 			width: width
 		};
 	});
+var $author$project$Update$Download = {$: 'Download'};
 var $author$project$Update$StartAt = function (a) {
 	return {$: 'StartAt', a: a};
 };
@@ -6366,11 +6562,27 @@ var $elm$core$String$fromFloat = _String_fromNumber;
 var $author$project$Update$mouseX = function (computer) {
 	return computer.mouse.x;
 };
+var $elm$virtual_dom$VirtualDom$Normal = function (a) {
+	return {$: 'Normal', a: a};
+};
+var $elm$virtual_dom$VirtualDom$on = _VirtualDom_on;
+var $elm$html$Html$Events$on = F2(
+	function (event, decoder) {
+		return A2(
+			$elm$virtual_dom$VirtualDom$on,
+			event,
+			$elm$virtual_dom$VirtualDom$Normal(decoder));
+	});
+var $elm$html$Html$Events$onClick = function (msg) {
+	return A2(
+		$elm$html$Html$Events$on,
+		'click',
+		$elm$json$Json$Decode$succeed(msg));
+};
 var $mpizenberg$elm_pointer_events$Html$Events$Extra$Mouse$defaultOptions = {preventDefault: true, stopPropagation: false};
 var $elm$virtual_dom$VirtualDom$Custom = function (a) {
 	return {$: 'Custom', a: a};
 };
-var $elm$virtual_dom$VirtualDom$on = _VirtualDom_on;
 var $elm$html$Html$Events$custom = F2(
 	function (event, decoder) {
 		return A2(
@@ -7177,16 +7389,6 @@ var $joakin$elm_canvas$Canvas$Internal$Texture$decodeTextureImage = A2(
 	$elm$json$Json$Decode$value);
 var $joakin$elm_canvas$Canvas$Internal$Texture$decodeImageLoadEvent = A2($elm$json$Json$Decode$field, 'target', $joakin$elm_canvas$Canvas$Internal$Texture$decodeTextureImage);
 var $elm$html$Html$img = _VirtualDom_node('img');
-var $elm$virtual_dom$VirtualDom$Normal = function (a) {
-	return {$: 'Normal', a: a};
-};
-var $elm$html$Html$Events$on = F2(
-	function (event, decoder) {
-		return A2(
-			$elm$virtual_dom$VirtualDom$on,
-			event,
-			$elm$virtual_dom$VirtualDom$Normal(decoder));
-	});
 var $elm$html$Html$Attributes$stringProperty = F2(
 	function (key, string) {
 		return A2(
@@ -7280,7 +7482,10 @@ var $author$project$Update$view = F4(
 						[
 							A2(
 							$elm$html$Html$button,
-							_List_Nil,
+							_List_fromArray(
+								[
+									$elm$html$Html$Events$onClick($author$project$Update$Download)
+								]),
 							_List_fromArray(
 								[
 									$elm$html$Html$text('Download Log')
@@ -7321,9 +7526,7 @@ var $author$project$Update$pomdp = F2(
 		};
 		var update = F2(
 			function (msg, model) {
-				return _Utils_Tuple2(
-					A3($author$project$Update$pomdpUpdate, dynamics, msg, model),
-					$elm$core$Platform$Cmd$none);
+				return A3($author$project$Update$pomdpUpdate, dynamics, msg, model);
 			});
 		var subscriptions = function (_v1) {
 			return $author$project$Update$pomdpSubscriptions;
