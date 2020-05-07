@@ -27,8 +27,9 @@ import Json.Encode as Encode
 
 tempJson = Encode.encode 0 (Encode.string "testing")
 tempDict = Dict.singleton 2 "hello" 
+jsonObjectDict = Encode.encode 0 (Encode.dict String.fromInt Encode.string tempDict)
 
-jsonObjectDict = Encode.dict String.fromInt Encode.string tempDict
+
 htmlwidth = 400
 htmlheight = 400
 gamewidth = 16
@@ -114,7 +115,7 @@ pomdpUpdate updateMemory msg (POMDP memory computer) =
       (POMDP memory { computer | mouse = mouseMove x y computer.mouse}, Cmd.none)
 
     Download ->
-      (POMDP memory computer, (Download.string "record.json" "application/json" tempJson))
+      (POMDP memory computer, (Download.string "record.json" "application/json" jsonObjectDict))
 
     -- MouseButton isDown ->
     --   Game vis memory { computer | mouse = mouseDown isDown computer.mouse }

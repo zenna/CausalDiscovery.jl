@@ -6134,6 +6134,32 @@ var $author$project$Update$pomdpSubscriptions = $elm$core$Platform$Sub$batch(
 			$elm$browser$Browser$Events$onClick(
 			$elm$json$Json$Decode$succeed($author$project$Update$MouseClick))
 		]));
+var $elm$json$Json$Encode$dict = F3(
+	function (toKey, toValue, dictionary) {
+		return _Json_wrap(
+			A3(
+				$elm$core$Dict$foldl,
+				F3(
+					function (key, value, obj) {
+						return A3(
+							_Json_addField,
+							toKey(key),
+							toValue(value),
+							obj);
+					}),
+				_Json_emptyObject(_Utils_Tuple0),
+				dictionary));
+	});
+var $elm$json$Json$Encode$string = _Json_wrap;
+var $elm$core$Dict$singleton = F2(
+	function (key, value) {
+		return A5($elm$core$Dict$RBNode_elm_builtin, $elm$core$Dict$Black, key, value, $elm$core$Dict$RBEmpty_elm_builtin, $elm$core$Dict$RBEmpty_elm_builtin);
+	});
+var $author$project$Update$tempDict = A2($elm$core$Dict$singleton, 2, 'hello');
+var $author$project$Update$jsonObjectDict = A2(
+	$elm$json$Json$Encode$encode,
+	0,
+	A3($elm$json$Json$Encode$dict, $elm$core$String$fromInt, $elm$json$Json$Encode$string, $author$project$Update$tempDict));
 var $author$project$Update$mouseClick = F2(
 	function (bool, mouse) {
 		return _Utils_update(
@@ -6153,11 +6179,6 @@ var $elm$file$File$Download$string = F3(
 			$elm$core$Basics$never,
 			A3(_File_download, name, mime, content));
 	});
-var $elm$json$Json$Encode$string = _Json_wrap;
-var $author$project$Update$tempJson = A2(
-	$elm$json$Json$Encode$encode,
-	0,
-	$elm$json$Json$Encode$string('testing'));
 var $author$project$Update$pomdpUpdate = F3(
 	function (updateMemory, msg, _v0) {
 		var memory = _v0.a;
@@ -6208,7 +6229,7 @@ var $author$project$Update$pomdpUpdate = F3(
 			default:
 				return _Utils_Tuple2(
 					A2($author$project$Update$POMDP, memory, computer),
-					A3($elm$file$File$Download$string, 'record.json', 'application/json', $author$project$Update$tempJson));
+					A3($elm$file$File$Download$string, 'record.json', 'application/json', $author$project$Update$jsonObjectDict));
 		}
 	});
 var $elm$core$List$append = F2(
