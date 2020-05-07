@@ -231,3 +231,4 @@ updateTracker updateFunction =
         LoggedEvent stateOut.objects stateOut.latent newHistory
   in
     newUpdate
+

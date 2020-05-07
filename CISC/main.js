@@ -4580,9 +4580,7 @@ function _File_toUrl(blob)
 }
 
 var $elm$core$Basics$False = {$: 'False'};
-var $elm$core$Dict$RBEmpty_elm_builtin = {$: 'RBEmpty_elm_builtin'};
-var $elm$core$Dict$empty = $elm$core$Dict$RBEmpty_elm_builtin;
-var $author$project$Lock$initHistory = $elm$core$Dict$empty;
+var $elm$core$Basics$True = {$: 'True'};
 var $elm$core$Basics$EQ = {$: 'EQ'};
 var $elm$core$Basics$LT = {$: 'LT'};
 var $elm$core$List$cons = _List_cons;
@@ -4663,6 +4661,10 @@ var $elm$core$Set$toList = function (_v0) {
 	return $elm$core$Dict$keys(dict);
 };
 var $elm$core$Basics$GT = {$: 'GT'};
+var $elm$core$Basics$eq = _Utils_equal;
+var $elm$core$Dict$RBEmpty_elm_builtin = {$: 'RBEmpty_elm_builtin'};
+var $elm$core$Dict$empty = $elm$core$Dict$RBEmpty_elm_builtin;
+var $author$project$Lock$initHistory = $elm$core$Dict$empty;
 var $author$project$Lock$initKeyLocation = _Utils_Tuple2(0, 0);
 var $author$project$Lock$initUnlockedState = false;
 var $author$project$Engine$Box = F4(
@@ -4672,14 +4674,12 @@ var $author$project$Engine$Box = F4(
 var $author$project$Engine$ObjectTag = function (a) {
 	return {$: 'ObjectTag', a: a};
 };
-var $elm$core$Basics$True = {$: 'True'};
 var $avh4$elm_color$Color$RgbaSpace = F4(
 	function (a, b, c, d) {
 		return {$: 'RgbaSpace', a: a, b: b, c: c, d: d};
 	});
 var $elm$core$Basics$fdiv = _Basics_fdiv;
 var $avh4$elm_color$Color$darkGrey = A4($avh4$elm_color$Color$RgbaSpace, 186 / 255, 189 / 255, 182 / 255, 1.0);
-var $elm$core$Basics$eq = _Utils_equal;
 var $avh4$elm_color$Color$lightBlue = A4($avh4$elm_color$Color$RgbaSpace, 114 / 255, 159 / 255, 207 / 255, 1.0);
 var $avh4$elm_color$Color$lightPurple = A4($avh4$elm_color$Color$RgbaSpace, 173 / 255, 127 / 255, 168 / 255, 1.0);
 var $author$project$Lock$lockHoleLength = 2;
@@ -4724,50 +4724,6 @@ var $author$project$Lock$objectsFromOrig = F2(
 			]);
 	});
 var $author$project$Lock$initScene = A2($author$project$Lock$objectsFromOrig, $author$project$Lock$initKeyLocation, $author$project$Lock$initUnlockedState);
-var $elm$core$Basics$add = _Basics_add;
-var $elm$core$Basics$and = _Basics_and;
-var $elm$core$Basics$gt = _Utils_gt;
-var $elm$core$Basics$ge = _Utils_ge;
-var $elm$core$Basics$le = _Utils_le;
-var $elm$core$Basics$sub = _Basics_sub;
-var $author$project$Lock$inXBounds = function (proposedX) {
-	return ((_Utils_cmp(proposedX, 16 - ($author$project$Lock$lockHoleWidth + 1)) < 1) && (proposedX >= 0)) ? true : false;
-};
-var $author$project$Lock$inYBounds = function (proposedY) {
-	return ((_Utils_cmp(proposedY, 16 - ($author$project$Lock$lockHoleLength + 1)) < 1) && (proposedY >= 0)) ? true : false;
-};
-var $elm$core$Basics$lt = _Utils_lt;
-var $author$project$Lock$update = F2(
-	function (computer, _v0) {
-		var objects = _v0.objects;
-		var latent = _v0.latent;
-		var up = computer.mouse.click && (computer.mouse.y < 75);
-		var time = latent.timeStep;
-		var right = computer.mouse.click && (computer.mouse.x > 325);
-		var newtime = time + 1;
-		var left = computer.mouse.click && (computer.mouse.x < 75);
-		var down = computer.mouse.click && (computer.mouse.y > 325);
-		var _v1 = latent.keyLocation;
-		var keyx = _v1.a;
-		var keyy = _v1.b;
-		var newkeyx = ($author$project$Lock$inXBounds(keyx + 1) && right) ? (keyx + 1) : (($author$project$Lock$inXBounds(keyx - 1) && left) ? (keyx - 1) : keyx);
-		var newkeyy = ($author$project$Lock$inYBounds(keyy + 1) && down) ? (keyy + 1) : (($author$project$Lock$inYBounds(keyy - 1) && up) ? (keyy - 1) : keyy);
-		var currKeyLocation = _Utils_Tuple2(newkeyx, newkeyy);
-		var currLockValue = _Utils_eq(currKeyLocation, $author$project$Lock$lockHoleLocation) ? true : false;
-		var movedObjects = A2($author$project$Lock$objectsFromOrig, currKeyLocation, currLockValue);
-		return {
-			latent: {keyLocation: currKeyLocation, timeStep: newtime, unlocked: currLockValue},
-			objects: movedObjects
-		};
-	});
-var $author$project$Update$Event = F2(
-	function (objects, latent) {
-		return {latent: latent, objects: objects};
-	});
-var $author$project$Update$LoggedEvent = F3(
-	function (objects, latent, history) {
-		return {history: history, latent: latent, objects: objects};
-	});
 var $elm$core$Dict$Black = {$: 'Black'};
 var $elm$core$Dict$RBNode_elm_builtin = F5(
 	function (a, b, c, d, e) {
@@ -4876,6 +4832,118 @@ var $elm$core$Dict$insert = F3(
 			var x = _v0;
 			return x;
 		}
+	});
+var $author$project$Lock$fakeHistory1 = A3(
+	$elm$core$Dict$insert,
+	0,
+	{
+		latent: {keyLocation: $author$project$Lock$initKeyLocation, timeStep: 0, unlocked: false},
+		objects: $author$project$Lock$initScene
+	},
+	$author$project$Lock$initHistory);
+var $author$project$Lock$fakeHistory2 = A3(
+	$elm$core$Dict$insert,
+	1,
+	{
+		latent: {
+			keyLocation: _Utils_Tuple2(6, 0),
+			timeStep: 1,
+			unlocked: false
+		},
+		objects: A2(
+			$author$project$Lock$objectsFromOrig,
+			_Utils_Tuple2(6, 0),
+			false)
+	},
+	$author$project$Lock$fakeHistory1);
+var $author$project$Lock$fakeHistory3 = A3(
+	$elm$core$Dict$insert,
+	2,
+	{
+		latent: {
+			keyLocation: _Utils_Tuple2(6, 12),
+			timeStep: 2,
+			unlocked: true
+		},
+		objects: A2(
+			$author$project$Lock$objectsFromOrig,
+			_Utils_Tuple2(6, 12),
+			true)
+	},
+	$author$project$Lock$fakeHistory2);
+var $author$project$Lock$fakeHistory4 = A3(
+	$elm$core$Dict$insert,
+	3,
+	{
+		latent: {
+			keyLocation: _Utils_Tuple2(6, 5),
+			timeStep: 3,
+			unlocked: false
+		},
+		objects: A2(
+			$author$project$Lock$objectsFromOrig,
+			_Utils_Tuple2(6, 5),
+			false)
+	},
+	$author$project$Lock$fakeHistory3);
+var $author$project$Lock$fakeHistory5 = A3(
+	$elm$core$Dict$insert,
+	4,
+	{
+		latent: {
+			keyLocation: _Utils_Tuple2(5, 5),
+			timeStep: 4,
+			unlocked: false
+		},
+		objects: A2(
+			$author$project$Lock$objectsFromOrig,
+			_Utils_Tuple2(5, 5),
+			false)
+	},
+	$author$project$Lock$fakeHistory4);
+var $elm$core$Basics$add = _Basics_add;
+var $elm$core$Basics$and = _Basics_and;
+var $elm$core$Basics$gt = _Utils_gt;
+var $elm$core$Basics$ge = _Utils_ge;
+var $elm$core$Basics$le = _Utils_le;
+var $elm$core$Basics$sub = _Basics_sub;
+var $author$project$Lock$inXBounds = function (proposedX) {
+	return ((_Utils_cmp(proposedX, 16 - ($author$project$Lock$lockHoleWidth + 1)) < 1) && (proposedX >= 0)) ? true : false;
+};
+var $author$project$Lock$inYBounds = function (proposedY) {
+	return ((_Utils_cmp(proposedY, 16 - ($author$project$Lock$lockHoleLength + 1)) < 1) && (proposedY >= 0)) ? true : false;
+};
+var $elm$core$Basics$lt = _Utils_lt;
+var $author$project$Lock$update = F2(
+	function (computer, _v0) {
+		var objects = _v0.objects;
+		var latent = _v0.latent;
+		var up = computer.mouse.click && (computer.mouse.y < 75);
+		var time = latent.timeStep;
+		var right = computer.mouse.click && (computer.mouse.x > 325);
+		var newtime = time + 1;
+		var left = computer.mouse.click && (computer.mouse.x < 75);
+		var down = computer.mouse.click && (computer.mouse.y > 325);
+		var _v1 = latent.keyLocation;
+		var keyx = _v1.a;
+		var keyy = _v1.b;
+		var newkeyx = ($author$project$Lock$inXBounds(keyx + 1) && right) ? (keyx + 1) : (($author$project$Lock$inXBounds(keyx - 1) && left) ? (keyx - 1) : keyx);
+		var newkeyy = ($author$project$Lock$inYBounds(keyy + 1) && down) ? (keyy + 1) : (($author$project$Lock$inYBounds(keyy - 1) && up) ? (keyy - 1) : keyy);
+		var currKeyLocation = _Utils_Tuple2(newkeyx, newkeyy);
+		var currLockValue = _Utils_eq(currKeyLocation, $author$project$Lock$lockHoleLocation) ? true : false;
+		var movedObjects = A2($author$project$Lock$objectsFromOrig, currKeyLocation, currLockValue);
+		return {
+			latent: {keyLocation: currKeyLocation, timeStep: newtime, unlocked: currLockValue},
+			objects: movedObjects
+		};
+	});
+var $author$project$Update$Event = F2(
+	function (objects, latent) {
+		return {latent: latent, objects: objects};
+	});
+var $author$project$Update$LoggedEvent = F3(
+	function (objects, latent, history) {
+		return {history: history, latent: latent, objects: objects};
 	});
 var $author$project$Update$updateTracker = function (updateFunction) {
 	var newUpdate = F2(
@@ -7564,7 +7632,47 @@ var $author$project$Update$pomdp = F2(
 		return $elm$browser$Browser$element(
 			{init: init, subscriptions: subscriptions, update: update, view: view_});
 	});
-var $author$project$Lock$main = A2(
+var $author$project$Lock$replay = true;
+var $author$project$Update$Latent = F3(
+	function (keyLocation, unlocked, timeStep) {
+		return {keyLocation: keyLocation, timeStep: timeStep, unlocked: unlocked};
+	});
+var $author$project$Lock$defaultLatent = A3(
+	$author$project$Update$Latent,
+	_Utils_Tuple2(-1, -1),
+	false,
+	-1);
+var $author$project$Lock$defaultEvent = A2($author$project$Update$Event, $author$project$Lock$initScene, $author$project$Lock$defaultLatent);
+var $elm$core$Maybe$withDefault = F2(
+	function (_default, maybe) {
+		if (maybe.$ === 'Just') {
+			var value = maybe.a;
+			return value;
+		} else {
+			return _default;
+		}
+	});
+var $author$project$Lock$replayer = F2(
+	function (computer, _v0) {
+		var objects = _v0.objects;
+		var latent = _v0.latent;
+		var history = _v0.history;
+		var time = latent.timeStep;
+		var newTime = computer.mouse.click ? (time + 1) : time;
+		var currState = A2(
+			$elm$core$Maybe$withDefault,
+			$author$project$Lock$defaultEvent,
+			A2($elm$core$Dict$get, newTime, history));
+		return {history: history, latent: currState.latent, objects: currState.objects};
+	});
+var $author$project$Lock$main = $author$project$Lock$replay ? A2(
+	$author$project$Update$pomdp,
+	{
+		history: $author$project$Lock$fakeHistory5,
+		latent: {keyLocation: $author$project$Lock$initKeyLocation, timeStep: 0, unlocked: false},
+		objects: $author$project$Lock$initScene
+	},
+	$author$project$Lock$replayer) : A2(
 	$author$project$Update$pomdp,
 	{
 		history: $author$project$Lock$initHistory,

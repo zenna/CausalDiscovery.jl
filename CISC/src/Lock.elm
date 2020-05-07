@@ -16,6 +16,7 @@ lockHoleWidth = 0
 lockHoleLength = 2
 initKeyLocation = (0,0)
 initUnlockedState = False --locked
+replay = True
 
 
 -- Objects in Scene
@@ -93,5 +94,42 @@ update computer {objects, latent} =
   }
 
 loggedUpdate = updateTracker update
-  
-main = pomdp {objects = initScene, latent = {keyLocation = initKeyLocation, unlocked = False, timeStep = 0}, history = initHistory} loggedUpdate
+
+--Replay Fake History
+
+fakeHistory1 = Dict.insert 0 {objects = initScene, latent = {keyLocation = initKeyLocation, unlocked = False, timeStep = 0}} initHistory
+fakeHistory2 = Dict.insert 1 {objects = objectsFromOrig (6,0) False, latent = {keyLocation = (6,0), unlocked = False, timeStep = 1}} fakeHistory1
+fakeHistory3 = Dict.insert 2 {objects = objectsFromOrig (6,12) True, latent = {keyLocation = (6,12), unlocked = True, timeStep = 2}} fakeHistory2
+
+fakeHistory4 = Dict.insert 3 {objects = objectsFromOrig (6,5) False, latent = {keyLocation = (6,5), unlocked = False, timeStep = 3}} fakeHistory3
+fakeHistory5 = Dict.insert 4 {objects = objectsFromOrig (5,5) False, latent = {keyLocation = (5,5), unlocked = False, timeStep = 4}} fakeHistory4
+
+
+--Replay Default Values
+defaultObjects = []
+defaultLatent = Latent (-1,-1) False -1
+
+defaultHistory = {objects = initScene, latent = {keyLocation = (0,0), unlocked = False}, history=Dict.empty}
+defaultEvent = Event initScene defaultLatent
+
+
+--Replay an old history
+replayer : Computer -> LoggedEvent -> LoggedEvent
+replayer computer {objects, latent, history} = 
+  let
+    time = latent.timeStep
+    newTime = if computer.mouse.click then time+1 else time
+    currState = Maybe.withDefault defaultEvent (Dict.get newTime history)    
+  in
+  { 
+    objects = currState.objects,
+    latent = currState.latent,
+    history = history
+  }
+
+main = if replay == True 
+          then pomdp {objects = initScene, latent = {keyLocation = initKeyLocation, unlocked = False, timeStep = 0}, history = fakeHistory5} replayer 
+        else 
+          pomdp {objects = initScene, latent = {keyLocation = initKeyLocation, unlocked = False, timeStep = 0}, history = initHistory} loggedUpdate
+
+--main = pomdp {objects = initScene, latent = {keyLocation = initKeyLocation, unlocked = False, timeStep = 0}, history = initHistory} loggedUpdate
