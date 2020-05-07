@@ -4760,11 +4760,11 @@ var $author$project$Lock$update = F2(
 			objects: movedObjects
 		};
 	});
-var $author$project$Update$Model = F2(
+var $author$project$Update$Event = F2(
 	function (objects, latent) {
 		return {latent: latent, objects: objects};
 	});
-var $author$project$Update$ModelV2 = F3(
+var $author$project$Update$LoggedEvent = F3(
 	function (objects, latent, history) {
 		return {history: history, latent: latent, objects: objects};
 	});
@@ -4883,14 +4883,14 @@ var $author$project$Update$updateTracker = function (updateFunction) {
 			var stateOut = A2(
 				updateFunction,
 				computer,
-				A2($author$project$Update$Model, state.objects, state.latent));
+				A2($author$project$Update$Event, state.objects, state.latent));
 			var timeStep = stateOut.latent.timeStep;
 			var newHistory = A3(
 				$elm$core$Dict$insert,
 				timeStep,
 				{latent: stateOut.latent, objects: stateOut.objects},
 				state.history);
-			return A3($author$project$Update$ModelV2, stateOut.objects, stateOut.latent, newHistory);
+			return A3($author$project$Update$LoggedEvent, stateOut.objects, stateOut.latent, newHistory);
 		});
 	return newUpdate;
 };
@@ -6153,6 +6153,11 @@ var $elm$file$File$Download$string = F3(
 			$elm$core$Basics$never,
 			A3(_File_download, name, mime, content));
 	});
+var $elm$json$Json$Encode$string = _Json_wrap;
+var $author$project$Update$tempJson = A2(
+	$elm$json$Json$Encode$encode,
+	0,
+	$elm$json$Json$Encode$string('testing'));
 var $author$project$Update$pomdpUpdate = F3(
 	function (updateMemory, msg, _v0) {
 		var memory = _v0.a;
@@ -6203,7 +6208,7 @@ var $author$project$Update$pomdpUpdate = F3(
 			default:
 				return _Utils_Tuple2(
 					A2($author$project$Update$POMDP, memory, computer),
-					A3($elm$file$File$Download$string, 'record.txt', 'text/plain', 'text'));
+					A3($elm$file$File$Download$string, 'record.json', 'application/json', $author$project$Update$tempJson));
 		}
 	});
 var $elm$core$List$append = F2(
@@ -6780,7 +6785,6 @@ var $elm$json$Json$Encode$object = function (pairs) {
 			_Json_emptyObject(_Utils_Tuple0),
 			pairs));
 };
-var $elm$json$Json$Encode$string = _Json_wrap;
 var $joakin$elm_canvas$Canvas$Internal$CustomElementJsonApi$fn = F2(
 	function (name, args) {
 		return $elm$json$Json$Encode$object(

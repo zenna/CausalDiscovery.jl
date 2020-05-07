@@ -1,6 +1,9 @@
 module Update exposing (..)
 import Browser
+import Debug
 import Html exposing (Html, text, pre)
+import String.Conversions
+
 -- import Render
 import Engine exposing (..)
 import Time
@@ -20,9 +23,12 @@ import Html.Events.Extra.Mouse as Mouse
 import File.Download as Download
 import Dict exposing (Dict)
 import Html.Events exposing (onClick)
+import Json.Encode as Encode
 
+tempJson = Encode.encode 0 (Encode.string "testing")
+tempDict = Dict.singleton 2 "hello" 
 
-
+jsonObjectDict = Encode.dict String.fromInt Encode.string tempDict
 htmlwidth = 400
 htmlheight = 400
 gamewidth = 16
@@ -38,7 +44,7 @@ type Msg =
   -- | VisibilityChanged E.Visibility
   -- | MouseMove Float Float
   | MouseClick
-  | StartAt ( Float, Float)
+  | StartAt (Float, Float)
   | Download
   -- | MouseButton Bool
 
@@ -108,7 +114,7 @@ pomdpUpdate updateMemory msg (POMDP memory computer) =
       (POMDP memory { computer | mouse = mouseMove x y computer.mouse}, Cmd.none)
 
     Download ->
-      (POMDP memory computer, (Download.string "record.txt" "text/plain" "text"))
+      (POMDP memory computer, (Download.string "record.json" "application/json" tempJson))
 
     -- MouseButton isDown ->
     --   Game vis memory { computer | mouse = mouseDown isDown computer.mouse }
@@ -210,17 +216,17 @@ render image width height =
 --save text = Download.string "record.txt" "text/plain" text
 
 type alias Latent = {keyLocation : (Int, Int), unlocked : Bool, timeStep : Int}
-type alias Model = {objects : List Entity, latent : Latent}
-type alias ModelV2 = {objects : List Entity, latent : Latent, history : Dict Int {latent : Latent, objects : List Entity}}
-updateTracker : (Computer -> Model -> Model) -> (Computer -> ModelV2 -> ModelV2)
+type alias Event = {objects : List Entity, latent : Latent}
+type alias LoggedEvent = {objects : List Entity, latent : Latent, history : Dict Int Event}
+updateTracker : (Computer -> Event -> Event) -> (Computer -> LoggedEvent -> LoggedEvent)
 updateTracker updateFunction =
   let
     newUpdate computer state =
       let
-        stateOut = updateFunction computer (Model state.objects state.latent)
+        stateOut = updateFunction computer (Event state.objects state.latent)
         timeStep = stateOut.latent.timeStep
         newHistory = Dict.insert timeStep {objects=stateOut.objects, latent=stateOut.latent} state.history
       in
-        ModelV2 stateOut.objects stateOut.latent newHistory
+        LoggedEvent stateOut.objects stateOut.latent newHistory
   in
     newUpdate
