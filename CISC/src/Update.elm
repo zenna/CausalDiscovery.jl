@@ -218,7 +218,8 @@ render image width height =
 
 type alias Latent = {keyLocation : (Int, Int), unlocked : Bool, timeStep : Int}
 type alias Event = {objects : List Entity, latent : Latent}
-type alias LoggedEvent = {objects : List Entity, latent : Latent, history : Dict Int Event}
+type alias Input = Dict String Float 
+type alias LoggedEvent = {objects : List Entity, latent : Latent, history : Dict Int Input}
 updateTracker : (Computer -> Event -> Event) -> (Computer -> LoggedEvent -> LoggedEvent)
 updateTracker updateFunction =
   let
@@ -226,7 +227,13 @@ updateTracker updateFunction =
       let
         stateOut = updateFunction computer (Event state.objects state.latent)
         timeStep = stateOut.latent.timeStep
-        newHistory = Dict.insert timeStep {objects=stateOut.objects, latent=stateOut.latent} state.history
+
+        input = Dict.singleton "Click" (if computer.mouse.click then 1 else 0)
+        
+        input2 = Dict.insert "Click Y" computer.mouse.y input
+        input3 = Dict.insert "Click X" computer.mouse.x input2
+
+        newHistory = Dict.insert timeStep input3 state.history
       in
         LoggedEvent stateOut.objects stateOut.latent newHistory
   in

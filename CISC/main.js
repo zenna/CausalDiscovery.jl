@@ -4877,6 +4877,10 @@ var $elm$core$Dict$insert = F3(
 			return x;
 		}
 	});
+var $elm$core$Dict$singleton = F2(
+	function (key, value) {
+		return A5($elm$core$Dict$RBNode_elm_builtin, $elm$core$Dict$Black, key, value, $elm$core$Dict$RBEmpty_elm_builtin, $elm$core$Dict$RBEmpty_elm_builtin);
+	});
 var $author$project$Update$updateTracker = function (updateFunction) {
 	var newUpdate = F2(
 		function (computer, state) {
@@ -4885,11 +4889,13 @@ var $author$project$Update$updateTracker = function (updateFunction) {
 				computer,
 				A2($author$project$Update$Event, state.objects, state.latent));
 			var timeStep = stateOut.latent.timeStep;
-			var newHistory = A3(
-				$elm$core$Dict$insert,
-				timeStep,
-				{latent: stateOut.latent, objects: stateOut.objects},
-				state.history);
+			var input = A2(
+				$elm$core$Dict$singleton,
+				'Click',
+				computer.mouse.click ? 1 : 0);
+			var input2 = A3($elm$core$Dict$insert, 'Click Y', computer.mouse.y, input);
+			var input3 = A3($elm$core$Dict$insert, 'Click X', computer.mouse.x, input2);
+			var newHistory = A3($elm$core$Dict$insert, timeStep, input3, state.history);
 			return A3($author$project$Update$LoggedEvent, stateOut.objects, stateOut.latent, newHistory);
 		});
 	return newUpdate;
@@ -6151,10 +6157,6 @@ var $elm$json$Json$Encode$dict = F3(
 				dictionary));
 	});
 var $elm$json$Json$Encode$string = _Json_wrap;
-var $elm$core$Dict$singleton = F2(
-	function (key, value) {
-		return A5($elm$core$Dict$RBNode_elm_builtin, $elm$core$Dict$Black, key, value, $elm$core$Dict$RBEmpty_elm_builtin, $elm$core$Dict$RBEmpty_elm_builtin);
-	});
 var $author$project$Update$tempDict = A2($elm$core$Dict$singleton, 2, 'hello');
 var $author$project$Update$jsonObjectDict = A2(
 	$elm$json$Json$Encode$encode,
