@@ -6235,7 +6235,7 @@ var $author$project$Update$pomdpUpdate = F3(
 						'application/json',
 						A2(
 							$elm$json$Json$Encode$encode,
-							0,
+							2,
 							A3($elm$json$Json$Encode$dict, $elm$core$String$fromInt, $author$project$Update$inputDictToJson, memory.history))));
 		}
 	});

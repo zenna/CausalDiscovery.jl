@@ -114,7 +114,7 @@ pomdpUpdate updateMemory msg (POMDP memory computer) =
       (POMDP memory { computer | mouse = mouseMove x y computer.mouse}, Cmd.none)
 
     Download ->
-      (POMDP memory computer, (Download.string "record.json" "application/json" (Encode.encode 0 (Encode.dict String.fromInt inputDictToJson memory.history))))
+      (POMDP memory computer, (Download.string "record.json" "application/json" (Encode.encode 2 (Encode.dict String.fromInt inputDictToJson memory.history))))
 
     -- MouseButton isDown ->
     --   Game vis memory { computer | mouse = mouseDown isDown computer.mouse }
