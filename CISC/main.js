@@ -6156,12 +6156,10 @@ var $elm$json$Json$Encode$dict = F3(
 				_Json_emptyObject(_Utils_Tuple0),
 				dictionary));
 	});
-var $elm$json$Json$Encode$string = _Json_wrap;
-var $author$project$Update$tempDict = A2($elm$core$Dict$singleton, 2, 'hello');
-var $author$project$Update$jsonObjectDict = A2(
-	$elm$json$Json$Encode$encode,
-	0,
-	A3($elm$json$Json$Encode$dict, $elm$core$String$fromInt, $elm$json$Json$Encode$string, $author$project$Update$tempDict));
+var $elm$json$Json$Encode$float = _Json_wrap;
+var $author$project$Update$inputDictToJson = function (input) {
+	return A3($elm$json$Json$Encode$dict, $elm$core$Basics$identity, $elm$json$Json$Encode$float, input);
+};
 var $author$project$Update$mouseClick = F2(
 	function (bool, mouse) {
 		return _Utils_update(
@@ -6231,7 +6229,14 @@ var $author$project$Update$pomdpUpdate = F3(
 			default:
 				return _Utils_Tuple2(
 					A2($author$project$Update$POMDP, memory, computer),
-					A3($elm$file$File$Download$string, 'record.json', 'application/json', $author$project$Update$jsonObjectDict));
+					A3(
+						$elm$file$File$Download$string,
+						'record.json',
+						'application/json',
+						A2(
+							$elm$json$Json$Encode$encode,
+							0,
+							A3($elm$json$Json$Encode$dict, $elm$core$String$fromInt, $author$project$Update$inputDictToJson, memory.history))));
 		}
 	});
 var $elm$core$List$append = F2(
@@ -6808,6 +6813,7 @@ var $elm$json$Json$Encode$object = function (pairs) {
 			_Json_emptyObject(_Utils_Tuple0),
 			pairs));
 };
+var $elm$json$Json$Encode$string = _Json_wrap;
 var $joakin$elm_canvas$Canvas$Internal$CustomElementJsonApi$fn = F2(
 	function (name, args) {
 		return $elm$json$Json$Encode$object(
@@ -6825,7 +6831,6 @@ var $joakin$elm_canvas$Canvas$Internal$CustomElementJsonApi$fn = F2(
 				]));
 	});
 var $joakin$elm_canvas$Canvas$Internal$CustomElementJsonApi$beginPath = A2($joakin$elm_canvas$Canvas$Internal$CustomElementJsonApi$fn, 'beginPath', _List_Nil);
-var $elm$json$Json$Encode$float = _Json_wrap;
 var $joakin$elm_canvas$Canvas$Internal$CustomElementJsonApi$clearRect = F4(
 	function (x, y, width, height) {
 		return A2(

@@ -29,7 +29,6 @@ tempJson = Encode.encode 0 (Encode.string "testing")
 tempDict = Dict.singleton 2 "hello" 
 jsonObjectDict = Encode.encode 0 (Encode.dict String.fromInt Encode.string tempDict)
 
-
 htmlwidth = 400
 htmlheight = 400
 gamewidth = 16
@@ -115,7 +114,7 @@ pomdpUpdate updateMemory msg (POMDP memory computer) =
       (POMDP memory { computer | mouse = mouseMove x y computer.mouse}, Cmd.none)
 
     Download ->
-      (POMDP memory computer, (Download.string "record.json" "application/json" jsonObjectDict))
+      (POMDP memory computer, (Download.string "record.json" "application/json" (Encode.encode 0 (Encode.dict String.fromInt inputDictToJson memory.history))))
 
     -- MouseButton isDown ->
     --   Game vis memory { computer | mouse = mouseDown isDown computer.mouse }
@@ -215,6 +214,9 @@ render image width height =
 
 --save : String -> Cmd msg
 --save text = Download.string "record.txt" "text/plain" text
+
+inputDictToJson: Input -> Encode.Value
+inputDictToJson input = (Encode.dict identity Encode.float input)
 
 type alias Latent = {keyLocation : (Int, Int), unlocked : Bool, timeStep : Int}
 type alias Event = {objects : List Entity, latent : Latent}
