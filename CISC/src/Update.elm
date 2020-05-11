@@ -29,7 +29,6 @@ tempJson = Encode.encode 0 (Encode.string "testing")
 tempDict = Dict.singleton 2 "hello" 
 jsonObjectDict = Encode.encode 0 (Encode.dict String.fromInt Encode.string tempDict)
 
-
 htmlwidth = 400
 htmlheight = 400
 gamewidth = 16
@@ -115,7 +114,7 @@ pomdpUpdate updateMemory msg (POMDP memory computer) =
       (POMDP memory { computer | mouse = mouseMove x y computer.mouse}, Cmd.none)
 
     Download ->
-      (POMDP memory computer, (Download.string "record.json" "application/json" jsonObjectDict))
+      (POMDP memory computer, (Download.string "record.json" "application/json" (Encode.encode 2 (Encode.dict String.fromInt inputDictToJson memory.history))))
 
     -- MouseButton isDown ->
     --   Game vis memory { computer | mouse = mouseDown isDown computer.mouse }
@@ -216,9 +215,13 @@ render image width height =
 --save : String -> Cmd msg
 --save text = Download.string "record.txt" "text/plain" text
 
+inputDictToJson: Input -> Encode.Value
+inputDictToJson input = (Encode.dict identity Encode.float input)
+
 type alias Latent = {keyLocation : (Int, Int), unlocked : Bool, timeStep : Int}
 type alias Event = {objects : List Entity, latent : Latent}
-type alias LoggedEvent = {objects : List Entity, latent : Latent, history : Dict Int Event}
+type alias Input = Dict String Float 
+type alias LoggedEvent = {objects : List Entity, latent : Latent, history : Dict Int Input}
 updateTracker : (Computer -> Event -> Event) -> (Computer -> LoggedEvent -> LoggedEvent)
 updateTracker updateFunction =
   let
@@ -226,9 +229,14 @@ updateTracker updateFunction =
       let
         stateOut = updateFunction computer (Event state.objects state.latent)
         timeStep = stateOut.latent.timeStep
-        newHistory = Dict.insert timeStep {objects=stateOut.objects, latent=stateOut.latent} state.history
+
+        input = Dict.singleton "Click" (if computer.mouse.click then 1 else 0)
+        
+        input2 = Dict.insert "Click Y" computer.mouse.y input
+        input3 = Dict.insert "Click X" computer.mouse.x input2
+
+        newHistory = Dict.insert timeStep input3 state.history
       in
         LoggedEvent stateOut.objects stateOut.latent newHistory
   in
     newUpdate
-
