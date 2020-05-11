@@ -55,7 +55,6 @@ move entity x y =
     FieldTag field -> FieldTag field
     ParticlesTag particles -> ParticlesTag particles
 
-print mytext = Download.string mytext
 -- type alias Model = {objects : List Entity, latent : Int}
 -- update : Computer -> Model -> Model
 update computer {objects, latent} = 

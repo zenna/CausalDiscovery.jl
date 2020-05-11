@@ -4768,6 +4768,25 @@ var $author$project$Update$LoggedEvent = F3(
 	function (objects, latent, history) {
 		return {history: history, latent: latent, objects: objects};
 	});
+var $elm$core$List$foldl = F3(
+	function (func, acc, list) {
+		foldl:
+		while (true) {
+			if (!list.b) {
+				return acc;
+			} else {
+				var x = list.a;
+				var xs = list.b;
+				var $temp$func = func,
+					$temp$acc = A2(func, x, acc),
+					$temp$list = xs;
+				func = $temp$func;
+				acc = $temp$acc;
+				list = $temp$list;
+				continue foldl;
+			}
+		}
+	});
 var $elm$core$Dict$Black = {$: 'Black'};
 var $elm$core$Dict$RBNode_elm_builtin = F5(
 	function (a, b, c, d, e) {
@@ -4877,10 +4896,18 @@ var $elm$core$Dict$insert = F3(
 			return x;
 		}
 	});
-var $elm$core$Dict$singleton = F2(
-	function (key, value) {
-		return A5($elm$core$Dict$RBNode_elm_builtin, $elm$core$Dict$Black, key, value, $elm$core$Dict$RBEmpty_elm_builtin, $elm$core$Dict$RBEmpty_elm_builtin);
-	});
+var $elm$core$Dict$fromList = function (assocs) {
+	return A3(
+		$elm$core$List$foldl,
+		F2(
+			function (_v0, dict) {
+				var key = _v0.a;
+				var value = _v0.b;
+				return A3($elm$core$Dict$insert, key, value, dict);
+			}),
+		$elm$core$Dict$empty,
+		assocs);
+};
 var $author$project$Update$updateTracker = function (updateFunction) {
 	var newUpdate = F2(
 		function (computer, state) {
@@ -4889,13 +4916,15 @@ var $author$project$Update$updateTracker = function (updateFunction) {
 				computer,
 				A2($author$project$Update$Event, state.objects, state.latent));
 			var timeStep = stateOut.latent.timeStep;
-			var input = A2(
-				$elm$core$Dict$singleton,
-				'Click',
-				computer.mouse.click ? 1 : 0);
-			var input2 = A3($elm$core$Dict$insert, 'Click Y', computer.mouse.y, input);
-			var input3 = A3($elm$core$Dict$insert, 'Click X', computer.mouse.x, input2);
-			var newHistory = A3($elm$core$Dict$insert, timeStep, input3, state.history);
+			var clickInt = computer.mouse.click ? 1 : 0;
+			var input = $elm$core$Dict$fromList(
+				_List_fromArray(
+					[
+						_Utils_Tuple2('Click', clickInt),
+						_Utils_Tuple2('Click X', computer.mouse.x),
+						_Utils_Tuple2('Click Y', computer.mouse.y)
+					]));
+			var newHistory = A3($elm$core$Dict$insert, timeStep, input, state.history);
 			return A3($author$project$Update$LoggedEvent, stateOut.objects, stateOut.latent, newHistory);
 		});
 	return newUpdate;
@@ -4952,25 +4981,6 @@ var $elm$json$Json$Decode$indent = function (str) {
 		'\n    ',
 		A2($elm$core$String$split, '\n', str));
 };
-var $elm$core$List$foldl = F3(
-	function (func, acc, list) {
-		foldl:
-		while (true) {
-			if (!list.b) {
-				return acc;
-			} else {
-				var x = list.a;
-				var xs = list.b;
-				var $temp$func = func,
-					$temp$acc = A2(func, x, acc),
-					$temp$list = xs;
-				func = $temp$func;
-				acc = $temp$acc;
-				list = $temp$list;
-				continue foldl;
-			}
-		}
-	});
 var $elm$core$List$length = function (xs) {
 	return A3(
 		$elm$core$List$foldl,
@@ -5957,18 +5967,6 @@ var $elm$browser$Browser$Events$addKey = function (sub) {
 			$elm$browser$Browser$Events$nodeToKey(node),
 			name),
 		sub);
-};
-var $elm$core$Dict$fromList = function (assocs) {
-	return A3(
-		$elm$core$List$foldl,
-		F2(
-			function (_v0, dict) {
-				var key = _v0.a;
-				var value = _v0.b;
-				return A3($elm$core$Dict$insert, key, value, dict);
-			}),
-		$elm$core$Dict$empty,
-		assocs);
 };
 var $elm$browser$Browser$Events$Event = F2(
 	function (key, event) {

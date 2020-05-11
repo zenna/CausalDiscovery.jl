@@ -212,9 +212,6 @@ render image width height =
   in
   (List.map (\pixel -> rectAtPos pixel widthRatio heightRatio) image.pixels)
 
---save : String -> Cmd msg
---save text = Download.string "record.txt" "text/plain" text
-
 inputDictToJson: Input -> Encode.Value
 inputDictToJson input = (Encode.dict identity Encode.float input)
 
@@ -228,14 +225,12 @@ updateTracker updateFunction =
     newUpdate computer state =
       let
         stateOut = updateFunction computer (Event state.objects state.latent)
+
+        -- Create dictionary value of inputs for this timestep
         timeStep = stateOut.latent.timeStep
-
-        input = Dict.singleton "Click" (if computer.mouse.click then 1 else 0)
-        
-        input2 = Dict.insert "Click Y" computer.mouse.y input
-        input3 = Dict.insert "Click X" computer.mouse.x input2
-
-        newHistory = Dict.insert timeStep input3 state.history
+        clickInt = if computer.mouse.click then 1 else 0
+        input = Dict.fromList [("Click", clickInt), ("Click X", computer.mouse.x), ("Click Y", computer.mouse.y)]
+        newHistory = Dict.insert timeStep input state.history
       in
         LoggedEvent stateOut.objects stateOut.latent newHistory
   in
