@@ -7,6 +7,8 @@ import Update exposing (..)
 import String.Conversions
 import File.Download as Download
 import Dict
+import Time
+
 
 -- Lock Example
 
@@ -95,21 +97,46 @@ update computer {objects, latent} =
 
 loggedUpdate = updateTracker update
 
---Replay Fake History
+-- Fake History for Replay Functionality
 
-fakeHistory1 = Dict.insert 0 {objects = initScene, latent = {keyLocation = initKeyLocation, unlocked = False, timeStep = 0}} initHistory
-fakeHistory2 = Dict.insert 1 {objects = objectsFromOrig (6,0) False, latent = {keyLocation = (6,0), unlocked = False, timeStep = 1}} fakeHistory1
-fakeHistory3 = Dict.insert 2 {objects = objectsFromOrig (6,12) True, latent = {keyLocation = (6,12), unlocked = True, timeStep = 2}} fakeHistory2
+fakeHistory1 = Dict.insert 0 (Dict.fromList [("Click", 0), ("Click X", 0), ("Click Y", 0)]) initHistory
+fakeHistory2 = Dict.insert 1 (Dict.fromList [("Click", 1), ("Click X", 345), ("Click Y", 189)]) fakeHistory1
+fakeHistory3 = Dict.insert 2 (Dict.fromList [("Click", 1), ("Click X", 345), ("Click Y", 189)]) fakeHistory2
+fakeHistory4 = Dict.insert 3 (Dict.fromList [("Click", 1), ("Click X", 345), ("Click Y", 189)]) fakeHistory3
+fakeHistory5 = Dict.insert 4 (Dict.fromList [("Click", 1), ("Click X", 345), ("Click Y", 189)]) fakeHistory4
+fakeHistory6 = Dict.insert 5 (Dict.fromList [("Click", 1), ("Click X", 345), ("Click Y", 189)]) fakeHistory5
+fakeHistory7 = Dict.insert 6 (Dict.fromList [("Click", 1), ("Click X", 345), ("Click Y", 189)]) fakeHistory6
+fakeHistory8 = Dict.insert 7 (Dict.fromList [("Click", 1), ("Click X", 280), ("Click Y", 360)]) fakeHistory7
+fakeHistory9 = Dict.insert 8 (Dict.fromList [("Click", 1), ("Click X", 280), ("Click Y", 360)]) fakeHistory8
+fakeHistory10 = Dict.insert 9 (Dict.fromList [("Click", 1), ("Click X", 280), ("Click Y", 360)]) fakeHistory9
+fakeHistory11 = Dict.insert 10 (Dict.fromList [("Click", 1), ("Click X", 280), ("Click Y", 360)]) fakeHistory10
+fakeHistory12 = Dict.insert 11 (Dict.fromList [("Click", 1), ("Click X", 280), ("Click Y", 360)]) fakeHistory11
+fakeHistory13 = Dict.insert 12 (Dict.fromList [("Click", 1), ("Click X", 280), ("Click Y", 360)]) fakeHistory12
+fakeHistory14 = Dict.insert 13 (Dict.fromList [("Click", 1), ("Click X", 280), ("Click Y", 360)]) fakeHistory13
+fakeHistory15 = Dict.insert 14 (Dict.fromList [("Click", 1), ("Click X", 280), ("Click Y", 360)]) fakeHistory14
+fakeHistory16 = Dict.insert 15 (Dict.fromList [("Click", 1), ("Click X", 280), ("Click Y", 360)]) fakeHistory15
+fakeHistory17 = Dict.insert 16 (Dict.fromList [("Click", 1), ("Click X", 280), ("Click Y", 360)]) fakeHistory16
+fakeHistory18 = Dict.insert 17 (Dict.fromList [("Click", 1), ("Click X", 280), ("Click Y", 360)]) fakeHistory17
+fakeHistory19 = Dict.insert 18 (Dict.fromList [("Click", 1), ("Click X", 280), ("Click Y", 360)]) fakeHistory18
+fakeHistory20 = Dict.insert 19 (Dict.fromList [("Click", 0), ("Click X", 280), ("Click Y", 0)]) fakeHistory19
+fakeHistory21 = Dict.insert 20 (Dict.fromList [("Click", 0), ("Click X", 280), ("Click Y", 0)]) fakeHistory20
+fakeHistory22 = Dict.insert 21 (Dict.fromList [("Click", 1), ("Click X", 280), ("Click Y", 0)]) fakeHistory21
 
-fakeHistory4 = Dict.insert 3 {objects = objectsFromOrig (6,5) False, latent = {keyLocation = (6,5), unlocked = False, timeStep = 3}} fakeHistory3
-fakeHistory5 = Dict.insert 4 {objects = objectsFromOrig (5,5) False, latent = {keyLocation = (5,5), unlocked = False, timeStep = 4}} fakeHistory4
+
+finalFakeHistory = fakeHistory22
 
 
 --Replay Default Values
 defaultObjects = []
 defaultLatent = Latent (-1,-1) False -1
 
-defaultHistory = {objects = initScene, latent = {keyLocation = (0,0), unlocked = False}, history=Dict.empty}
+defaultInput0 = Dict.singleton "Click" 0
+defaultInput1 = Dict.insert "Click X" 0 defaultInput0
+defaultInput2 = Dict.insert "Click Y" 0 defaultInput1
+
+defaultInput = defaultInput2
+
+
 defaultEvent = Event initScene defaultLatent
 
 
@@ -117,19 +144,40 @@ defaultEvent = Event initScene defaultLatent
 replayer : Computer -> LoggedEvent -> LoggedEvent
 replayer computer {objects, latent, history} = 
   let
+
+    --Update timestep
     time = latent.timeStep
-    newTime = if computer.mouse.click then time+1 else time
-    currState = Maybe.withDefault defaultEvent (Dict.get newTime history)    
+
+    --Create fake computer with input
+    currInput = Maybe.withDefault defaultInput (Dict.get time history)
+    loggedClickInt = Maybe.withDefault 0 (Dict.get "Click" currInput)
+    loggedClick = if loggedClickInt == 1 then True else False
+    loggedX = Maybe.withDefault 0 (Dict.get "Click X" currInput)
+    loggedY = Maybe.withDefault 0 (Dict.get "Click Y" currInput)
+
+    fakeMouse = {
+                  x = loggedX
+                  , y = loggedY
+                  , down = False
+                  , click = loggedClick
+                }
+    comp = { 
+            mouse = fakeMouse
+            , time = Time (Time.millisToPosix 0)
+      }
+
+    -- Run Update Function and get new state
+    stateOut = update comp (Event objects latent)
+    newObjects = stateOut.objects
+    newLatent = stateOut.latent
   in
   { 
-    objects = currState.objects,
-    latent = currState.latent,
-    history = history
+    objects = newObjects
+    , latent =  newLatent
+    , history = history
   }
 
 main = if replay == True 
-          then pomdp {objects = initScene, latent = {keyLocation = initKeyLocation, unlocked = False, timeStep = 0}, history = fakeHistory5} replayer 
+          then pomdp {objects = initScene, latent = {keyLocation = initKeyLocation, unlocked = False, timeStep = 0}, history = finalFakeHistory} replayer 
         else 
           pomdp {objects = initScene, latent = {keyLocation = initKeyLocation, unlocked = False, timeStep = 0}, history = initHistory} loggedUpdate
-
---main = pomdp {objects = initScene, latent = {keyLocation = initKeyLocation, unlocked = False, timeStep = 0}, history = initHistory} loggedUpdate

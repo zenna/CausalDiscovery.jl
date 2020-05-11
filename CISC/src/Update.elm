@@ -212,9 +212,6 @@ render image width height =
   in
   (List.map (\pixel -> rectAtPos pixel widthRatio heightRatio) image.pixels)
 
---save : String -> Cmd msg
---save text = Download.string "record.txt" "text/plain" text
-
 inputDictToJson: Input -> Encode.Value
 inputDictToJson input = (Encode.dict identity Encode.float input)
 
@@ -231,7 +228,6 @@ updateTracker updateFunction =
         timeStep = stateOut.latent.timeStep
 
         input = Dict.singleton "Click" (if computer.mouse.click then 1 else 0)
-        
         input2 = Dict.insert "Click Y" computer.mouse.y input
         input3 = Dict.insert "Click X" computer.mouse.x input2
 
