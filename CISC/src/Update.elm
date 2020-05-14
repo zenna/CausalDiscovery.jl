@@ -8,26 +8,26 @@ import String.Conversions
 import Engine exposing (..)
 import Time
 import Browser.Events as E
-import Json.Decode as D
+import Json.Decode as Decode
 import Html.Events.Extra.Mouse as Mouse
 
 import Canvas exposing (..)
 import Canvas.Settings exposing (..)
 import Canvas.Settings.Advanced exposing (..)
 import Color
+import Dict exposing (Dict)
+import Dict.Extra
 import Browser.Events exposing (onAnimationFrameDelta)
 import Html exposing (Html, div, text, button)
 import Html.Attributes exposing (style)
 import String
 import Html.Events.Extra.Mouse as Mouse
+import File exposing (File)
 import File.Download as Download
-import Dict exposing (Dict)
+import File.Select as Select
 import Html.Events exposing (onClick)
 import Json.Encode as Encode
-
-tempJson = Encode.encode 0 (Encode.string "testing")
-tempDict = Dict.singleton 2 "hello" 
-jsonObjectDict = Encode.encode 0 (Encode.dict String.fromInt Encode.string tempDict)
+import Task
 
 htmlwidth = 400
 htmlheight = 400
@@ -46,6 +46,9 @@ type Msg =
   | MouseClick
   | StartAt (Float, Float)
   | Download
+  | Upload
+  | JsonSelected File
+  | JsonLoaded String
   -- | MouseButton Bool
 
 pomdpSubscriptions : Sub Msg
@@ -59,7 +62,7 @@ pomdpSubscriptions =
       Time.every 100.0 Tick
       -- E.onAnimationFrame Tick
     -- , E.onVisibilityChange VisibilityChanged
-    , E.onClick (D.succeed MouseClick)
+    , E.onClick (Decode.succeed MouseClick)
     -- , E.onMouseDown (D.succeed (MouseButton True))
     -- , E.onMouseUp (D.succeed (MouseButton False))
     -- , E.onMouseMove (D.map2 MouseMove (D.field "pageX" D.float) (D.field "pageY" D.float))
@@ -77,6 +80,17 @@ mouseMove x y mouse =
 
 mouseX computer =
   computer.mouse.x
+
+mouseY computer =
+  computer.mouse.y
+
+
+-- Download and Upload
+downloadLog fileName history =
+  (Download.string "record.json" "application/json" (Encode.encode 2 (Encode.dict String.fromInt inputDictToJson history)))
+
+toIntWithDefault str =
+  Maybe.withDefault 0 (String.toInt str)
 
 -- pomdpUpdate : (Computer -> memory -> memory) -> Msg -> Game memory -> Game memory
 pomdpUpdate updateMemory msg (POMDP memory computer) =
@@ -114,7 +128,22 @@ pomdpUpdate updateMemory msg (POMDP memory computer) =
       (POMDP memory { computer | mouse = mouseMove x y computer.mouse}, Cmd.none)
 
     Download ->
-      (POMDP memory computer, (Download.string "record.json" "application/json" (Encode.encode 2 (Encode.dict String.fromInt inputDictToJson memory.history))))
+      (POMDP memory computer, downloadLog "clickHistory.json" memory.history)
+
+    Upload ->
+      (POMDP memory computer, Select.file ["application/json"] JsonSelected)
+
+    JsonSelected file ->
+      (POMDP memory computer, Task.perform JsonLoaded (File.toString file))
+
+    JsonLoaded content ->
+      let
+        historyDict = Result.withDefault Dict.empty (Decode.decodeString (Decode.dict (Decode.dict Decode.float)) content)
+        -- convert keys from string to int
+        fixedHistoryDict = historyDict |> Dict.Extra.mapKeys toIntWithDefault
+        newMemory = {memory | objects = memory.init.objects, latent = memory.init.latent, history = fixedHistoryDict}
+      in 
+        (POMDP newMemory computer, Cmd.none)
 
     -- MouseButton isDown ->
     --   Game vis memory { computer | mouse = mouseDown isDown computer.mouse }
@@ -188,7 +217,13 @@ view image width height computer =
         , style "justify-content" "center"
         , style "align-items" "center"
         ]
-        [ div [] [button [onClick Download] [Html.text "Download Log"], div[][], Html.text (String.fromFloat (mouseX computer))],
+        [ div []
+            [button [onClick Download]
+                    [Html.text "Download Log"],
+             button [onClick Upload]
+                    [Html.text "Upload Log"],
+             div [][Html.text (String.append "Mouse X: " (String.fromFloat (mouseX computer)))],
+             div [][Html.text (String.append "Mouse Y: " (String.fromFloat (mouseY computer)))]],
           Canvas.toHtml
             ( width, height )
             [ Mouse.onDown (.offsetPos >> StartAt) ]
@@ -216,15 +251,15 @@ inputDictToJson: Input -> Encode.Value
 inputDictToJson input = (Encode.dict identity Encode.float input)
 
 type alias Latent = {keyLocation : (Int, Int), unlocked : Bool, timeStep : Int}
-type alias Event = {objects : List Entity, latent : Latent}
+type alias Event = {objects : List Entity, latent : Latent, init: {objects : List Entity, latent : Latent}}
 type alias Input = Dict String Float 
-type alias LoggedEvent = {objects : List Entity, latent : Latent, history : Dict Int Input}
+type alias LoggedEvent = {objects : List Entity, latent : Latent, history : Dict Int Input, init: {objects : List Entity, latent : Latent}}
 updateTracker : (Computer -> Event -> Event) -> (Computer -> LoggedEvent -> LoggedEvent)
 updateTracker updateFunction =
   let
     newUpdate computer state =
       let
-        stateOut = updateFunction computer (Event state.objects state.latent)
+        stateOut = updateFunction computer (Event state.objects state.latent state.init)
         timeStep = stateOut.latent.timeStep
 
         input = Dict.singleton "Click" (if computer.mouse.click then 1 else 0)
@@ -233,6 +268,6 @@ updateTracker updateFunction =
 
         newHistory = Dict.insert timeStep input3 state.history
       in
-        LoggedEvent stateOut.objects stateOut.latent newHistory
+        LoggedEvent stateOut.objects stateOut.latent newHistory stateOut.init
   in
     newUpdate

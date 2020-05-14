@@ -61,7 +61,7 @@ move entity x y =
 print mytext = Download.string mytext
 -- type alias Model = {objects : List Entity, latent : Int}
 -- update : Computer -> Model -> Model
-update computer {objects, latent} = 
+update computer {objects, latent, init} = 
   let
 
     -- Defining User Input
@@ -92,7 +92,8 @@ update computer {objects, latent} =
   in
   { 
     objects = movedObjects,
-    latent = {keyLocation = currKeyLocation, unlocked = currLockValue, timeStep = newtime}
+    latent = {keyLocation = currKeyLocation, unlocked = currLockValue, timeStep = newtime},
+    init = init
   }
 
 loggedUpdate = updateTracker update
@@ -129,6 +130,7 @@ finalFakeHistory = fakeHistory22
 --Replay Default Values
 defaultObjects = []
 defaultLatent = Latent (-1,-1) False -1
+initLatent = Latent (0,0) False 0
 
 defaultInput0 = Dict.singleton "Click" 0
 defaultInput1 = Dict.insert "Click X" 0 defaultInput0
@@ -142,7 +144,7 @@ defaultEvent = Event initScene defaultLatent
 
 --Replay an old history
 replayer : Computer -> LoggedEvent -> LoggedEvent
-replayer computer {objects, latent, history} = 
+replayer computer {objects, latent, history, init} = 
   let
 
     --Update timestep
@@ -167,7 +169,7 @@ replayer computer {objects, latent, history} =
       }
 
     -- Run Update Function and get new state
-    stateOut = update comp (Event objects latent)
+    stateOut = update comp (Event objects latent init)
     newObjects = stateOut.objects
     newLatent = stateOut.latent
   in
@@ -175,9 +177,10 @@ replayer computer {objects, latent, history} =
     objects = newObjects
     , latent =  newLatent
     , history = history
+    , init = init
   }
 
-main = if replay == True 
-          then pomdp {objects = initScene, latent = {keyLocation = initKeyLocation, unlocked = False, timeStep = 0}, history = finalFakeHistory} replayer 
-        else 
-          pomdp {objects = initScene, latent = {keyLocation = initKeyLocation, unlocked = False, timeStep = 0}, history = initHistory} loggedUpdate
+main = if replay == True then 
+         pomdp {objects = initScene, latent = initLatent, history = initHistory, init = {objects = initScene, latent = initLatent}} replayer 
+       else 
+         pomdp {objects = initScene, latent = initLatent, history = initHistory, init = {objects = initScene, latent = initLatent}} loggedUpdate

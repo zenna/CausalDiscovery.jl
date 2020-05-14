@@ -4579,7 +4579,6 @@ function _File_toUrl(blob)
 	});
 }
 
-var $elm$core$Basics$False = {$: 'False'};
 var $elm$core$Basics$True = {$: 'True'};
 var $elm$core$Basics$EQ = {$: 'EQ'};
 var $elm$core$Basics$LT = {$: 'LT'};
@@ -4664,24 +4663,121 @@ var $elm$core$Basics$GT = {$: 'GT'};
 var $elm$core$Basics$eq = _Utils_equal;
 var $elm$core$Dict$RBEmpty_elm_builtin = {$: 'RBEmpty_elm_builtin'};
 var $elm$core$Dict$empty = $elm$core$Dict$RBEmpty_elm_builtin;
-var $elm$core$List$foldl = F3(
-	function (func, acc, list) {
-		foldl:
-		while (true) {
-			if (!list.b) {
-				return acc;
-			} else {
-				var x = list.a;
-				var xs = list.b;
-				var $temp$func = func,
-					$temp$acc = A2(func, x, acc),
-					$temp$list = xs;
-				func = $temp$func;
-				acc = $temp$acc;
-				list = $temp$list;
-				continue foldl;
-			}
-		}
+var $author$project$Lock$initHistory = $elm$core$Dict$empty;
+var $elm$core$Basics$False = {$: 'False'};
+var $author$project$Update$Latent = F3(
+	function (keyLocation, unlocked, timeStep) {
+		return {keyLocation: keyLocation, timeStep: timeStep, unlocked: unlocked};
+	});
+var $author$project$Lock$initLatent = A3(
+	$author$project$Update$Latent,
+	_Utils_Tuple2(0, 0),
+	false,
+	0);
+var $author$project$Lock$initKeyLocation = _Utils_Tuple2(0, 0);
+var $author$project$Lock$initUnlockedState = false;
+var $author$project$Engine$Box = F4(
+	function (a, b, c, d) {
+		return {$: 'Box', a: a, b: b, c: c, d: d};
+	});
+var $author$project$Engine$ObjectTag = function (a) {
+	return {$: 'ObjectTag', a: a};
+};
+var $avh4$elm_color$Color$RgbaSpace = F4(
+	function (a, b, c, d) {
+		return {$: 'RgbaSpace', a: a, b: b, c: c, d: d};
+	});
+var $elm$core$Basics$fdiv = _Basics_fdiv;
+var $avh4$elm_color$Color$darkGrey = A4($avh4$elm_color$Color$RgbaSpace, 186 / 255, 189 / 255, 182 / 255, 1.0);
+var $avh4$elm_color$Color$lightBlue = A4($avh4$elm_color$Color$RgbaSpace, 114 / 255, 159 / 255, 207 / 255, 1.0);
+var $avh4$elm_color$Color$lightPurple = A4($avh4$elm_color$Color$RgbaSpace, 173 / 255, 127 / 255, 168 / 255, 1.0);
+var $author$project$Lock$lockHoleLength = 2;
+var $author$project$Lock$lockHoleLocation = _Utils_Tuple2(6, 12);
+var $author$project$Lock$lockHoleWidth = 0;
+var $elm$core$Basics$negate = function (n) {
+	return -n;
+};
+var $avh4$elm_color$Color$white = A4($avh4$elm_color$Color$RgbaSpace, 255 / 255, 255 / 255, 255 / 255, 1.0);
+var $author$project$Lock$objectsFromOrig = F2(
+	function (_v0, unlocked) {
+		var x = _v0.a;
+		var y = _v0.b;
+		var wallLocation = unlocked ? _Utils_Tuple2(8, -1) : _Utils_Tuple2(8, 0);
+		var stationaryWall = A4(
+			$author$project$Engine$Box,
+			_Utils_Tuple2(8, 8),
+			0,
+			7,
+			$avh4$elm_color$Color$darkGrey);
+		var movingWall = A4($author$project$Engine$Box, wallLocation, 0, 7, $avh4$elm_color$Color$darkGrey);
+		var lockHole = A4($author$project$Engine$Box, $author$project$Lock$lockHoleLocation, $author$project$Lock$lockHoleWidth, $author$project$Lock$lockHoleLength, $avh4$elm_color$Color$white);
+		var lockBox = A4(
+			$author$project$Engine$Box,
+			_Utils_Tuple2(5, 12),
+			2,
+			3,
+			$avh4$elm_color$Color$lightBlue);
+		var key = A4(
+			$author$project$Engine$Box,
+			_Utils_Tuple2(x, y),
+			$author$project$Lock$lockHoleWidth,
+			$author$project$Lock$lockHoleLength,
+			$avh4$elm_color$Color$lightPurple);
+		return _List_fromArray(
+			[
+				$author$project$Engine$ObjectTag(stationaryWall),
+				$author$project$Engine$ObjectTag(movingWall),
+				$author$project$Engine$ObjectTag(lockBox),
+				$author$project$Engine$ObjectTag(lockHole),
+				$author$project$Engine$ObjectTag(key)
+			]);
+	});
+var $author$project$Lock$initScene = A2($author$project$Lock$objectsFromOrig, $author$project$Lock$initKeyLocation, $author$project$Lock$initUnlockedState);
+var $elm$core$Basics$add = _Basics_add;
+var $elm$core$Basics$and = _Basics_and;
+var $elm$core$Basics$gt = _Utils_gt;
+var $elm$core$Basics$ge = _Utils_ge;
+var $elm$core$Basics$le = _Utils_le;
+var $elm$core$Basics$sub = _Basics_sub;
+var $author$project$Lock$inXBounds = function (proposedX) {
+	return ((_Utils_cmp(proposedX, 16 - ($author$project$Lock$lockHoleWidth + 1)) < 1) && (proposedX >= 0)) ? true : false;
+};
+var $author$project$Lock$inYBounds = function (proposedY) {
+	return ((_Utils_cmp(proposedY, 16 - ($author$project$Lock$lockHoleLength + 1)) < 1) && (proposedY >= 0)) ? true : false;
+};
+var $elm$core$Basics$lt = _Utils_lt;
+var $author$project$Lock$update = F2(
+	function (computer, _v0) {
+		var objects = _v0.objects;
+		var latent = _v0.latent;
+		var init = _v0.init;
+		var up = computer.mouse.click && (computer.mouse.y < 75);
+		var time = latent.timeStep;
+		var right = computer.mouse.click && (computer.mouse.x > 325);
+		var newtime = time + 1;
+		var left = computer.mouse.click && (computer.mouse.x < 75);
+		var down = computer.mouse.click && (computer.mouse.y > 325);
+		var _v1 = latent.keyLocation;
+		var keyx = _v1.a;
+		var keyy = _v1.b;
+		var newkeyx = ($author$project$Lock$inXBounds(keyx + 1) && right) ? (keyx + 1) : (($author$project$Lock$inXBounds(keyx - 1) && left) ? (keyx - 1) : keyx);
+		var newkeyy = ($author$project$Lock$inYBounds(keyy + 1) && down) ? (keyy + 1) : (($author$project$Lock$inYBounds(keyy - 1) && up) ? (keyy - 1) : keyy);
+		var currKeyLocation = _Utils_Tuple2(newkeyx, newkeyy);
+		var currLockValue = _Utils_eq(currKeyLocation, $author$project$Lock$lockHoleLocation) ? true : false;
+		var movedObjects = A2($author$project$Lock$objectsFromOrig, currKeyLocation, currLockValue);
+		return {
+			init: init,
+			latent: {keyLocation: currKeyLocation, timeStep: newtime, unlocked: currLockValue},
+			objects: movedObjects
+		};
+	});
+var $author$project$Update$Event = F3(
+	function (objects, latent, init) {
+		return {init: init, latent: latent, objects: objects};
+	});
+var $author$project$Update$LoggedEvent = F4(
+	function (objects, latent, history, init) {
+		return {history: history, init: init, latent: latent, objects: objects};
 	});
 var $elm$core$Dict$Black = {$: 'Black'};
 var $elm$core$Dict$RBNode_elm_builtin = F5(
@@ -4792,365 +4888,6 @@ var $elm$core$Dict$insert = F3(
 			return x;
 		}
 	});
-var $elm$core$Dict$fromList = function (assocs) {
-	return A3(
-		$elm$core$List$foldl,
-		F2(
-			function (_v0, dict) {
-				var key = _v0.a;
-				var value = _v0.b;
-				return A3($elm$core$Dict$insert, key, value, dict);
-			}),
-		$elm$core$Dict$empty,
-		assocs);
-};
-var $author$project$Lock$initHistory = $elm$core$Dict$empty;
-var $author$project$Lock$fakeHistory1 = A3(
-	$elm$core$Dict$insert,
-	0,
-	$elm$core$Dict$fromList(
-		_List_fromArray(
-			[
-				_Utils_Tuple2('Click', 0),
-				_Utils_Tuple2('Click X', 0),
-				_Utils_Tuple2('Click Y', 0)
-			])),
-	$author$project$Lock$initHistory);
-var $author$project$Lock$fakeHistory2 = A3(
-	$elm$core$Dict$insert,
-	1,
-	$elm$core$Dict$fromList(
-		_List_fromArray(
-			[
-				_Utils_Tuple2('Click', 1),
-				_Utils_Tuple2('Click X', 345),
-				_Utils_Tuple2('Click Y', 189)
-			])),
-	$author$project$Lock$fakeHistory1);
-var $author$project$Lock$fakeHistory3 = A3(
-	$elm$core$Dict$insert,
-	2,
-	$elm$core$Dict$fromList(
-		_List_fromArray(
-			[
-				_Utils_Tuple2('Click', 1),
-				_Utils_Tuple2('Click X', 345),
-				_Utils_Tuple2('Click Y', 189)
-			])),
-	$author$project$Lock$fakeHistory2);
-var $author$project$Lock$fakeHistory4 = A3(
-	$elm$core$Dict$insert,
-	3,
-	$elm$core$Dict$fromList(
-		_List_fromArray(
-			[
-				_Utils_Tuple2('Click', 1),
-				_Utils_Tuple2('Click X', 345),
-				_Utils_Tuple2('Click Y', 189)
-			])),
-	$author$project$Lock$fakeHistory3);
-var $author$project$Lock$fakeHistory5 = A3(
-	$elm$core$Dict$insert,
-	4,
-	$elm$core$Dict$fromList(
-		_List_fromArray(
-			[
-				_Utils_Tuple2('Click', 1),
-				_Utils_Tuple2('Click X', 345),
-				_Utils_Tuple2('Click Y', 189)
-			])),
-	$author$project$Lock$fakeHistory4);
-var $author$project$Lock$fakeHistory6 = A3(
-	$elm$core$Dict$insert,
-	5,
-	$elm$core$Dict$fromList(
-		_List_fromArray(
-			[
-				_Utils_Tuple2('Click', 1),
-				_Utils_Tuple2('Click X', 345),
-				_Utils_Tuple2('Click Y', 189)
-			])),
-	$author$project$Lock$fakeHistory5);
-var $author$project$Lock$fakeHistory7 = A3(
-	$elm$core$Dict$insert,
-	6,
-	$elm$core$Dict$fromList(
-		_List_fromArray(
-			[
-				_Utils_Tuple2('Click', 1),
-				_Utils_Tuple2('Click X', 345),
-				_Utils_Tuple2('Click Y', 189)
-			])),
-	$author$project$Lock$fakeHistory6);
-var $author$project$Lock$fakeHistory8 = A3(
-	$elm$core$Dict$insert,
-	7,
-	$elm$core$Dict$fromList(
-		_List_fromArray(
-			[
-				_Utils_Tuple2('Click', 1),
-				_Utils_Tuple2('Click X', 280),
-				_Utils_Tuple2('Click Y', 360)
-			])),
-	$author$project$Lock$fakeHistory7);
-var $author$project$Lock$fakeHistory9 = A3(
-	$elm$core$Dict$insert,
-	8,
-	$elm$core$Dict$fromList(
-		_List_fromArray(
-			[
-				_Utils_Tuple2('Click', 1),
-				_Utils_Tuple2('Click X', 280),
-				_Utils_Tuple2('Click Y', 360)
-			])),
-	$author$project$Lock$fakeHistory8);
-var $author$project$Lock$fakeHistory10 = A3(
-	$elm$core$Dict$insert,
-	9,
-	$elm$core$Dict$fromList(
-		_List_fromArray(
-			[
-				_Utils_Tuple2('Click', 1),
-				_Utils_Tuple2('Click X', 280),
-				_Utils_Tuple2('Click Y', 360)
-			])),
-	$author$project$Lock$fakeHistory9);
-var $author$project$Lock$fakeHistory11 = A3(
-	$elm$core$Dict$insert,
-	10,
-	$elm$core$Dict$fromList(
-		_List_fromArray(
-			[
-				_Utils_Tuple2('Click', 1),
-				_Utils_Tuple2('Click X', 280),
-				_Utils_Tuple2('Click Y', 360)
-			])),
-	$author$project$Lock$fakeHistory10);
-var $author$project$Lock$fakeHistory12 = A3(
-	$elm$core$Dict$insert,
-	11,
-	$elm$core$Dict$fromList(
-		_List_fromArray(
-			[
-				_Utils_Tuple2('Click', 1),
-				_Utils_Tuple2('Click X', 280),
-				_Utils_Tuple2('Click Y', 360)
-			])),
-	$author$project$Lock$fakeHistory11);
-var $author$project$Lock$fakeHistory13 = A3(
-	$elm$core$Dict$insert,
-	12,
-	$elm$core$Dict$fromList(
-		_List_fromArray(
-			[
-				_Utils_Tuple2('Click', 1),
-				_Utils_Tuple2('Click X', 280),
-				_Utils_Tuple2('Click Y', 360)
-			])),
-	$author$project$Lock$fakeHistory12);
-var $author$project$Lock$fakeHistory14 = A3(
-	$elm$core$Dict$insert,
-	13,
-	$elm$core$Dict$fromList(
-		_List_fromArray(
-			[
-				_Utils_Tuple2('Click', 1),
-				_Utils_Tuple2('Click X', 280),
-				_Utils_Tuple2('Click Y', 360)
-			])),
-	$author$project$Lock$fakeHistory13);
-var $author$project$Lock$fakeHistory15 = A3(
-	$elm$core$Dict$insert,
-	14,
-	$elm$core$Dict$fromList(
-		_List_fromArray(
-			[
-				_Utils_Tuple2('Click', 1),
-				_Utils_Tuple2('Click X', 280),
-				_Utils_Tuple2('Click Y', 360)
-			])),
-	$author$project$Lock$fakeHistory14);
-var $author$project$Lock$fakeHistory16 = A3(
-	$elm$core$Dict$insert,
-	15,
-	$elm$core$Dict$fromList(
-		_List_fromArray(
-			[
-				_Utils_Tuple2('Click', 1),
-				_Utils_Tuple2('Click X', 280),
-				_Utils_Tuple2('Click Y', 360)
-			])),
-	$author$project$Lock$fakeHistory15);
-var $author$project$Lock$fakeHistory17 = A3(
-	$elm$core$Dict$insert,
-	16,
-	$elm$core$Dict$fromList(
-		_List_fromArray(
-			[
-				_Utils_Tuple2('Click', 1),
-				_Utils_Tuple2('Click X', 280),
-				_Utils_Tuple2('Click Y', 360)
-			])),
-	$author$project$Lock$fakeHistory16);
-var $author$project$Lock$fakeHistory18 = A3(
-	$elm$core$Dict$insert,
-	17,
-	$elm$core$Dict$fromList(
-		_List_fromArray(
-			[
-				_Utils_Tuple2('Click', 1),
-				_Utils_Tuple2('Click X', 280),
-				_Utils_Tuple2('Click Y', 360)
-			])),
-	$author$project$Lock$fakeHistory17);
-var $author$project$Lock$fakeHistory19 = A3(
-	$elm$core$Dict$insert,
-	18,
-	$elm$core$Dict$fromList(
-		_List_fromArray(
-			[
-				_Utils_Tuple2('Click', 1),
-				_Utils_Tuple2('Click X', 280),
-				_Utils_Tuple2('Click Y', 360)
-			])),
-	$author$project$Lock$fakeHistory18);
-var $author$project$Lock$fakeHistory20 = A3(
-	$elm$core$Dict$insert,
-	19,
-	$elm$core$Dict$fromList(
-		_List_fromArray(
-			[
-				_Utils_Tuple2('Click', 0),
-				_Utils_Tuple2('Click X', 280),
-				_Utils_Tuple2('Click Y', 0)
-			])),
-	$author$project$Lock$fakeHistory19);
-var $author$project$Lock$fakeHistory21 = A3(
-	$elm$core$Dict$insert,
-	20,
-	$elm$core$Dict$fromList(
-		_List_fromArray(
-			[
-				_Utils_Tuple2('Click', 0),
-				_Utils_Tuple2('Click X', 280),
-				_Utils_Tuple2('Click Y', 0)
-			])),
-	$author$project$Lock$fakeHistory20);
-var $author$project$Lock$fakeHistory22 = A3(
-	$elm$core$Dict$insert,
-	21,
-	$elm$core$Dict$fromList(
-		_List_fromArray(
-			[
-				_Utils_Tuple2('Click', 1),
-				_Utils_Tuple2('Click X', 280),
-				_Utils_Tuple2('Click Y', 0)
-			])),
-	$author$project$Lock$fakeHistory21);
-var $author$project$Lock$finalFakeHistory = $author$project$Lock$fakeHistory22;
-var $author$project$Lock$initKeyLocation = _Utils_Tuple2(0, 0);
-var $author$project$Lock$initUnlockedState = false;
-var $author$project$Engine$Box = F4(
-	function (a, b, c, d) {
-		return {$: 'Box', a: a, b: b, c: c, d: d};
-	});
-var $author$project$Engine$ObjectTag = function (a) {
-	return {$: 'ObjectTag', a: a};
-};
-var $avh4$elm_color$Color$RgbaSpace = F4(
-	function (a, b, c, d) {
-		return {$: 'RgbaSpace', a: a, b: b, c: c, d: d};
-	});
-var $elm$core$Basics$fdiv = _Basics_fdiv;
-var $avh4$elm_color$Color$darkGrey = A4($avh4$elm_color$Color$RgbaSpace, 186 / 255, 189 / 255, 182 / 255, 1.0);
-var $avh4$elm_color$Color$lightBlue = A4($avh4$elm_color$Color$RgbaSpace, 114 / 255, 159 / 255, 207 / 255, 1.0);
-var $avh4$elm_color$Color$lightPurple = A4($avh4$elm_color$Color$RgbaSpace, 173 / 255, 127 / 255, 168 / 255, 1.0);
-var $author$project$Lock$lockHoleLength = 2;
-var $author$project$Lock$lockHoleLocation = _Utils_Tuple2(6, 12);
-var $author$project$Lock$lockHoleWidth = 0;
-var $elm$core$Basics$negate = function (n) {
-	return -n;
-};
-var $avh4$elm_color$Color$white = A4($avh4$elm_color$Color$RgbaSpace, 255 / 255, 255 / 255, 255 / 255, 1.0);
-var $author$project$Lock$objectsFromOrig = F2(
-	function (_v0, unlocked) {
-		var x = _v0.a;
-		var y = _v0.b;
-		var wallLocation = unlocked ? _Utils_Tuple2(8, -1) : _Utils_Tuple2(8, 0);
-		var stationaryWall = A4(
-			$author$project$Engine$Box,
-			_Utils_Tuple2(8, 8),
-			0,
-			7,
-			$avh4$elm_color$Color$darkGrey);
-		var movingWall = A4($author$project$Engine$Box, wallLocation, 0, 7, $avh4$elm_color$Color$darkGrey);
-		var lockHole = A4($author$project$Engine$Box, $author$project$Lock$lockHoleLocation, $author$project$Lock$lockHoleWidth, $author$project$Lock$lockHoleLength, $avh4$elm_color$Color$white);
-		var lockBox = A4(
-			$author$project$Engine$Box,
-			_Utils_Tuple2(5, 12),
-			2,
-			3,
-			$avh4$elm_color$Color$lightBlue);
-		var key = A4(
-			$author$project$Engine$Box,
-			_Utils_Tuple2(x, y),
-			$author$project$Lock$lockHoleWidth,
-			$author$project$Lock$lockHoleLength,
-			$avh4$elm_color$Color$lightPurple);
-		return _List_fromArray(
-			[
-				$author$project$Engine$ObjectTag(stationaryWall),
-				$author$project$Engine$ObjectTag(movingWall),
-				$author$project$Engine$ObjectTag(lockBox),
-				$author$project$Engine$ObjectTag(lockHole),
-				$author$project$Engine$ObjectTag(key)
-			]);
-	});
-var $author$project$Lock$initScene = A2($author$project$Lock$objectsFromOrig, $author$project$Lock$initKeyLocation, $author$project$Lock$initUnlockedState);
-var $elm$core$Basics$add = _Basics_add;
-var $elm$core$Basics$and = _Basics_and;
-var $elm$core$Basics$gt = _Utils_gt;
-var $elm$core$Basics$ge = _Utils_ge;
-var $elm$core$Basics$le = _Utils_le;
-var $elm$core$Basics$sub = _Basics_sub;
-var $author$project$Lock$inXBounds = function (proposedX) {
-	return ((_Utils_cmp(proposedX, 16 - ($author$project$Lock$lockHoleWidth + 1)) < 1) && (proposedX >= 0)) ? true : false;
-};
-var $author$project$Lock$inYBounds = function (proposedY) {
-	return ((_Utils_cmp(proposedY, 16 - ($author$project$Lock$lockHoleLength + 1)) < 1) && (proposedY >= 0)) ? true : false;
-};
-var $elm$core$Basics$lt = _Utils_lt;
-var $author$project$Lock$update = F2(
-	function (computer, _v0) {
-		var objects = _v0.objects;
-		var latent = _v0.latent;
-		var up = computer.mouse.click && (computer.mouse.y < 75);
-		var time = latent.timeStep;
-		var right = computer.mouse.click && (computer.mouse.x > 325);
-		var newtime = time + 1;
-		var left = computer.mouse.click && (computer.mouse.x < 75);
-		var down = computer.mouse.click && (computer.mouse.y > 325);
-		var _v1 = latent.keyLocation;
-		var keyx = _v1.a;
-		var keyy = _v1.b;
-		var newkeyx = ($author$project$Lock$inXBounds(keyx + 1) && right) ? (keyx + 1) : (($author$project$Lock$inXBounds(keyx - 1) && left) ? (keyx - 1) : keyx);
-		var newkeyy = ($author$project$Lock$inYBounds(keyy + 1) && down) ? (keyy + 1) : (($author$project$Lock$inYBounds(keyy - 1) && up) ? (keyy - 1) : keyy);
-		var currKeyLocation = _Utils_Tuple2(newkeyx, newkeyy);
-		var currLockValue = _Utils_eq(currKeyLocation, $author$project$Lock$lockHoleLocation) ? true : false;
-		var movedObjects = A2($author$project$Lock$objectsFromOrig, currKeyLocation, currLockValue);
-		return {
-			latent: {keyLocation: currKeyLocation, timeStep: newtime, unlocked: currLockValue},
-			objects: movedObjects
-		};
-	});
-var $author$project$Update$Event = F2(
-	function (objects, latent) {
-		return {latent: latent, objects: objects};
-	});
-var $author$project$Update$LoggedEvent = F3(
-	function (objects, latent, history) {
-		return {history: history, latent: latent, objects: objects};
-	});
 var $elm$core$Dict$singleton = F2(
 	function (key, value) {
 		return A5($elm$core$Dict$RBNode_elm_builtin, $elm$core$Dict$Black, key, value, $elm$core$Dict$RBEmpty_elm_builtin, $elm$core$Dict$RBEmpty_elm_builtin);
@@ -5161,7 +4898,7 @@ var $author$project$Update$updateTracker = function (updateFunction) {
 			var stateOut = A2(
 				updateFunction,
 				computer,
-				A2($author$project$Update$Event, state.objects, state.latent));
+				A3($author$project$Update$Event, state.objects, state.latent, state.init));
 			var timeStep = stateOut.latent.timeStep;
 			var input = A2(
 				$elm$core$Dict$singleton,
@@ -5170,7 +4907,7 @@ var $author$project$Update$updateTracker = function (updateFunction) {
 			var input2 = A3($elm$core$Dict$insert, 'Click Y', computer.mouse.y, input);
 			var input3 = A3($elm$core$Dict$insert, 'Click X', computer.mouse.x, input2);
 			var newHistory = A3($elm$core$Dict$insert, timeStep, input3, state.history);
-			return A3($author$project$Update$LoggedEvent, stateOut.objects, stateOut.latent, newHistory);
+			return A4($author$project$Update$LoggedEvent, stateOut.objects, stateOut.latent, newHistory, stateOut.init);
 		});
 	return newUpdate;
 };
@@ -5226,6 +4963,25 @@ var $elm$json$Json$Decode$indent = function (str) {
 		'\n    ',
 		A2($elm$core$String$split, '\n', str));
 };
+var $elm$core$List$foldl = F3(
+	function (func, acc, list) {
+		foldl:
+		while (true) {
+			if (!list.b) {
+				return acc;
+			} else {
+				var x = list.a;
+				var xs = list.b;
+				var $temp$func = func,
+					$temp$acc = A2(func, x, acc),
+					$temp$list = xs;
+				func = $temp$func;
+				acc = $temp$acc;
+				list = $temp$list;
+				continue foldl;
+			}
+		}
+	});
 var $elm$core$List$length = function (xs) {
 	return A3(
 		$elm$core$List$foldl,
@@ -6213,6 +5969,18 @@ var $elm$browser$Browser$Events$addKey = function (sub) {
 			name),
 		sub);
 };
+var $elm$core$Dict$fromList = function (assocs) {
+	return A3(
+		$elm$core$List$foldl,
+		F2(
+			function (_v0, dict) {
+				var key = _v0.a;
+				var value = _v0.b;
+				return A3($elm$core$Dict$insert, key, value, dict);
+			}),
+		$elm$core$Dict$empty,
+		assocs);
+};
 var $elm$browser$Browser$Events$Event = F2(
 	function (key, event) {
 		return {event: event, key: key};
@@ -6383,6 +6151,20 @@ var $author$project$Update$pomdpSubscriptions = $elm$core$Platform$Sub$batch(
 			$elm$browser$Browser$Events$onClick(
 			$elm$json$Json$Decode$succeed($author$project$Update$MouseClick))
 		]));
+var $author$project$Update$JsonLoaded = function (a) {
+	return {$: 'JsonLoaded', a: a};
+};
+var $author$project$Update$JsonSelected = function (a) {
+	return {$: 'JsonSelected', a: a};
+};
+var $elm$json$Json$Decode$decodeString = _Json_runOnString;
+var $elm$json$Json$Decode$keyValuePairs = _Json_decodeKeyValuePairs;
+var $elm$json$Json$Decode$dict = function (decoder) {
+	return A2(
+		$elm$json$Json$Decode$map,
+		$elm$core$Dict$fromList,
+		$elm$json$Json$Decode$keyValuePairs(decoder));
+};
 var $elm$json$Json$Encode$dict = F3(
 	function (toKey, toValue, dictionary) {
 		return _Json_wrap(
@@ -6403,6 +6185,47 @@ var $elm$json$Json$Encode$float = _Json_wrap;
 var $author$project$Update$inputDictToJson = function (input) {
 	return A3($elm$json$Json$Encode$dict, $elm$core$Basics$identity, $elm$json$Json$Encode$float, input);
 };
+var $elm$file$File$Download$string = F3(
+	function (name, mime, content) {
+		return A2(
+			$elm$core$Task$perform,
+			$elm$core$Basics$never,
+			A3(_File_download, name, mime, content));
+	});
+var $author$project$Update$downloadLog = F2(
+	function (fileName, history) {
+		return A3(
+			$elm$file$File$Download$string,
+			'record.json',
+			'application/json',
+			A2(
+				$elm$json$Json$Encode$encode,
+				2,
+				A3($elm$json$Json$Encode$dict, $elm$core$String$fromInt, $author$project$Update$inputDictToJson, history)));
+	});
+var $elm$file$File$Select$file = F2(
+	function (mimes, toMsg) {
+		return A2(
+			$elm$core$Task$perform,
+			toMsg,
+			_File_uploadOne(mimes));
+	});
+var $elm$json$Json$Decode$float = _Json_decodeFloat;
+var $elm_community$dict_extra$Dict$Extra$mapKeys = F2(
+	function (keyMapper, dict) {
+		return A3(
+			$elm$core$Dict$foldl,
+			F3(
+				function (k, v, acc) {
+					return A3(
+						$elm$core$Dict$insert,
+						keyMapper(k),
+						v,
+						acc);
+				}),
+			$elm$core$Dict$empty,
+			dict);
+	});
 var $author$project$Update$mouseClick = F2(
 	function (bool, mouse) {
 		return _Utils_update(
@@ -6415,12 +6238,30 @@ var $author$project$Update$mouseMove = F3(
 			mouse,
 			{x: x, y: y});
 	});
-var $elm$file$File$Download$string = F3(
-	function (name, mime, content) {
-		return A2(
-			$elm$core$Task$perform,
-			$elm$core$Basics$never,
-			A3(_File_download, name, mime, content));
+var $elm$core$Maybe$withDefault = F2(
+	function (_default, maybe) {
+		if (maybe.$ === 'Just') {
+			var value = maybe.a;
+			return value;
+		} else {
+			return _default;
+		}
+	});
+var $author$project$Update$toIntWithDefault = function (str) {
+	return A2(
+		$elm$core$Maybe$withDefault,
+		0,
+		$elm$core$String$toInt(str));
+};
+var $elm$file$File$toString = _File_toString;
+var $elm$core$Result$withDefault = F2(
+	function (def, result) {
+		if (result.$ === 'Ok') {
+			var a = result.a;
+			return a;
+		} else {
+			return def;
+		}
 	});
 var $author$project$Update$pomdpUpdate = F3(
 	function (updateMemory, msg, _v0) {
@@ -6469,17 +6310,43 @@ var $author$project$Update$pomdpUpdate = F3(
 								mouse: A3($author$project$Update$mouseMove, x, y, computer.mouse)
 							})),
 					$elm$core$Platform$Cmd$none);
-			default:
+			case 'Download':
 				return _Utils_Tuple2(
 					A2($author$project$Update$POMDP, memory, computer),
-					A3(
-						$elm$file$File$Download$string,
-						'record.json',
-						'application/json',
-						A2(
-							$elm$json$Json$Encode$encode,
-							2,
-							A3($elm$json$Json$Encode$dict, $elm$core$String$fromInt, $author$project$Update$inputDictToJson, memory.history))));
+					A2($author$project$Update$downloadLog, 'clickHistory.json', memory.history));
+			case 'Upload':
+				return _Utils_Tuple2(
+					A2($author$project$Update$POMDP, memory, computer),
+					A2(
+						$elm$file$File$Select$file,
+						_List_fromArray(
+							['application/json']),
+						$author$project$Update$JsonSelected));
+			case 'JsonSelected':
+				var file = msg.a;
+				return _Utils_Tuple2(
+					A2($author$project$Update$POMDP, memory, computer),
+					A2(
+						$elm$core$Task$perform,
+						$author$project$Update$JsonLoaded,
+						$elm$file$File$toString(file)));
+			default:
+				var content = msg.a;
+				var historyDict = A2(
+					$elm$core$Result$withDefault,
+					$elm$core$Dict$empty,
+					A2(
+						$elm$json$Json$Decode$decodeString,
+						$elm$json$Json$Decode$dict(
+							$elm$json$Json$Decode$dict($elm$json$Json$Decode$float)),
+						content));
+				var fixedHistoryDict = A2($elm_community$dict_extra$Dict$Extra$mapKeys, $author$project$Update$toIntWithDefault, historyDict);
+				var newMemory = _Utils_update(
+					memory,
+					{history: fixedHistoryDict, latent: memory.init.latent, objects: memory.init.objects});
+				return _Utils_Tuple2(
+					A2($author$project$Update$POMDP, newMemory, computer),
+					$elm$core$Platform$Cmd$none);
 		}
 	});
 var $elm$core$List$append = F2(
@@ -6664,6 +6531,8 @@ var $author$project$Update$Download = {$: 'Download'};
 var $author$project$Update$StartAt = function (a) {
 	return {$: 'StartAt', a: a};
 };
+var $author$project$Update$Upload = {$: 'Upload'};
+var $elm$core$String$append = _String_append;
 var $elm$html$Html$button = _VirtualDom_node('button');
 var $joakin$elm_canvas$Canvas$Internal$Canvas$Fill = function (a) {
 	return {$: 'Fill', a: a};
@@ -6838,6 +6707,9 @@ var $elm$core$String$fromFloat = _String_fromNumber;
 var $author$project$Update$mouseX = function (computer) {
 	return computer.mouse.x;
 };
+var $author$project$Update$mouseY = function (computer) {
+	return computer.mouse.y;
+};
 var $elm$virtual_dom$VirtualDom$Normal = function (a) {
 	return {$: 'Normal', a: a};
 };
@@ -6898,7 +6770,6 @@ var $mpizenberg$elm_pointer_events$Html$Events$Extra$Mouse$buttonDecoder = A2(
 	$elm$json$Json$Decode$map,
 	$mpizenberg$elm_pointer_events$Html$Events$Extra$Mouse$buttonFromId,
 	A2($elm$json$Json$Decode$field, 'button', $elm$json$Json$Decode$int));
-var $elm$json$Json$Decode$float = _Json_decodeFloat;
 var $mpizenberg$elm_pointer_events$Internal$Decode$clientPos = A3(
 	$elm$json$Json$Decode$map2,
 	F2(
@@ -7765,10 +7636,40 @@ var $author$project$Update$view = F4(
 								[
 									$elm$html$Html$text('Download Log')
 								])),
-							A2($elm$html$Html$div, _List_Nil, _List_Nil),
-							$elm$html$Html$text(
-							$elm$core$String$fromFloat(
-								$author$project$Update$mouseX(computer)))
+							A2(
+							$elm$html$Html$button,
+							_List_fromArray(
+								[
+									$elm$html$Html$Events$onClick($author$project$Update$Upload)
+								]),
+							_List_fromArray(
+								[
+									$elm$html$Html$text('Upload Log')
+								])),
+							A2(
+							$elm$html$Html$div,
+							_List_Nil,
+							_List_fromArray(
+								[
+									$elm$html$Html$text(
+									A2(
+										$elm$core$String$append,
+										'Mouse X: ',
+										$elm$core$String$fromFloat(
+											$author$project$Update$mouseX(computer))))
+								])),
+							A2(
+							$elm$html$Html$div,
+							_List_Nil,
+							_List_fromArray(
+								[
+									$elm$html$Html$text(
+									A2(
+										$elm$core$String$append,
+										'Mouse Y: ',
+										$elm$core$String$fromFloat(
+											$author$project$Update$mouseY(computer))))
+								]))
 						])),
 					A3(
 					$joakin$elm_canvas$Canvas$toHtml,
@@ -7819,20 +7720,12 @@ var $author$project$Lock$defaultInput0 = A2($elm$core$Dict$singleton, 'Click', 0
 var $author$project$Lock$defaultInput1 = A3($elm$core$Dict$insert, 'Click X', 0, $author$project$Lock$defaultInput0);
 var $author$project$Lock$defaultInput2 = A3($elm$core$Dict$insert, 'Click Y', 0, $author$project$Lock$defaultInput1);
 var $author$project$Lock$defaultInput = $author$project$Lock$defaultInput2;
-var $elm$core$Maybe$withDefault = F2(
-	function (_default, maybe) {
-		if (maybe.$ === 'Just') {
-			var value = maybe.a;
-			return value;
-		} else {
-			return _default;
-		}
-	});
 var $author$project$Lock$replayer = F2(
 	function (computer, _v0) {
 		var objects = _v0.objects;
 		var latent = _v0.latent;
 		var history = _v0.history;
+		var init = _v0.init;
 		var time = latent.timeStep;
 		var currInput = A2(
 			$elm$core$Maybe$withDefault,
@@ -7860,23 +7753,25 @@ var $author$project$Lock$replayer = F2(
 		var stateOut = A2(
 			$author$project$Lock$update,
 			comp,
-			A2($author$project$Update$Event, objects, latent));
+			A3($author$project$Update$Event, objects, latent, init));
 		var newLatent = stateOut.latent;
 		var newObjects = stateOut.objects;
-		return {history: history, latent: newLatent, objects: newObjects};
+		return {history: history, init: init, latent: newLatent, objects: newObjects};
 	});
 var $author$project$Lock$main = $author$project$Lock$replay ? A2(
 	$author$project$Update$pomdp,
 	{
-		history: $author$project$Lock$finalFakeHistory,
-		latent: {keyLocation: $author$project$Lock$initKeyLocation, timeStep: 0, unlocked: false},
+		history: $author$project$Lock$initHistory,
+		init: {latent: $author$project$Lock$initLatent, objects: $author$project$Lock$initScene},
+		latent: $author$project$Lock$initLatent,
 		objects: $author$project$Lock$initScene
 	},
 	$author$project$Lock$replayer) : A2(
 	$author$project$Update$pomdp,
 	{
 		history: $author$project$Lock$initHistory,
-		latent: {keyLocation: $author$project$Lock$initKeyLocation, timeStep: 0, unlocked: false},
+		init: {latent: $author$project$Lock$initLatent, objects: $author$project$Lock$initScene},
+		latent: $author$project$Lock$initLatent,
 		objects: $author$project$Lock$initScene
 	},
 	$author$project$Lock$loggedUpdate);
