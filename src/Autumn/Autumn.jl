@@ -10,4 +10,8 @@ include("sexpr.jl")
 
 include("program.jl")
 include("compile.jl")
+
+include("abstractinterpretation.jl")
+@reexport using .AbstractInterpretation
+
 end

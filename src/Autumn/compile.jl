@@ -1,10 +1,10 @@
 "Compilation to Julia (and other targets, if you want)"
 module Compile
 
-using ..AExpressions: AExpr
+using ..AExpressions
 
 "Compile `aexpr` into `program::Program`"
-compiletojulia(::AExpressions.AExpr) = 
+compiletojulia(::AExpr) = 
   error("Can only compile complete Autumn programs")
 
 function compiletojulia(::ProgramExpr)
