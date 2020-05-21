@@ -6,7 +6,7 @@ import Color
 import Update exposing (..)
 import String.Conversions
 import File.Download as Download
-import Dict
+import Dict exposing (Dict)
 import Time
 
 
@@ -92,7 +92,7 @@ update computer {objects, latent, init} =
   in
   { 
     objects = movedObjects,
-    latent = {keyLocation = currKeyLocation, unlocked = currLockValue, timeStep = newtime},
+    latent = {keyLocation = currKeyLocation, unlocked = currLockValue, timeStep = newtime, playerMode = True},
     init = init
   }
 
@@ -129,8 +129,8 @@ finalFakeHistory = fakeHistory22
 
 --Replay Default Values
 defaultObjects = []
-defaultLatent = Latent (-1,-1) False -1
-initLatent = Latent (0,0) False 0
+defaultLatent = Latent (-1,-1) False -1 True
+initLatent = Latent (0,0) False 0 True
 
 defaultInput0 = Dict.singleton "Click" 0
 defaultInput1 = Dict.insert "Click X" 0 defaultInput0
@@ -138,9 +138,29 @@ defaultInput2 = Dict.insert "Click Y" 0 defaultInput1
 
 defaultInput = defaultInput2
 
+type alias Latent = {keyLocation : (Int, Int), unlocked : Bool, timeStep : Int, playerMode : Bool}
+type alias Input = Dict String Float
+type alias LoggedEvent = {objects : List Entity, latent : Latent, history : Dict Int Input, init: {objects : List Entity, latent : Latent}}
 
 defaultEvent = Event initScene defaultLatent
 
+--toggler: Computer -> LoggedEvent -> LoggedEvent
+toggler computer {objects, latent, history, init} = 
+  let 
+
+    outputState = if latent.playerMode == True then loggedUpdate computer (LoggedEvent objects latent history init)
+                  else replayer computer (LoggedEvent objects latent history init)
+
+    newObjects = outputState.objects
+    newLatent = outputState.latent
+    updatedHistory = outputState.history
+  in
+  { 
+    objects = newObjects
+    , latent =  newLatent
+    , history = updatedHistory
+    , init = init
+  }
 
 --Replay an old history
 replayer : Computer -> LoggedEvent -> LoggedEvent
@@ -171,16 +191,20 @@ replayer computer {objects, latent, history, init} =
     -- Run Update Function and get new state
     stateOut = update comp (Event objects latent init)
     newObjects = stateOut.objects
+
     newLatent = stateOut.latent
+    newestLatent = {newLatent | playerMode = False}
+    --newLatent = stateOut.latent
   in
   { 
     objects = newObjects
-    , latent =  newLatent
+    , latent =  newestLatent
     , history = history
     , init = init
   }
 
-main = if replay == True then 
-         pomdp {objects = initScene, latent = initLatent, history = initHistory, init = {objects = initScene, latent = initLatent}} replayer 
-       else 
-         pomdp {objects = initScene, latent = initLatent, history = initHistory, init = {objects = initScene, latent = initLatent}} loggedUpdate
+main = pomdp {objects = initScene, latent = initLatent, history = initHistory, init = {objects = initScene, latent = initLatent}} toggler
+--main = if replay == True then 
+--         pomdp {objects = initScene, latent = initLatent, history = initHistory, init = {objects = initScene, latent = initLatent}} replayer 
+--       else 
+--         pomdp {objects = initScene, latent = initLatent, history = initHistory, init = {objects = initScene, latent = initLatent}} loggedUpdate

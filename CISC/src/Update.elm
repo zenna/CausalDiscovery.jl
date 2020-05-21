@@ -49,6 +49,8 @@ type Msg =
   | Upload
   | JsonSelected File
   | JsonLoaded String
+  | PlayerMode
+  | ReplayMode
   -- | MouseButton Bool
 
 pomdpSubscriptions : Sub Msg
@@ -141,9 +143,31 @@ pomdpUpdate updateMemory msg (POMDP memory computer) =
         historyDict = Result.withDefault Dict.empty (Decode.decodeString (Decode.dict (Decode.dict Decode.float)) content)
         -- convert keys from string to int
         fixedHistoryDict = historyDict |> Dict.Extra.mapKeys toIntWithDefault
-        newMemory = {memory | objects = memory.init.objects, latent = memory.init.latent, history = fixedHistoryDict}
+        newLatent = memory.init.latent
+        newestLatent = {newLatent | playerMode = False}
+        newMemory = {memory | objects = memory.init.objects, latent = newestLatent, history = fixedHistoryDict}
       in 
         (POMDP newMemory computer, Cmd.none)
+
+    PlayerMode ->
+      let 
+        newLatent = memory.init.latent
+        newestLatent = {newLatent | playerMode = True, timeStep = 0}
+        updatedMemory = {memory | latent = newestLatent, objects = memory.init.objects, history = Dict.empty}
+        fakeMouse = {x = 0, y = 0, down = False, click = False}
+        newComputer = {computer | mouse = fakeMouse}
+      in
+        (POMDP updatedMemory newComputer, Cmd.none)
+    
+    ReplayMode ->
+      let
+        newLatent = memory.init.latent
+        newestLatent = {newLatent | playerMode = False}
+        updatedMemory = {memory | latent = newestLatent, history = Dict.empty, objects = memory.init.objects}
+      in
+        (POMDP updatedMemory computer, Cmd.none)
+
+
 
     -- MouseButton isDown ->
     --   Game vis memory { computer | mouse = mouseDown isDown computer.mouse }
@@ -218,8 +242,12 @@ view image width height computer =
         , style "align-items" "center"
         ]
         [ div []
-            [button [onClick Download]
+            [button [onClick PlayerMode]
+                    [Html.text "Player Mode"],
+              button [onClick Download]
                     [Html.text "Download Log"],
+              button [onClick ReplayMode]
+                    [Html.text "Replay Mode"],
              button [onClick Upload]
                     [Html.text "Upload Log"],
              div [][Html.text (String.append "Mouse X: " (String.fromFloat (mouseX computer)))],
@@ -250,11 +278,11 @@ render image width height =
 inputDictToJson: Input -> Encode.Value
 inputDictToJson input = (Encode.dict identity Encode.float input)
 
-type alias Latent = {keyLocation : (Int, Int), unlocked : Bool, timeStep : Int}
+type alias Latent = {keyLocation : (Int, Int), unlocked : Bool, timeStep : Int, playerMode : Bool}
 type alias Event = {objects : List Entity, latent : Latent, init: {objects : List Entity, latent : Latent}}
 type alias Input = Dict String Float 
 type alias LoggedEvent = {objects : List Entity, latent : Latent, history : Dict Int Input, init: {objects : List Entity, latent : Latent}}
-updateTracker : (Computer -> Event -> Event) -> (Computer -> LoggedEvent -> LoggedEvent)
+--updateTracker : (Computer -> Event -> Event) -> (Computer -> LoggedEvent -> LoggedEvent)
 updateTracker updateFunction =
   let
     newUpdate computer state =
