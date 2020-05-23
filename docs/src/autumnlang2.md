@@ -1,32 +1,33 @@
 # Autumn Language
 
-The objective of the Autumn Languageis to enable succinct representation of causal probabilistic models.
+The objective of the Autumn Language is to enable succinct representation of probabilistic causal probabilistic models.
 
 # Principles
 
 All values in Autumn are time-varying; time invariant values are considered the special case.
 
-Autumn focuses on three cases for the value of $v_t$ ($v$ at time $t$):
+Autumn focuses on three kinds of time-varying value $v_t$: the value $v$ at time $t$:
 
-1. Time invariant values -- $v_t$ is a constant $c$, i.e., invariant to time.
+1. Time invariant: $v_t$ is a constant $c$, i.e., invariant to time.
 
 ```math
 v_t = c
 ```
 
-
-2. Time varying values -- $v_t$ is a function of only time.
+2. Stateless and Time varying: $v_t$ is a function of only time.
 
 ```math
 v_t = f(t)
 ```
 
-3. Recurrence sequence -- $v_t$ is defined in terms of previous values.
+3. Stateful/recurrent sequence: $v_t$ is defined in terms of previous values.
 
 ```math
 v_1 = c\\
 v_t = f(v_{t - 1})
 ```
+
+The recurrent sequence form generalizes the other forms, and hence in Autumn we will assume all values are of this form.
 
 ## Time-varying values
 
@@ -41,35 +42,35 @@ init v = 3
 next v = 3
 ```
 
-This is equivalent to writing
+This can also be expressed more succinctly as simply:
 
 ```elm
 v = 3
 ```
 
-2. A time varying value can be expressed as a function of `time`.
+2. Stateless\time varying value are simply functions of `time`.
 
 ```elm
 init v = iseven (init time)
 next v = iseven time
 ```
 
-This can be expressed more succintly using __automatic lifting__:
+This can be expressed more succintly as simply applying a function to an existing time varying value:
 
 ```elm
 v = iseven time
 ```
-`
-3. Non-trivial use of `init` and `next` are when we have actual recurrence sequences.
 
-The simplest example is perhaps `time`, which need not be defined as a primitive, but can be expressed in the language using the primitive `prev` which returns the previous value:
+3. Stateful/recurrent time varying make usue of previous values:
+
+The simplest example is perhaps `time` itself, which need not be defined as a primitive, but can be expressed in the language using the primitive `prev` which returns the value at the previous time step:
 
 ```elm
 init time = 1
 next time = (prev time) + 1
 ```
 
-A more complex -- a value that evolves according to the fibonnaci sequence in Autumn: 
+A more complex is a value that evolves according to the fibonnaci sequence in Autumn: 
 
 ```elm
 init fib = 0
@@ -80,10 +81,10 @@ next fib = if time == 1
 
 ## Anonymous Values
 In functional programming, a name a value is bound to is independent from the value itself.
-In particular, not every value need be bound to a name.
+In particular, not every value needs to be bound to a name.
 The above examples defined recurrence relation using names (for instance, `next fib` refers to `(prev fib)`).
 We must now define how to define recurrence relations when we do not explicitly have names.
-This problem is very similar to the problem of defining recursion for anonymous functions.
+This problem is very similar to the problem of defining recursion for anonymous functions: how can a function recurse if it has no name to call itself with?
 One solution to that problem is to introduce primitives to allow a function to reflect on itself.
 We will use a similar approach here:
 
@@ -94,10 +95,10 @@ In English, we might say something like:
 
 (2) At every other time, the value is __this__ value's previous value + 1
 
-Autumn takes a similar approach using the primitive `this`, and the notation `{{init, next}}` to describe time varying values.
+Autumn takes a similar approach using the primitive `this` to describe time varying values
 
 ```elm
-time = {{1, prev (this) + 1}}
+time = init 1 next prev (this) + 1
 ```
 
 ## Patterns
