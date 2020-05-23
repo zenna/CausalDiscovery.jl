@@ -1,6 +1,7 @@
+"Autum Expressions"
 module AExpressions
 
-export AExpr, ProgramExpr, TypeDef, TypeExpr, ExternalDecl, GlobalBind,
+export AExpr, ProgramExpr, TypeDef, TypeExpr, ExternalDeclExpr, AssignExpr,
        ITEExpr, InitNextExpr, FAppExpr, LetExpr, LambdaExpr
 
 export istypesymbol,
@@ -8,7 +9,7 @@ export istypesymbol,
        args
 
 const autumngrammar = """
-program     := line
+program     := line 
 line        := externaldecl | globalbind | typedecl | typedef
 
 typedef     := type fields
@@ -100,7 +101,7 @@ struct ExternalDeclExpr <: AExpr
 end
 
 "Globally bind value to variable `x = val`"
-struct GlobalBind <: AExpr
+struct AssignExpr <: AExpr
   x::Symbol
   val::AExpr
 end
@@ -127,20 +128,20 @@ end
 "Let AExpr, let `var` = `val` in `body`"
 struct LetExpr <: AExpr
   var::Symbol
-  val::AExpr
+  val::AExpr    # Might want this to be a vector of expressions, for each bind
   body::AExpr
 end
 
 "Lambda AExpr `arg` -> `body`"
 struct LambdaExpr <: AExpr
-  args::AExpr
+  args::AExpr   # Might want this to be a vector of symbols
   body::AExpr
 end
 args(aexpr::LambdaExpr) = [aexpr.args aexpr.body]
 
 # # Methods
-"Number of nodes in expression tree"
-nnodes(aexpr::AExpr) = 1 + reduce(+nnodes, args(aexpr))
-nnodes(_) = 1
+# "Number of nodes in expression tree"
+# nnodes(aexpr::AExpr) = 1 + reduce(+nnodes, args(aexpr))
+# nnodes(_) = 1
 
 end
