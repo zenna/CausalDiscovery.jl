@@ -22,10 +22,23 @@ const Click = Union{Position, Nothing}
 
 const Positiion = Alias 
 
+struct Particle
+  position::Position
+end
+
 particles = Stream(Particle[]) do h
   if h.buttonPress
-    h.particles
+    [h.particles Particle(1, 1)]
   else
     h.particles
   end
 end
+
+## Is there any need for init and next, why not just next
+next fibonnaci = 
+
+## Issues
+# - Presumably I can't have a symbol for every value, I'll need some kind of index
+#  This looks a lot like the same problem as omega
+# - 
+# - Type stability will be hard
