@@ -3,7 +3,7 @@ module Transform
 using ..AExpressions
 using ..SubExpressions
 export expand
-using OmegaCore
+# using OmegaCore
 
 """
 Expand a subexpression.
