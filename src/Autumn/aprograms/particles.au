@@ -1,10 +1,10 @@
 type alias Position = (Int, Int)
 
 -- A mouse click is a position that might occur
-type Click = Event (Int, Int)
+Click = Event (Int, Int)
 external click : Click
 
-type Particle = Particle position:Position
+type Particle = Particle Position
 
 particles : [Particle]
 init particles = []

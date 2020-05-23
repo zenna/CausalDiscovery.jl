@@ -5,6 +5,7 @@ makedocs(;
     format=Documenter.HTML(),
     pages=[
         "Home" => "index.md",
+        "AutumnLang" => "autumnlang2.md"
     ],
     repo="https://github.com/zenna/CausalDiscovery.jl/blob/{commit}{path}#L{line}",
     sitename="CausalDiscovery.jl",

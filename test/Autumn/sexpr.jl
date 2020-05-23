@@ -1,5 +1,5 @@
 using Test
-using CausalDiscoveries.Autumn
+using CausalDiscovery.Autumn
 
 @testset begin
   prog = au"""

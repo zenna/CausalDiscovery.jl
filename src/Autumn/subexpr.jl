@@ -1,16 +1,17 @@
-module SubExpression
+module SubExpressions
 
-abstract type SubExpr end
+using ..AExpressions
 
-"Subexpression of `AE` indicated by `P`"
+export SubExpr,
+       subexpr
+
+"Subexpression of `parent::AE` indicated by pointer `p::P`"
 struct SubExpr{AE <: AExpr, P}
   parent::AE
   pointer::P
 end
 
-"Pull out the `expr` pointed to by `subexpr` from its parent"
-function pullout(subexpr) end
-
-
+subexpr(aexpr, i) = SubExpr(aexpr, args(aexpr)[i])
+subexpr(::SubExpr) = error("Cannot take subexpression of subexpression, yet")
 
 end
