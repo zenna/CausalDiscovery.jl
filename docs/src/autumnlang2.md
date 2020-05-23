@@ -133,24 +133,22 @@ The occurence (or non occurence) of an event does not require any special machin
 We can do something very similar to `Maybe` types -- define the type `Event a`
 
 ```elm
-type Event a = Occured a | Nothing
+type Event a = Occurred a | NoOccur
 
 -- Did event occur?
 occured : Event a -> Bool
 occured event = 
-  case (Event a) of
-    Just a -> true
-    a -> false
+  case event of
+    Occurred a -> True
+    NoOccur -> False
 ```
-
-```
-``` 
 
 The `until` command can then be expressed as a function:
 
 ```
+until : a -> Event b -> a
 until initValue event newValue = 
-  {{initValue, if (occured event) then this else newValue}}
+  init initValue next if (occured event) then this else newValue
 ```
 
 ### External Signals
@@ -162,8 +160,7 @@ All external signals are defined using the `external` primitive, which defines t
 external x : Int
 ```
 
-
-## Probability
+## Probability (WIP)
 Autumn ptograms may be probabilistic.   A probabilistic autumn program contains at least one value that is uncertain.
 
 Autumn contains a primitive uniform value: `unif`:
@@ -210,13 +207,13 @@ x = geometric 1
 ```
 
 What's tricky about the above exmaple, is that for every recursive call to geometric, we want an independent flip.
+
 ## Full Programs
 
 The following example shows a particle simulator.
 At each time step, particles will move randomly into a free space around them, if one exists.
 
 
--- FIXME:
 
 ```elm
 type alias Position = (Int, Int)
