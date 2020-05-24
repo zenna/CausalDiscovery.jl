@@ -11,7 +11,9 @@ include("subexpr.jl")
 include("sexpr.jl")
 @reexport using .SExpr
 
-# include("program.jl")
+include("program.jl")
+@reexport using .Program
+
 include("compile.jl")
 @reexport using .Compile
 

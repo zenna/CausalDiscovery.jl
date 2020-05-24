@@ -1,19 +1,20 @@
 module Program
 
-export init, next
+export init, next, AProgram
 
-""
-struct Program
-  ...
+"Autumn Program"
+struct AProgram
+  x
 end
 
 "Return state of `p::Program` initialised with external values `externals` "
-function init(p::Program, externals)
-  ...
+function init(p::AProgram, externals)
+  ..
 end
 
 "Return next state of `p::Program` given external values `externals` at currenttime "
 function next(state, externals)
+  ..
 end
 
 end

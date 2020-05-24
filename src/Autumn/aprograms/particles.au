@@ -19,7 +19,7 @@ nparticles = length particles
 
 -- A position is free iff there
 isfree : Position -> Bool
-isfree position = not (all (map \particle -> particle in particles.position))
+isfree position = not (all (map (\particle -> particle.positon == position) particles) )
 
 -- !! particles.position (above and below) is not valid Elm, should it be valid Autumn?
 

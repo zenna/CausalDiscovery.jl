@@ -2,18 +2,20 @@
 module Compile
 
 using ..AExpressions
+using ..Program
 
 "Compile `aexpr` into `program::Program`"
 compiletojulia(::AExpr) = 
   error("Can only compile complete Autumn programs")
 
-function compiletojulia(::ProgramExpr)::Program
+function compiletojulia(::ProgramExpr)::AProgram
   # Do type inference
   # Get external values
   # Alot
 end
 
-function runprogram(::Program)
+"Run `prog` forever"
+function runprogram(prog::AProgram)
   initexterns = (x = 3, y = 2)
   state = init(p, initexterns)
   while true
