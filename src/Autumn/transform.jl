@@ -2,7 +2,7 @@
 module Transform
 using ..AExpressions
 using ..SubExpressions
-export expand
+export expand, fill, recurfill
 # using OmegaCore
 
 """
@@ -49,6 +49,8 @@ end
 
 function fill(ϕ, ::SubExpr{VariableName})
   ## Choose a variable name that is correct in this context
+  extantvars = # Look through parents
+  # Choose a variable that is not in extandvars
   choice(ϕ, [:x, :y, :z])
 end
 

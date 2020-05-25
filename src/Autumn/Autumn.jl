@@ -2,6 +2,10 @@
 module Autumn
 using Reexport
 
+include("parameters.jl")
+@reexport using .Parameters
+
+
 include("aexpr.jl")
 @reexport using .AExpressions
 

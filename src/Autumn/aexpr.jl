@@ -1,16 +1,17 @@
 "Autum Expressions"
 module AExpressions
 
-export AExpr, ProgramExpr, TypeDef, TypeExpr, ExternalDeclExpr, AssignExpr,
+export AExpr, ProgramExpr, TypeDeclExpr, TypeExpr, ExternalDeclExpr, AssignExpr,
        ITEExpr, InitNextExpr, FAppExpr, LetExpr, LambdaExpr
 
 export istypesymbol,
        istypevarsymbol,
-       args
+       args,
+       arg
 
 const autumngrammar = """
 program     := line 
-line        := externaldecl | globalbind | typedecl | typedef
+line        := externaldecl | assignexpr | typedecl | typedef
 
 typedef     := type fields
 fields      := field | fields field
@@ -19,7 +20,7 @@ cosntructor := typesymbol
 
 
 externaldecl  := external typeexpr x
-globalbind  := x = expr
+assignexpr  := x = expr
 typedecl    := x :: typeexpr
 
 typeexpr    := typesymbol | paramtype | typevar | functiontype
@@ -41,10 +42,17 @@ lambdaexpr  := x -> expr
 "Autumn Expression"
 abstract type AExpr end
 
+"Arguements of expression"
+function args end
+
+"Expr in ith location in arg"
+arg(aexpr, i) = args(aexpr)[i]
+
 "A full program"
 struct ProgramExpr <: AExpr
   expr::Vector{AExpr}
 end
+ProgramExpr(xs...) = ProgramExpr(xs)
 args(aexpr::ProgramExpr) = aexpr.expr
 
 # # Expression Types
@@ -89,7 +97,7 @@ struct ProductTypeExpr <: TypeExpr
 end
 
 "Type Declaration `f: τ`"
-struct TypeDecl <: TypeExpr
+struct TypeDeclExpr <: TypeExpr
   name::Symbol
   type::TypeExpr
 end
@@ -97,7 +105,7 @@ end
 "Declares external value `external x : τ`"
 struct ExternalDeclExpr <: AExpr
   x::Symbol
-  typedecl::TypeDecl
+  typedecl::TypeDeclExpr
 end
 
 "Globally bind value to variable `x = val`"
@@ -105,6 +113,7 @@ struct AssignExpr <: AExpr
   x::Symbol
   val::AExpr
 end
+args(aexpr::AssignExpr) = [aexpr.x, aexpr.val]
 
 "If Then Else expression"
 struct ITEExpr <: AExpr
