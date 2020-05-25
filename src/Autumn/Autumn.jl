@@ -5,9 +5,11 @@ using Reexport
 include("parameters.jl")
 @reexport using .Parameters
 
-
 include("aexpr.jl")
 @reexport using .AExpressions
+
+include("util.jl")
+@reexport using .Util
 
 include("subexpr.jl")
 @reexport using .SubExpressions

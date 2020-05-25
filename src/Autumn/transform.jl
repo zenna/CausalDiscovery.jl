@@ -28,59 +28,61 @@ xnew = replace(x, fill)   # Construct `x`
 # FIXME: Do these fit into all the expr types
 # FIXME: Some naming convention
 
-struct Statement <: AExpr end
-struct External <: AExpr end
-struct Assignment <: AExpr end
-struct TypeDeclaration <: AExpr end
-struct VariableName <: AExpr end
-struct ValueExpression <: AExpr end
-struct Literal <: AExpr end
+abstract type NonTerminal end
+
+struct Statement <: NonTerminal end
+struct External <: NonTerminal end
+struct Assignment <: NonTerminal end
+struct TypeDeclaration <: NonTerminal end
+struct VariableName <: NonTerminal end
+struct ValueExpression <: NonTerminal end
+struct Literal <: NonTerminal end
 
 "`fill(ϕ, subexpr::SubExpr{<:Statement})`returns `parent` with subexpression filled"
 function fill end
 
-function fill(ϕ, ::SubExpr{Statement})
-  choice(ϕ, [External(), Assignment(), TypeDeclaration()])
-end
+# function fill(ϕ, ::SubExpr{Statement})
+#   choice(ϕ, [External(), Assignment(), TypeDeclaration()])
+# end
 
-function fill(ϕ, ::SubExpr{Assignment})
-  GlobalBind(VariableName(), ValueExpression())
-end
+# function fill(ϕ, ::SubExpr{Assignment})
+#   AssignExpr(VariableName(), ValueExpression())
+# end
 
-function fill(ϕ, ::SubExpr{VariableName})
-  ## Choose a variable name that is correct in this context
-  extantvars = # Look through parents
-  # Choose a variable that is not in extandvars
-  choice(ϕ, [:x, :y, :z])
-end
+# function fill(ϕ, ::SubExpr{VariableName})
+#   ## Choose a variable name that is correct in this context
+#   extantvars = # Look through parents
+#   # Choose a variable that is not in extandvars
+#   choice(ϕ, [:x, :y, :z])
+# end
 
-function fill(ϕ, ::SubExpr{ValueExpression})
-  choice(ϕ, [Literal(), FunctionApp()])
-end
+# function fill(ϕ, ::SubExpr{ValueExpression})
+#   choice(ϕ, [Literal(), FunctionApp()])
+# end
 
-function fill(ϕ, ::SubExpr{Literal})
-  # Do type inference
-  choice(ϕ, [1, 2, 3])
-end
+# function fill(ϕ, ::SubExpr{Literal})
+#   # Do type inference
+#   choice(ϕ, [1, 2, 3])
+# end
 
-"Stop when the graph is too large"
-stopwhenbig(sexpr; sizelimit = 100) = nnodes(sexpr) > sizelimit
+# "Stop when the graph is too large"
+# stopwhenbig(sexpr; sizelimit = 100) = nnodes(sexpr) > sizelimit
 
-"Returns a stop function that stops after `n` calls"
-stopaftern(n) = (i = 1; sexpr -> (i += 1; i< n))
+# "Returns a stop function that stops after `n` calls"
+# stopaftern(n) = (i = 1; sexpr -> (i += 1; i< n))
 
-"Fill `sexpr` until `stop`"
-function recurfill(ϕ, sexpr, stop = stopaftern(10))
-  while !stop(ϕ, sexpr)
-    sexpr = fill(ϕ, sexpr)
-    # FIXME: I dont want to 
-  end
-  sexpr
-end
+# "Fill `sexpr` until `stop`"
+# function recurfill(ϕ, sexpr, stop = stopaftern(10))
+#   while !stop(ϕ, sexpr)
+#     sexpr = fill(ϕ, sexpr)
+#     # FIXME: I dont want to 
+#   end
+#   sexpr
+# end
 
-function fill(φ, ::SubExpr{FAppExpr})
-  #
-end
+# function fill(φ, ::SubExpr{FAppExpr})
+#   #
+# end
 
 ## Type specific
 # function fill(ϕ, ::SubExpr{Type{Int}})

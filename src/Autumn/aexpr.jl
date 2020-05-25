@@ -1,8 +1,8 @@
 "Autum Expressions"
 module AExpressions
 
-export AExpr, ProgramExpr, TypeDeclExpr, TypeExpr, ExternalDeclExpr, AssignExpr,
-       ITEExpr, InitNextExpr, FAppExpr, LetExpr, LambdaExpr
+using MLStyle
+export AExpr
 
 export istypesymbol,
        istypevarsymbol,
@@ -40,117 +40,64 @@ lambdaexpr  := x -> expr
 """
 
 "Autumn Expression"
-abstract type AExpr end
+struct AExpr
+  expr::Expr
+end
+
+AExpr(xs...) = AExpr(Expr(xs...))
+
+function getindex(::AExpr, name::Symbol)
+  if name == :expr
+    aexpr.expr
+  elseif name == :head
+    aexpr.expr.head
+  elseif name == :args
+    aexpr.expr.args
+  else
+    error("no property $name of AExpr")
+  end
+end
 
 "Arguements of expression"
 function args end
 
+
 "Expr in ith location in arg"
 arg(aexpr, i) = args(aexpr)[i]
 
-"A full program"
-struct ProgramExpr <: AExpr
-  expr::Vector{AExpr}
-end
-ProgramExpr(xs...) = ProgramExpr(xs)
-args(aexpr::ProgramExpr) = aexpr.expr
+# Expression types
 
-# # Expression Types
-abstract type TypeExpr <: AExpr end
+"Pretty print"
+function showstring(expr::Expr)
+  @match expr begin
+    Expr(:program, statements...) => join(map(showstring, expr.args), "\n")
+    Expr(:producttype, ts) => join(map(showstring, ts), "×")
+    Expr(:functiontype, int, outt) => "$(showstring(int)) -> $(showstring(outt))"
+    Expr(:typedecl, x, val) => "$x : $(showstring(val))"
+    Expr(:externaldecl, x, val) => "external $x : $(showstring(val))"
+    Expr(:assign, x, val) => "$x = $(showstring(val))"
+    Expr(:if, i, t, e) => "if $(showstring(i)) then $(showstring(t)) else $(showstring(e))"
+    Expr(:initnext, i, n) => "init $(showstring(i)) next $(showstring(n))"
+    Expr(:call, f, args...) => join(map(showstring, [f ; args]), " ")
+    x                       => "Fail $x"
+
+    # Expr(:let, x)
+    # Parametric types
+    # type def
+    # Lambda expression
+  end
+end
+
+showstring(aexpr::AExpr) = showstring(aexpr.expr)
+showstring(s::Union{Symbol, Integer}) = s
 
 "Is `sym` a type symbol"
 istypesymbol(sym) = (q = string(q); length(q) > 0 && isuppercase(q[1]))
 istypevarsymbol(sym) = (q = string(q); length(q) > 0 && islowercase(q[1]))
 
-"Type Expression"
-struct TypeSymbol <: TypeExpr
-  name::Symbol
-  function TypeSymbol(name::Symbol)
-    istypesymbol(name) || error("Symbol is not type symbol")
-    new(name)
-  end
-end
-
-struct TypeVar <: TypeExpr
-  name::Symbol
-  function TypeVar(name::Symbol)
-    !istypevarsymbol(name) || error("Symbol is not type variable")
-    new(name)
-  end
-end
-
-"Parametric Type Expression, e.g. Maybe a"
-struct ParamTypeExpr <: TypeExpr
-  basename::TypeSymbol
-  typevars::Vector{TypeVar}
-end
-
-"Function type `A -> B`"
-struct FunctionTypeExpr <: TypeExpr
-  intype::TypeExpr
-  outtype::TypeExpr
-end
-
-"Product type `A × B × ⋯`"
-struct ProductTypeExpr <: TypeExpr
-  components::Vector{TypeExpr}
-end
-
-"Type Declaration `f: τ`"
-struct TypeDeclExpr <: TypeExpr
-  name::Symbol
-  type::TypeExpr
-end
-
-"Declares external value `external x : τ`"
-struct ExternalDeclExpr <: AExpr
-  x::Symbol
-  typedecl::TypeDeclExpr
-end
-
-"Globally bind value to variable `x = val`"
-struct AssignExpr <: AExpr
-  x::Symbol
-  val::AExpr
-end
-args(aexpr::AssignExpr) = [aexpr.x, aexpr.val]
-
-"If Then Else expression"
-struct ITEExpr <: AExpr
-  i::AExpr
-  t::AExpr
-  e::AExpr
-end
-
-"Init Next expression"
-struct InitNextExpr <: AExpr
-  init::AExpr
-  next::AExpr
-end
-
-"Function application expression"
-struct FAppExpr <: AExpr
-  f::AExpr
-  args::Vector{AExpr}   # FIXME, only a single arg??
-end
-
-"Let AExpr, let `var` = `val` in `body`"
-struct LetExpr <: AExpr
-  var::Symbol
-  val::AExpr    # Might want this to be a vector of expressions, for each bind
-  body::AExpr
-end
-
-"Lambda AExpr `arg` -> `body`"
-struct LambdaExpr <: AExpr
-  args::AExpr   # Might want this to be a vector of symbols
-  body::AExpr
-end
-args(aexpr::LambdaExpr) = [aexpr.args aexpr.body]
-
-# # Methods
-# "Number of nodes in expression tree"
-# nnodes(aexpr::AExpr) = 1 + reduce(+nnodes, args(aexpr))
-# nnodes(_) = 1
+# # # Methods
+# # "Number of nodes in expression tree"
+# # nnodes(aexpr::AExpr) = 1 + reduce(+nnodes, args(aexpr))
+# # nnodes(_) = 1
 
 end

@@ -5,10 +5,7 @@ using ..AExpressions
 using ..Program
 
 "Compile `aexpr` into `program::Program`"
-compiletojulia(::AExpr) = 
-  error("Can only compile complete Autumn programs")
-
-function compiletojulia(::ProgramExpr)::AProgram
+function compiletojulia(::AExpr)::AProgram
   # Do type inference
   # Get external values
   # Alot

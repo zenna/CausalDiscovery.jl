@@ -8,8 +8,8 @@ export SubExpr,
        resolve
 
 "Subexpression of `parent::AE` indicated by pointer `p::P`"
-struct SubExpr{AE <: AExpr, P}
-  parent::AE
+struct SubExpr{AExpr, P}
+  parent::AExpr
   pointer::P
 end
 
@@ -28,7 +28,7 @@ end
 
 "Update subexpr.parent such that `subexpr` is `newexpr`"
 function update(subexpr::SubExpr, newexpr::AExpr)
-  ex = 
+  ex = 3
 end
 
 end
