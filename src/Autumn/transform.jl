@@ -41,44 +41,53 @@ struct Literal <: NonTerminal end
 "`fill(ϕ, subexpr::SubExpr{<:Statement})`returns `parent` with subexpression filled"
 function fill end
 
-# function fill(ϕ, ::SubExpr{Statement})
-#   choice(ϕ, [External(), Assignment(), TypeDeclaration()])
-# end
+function fill(ϕ, ::SubExpr{Statement})
+  choice(ϕ, [External(), Assignment(), TypeDeclaration()])
+end
 
-# function fill(ϕ, ::SubExpr{Assignment})
-#   AssignExpr(VariableName(), ValueExpression())
-# end
+function fill(ϕ, ::SubExpr{Assignment})
+  AssignExpr(VariableName(), ValueExpression())
+end
 
-# function fill(ϕ, ::SubExpr{VariableName})
-#   ## Choose a variable name that is correct in this context
-#   extantvars = # Look through parents
-#   # Choose a variable that is not in extandvars
-#   choice(ϕ, [:x, :y, :z])
-# end
+function fill(ϕ, ::SubExpr{VariableName})
+  ## Choose a variable name that is correct in this context
+  extantvars = # Look through parents
+  # Choose a variable that is not in extandvars
+  choice(ϕ, [:x, :y, :z])
+end
 
-# function fill(ϕ, ::SubExpr{ValueExpression})
-#   choice(ϕ, [Literal(), FunctionApp()])
-# end
+function fill(ϕ, ::SubExpr{ValueExpression})
+  choice(ϕ, [Literal(), FunctionApp()])
+end
 
-# function fill(ϕ, ::SubExpr{Literal})
-#   # Do type inference
-#   choice(ϕ, [1, 2, 3])
-# end
+function fill(ϕ, ::SubExpr{Literal})
+  # FINISHME: Do type inference
+  choice(ϕ, [1, 2, 3])
+end
 
-# "Stop when the graph is too large"
-# stopwhenbig(sexpr; sizelimit = 100) = nnodes(sexpr) > sizelimit
+"(Parametrically) find a non-terminal subexpr"
+function findnonterminal(ϕ, sexpr)
+  # Walk the graph, and in the presence of a non-terminal, decide whether to stop or not
+  allnonterminals = # FINISHME
+  choice(ϕ, allnontermina,s)
+end
 
-# "Returns a stop function that stops after `n` calls"
-# stopaftern(n) = (i = 1; sexpr -> (i += 1; i< n))
+"Stop when the graph is too large"
+stopwhenbig(subexpr; sizelimit = 100) = nnodes(sexpr) > sizelimit
 
-# "Fill `sexpr` until `stop`"
-# function recurfill(ϕ, sexpr, stop = stopaftern(10))
-#   while !stop(ϕ, sexpr)
-#     sexpr = fill(ϕ, sexpr)
-#     # FIXME: I dont want to 
-#   end
-#   sexpr
-# end
+"Returns a stop function that stops after `n` calls"
+stopaftern(n) = (i = 1; subexpr -> (i += 1; i< n))
+
+"Fill `sexpr` until `stop`"
+function recurfill(ϕ, subexpr, stop = stopaftern(10))
+  #FIXME, what if i want stop to have state
+  while !stop(ϕ, sexpr)
+    newexpr = fill(ϕ, sexpr)
+    aexpr = update(subexpr, newexpr)
+    subexpr = findnonterminal(ϕ, aexpr)
+  end
+  subexpr
+end
 
 # function fill(φ, ::SubExpr{FAppExpr})
 #   #

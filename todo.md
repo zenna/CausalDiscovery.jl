@@ -1,0 +1,29 @@
+Q: Should we use custom type for each argument (as oppsoed to single AExpr object)
+- Proyes : multiple dispatch makes writing these nice, can also do abstract for particular classes using traits
+- Cons: multiple dispatch is slower than ifelse
+- Cons: cant use existing macrotools pattern matching immediately
+
+Q: Should we use Expr for 
+
+Q. Do we need init, can we get by with just next?
+
+Q. Should Autmn have abstract types?
+The problem is that without abstract types, or type parameters, there are many functions we cannot express,
+such as map, and we'll end up writing special code to handle it.
+
+- Start with no, can add later
+
+Q. 
+
+TODO
+
+x {30m} Decide on type system for language
+- Elm type type system
+. Decide on Expr structure
+- Finish Autumn grammar
+- Finish compiler from sexpressions to aexpr
+- Write particles in autumn
+- Write particles in julia
+- Write particles in sexpressions 
+- Construct abstract interpretation framework for Autumn
+- Write expand

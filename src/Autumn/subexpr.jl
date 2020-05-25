@@ -28,7 +28,8 @@ end
 
 "Update subexpr.parent such that `subexpr` is `newexpr`"
 function update(subexpr::SubExpr, newexpr::AExpr)
-  ex = 3
+  t(expr, pos) = pos == subexpr.position ? newexpr : expr
+  postwalkpos(t, newexpr)
 end
 
 end

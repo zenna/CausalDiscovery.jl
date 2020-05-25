@@ -10,32 +10,33 @@ export istypesymbol,
        arg
 
 const autumngrammar = """
-program     := line 
-line        := externaldecl | assignexpr | typedecl | typedef
+x           := a | b | ... | aa ...
+program     := statement* 
+statement   := externaldecl | assignexpr | typedecl | typedef
 
-typedef     := type fields
+typedef     := type fields  #FIXME
 fields      := field | fields field
 field       := constructor | constructor typesymbol*
 cosntructor := typesymbol
 
+typedecl    := x : typeexpr
+externaldecl:= external typedecl
 
-externaldecl  := external typeexpr x
-assignexpr  := x = expr
-typedecl    := x :: typeexpr
+assignexpr  := x = valueexpr
 
 typeexpr    := typesymbol | paramtype | typevar | functiontype
 funtype     := typeexpr -> typeexpr
 producttype := typeexpr × typexexpr × ...
 typesymbol  := primtype | customtype
 primtype    := Int | Bool | Float
-custontype  := :A | :B | ... | :Aa | ...
+custontype  := A | B | ... | Aa | ...
 
-expr        := fexpr | lambdaexpr | iteexpr | initnextexpr | letexpr |
-               this
+valueexpr   := fappexpr | lambdaexpr | iteexpr | initnextexpr | letexpr |
+               this | lambdaexpr
 iteexpr     := if expr then expr else expr
 intextexpr  := init expr next expr
-fappexpr    := expr expr
-letexpr     := let x = expr in expr
+fappexpr    := valueexpr valueexpr*
+letexpr     := let x = valueexpr in valueexpr
 lambdaexpr  := x -> expr
 """
 
@@ -66,6 +67,11 @@ function args end
 arg(aexpr, i) = args(aexpr)[i]
 
 # Expression types
+"Is `sym` a type symbol"
+istypesymbol(sym) = (q = string(q); length(q) > 0 && isuppercase(q[1]))
+istypevarsymbol(sym) = (q = string(q); length(q) > 0 && islowercase(q[1]))
+
+# ## Printing
 
 "Pretty print"
 function showstring(expr::Expr)
@@ -90,10 +96,7 @@ end
 
 showstring(aexpr::AExpr) = showstring(aexpr.expr)
 showstring(s::Union{Symbol, Integer}) = s
-
-"Is `sym` a type symbol"
-istypesymbol(sym) = (q = string(q); length(q) > 0 && isuppercase(q[1]))
-istypevarsymbol(sym) = (q = string(q); length(q) > 0 && islowercase(q[1]))
+Base.show(io::IO, aexpr::AExpr) = print(io, showstring(aexpr))
 
 # # # Methods
 # # "Number of nodes in expression tree"
