@@ -48,7 +48,7 @@ update(subexpr_, prog2)
 
 ```
 """
-function update(subexpr::SubExpr, newexpr::AExpr)
+function update(subexpr::SubExpr, newexpr)
   function subchild(expr, pos)
     pos == subexpr.pointer ? newexpr : expr
   end
