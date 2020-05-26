@@ -3,7 +3,7 @@ module SExpr
 # using Rematch
 using MLStyle
 using SExpressions
-using ..AExpressions: AExpr
+using ..AExpressions
 
 export parseau, @au_str
 
@@ -57,7 +57,7 @@ end
 
 function parsetypeau(sexpr::AbstractArray)
   MLStyle.@match sexpr begin
-    τ && if istypesymbol(τ) end                                             => TypeSymbol(I)
+    τ && if istypesymbol(τ) end                                             => τ
     [τ, tvs...]  && if (istypesymbol(τ) && all(istypevarsymbol.(tvs)))  end => AExpr(:paramtype, τ, tvs...)
     [:->, τ1, τ2]                                                           => AExpr(:functiontype, parsetypeau(τ1), parsetypeau(τ2))
     [:×, τs...]                                                             => AExpr(:producttype, map(parsetypepau, τs)...)

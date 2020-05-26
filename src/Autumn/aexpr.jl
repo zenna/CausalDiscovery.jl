@@ -68,10 +68,12 @@ arg(aexpr, i) = args(aexpr)[i]
 
 # Expression types
 "Is `sym` a type symbol"
-istypesymbol(sym) = (q = string(q); length(q) > 0 && isuppercase(q[1]))
-istypevarsymbol(sym) = (q = string(q); length(q) > 0 && islowercase(q[1]))
+istypesymbol(sym) = (q = string(sym); length(q) > 0 && isuppercase(q[1]))
+istypevarsymbol(sym) = (q = string(sym); length(q) > 0 && islowercase(q[1]))
 
 # ## Printing
+
+isinfix(f::Symbol) = f ∈ [:+, :-, :/, :*]
 
 "Pretty print"
 function showstring(expr::Expr)
@@ -84,6 +86,7 @@ function showstring(expr::Expr)
     Expr(:assign, x, val) => "$x = $(showstring(val))"
     Expr(:if, i, t, e) => "if $(showstring(i)) then $(showstring(t)) else $(showstring(e))"
     Expr(:initnext, i, n) => "init $(showstring(i)) next $(showstring(n))"
+    Expr(:call, f, arg1, arg2) && if isinfix(f) end => "$(showstring(arg1)) $f $(showstring(arg2))"
     Expr(:call, f, args...) => join(map(showstring, [f ; args]), " ")
     x                       => "Fail $x"
 
