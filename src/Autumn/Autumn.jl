@@ -27,6 +27,6 @@ include("abstractinterpretation.jl")
 @reexport using .AbstractInterpretation
 
 include("transform.jl")
-@reexport using .AbstractInterpretation
+@reexport using .Transform
 
 end

@@ -1,9 +1,16 @@
 using CausalDiscovery.Autumn
 using CausalDiscovery.Autumn.Transform: Statement
 
-function test()
-  p = ProgramExpr([Statement()])
+function test1()
+  p = AExpr(:program, Statement())
   ϕ = Phi()
   subexpr_ = subexpr(p, 1)
-  fill(ϕ, subexpr_)
+  sub(ϕ, subexpr_)
+end
+
+function test2()
+  p = AExpr(:program, Statement())
+  ϕ = Phi()
+  subexpr_ = subexpr(p, 1)
+  recursub(ϕ, subexpr_)
 end

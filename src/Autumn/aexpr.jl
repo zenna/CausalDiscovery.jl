@@ -44,16 +44,19 @@ lambdaexpr  := x -> expr
 struct AExpr
   expr::Expr
 end
+args(aex::AExpr) = aex.expr.args
+head(aex::AExpr) = aex.expr.head
 
 AExpr(xs...) = AExpr(Expr(xs...))
 
-function getindex(::AExpr, name::Symbol)
+function Base.getproperty(aexpr::AExpr, name::Symbol)
+  expr = getfield(aexpr, :expr)
   if name == :expr
-    aexpr.expr
+    expr
   elseif name == :head
-    aexpr.expr.head
+    expr.head
   elseif name == :args
-    aexpr.expr.args
+    expr.args
   else
     error("no property $name of AExpr")
   end

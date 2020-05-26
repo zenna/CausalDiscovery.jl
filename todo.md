@@ -1,3 +1,12 @@
+- Should we use an expr type or something else?
+-- One probllem with wrapping expr is that we can't store meta-data
+What metadata will we need to store?
+Potentially a bunch, like type information and so on.
+But do wa want that in the expr object?.
+Well let's not change htings prematurely
+
+
+
 Q: Should we use custom type for each argument (as oppsoed to single AExpr object)
 - Proyes : multiple dispatch makes writing these nice, can also do abstract for particular classes using traits
 - Cons: multiple dispatch is slower than ifelse

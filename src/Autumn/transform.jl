@@ -2,7 +2,9 @@
 module Transform
 using ..AExpressions
 using ..SubExpressions
-export expand, fill, recurfill
+using ..Parameters
+using MLStyle
+export expand, sub, recursub
 # using OmegaCore
 
 """
@@ -18,8 +20,8 @@ x = au\"\"\"
 
 hole = first(holes(x))    # Find the first hole
 ϕ = expand(hole)          # Get parametric representation of hole
-fill = sat(ϕ)             # Find any expression
-xnew = replace(x, fill)   # Construct `x`
+sub = sat(ϕ)             # Find any expression
+xnew = replace(x, sub)   # Construct `x`
 ```
 """
 
@@ -38,63 +40,73 @@ struct VariableName <: NonTerminal end
 struct ValueExpression <: NonTerminal end
 struct Literal <: NonTerminal end
 
-"`fill(ϕ, subexpr::SubExpr{<:Statement})`returns `parent` with subexpression filled"
-function fill end
+AExpressions.showstring(T::NonTerminal) = "{$(string(typeof(T)))}"
+Base.show(io::IO, nt::NonTerminal) = print(io, AExpressions.showstring(nt))
 
-function fill(ϕ, ::SubExpr{Statement})
+"`sub(ϕ, subexpr::SubExpr{<:Statement})`returns `parent` with subexpression subed"
+function sub end
+
+function sub(ϕ, sexpr::SubExpr, ::Statement)
   choice(ϕ, [External(), Assignment(), TypeDeclaration()])
 end
 
-function fill(ϕ, ::SubExpr{Assignment})
+function sub(ϕ, ::SubExpr{Assignment})
   AssignExpr(VariableName(), ValueExpression())
 end
 
-function fill(ϕ, ::SubExpr{VariableName})
+function sub(ϕ, ::SubExpr{VariableName})
   ## Choose a variable name that is correct in this context
   extantvars = # Look through parents
   # Choose a variable that is not in extandvars
   choice(ϕ, [:x, :y, :z])
 end
 
-function fill(ϕ, ::SubExpr{ValueExpression})
+function sub(ϕ, ::SubExpr{ValueExpression})
   choice(ϕ, [Literal(), FunctionApp()])
 end
 
-function fill(ϕ, ::SubExpr{Literal})
+function sub(ϕ, ::SubExpr{Literal})
   # FINISHME: Do type inference
   choice(ϕ, [1, 2, 3])
+end
+
+function sub(ϕ, subexpr::SubExpr)
+  aex = resolve(subexpr)
+  MLStyle.@match aex begin
+    Statement => sub(ϕ, subexpr, aex)
+  end
 end
 
 "(Parametrically) find a non-terminal subexpr"
 function findnonterminal(ϕ, sexpr)
   # Walk the graph, and in the presence of a non-terminal, decide whether to stop or not
   allnonterminals = # FINISHME
-  choice(ϕ, allnontermina,s)
+  choice(ϕ, allnonterminals)
 end
 
 "Stop when the graph is too large"
 stopwhenbig(subexpr; sizelimit = 100) = nnodes(sexpr) > sizelimit
 
 "Returns a stop function that stops after `n` calls"
-stopaftern(n) = (i = 1; subexpr -> (i += 1; i< n))
+stopaftern(n) = (i = 1; (ϕ, subexpr) -> (i += 1; i > n))
 
-"Fill `sexpr` until `stop`"
-function recurfill(ϕ, subexpr, stop = stopaftern(10))
+"Recursively fill `sexpr` until `stop`"
+function recursub(ϕ, subexpr, stop = stopaftern(10))
   #FIXME, what if i want stop to have state
-  while !stop(ϕ, sexpr)
-    newexpr = fill(ϕ, sexpr)
+  while !stop(ϕ, subexpr)
+    newexpr = sub(ϕ, subexpr)
     aexpr = update(subexpr, newexpr)
     subexpr = findnonterminal(ϕ, aexpr)
   end
   subexpr
 end
 
-# function fill(φ, ::SubExpr{FAppExpr})
+# function sub(φ, ::SubExpr{FAppExpr})
 #   #
 # end
 
 ## Type specific
-# function fill(ϕ, ::SubExpr{Type{Int}})
+# function sub(ϕ, ::SubExpr{Type{Int}})
 # end
 
 ## Test

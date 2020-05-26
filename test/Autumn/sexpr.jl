@@ -43,6 +43,12 @@ using CausalDiscovery.Autumn
     case particle of
       (Particle a_) -> 4 
       (Dog a_ b_) -> 5
+  o : Int
+  o = let
+        q = 3
+        d = 12
+      in
+        q + d
   """
 
 end
