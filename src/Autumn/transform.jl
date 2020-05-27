@@ -39,33 +39,45 @@ struct TypeDeclaration <: NonTerminal end
 struct VariableName <: NonTerminal end
 struct ValueExpression <: NonTerminal end
 struct Literal <: NonTerminal end
-
-AExpressions.showstring(T::NonTerminal) = "{$(string(typeof(T)))}"
+struct FunctionApp <: NonTerminal end
+# Base.string(::NonTerminal)
+AExpressions.showstring(T::Q) where {Q <: NonTerminal} = "{$(Q.name.name)}"
 Base.show(io::IO, nt::NonTerminal) = print(io, AExpressions.showstring(nt))
 
 "`sub(ϕ, subexpr::SubExpr{<:Statement})`returns `parent` with subexpression subed"
 function sub end
 
 function sub(ϕ, sexpr::SubExpr, ::Statement)
-  choice(ϕ, [External(), Assignment(), TypeDeclaration()])
+  # choice(ϕ, [External(), Assignment(), TypeDeclaration()])
+  choice(ϕ, [Assignment()])
 end
 
-function sub(ϕ, ::SubExpr{Assignment})
-  AssignExpr(VariableName(), ValueExpression())
+function sub(ϕ, sexpr::SubExpr, ::Assignment)
+  Expr(:assign, VariableName(), ValueExpression())
 end
 
-function sub(ϕ, ::SubExpr{VariableName})
+
+# function sub(ϕ, ::SubExpr{Assignment})
+#   AssignExpr(VariableName(), ValueExpression())
+# end
+
+function sub(ϕ, sexpr::SubExpr, ::VariableName)
   ## Choose a variable name that is correct in this context
   extantvars = # Look through parents
   # Choose a variable that is not in extandvars
   choice(ϕ, [:x, :y, :z])
 end
 
-function sub(ϕ, ::SubExpr{ValueExpression})
+function sub(ϕ, sexpr::SubExpr, ::ValueExpression)
   choice(ϕ, [Literal(), FunctionApp()])
 end
 
-function sub(ϕ, ::SubExpr{Literal})
+function sub(ϕ, sexpr::SubExpr, ::FunctionApp)
+  @show "HOWDY!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!1"
+  Expr(:call, ValueExpression(), ValueExpression(), ValueExpression())
+end
+
+function sub(ϕ, sexpr::SubExpr, ::Literal)
   # FINISHME: Do type inference
   choice(ϕ, [1, 2, 3])
 end
@@ -78,10 +90,8 @@ function sub(ϕ, subexpr::SubExpr)
 end
 
 "(Parametrically) find a non-terminal subexpr"
-function findnonterminal(ϕ, sexpr)
-  # Walk the graph, and in the presence of a non-terminal, decide whether to stop or not
-  allnonterminals = # FINISHME
-  choice(ϕ, allnonterminals)
+function findnonterminal(ϕ, aexpr)
+  choice(ϕ, filter(x-> resolve(x) isa NonTerminal, subexprs(aexpr)))
 end
 
 "Stop when the graph is too large"
@@ -91,14 +101,16 @@ stopwhenbig(subexpr; sizelimit = 100) = nnodes(sexpr) > sizelimit
 stopaftern(n) = (i = 1; (ϕ, subexpr) -> (i += 1; i > n))
 
 "Recursively fill `sexpr` until `stop`"
-function recursub(ϕ, subexpr, stop = stopaftern(10))
+function recursub(ϕ, aexpr::AExpr, stop = stopaftern(10))
   #FIXME, what if i want stop to have state
+  # FIXME: account for fact that there is none
   while !stop(ϕ, subexpr)
-    newexpr = sub(ϕ, subexpr)
-    aexpr = update(subexpr, newexpr)
-    subexpr = findnonterminal(ϕ, aexpr)
+    @show subexpr = findnonterminal(ϕ, aexpr)
+    @show newexpr = sub(ϕ, subexpr)
+    @show aexpr = update(subexpr, newexpr)
+    println("#### Done\n")
   end
-  subexpr
+  aexpr
 end
 
 # function sub(φ, ::SubExpr{FAppExpr})

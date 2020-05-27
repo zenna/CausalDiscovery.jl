@@ -11,6 +11,5 @@ end
 function test2()
   p = AExpr(:program, Statement())
   ϕ = Phi()
-  subexpr_ = subexpr(p, 1)
-  recursub(ϕ, subexpr_)
+  recursub(ϕ, p)
 end

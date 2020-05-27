@@ -27,9 +27,6 @@ postwalk(f, x, mapf = map) = walk(x, x -> postwalk(f, x, mapf), f, mapf)
 @inline mapenumerate(f, xs) = map(f, enumerate(xs))
 @inline mapid(f, xs) = map(f, 1:length(xs), xs)
 
-"Applies `f(node, position)` to each node, where position is the position is the tree"
-postwalkpos(f, x) = postwalk(f, x, mapid)
-
 # ## With state
 
 """
@@ -57,10 +54,11 @@ postwalkstate(expr, f, s0, statef)
 """
 postwalkstate(f, x::Expr, state, statef) = 
   let g(i, x_) = postwalkstate(f, x_,  statef(state, x, i), statef)
+    @show x.args
     f(Expr(x.head, mapid(g, x.args)...), state)
   end
 
-postwalkstate(f, x, state, statef) = x
+postwalkstate(f, x, state, statef) = f(x, state)
 
 idappend(state, arg, i) = [i; state]
 postwalkpos(f, x, p0 = Int[]) = postwalkstate(f, x, p0, idappend)
@@ -68,7 +66,12 @@ postwalkpos(f, x, p0 = Int[]) = postwalkstate(f, x, p0, idappend)
 postwalkstate(f, x::AExpr, state, statef) =
   wrap(postwalkstate(f, x.expr, state, statef))
 
-wrap(expr::Expr) = AExpr(expr)
-wrap(x) = x
+
+"""
+
+"""
+function statewalk()
+end
+
 
 end

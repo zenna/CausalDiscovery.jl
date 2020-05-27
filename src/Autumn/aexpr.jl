@@ -7,7 +7,8 @@ export AExpr
 export istypesymbol,
        istypevarsymbol,
        args,
-       arg
+       arg,
+       wrap
 
 const autumngrammar = """
 x           := a | b | ... | aa ...
@@ -47,6 +48,9 @@ end
 args(aex::AExpr) = aex.expr.args
 head(aex::AExpr) = aex.expr.head
 
+wrap(expr::Expr) = AExpr(expr)
+wrap(x) = x
+
 AExpr(xs...) = AExpr(Expr(xs...))
 
 function Base.getproperty(aexpr::AExpr, name::Symbol)
@@ -64,7 +68,7 @@ end
 
 "Arguements of expression"
 function args end
-
+args(expr::Expr) = expr.args
 
 "Expr in ith location in arg"
 arg(aexpr, i) = args(aexpr)[i]
