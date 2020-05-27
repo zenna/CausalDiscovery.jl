@@ -1,3 +1,47 @@
+type Position = (Int, Int)
+
+-- A mouse click is a position that might occur
+type Click = (Int, Int)
+
+-- click is an external time-varying value
+external click : Click
+
+type Particle = Position
+
+particles : List Particle
+init particles = []
+next particles = if occurred click
+                 then particles :: particleGen (1, 1)
+                 else particles
+
+-- Lifted (automatically)
+nparticles = length particles
+
+-- A position is free iff there
+isFree : Position -> Bool
+isfree position = length(filter (\particle -> particle.positon == position) particles) == 0
+
+-- !! particles.position (above and below) is not valid Elm, should it be valid Autumn?
+
+-- At every time step, look for a free space around me and try to move into it
+nextPosition : Particle -> Position
+nextPosition particle =
+  let
+    freePositions = filter isfree (adjacentPositions particle.position)
+  in
+    case freePositions
+      [] -> particle
+      _ -> uniformChoice freePositions  -- !! this uniformChoice is suepect, need to decide on probabilities
+
+-- Maps an initial position to a particle that chooses its next position
+-- using nextPosition, which depends on `particles`
+particleGen : Position -> Particle
+particleGen initPosition = 
+  init Particle initPosition
+  next nextPosition this
+
+{-
+
 type alias Position = (Int, Int)
 
 -- A mouse click is a position that might occur
@@ -39,3 +83,5 @@ particleGen : Position -> Particle
 particleGen initPosition = 
   init Particle initPosition
   next nextPosition this
+
+}
