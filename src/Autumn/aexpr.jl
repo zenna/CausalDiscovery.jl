@@ -7,7 +7,8 @@ export AExpr
 export istypesymbol,
        istypevarsymbol,
        args,
-       arg
+       arg,
+       wrap
 
 const autumngrammar = """
 x           := a | b | ... | aa ...
@@ -42,32 +43,40 @@ lambdaexpr  := x -> expr
 
 "Autumn Expression"
 struct AExpr
-  expr::Expr
+  head::Symbol
+  args::Vector{Any}
+  AExpr(head::Symbol, @nospecialize args...) = new(head, [args...])
 end
-args(aex::AExpr) = aex.expr.args
-head(aex::AExpr) = aex.expr.head
-
-AExpr(xs...) = AExpr(Expr(xs...))
-
-function Base.getproperty(aexpr::AExpr, name::Symbol)
-  expr = getfield(aexpr, :expr)
-  if name == :expr
-    expr
-  elseif name == :head
-    expr.head
-  elseif name == :args
-    expr.args
-  else
-    error("no property $name of AExpr")
-  end
-end
-
 "Arguements of expression"
 function args end
 
+args(aex::AExpr) = aex.args
+head(aex::AExpr) = aex.head
+args(ex::Expr) = ex.args
 
 "Expr in ith location in arg"
-arg(aexpr, i) = args(aexpr)[i]
+arg(aex, i) = args(aex)[i]
+
+Base.Expr(aex::AExpr) = Expr(aex.head, aex.args...)
+
+# wrap(expr::Expr) = AExpr(expr)
+# wrap(x) = x
+
+# AExpr(xs...) = AExpr(Expr(xs...))
+
+# function Base.getproperty(aexpr::AExpr, name::Symbol)
+#   expr = getfield(aexpr, :expr)
+#   if name == :expr
+#     expr
+#   elseif name == :head
+#     expr.head
+#   elseif name == :args
+#     expr.args
+#   else
+#     error("no property $name of AExpr")
+#   end
+# end
+
 
 # Expression types
 "Is `sym` a type symbol"
@@ -75,8 +84,8 @@ istypesymbol(sym) = (q = string(sym); length(q) > 0 && isuppercase(q[1]))
 istypevarsymbol(sym) = (q = string(sym); length(q) > 0 && islowercase(q[1]))
 
 # ## Printing
-
 isinfix(f::Symbol) = f ∈ [:+, :-, :/, :*]
+isinfix(f) = false
 
 "Pretty print"
 function showstring(expr::Expr)
@@ -85,10 +94,12 @@ function showstring(expr::Expr)
     Expr(:producttype, ts) => join(map(showstring, ts), "×")
     Expr(:functiontype, int, outt) => "$(showstring(int)) -> $(showstring(outt))"
     Expr(:typedecl, x, val) => "$x : $(showstring(val))"
-    Expr(:externaldecl, x, val) => "external $x : $(showstring(val))"
+    Expr(:external, td) => "external $(showstring(td))"
     Expr(:assign, x, val) => "$x = $(showstring(val))"
     Expr(:if, i, t, e) => "if $(showstring(i)) then $(showstring(t)) else $(showstring(e))"
     Expr(:initnext, i, n) => "init $(showstring(i)) next $(showstring(n))"
+    Expr(:fn, args, body) => "λ $(showstring(args)) -> $(showstring(body))"
+    Expr(:args, args...) => join(map(showstring, args), " ")
     Expr(:call, f, arg1, arg2) && if isinfix(f) end => "$(showstring(arg1)) $f $(showstring(arg2))"
     Expr(:call, f, args...) => join(map(showstring, [f ; args]), " ")
     x                       => "Fail $x"
@@ -100,8 +111,9 @@ function showstring(expr::Expr)
   end
 end
 
-showstring(aexpr::AExpr) = showstring(aexpr.expr)
+showstring(aexpr::AExpr) = showstring(Expr(aexpr))
 showstring(s::Union{Symbol, Integer}) = s
+showstring(s::Type{T}) where {T <: Number} = s
 Base.show(io::IO, aexpr::AExpr) = print(io, showstring(aexpr))
 
 # # # Methods

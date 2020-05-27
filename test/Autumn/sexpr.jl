@@ -24,7 +24,9 @@ using CausalDiscovery.Autumn
     (= o (let (q 3 d 12) (+ q d)))
   )
   """
+end
 
+## Should parse to
   """
   external z : Int
   x : Int
@@ -50,5 +52,3 @@ using CausalDiscovery.Autumn
       in
         q + d
   """
-
-end
