@@ -11,7 +11,7 @@ export istypesymbol,
 
 const autumngrammar = """
 x           := a | b | ... | aa ...
-program     := statement* 
+program     := statement*
 statement   := externaldecl | assignexpr | typedecl | typedef
 
 typedef     := type fields  #FIXME
@@ -78,19 +78,27 @@ istypevarsymbol(sym) = (q = string(sym); length(q) > 0 && islowercase(q[1]))
 
 isinfix(f::Symbol) = f ∈ [:+, :-, :/, :*]
 
+
 "Pretty print"
 function showstring(expr::Expr)
+  # print(expr)
+  # print("\n")
   @match expr begin
     Expr(:program, statements...) => join(map(showstring, expr.args), "\n")
     Expr(:producttype, ts) => join(map(showstring, ts), "×")
     Expr(:functiontype, int, outt) => "$(showstring(int)) -> $(showstring(outt))"
+    Expr(:functiontype, vars...) => reduce(((x, y) -> string(x, " -> ", showstring(y))), vars; init = "")
     Expr(:typedecl, x, val) => "$x : $(showstring(val))"
     Expr(:externaldecl, x, val) => "external $x : $(showstring(val))"
+    Expr(:external, val) => "external $(showstring(val))"
     Expr(:assign, x, val) => "$x = $(showstring(val))"
     Expr(:if, i, t, e) => "if $(showstring(i)) then $(showstring(t)) else $(showstring(e))"
     Expr(:initnext, i, n) => "init $(showstring(i)) next $(showstring(n))"
     Expr(:call, f, arg1, arg2) && if isinfix(f) end => "$(showstring(arg1)) $f $(showstring(arg2))"
     Expr(:call, f, args...) => join(map(showstring, [f ; args]), " ")
+    Expr(:let, args...) => "let $(join(map(showstring, args), " "))"
+    Expr(:paramtype, type, param) => string(type, " ", param)
+    Expr(:paramtype, type) => string(type)
     x                       => "Fail $x"
 
     # Expr(:let, x)
@@ -101,6 +109,7 @@ function showstring(expr::Expr)
 end
 
 showstring(aexpr::AExpr) = showstring(aexpr.expr)
+showstring(obj::Array{}) = obj
 showstring(s::Union{Symbol, Integer}) = s
 Base.show(io::IO, aexpr::AExpr) = print(io, showstring(aexpr))
 
