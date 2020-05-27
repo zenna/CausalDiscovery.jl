@@ -7,5 +7,7 @@ struct Phi
 end
 
 choice(::Phi, xs::AbstractVector) = rand(xs)
+choice(::Phi, ::Type{T}) where T <:Number = rand(T)
+
 
 end

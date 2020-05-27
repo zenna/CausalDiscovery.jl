@@ -1,5 +1,6 @@
 using CausalDiscovery.Autumn
 using CausalDiscovery.Autumn.Transform: Statement
+using CausalDiscovery.Autumn.Transform: findnonterminal
 
 function test1()
   p = AExpr(:program, Statement())
@@ -9,7 +10,7 @@ function test1()
 end
 
 function test2()
-  aex = AExpr(:program, Statement())
+  aex = AExpr(:program, Statement(), Statement(), Statement(), Statement())
   ϕ = Phi()
-  recursub(ϕ, p)
+  recursub(ϕ, aex)
 end

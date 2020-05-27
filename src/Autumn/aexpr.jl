@@ -94,10 +94,12 @@ function showstring(expr::Expr)
     Expr(:producttype, ts) => join(map(showstring, ts), "×")
     Expr(:functiontype, int, outt) => "$(showstring(int)) -> $(showstring(outt))"
     Expr(:typedecl, x, val) => "$x : $(showstring(val))"
-    Expr(:externaldecl, x, val) => "external $x : $(showstring(val))"
+    Expr(:external, td) => "external $(showstring(td))"
     Expr(:assign, x, val) => "$x = $(showstring(val))"
     Expr(:if, i, t, e) => "if $(showstring(i)) then $(showstring(t)) else $(showstring(e))"
     Expr(:initnext, i, n) => "init $(showstring(i)) next $(showstring(n))"
+    Expr(:fn, args, body) => "λ $(showstring(args)) -> $(showstring(body))"
+    Expr(:args, args...) => join(map(showstring, args), " ")
     Expr(:call, f, arg1, arg2) && if isinfix(f) end => "$(showstring(arg1)) $f $(showstring(arg2))"
     Expr(:call, f, args...) => join(map(showstring, [f ; args]), " ")
     x                       => "Fail $x"
@@ -111,6 +113,7 @@ end
 
 showstring(aexpr::AExpr) = showstring(Expr(aexpr))
 showstring(s::Union{Symbol, Integer}) = s
+showstring(s::Type{T}) where {T <: Number} = s
 Base.show(io::IO, aexpr::AExpr) = print(io, showstring(aexpr))
 
 # # # Methods
