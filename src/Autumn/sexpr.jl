@@ -81,10 +81,22 @@ function parseau(sexpr::AbstractArray)
     [:typedecl, v::Symbol, τ]         => Expr(:typedecl, v, parsetypeau(τ))
     [:external, tdef]                 => Expr(:external, parseau(tdef))
     [:let, vars, todo]                => Expr(:let, parseletvars(vars)..., parseau(todo))
+    [:case, type, cases...]           => Expr(:case, type, map(parseau, cases)...)
+    [:(=>), type, value]              => Expr(:casevalue, parsecase(type), value)
+    [:type, values...]                => Expr(:type, map(parsecase, values)...)
+    [:fn, name, func]                 => Expr(:fn, parseau(name), parseau(func))
     [f, xs...]                        => Expr(:call, parseau(f), map(parseau, xs)...)
-    # [:->, x, y]                       => LambdaExpr(x, y)
+
     # [:type, ...]                      => parse_typeexpr(sexpr)
   end
+end
+
+function parsecase(sym::Symbol)
+  sym
+end
+
+function parsecase(list::Array{})
+  Expr(:casetype, list...)
 end
 
 function parsetypeau(sexpr::AbstractArray)

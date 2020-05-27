@@ -91,7 +91,7 @@ function showstring(expr::Expr)
     Expr(:typedecl, x, val) => "$x : $(showstring(val))"
     Expr(:externaldecl, x, val) => "external $x : $(showstring(val))"
     Expr(:external, val) => "external $(showstring(val))"
-    Expr(:assign, x, val) => "$x = $(showstring(val))"
+    Expr(:assign, x, val) => "$x $(needequals(val)) $(showstring(val))"
     Expr(:if, i, t, e) => "if $(showstring(i)) then $(showstring(t)) else $(showstring(e))"
     Expr(:initnext, i, n) => "init $(showstring(i)) next $(showstring(n))"
     Expr(:call, f, arg1, arg2) && if isinfix(f) end => "$(showstring(arg1)) $f $(showstring(arg2))"
@@ -99,12 +99,27 @@ function showstring(expr::Expr)
     Expr(:let, args...) => "let $(join(map(showstring, args), " "))"
     Expr(:paramtype, type, param) => string(type, " ", param)
     Expr(:paramtype, type) => string(type)
+    Expr(:case, type, vars...) => string("\n\tcase $(showstring(type)) of \n\t\t", join(map(showstring, vars), "\n\t\t"))
+    Expr(:casevalue, type, value) => "($(showstring(type))) => $value"
+    Expr(:casetype, type, vars...) => "$type $(join(vars, " "))"
+    Expr(:type, vars...) => "type $(vars[1]) $(vars[2]) $(join(map(showstring, vars[3:length(vars)]), " | "))"
+    Expr(:fn, name, func) => "$(showstring(name)) = $(showstring(func))"
     x                       => "Fail $x"
 
     # Expr(:let, x)
     # Parametric types
     # type def
     # Lambda expression
+  end
+end
+
+needequals(val) = "="
+
+function needequals(val)
+  if typeof(val) == Expr && val.head == :fn
+    ""
+   else
+    "="
   end
 end
 
