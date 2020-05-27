@@ -53,7 +53,7 @@ function sub(ϕ, sexpr::SubExpr, ::Statement)
 end
 
 function sub(ϕ, sexpr::SubExpr, ::Assignment)
-  Expr(:assign, VariableName(), ValueExpression())
+  AExpr(:assign, VariableName(), ValueExpression())
 end
 
 
@@ -74,7 +74,7 @@ end
 
 function sub(ϕ, sexpr::SubExpr, ::FunctionApp)
   @show "HOWDY!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!1"
-  Expr(:call, ValueExpression(), ValueExpression(), ValueExpression())
+  AExpr(:call, ValueExpression(), ValueExpression(), ValueExpression())
 end
 
 function sub(ϕ, sexpr::SubExpr, ::Literal)
@@ -89,10 +89,13 @@ function sub(ϕ, subexpr::SubExpr)
   end
 end
 
-"(Parametrically) find a non-terminal subexpr"
-function findnonterminal(ϕ, aexpr)
-  choice(ϕ, filter(x-> resolve(x) isa NonTerminal, subexprs(aexpr)))
-end
+allnonterminals(aex) = 
+  filter(x-> resolve(x) isa NonTerminal, subexprs(aex))
+
+# "(Parametrically) find a non-terminal subexpr"
+# function findnonterminal(ϕ, aexpr)
+#   choice(ϕ, filter(x-> resolve(x) isa NonTerminal, subexprs(aexpr)))
+# end
 
 "Stop when the graph is too large"
 stopwhenbig(subexpr; sizelimit = 100) = nnodes(sexpr) > sizelimit
@@ -101,16 +104,21 @@ stopwhenbig(subexpr; sizelimit = 100) = nnodes(sexpr) > sizelimit
 stopaftern(n) = (i = 1; (ϕ, subexpr) -> (i += 1; i > n))
 
 "Recursively fill `sexpr` until `stop`"
-function recursub(ϕ, aexpr::AExpr, stop = stopaftern(10))
+function recursub(ϕ, aex::AExpr, stop = stopaftern(10))
   #FIXME, what if i want stop to have state
   # FIXME: account for fact that there is none
-  while !stop(ϕ, subexpr)
-    @show subexpr = findnonterminal(ϕ, aexpr)
-    @show newexpr = sub(ϕ, subexpr)
-    @show aexpr = update(subexpr, newexpr)
-    println("#### Done\n")
+  while !stop(ϕ, aex)
+    nts = allnonterminals(aex)
+    if isempty(nts)
+      break
+    else
+      @show subex = choice(ϕ, nts)
+      @show newex = sub(ϕ, subex)
+      @show aex = update(subex, newex)
+      println("#### Done\n")
+    end
   end
-  aexpr
+  aex
 end
 
 # function sub(φ, ::SubExpr{FAppExpr})

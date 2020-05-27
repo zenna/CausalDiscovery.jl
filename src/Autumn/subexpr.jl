@@ -26,7 +26,7 @@ function AExpressions.args(subexpr::SubExpr)
   q = g(resolve(subexpr))
   [SubExpr(subexpr.parent, append(subexpr.pointer, i)) for i = 1:length(q)]
 end
-g(aex::AExpr) = wrap(aex.args)
+g(aex::AExpr) = aex.args
 g(x) = []
 append(xs::AbstractVector, x) = [xs; x]
 
@@ -36,7 +36,7 @@ function resolve(subexpr::SubExpr)
   for id in subexpr.pointer
     ex = arg(ex, id)
   end
-  wrap(ex)
+  ex
 end
 
 """Update subexpr.parent such that `subexpr` is `newexpr`
@@ -62,8 +62,8 @@ update(subexpr_, prog2)
 """
 function update(subexpr::SubExpr, newexpr)
   function subchild(expr, pos)
-    # @show pos, subexpr.pointer
-    # @show pos == subexpr.pointer
+    @show pos, subexpr.pointer
+    @show pos == subexpr.pointer
     pos == subexpr.pointer ? newexpr : expr
   end
   postwalkpos(subchild, subexpr.parent)

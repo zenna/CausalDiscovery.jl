@@ -15,12 +15,10 @@ Applies `f` to each node in the given expression tree, returning the result.
 `f` sees expressions *after* they have been transformed by the walk. See also
 `prewalk`.
 """
-# postwalk(f, aexpr::AExpr) = AExpr(postwalk(f, aexpr.expr))
-# prewalk(f, aexpr::AExpr) = AExpr(prewalk(f, aexpr.expr))
 
 walk(x, inner, outer, mapf) = outer(x)
-walk(x::Expr, inner, outer, mapf = map) =
-  outer(Expr(x.head, mapf(inner, @show x.args)...))
+walk(x::AExpr, inner, outer, mapf = map) =
+  outer(AExpr(x.head, mapf(inner, x.args)...))
 
 postwalk(f, x, mapf = map) = walk(x, x -> postwalk(f, x, mapf), f, mapf)
 
@@ -45,28 +43,23 @@ Applies `f(expr, state)` to each node in the given expression tree, returning th
 ```
 s0 = Int[]
 statef(state, arg, i) = @show [i; state]
-expr = :(let x = 4, y = 3
+expr = AExpr(:(let x = 4, y = 3
   x + y
-end)
+end))
 f(expr, state) = expr
 postwalkstate(expr, f, s0, statef)
 ```
 """
-postwalkstate(f, x::Expr, state, statef) = 
+postwalkstate(f, x::AExpr, state, statef) = 
   let g(i, x_) = postwalkstate(f, x_,  statef(state, x, i), statef)
-    @show x.args
-    f(Expr(x.head, mapid(g, x.args)...), state)
+    # @show x.args
+    f(AExpr(x.head, mapid(g, x.args)...), state)
   end
 
 postwalkstate(f, x, state, statef) = f(x, state)
 
-idappend(state, arg, i) = [i; state]
+idappend(state, arg, i) = [state; i]
 postwalkpos(f, x, p0 = Int[]) = postwalkstate(f, x, p0, idappend)
-
-postwalkstate(f, x::AExpr, state, statef) =
-  wrap(postwalkstate(f, x.expr, state, statef))
-
-
 """
 
 """

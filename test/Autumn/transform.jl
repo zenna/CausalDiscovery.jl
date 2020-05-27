@@ -9,7 +9,7 @@ function test1()
 end
 
 function test2()
-  p = AExpr(:program, Statement())
+  aex = AExpr(:program, Statement())
   ϕ = Phi()
   recursub(ϕ, p)
 end
