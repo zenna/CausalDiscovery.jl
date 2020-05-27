@@ -7,6 +7,7 @@ using Test
 #   include("model.jl")
 # end
 
-# @testset "Autumn" begin
-#   include("Autumn/sexpr.jl")
-# end
+@testset "Autumn" begin
+  include("Autumn/sexpr.jl")
+  include("Autumn/transform.jl")
+end
