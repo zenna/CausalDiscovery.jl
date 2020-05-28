@@ -91,8 +91,6 @@ isinfix(f) = false
 
 "Pretty print"
 function showstring(expr::Expr)
-  # print(expr)
-  # print("\n")
   @match expr begin
     Expr(:program, statements...) => join(map(showstring, expr.args), "\n")
     Expr(:producttype, ts) => join(map(showstring, ts), "×")
@@ -104,7 +102,6 @@ function showstring(expr::Expr)
     Expr(:assign, x, val) => "$x $(needequals(val)) $(showstring(val))"
     Expr(:if, i, t, e) => "if $(showstring(i)) then $(showstring(t)) else $(showstring(e))"
     Expr(:initnext, i, n) => "init $(showstring(i)) next $(showstring(n))"
-    Expr(:fn, args, body) => "λ $(showstring(args)) -> $(showstring(body))"
     Expr(:args, args...) => join(map(showstring, args), " ")
     Expr(:call, f, arg1, arg2) && if isinfix(f) end => "$(showstring(arg1)) $f $(showstring(arg2))"
     Expr(:call, f, args...) => join(map(showstring, [f ; args]), " ")
@@ -114,7 +111,7 @@ function showstring(expr::Expr)
     Expr(:case, type, vars...) => string("\n\tcase $(showstring(type)) of \n\t\t", join(map(showstring, vars), "\n\t\t"))
     Expr(:casevalue, type, value) => "($(showstring(type))) => $value"
     Expr(:casetype, type, vars...) => "$type $(join(vars, " "))"
-    Expr(:type, vars...) => "type $(vars[1]) $(vars[2]) "=" $(join(map(showstring, vars[3:length(vars)]), " | "))"
+    Expr(:type, vars...) => "type $(vars[1]) $(vars[2]) = $(join(map(showstring, vars[3:length(vars)]), " | "))"
     Expr(:typealias, var, val) => "type alias $(showstring(var)) = $(showstring(val))"
     Expr(:fn, name, func) => "$(showstring(name)) = $(showstring(func))"
     Expr(:list, vals...) => "($(join(vals, ", ")))"
