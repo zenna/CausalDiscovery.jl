@@ -1,108 +1,87 @@
 using Distributions
 
-# --- types ---
+""" ----- custom types ----- """
 struct Position
-  x1::Int
-  x2::Int
+  x::Int
+  y::Int
 end
 
 struct Click
-  x1::Int
-  x2::Int
+  x::Int
+  y::Int
 end
 
 struct Particle
-  x1::Position
+  position::Position
   id::Int # based on global counter variable
 end
 
-# --- global variables ---
-const GRID_SIZE = 16
+""" ----- global variables --- """
+GRID_SIZE = 16
 particles = []
 
-# --- helper functions ---
+# history-related 
+history = Dict{Int64, Any}
+global_count = 0
+time = 0
+
+""" ----- helper functions ----- """
 function nparticles
   length(particles)
 end
 
 function isFree(position::Position)::Bool
-  length(filter(particle -> particle.x1 == position, particles)) == 0
+  length(filter(particle -> particle.position == position, particles)) == 0
 end
 
 function isWithinBounds(position::Position)::Bool
-  if (position.x1 >= 0 && position.x1 < GRID_SIZE && position.x2 >= 0 && position.x2 < GRID_SIZE)  
-    true
-  else
-    false
-  end
+  (position.x >= 0 && position.x < GRID_SIZE && position.y >= 0 && position.y < GRID_SIZE)  
 end
 
 function adjacentPositions(position::Position)
-  x = position.x1
-  y = position.x2
-  positions = [Position(x + 1, y), Position(x - 1, y), Position(x, y + 1), Position(x, y - 1)]
-  filter(isWithinBounds, positions)
+  x = position.x
+  y = position.y
+  positions = filter(isWithinBounds, [Position(x + 1, y), Position(x - 1, y), Position(x, y + 1), Position(x, y - 1)])
+  positions
 end
 
-function nextParticle(particle::Particle)::Position
-  freePositions = filter(isFree, adjacentPositions(particle.x1))
+function nextParticle(particle::Particle)::Particle
+  freePositions = filter(isFree, adjacentPositions(particle.position))
   if freePositions == []
     particle
   else
     newPosition = freePositions[rand(Categorical(ones(length(freePositions))/length(freePositions)))]
-    Particle(newPosition, particle.id)
+    nextParticle = Particle(newPosition, particle.id)
+
+    # BEGIN HISTORY HANDLING
+    history[nextParticle.id][time] = nextParticle
+    # END HISTORY HANDLING
+
+    particle
   end
 end
 
-function particleGen(position::Position)::Particle
+function particleGen(initPosition::Position)::Particle
+  particle = Particle(initPosition, global_count)
+  
+  # BEGIN HISTORY HANDLING
+  global_count += 1
+  history[global_count] = Dict([(time, particle)])
+  # END HISTORY HANDLING
 
+  particle
 end
 
-# history dictionary, keyed by index
+""" ----- INIT and NEXT functions ----- """
 
-
-#=""
-struct Stream
-
-"History of values"
-struct History{T}
-  h::T
+function init(initPosition::Position)::Particle
+  particles = []
 end
 
-function getproperty(h::History{Dict{Symbol, T}}, name::Symbol) where T
-  h = getfield(h, :h)
-  if name == :h
-    h
-  else
-    h[name]
+function next(click::Union{Click, Nothing})
+  time += 1
+  if click != Nothing
+    particleGen(initPosition)
   end
+  map(nextParticle, particles)
 end
-
-# 
-
-const Position = Tuple{Int, Int}
-const Click = Union{Position, Nothing}
-
-const Positiion = Alias 
-
-struct Particle
-  position::Position
-end
-
-particles = Stream(Particle[]) do h
-  if h.buttonPress
-    [h.particles Particle(1, 1)]
-  else
-    h.particles
-  end
-end
-
-## Is there any need for init and next, why not just next
-next fibonnaci = 
-
-## Issues
-# - Presumably I can't have a symbol for every value, I'll need some kind of index
-#  This looks a lot like the same problem as omega
-# - 
-# - Type stability will be hard
-=#

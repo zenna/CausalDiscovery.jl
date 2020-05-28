@@ -1,87 +1,51 @@
-type Position = (Int, Int)
+GRID_SIZE = 16
+
+type Position = x Int y Int
 
 -- A mouse click is a position that might occur
-type Click = (Int, Int)
+type Click = x Int y Int
 
 -- click is an external time-varying value
 external click : Click
 
-type Particle = Position
+type Particle = particle Position #save
 
 particles : List Particle
 init particles = []
-next particles = if occurred click
+next particles = if occured click
                  then particles :: particleGen (1, 1)
-                 else particles
+                 else map nextParticle particles
 
 -- Lifted (automatically)
 nparticles = length particles
 
 -- A position is free iff there
 isFree : Position -> Bool
-isfree position = length(filter (\particle -> particle.positon == position) particles) == 0
+isFree position = length(filter (\particle -> particle.positon == position) particles) == 0
 
 -- !! particles.position (above and below) is not valid Elm, should it be valid Autumn?
 
+isWithinBounds : Position -> Bool
+isWithinBounds position = position.x >= 0 && position.x < GRID_SIZE && position.y >= 0 and position.y < GRID_SIZE
+
+adjacentPositions : Position -> List
+adjacentPositions position = 
+  let
+    x = position.x
+    y = position.y
+    positions = filter isWithinBounds [Position (x+1) y, Position (x-1) y, Position x (y+1), Position x (y-1)]
+  in
+  positions
+
 -- At every time step, look for a free space around me and try to move into it
-nextPosition : Particle -> Position
-nextPosition particle =
+nextParticle : Particle -> Particle #update
+nextParticle particle =
   let
     freePositions = filter isfree (adjacentPositions particle.position)
   in
     case freePositions
       [] -> particle
-      _ -> uniformChoice freePositions  -- !! this uniformChoice is suepect, need to decide on probabilities
+      _ -> Particle (uniformChoice freePositions)  -- !! this uniformChoice is suepect, need to decide on probabilities
 
--- Maps an initial position to a particle that chooses its next position
--- using nextPosition, which depends on `particles`
-particleGen : Position -> Particle
-particleGen initPosition = 
-  init Particle initPosition
-  next nextPosition this
-
-{-
-
-type alias Position = (Int, Int)
-
--- A mouse click is a position that might occur
-type alias Click : Event (Int, Int)
-
--- click is an external time-varying value
-external click : Click
-
-type Particle = Particle Position
-
-particles : List Particle
-init particles = []
-next particles = if occured click
-                 then particles :: particleGen (1, 1)
-                 else particles
-
--- Lifted (automatically)
-nparticles = length particles
-
--- A position is free iff there
-isfree : Position -> Bool
-isfree position = not (all (map (\particle -> particle.positon == position) particles) )
-
--- !! particles.position (above and below) is not valid Elm, should it be valid Autumn?
-
--- At every time step, look for a free space around me and try to move into it
-nextPosition : Particle -> Position
-nextPosition particle =
-  let
-    freePositions = filter isfree (adjacentPositions particle.position)
-  in
-    case freePositions
-      [] -> particle
-      _ -> uniformChoice freePositions  -- !! this uniformChoice is suepect, need to decide on probabilities
-
--- Maps an initial position to a particle that chooses its next position
--- using nextPosition, which depends on `particles`
-particleGen : Position -> Particle
-particleGen initPosition = 
-  init Particle initPosition
-  next nextPosition this
-
-}
+particleGen : Position -> Particle #new
+particleGen initPosition = Particle initPosition
