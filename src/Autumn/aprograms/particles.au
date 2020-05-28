@@ -6,7 +6,7 @@ type Position = x Int y Int
 type Click = x Int y Int
 
 -- click is an external time-varying value
-external click : Click
+external click : Click | Nothing
 
 type Particle = particle Position #save
 
