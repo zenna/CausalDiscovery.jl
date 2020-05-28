@@ -57,7 +57,7 @@ function nextParticle(particle::Particle)::Particle
     history[nextParticle.id][time] = nextParticle
     # END HISTORY HANDLING
 
-    particle
+    nextParticle
   end
 end
 
