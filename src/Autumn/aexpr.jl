@@ -16,6 +16,7 @@ program     := statement*
 statement   := externaldecl | assignexpr | typedecl | typedef
 
 typedef     := type fields  #FIXME
+typealias   := "type alias" type fields
 fields      := field | fields field
 field       := constructor | constructor typesymbol*
 cosntructor := typesymbol
@@ -30,7 +31,7 @@ funtype     := typeexpr -> typeexpr
 producttype := typeexpr × typexexpr × ...
 typesymbol  := primtype | customtype
 primtype    := Int | Bool | Float
-custontype  := A | B | ... | Aa | ...
+customtype  := A | B | ... | Aa | ...
 
 valueexpr   := fappexpr | lambdaexpr | iteexpr | initnextexpr | letexpr |
                this | lambdaexpr
@@ -113,21 +114,18 @@ function showstring(expr::Expr)
     Expr(:case, type, vars...) => string("\n\tcase $(showstring(type)) of \n\t\t", join(map(showstring, vars), "\n\t\t"))
     Expr(:casevalue, type, value) => "($(showstring(type))) => $value"
     Expr(:casetype, type, vars...) => "$type $(join(vars, " "))"
-    Expr(:type, vars...) => "type $(vars[1]) $(vars[2]) $(join(map(showstring, vars[3:length(vars)]), " | "))"
+    Expr(:type, vars...) => "type $(vars[1]) $(vars[2]) "=" $(join(map(showstring, vars[3:length(vars)]), " | "))"
+    Expr(:typealias, var, val) => "type alias $(showstring(var)) = $(showstring(val))"
     Expr(:fn, name, func) => "$(showstring(name)) = $(showstring(func))"
+    Expr(:list, vals...) => "($(join(vals, ", ")))"
     Expr(:lambda, var, val) => "($(showstring(var)) -> $(showstring(val)))"
     x                       => "Fail $x"
 
-    # Expr(:let, x)
-    # Parametric types
-    # type def
-    # Lambda expression
   end
 end
 
 showstring(lst::Array{}) = lst
 showstring(str::String) = str
-needequals(val) = "="
 
 function needequals(val)
   if typeof(val) == Expr && val.head == :fn
@@ -142,10 +140,5 @@ showstring(aexpr::AExpr) = showstring(Expr(aexpr))
 showstring(s::Union{Symbol, Integer}) = s
 showstring(s::Type{T}) where {T <: Number} = s
 Base.show(io::IO, aexpr::AExpr) = print(io, showstring(aexpr))
-
-# # # Methods
-# # "Number of nodes in expression tree"
-# # nnodes(aexpr::AExpr) = 1 + reduce(+nnodes, args(aexpr))
-# # nnodes(_) = 1
 
 end

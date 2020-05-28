@@ -7,33 +7,6 @@ using ..AExpressions
 
 export parseau, @au_str
 
-#fix map
-#fix = in type
-#fix BigInt
-prog = au"""
-    (program
-    (external (: z Int))
-    (: x Int)
-    (= x 3)
-    (: y Int)
-    (= y (initnext (+ 1 2) (/ 3 this)))
-    (: map (-> (-> a b) (List a) (List b)))
-    (= xs [1 2 3])
-    (: f (-> Int Int))
-    (= f (fn (x) (+ x x)))
-    (= ys (map f xs))
-    (type Particle a (Particle a) (Dog Float64 Float64))
-    (: g (-> (Particle a) (Int)))
-    (= g (fn (particle)
-            (case particle
-                  (=> (Particle a_) 4)
-                  (=> (Dog a_ b_) 5))))
-    (: o Int)
-    (= o (let (q 3 d 12) (+ q d)))
-    (--> x (+ x 1))
-  )
-  """
-
 fg(s) = s
 fg(s::Cons) = array(s)
 "Convert an `SExpression` into nested Array{Any}"
@@ -62,12 +35,6 @@ prog = \"\"\"
 parseautumn(sexprstring::AbstractString) =
   parseau(array(SExpressions.Parser.parse(sexprstring)))
 
-#map is wrong
-#shouldnt say BigInt
-#symbol list should be parsed
-#fn (x) incorrect
-#particle is incorrect
-# (: map (-> (-> a b) (List a) (List b)))
 "Parse SExpression into Autumn Expressions"
 function parseau(sexpr::AbstractArray)
   print(typeof(sexpr))
@@ -85,11 +52,17 @@ function parseau(sexpr::AbstractArray)
     [:let, vars, todo]                => AExpr(:let, parseletvars(vars)..., parseau(todo))
     [:case, type, cases...]           => AExpr(:case, type, map(parseau, cases)...)
     [:(=>), type, value]              => AExpr(:casevalue, parsecase(type), value)
+    [:type, :alias, var, value]        => AExpr(:typealias, var, parsealias(value))
     [:type, values...]                => AExpr(:type, map(parsecase, values)...)
     [:fn, name, func]                 => AExpr(:fn, parseau(name), parseau(func))
     [:(-->), var, val]                => AExpr(:lambda, parseau(var), parseau(val))
     [f, xs...]                        => AExpr(:call, parseau(f), map(parseau, xs)...)
+    [vars...]                         => AExpr(:list, vars...)
   end
+end
+
+function parsealias(expr)
+  AExpr(:list, expr...)
 end
 
 function parsecase(sym::Symbol)
@@ -126,22 +99,6 @@ parsetypeau(s::Symbol) = s
 parseau(s::Symbol) = s
 parseau(s::Union{Number, String}) = s
 
-# parse_programexpr(expr) = ProgramExpr(map(parseau, rest(sexpr)))
-# parse_typeexpr(expr) = ... @match
-# parse_typesymbol(sexpr) = TypeSymbol(sexpr)
-# parse_typevar(sexpr) = TypeVar(sexpr)
-# parse_iteexpr(sexpr) = ITEExpr(parseau(sexpr[2], parseau(sexpr[3]), parseau(sexpr[3])))
-# parse_initnext(sexpr) = ITEExpr(parseau(sexpr[2], parseau(sexpr[3])))
-# parse_letexpr(sexpr)  = LetExpr()
-# parse_lambdaexpr(sexpr) = LambdaExpr()
-# "(Event a)"
-# parse_paramtypeexpr(sexpr) = TypeVar(sexpr[1], )
-# parse_globalbind(sexpr) = GlobalBind()
-# parse_typedecl(sexpr) = .;.
-
-# :(--> τ1 τ2)
-# parse_functiontypeexpr(sexpr) = ParamTypeExpr
-
 """
 Macro for parsing autumn
 au\"\"\"
@@ -154,6 +111,5 @@ au\"\"\"
 macro au_str(x::String)
   QuoteNode(parseautumn(x))
 end
-
 
 end
