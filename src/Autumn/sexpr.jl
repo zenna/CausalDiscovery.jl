@@ -7,53 +7,6 @@ using ..AExpressions
 
 export parseau, @au_str
 
-prog = au"""
-    (program
-    (external (: z Int))
-    (: x Int)
-    (= x 3)
-    (: y Int)
-    (= y (initnext (+ 1 2) (/ 3 this)))
-    (: map (-> (-> a b) (List a) (List b)))
-    (= xs [1 2 3])
-    (: f (-> Int Int))
-    (= f (fn (x) (+ x x)))
-    (= ys (map f xs))
-    (type Particle a (Particle a) (Dog Float64 Float64))
-    (: g (-> (Particle a) (Int)))
-    (= g (fn (particle)
-            (case particle
-                  (=> (Particle a_) 4)
-                  (=> (Dog a_ b_) 5))))
-    (: o Int)
-    (= o (let (q 3 d 12) (+ q d)))
-    (--> x (+ x 1))
-  )
-  """
-  #
-  # external z : Int
-  # x : Int
-  # x = 3
-  # y : Int
-  # y = init 1 + 2 next 3 / this
-  # map : (a -> b) -> List a -> List b
-  # xs = BigInt[1, 2, 3]
-  # f : (Int -> Int)
-  # f = λ x -> x + x
-  # ys = map f xs
-  # type Particle a Particle a | Dog Float64 Float64
-  # g : (Particle a -> Int)
-  # g = λ particle ->
-  # 	case particle of
-  # 		(Particle a_) => 4
-  # 		(Dog a_ b_) => 5
-  # o : Int
-  # o = let
-  # 	q = 3
-  # 	d = 12
-  # 	q + d
-  # (x -> x + 1)
-
 
 fg(s) = s
 fg(s::Cons) = array(s)
