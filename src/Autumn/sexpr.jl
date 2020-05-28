@@ -7,6 +7,9 @@ using ..AExpressions
 
 export parseau, @au_str
 
+#fix map
+#fix = in type
+#fix BigInt 
 prog = au"""
     (program
     (external (: z Int))
@@ -63,7 +66,7 @@ parseautumn(sexprstring::AbstractString) =
 #symbol list should be parsed
 #fn (x) incorrect
 #particle is incorrect
-
+# (: map (-> (-> a b) (List a) (List b)))
 "Parse SExpression into Autumn Expressions"
 function parseau(sexpr::AbstractArray)
   headis(s) = first(sexpr) == s
@@ -98,7 +101,7 @@ end
 function parsecase(list::Array{})
   Expr(:casetype, list...)
 end
-
+#(: map (-> (-> a b) (List a) (List b)))
 function parsetypeau(sexpr::AbstractArray)
   MLStyle.@match sexpr begin
     [τ, tvs...]  && if (istypesymbol(τ) && all(istypevarsymbol.(tvs)))  end => Expr(:paramtype, τ, tvs...)

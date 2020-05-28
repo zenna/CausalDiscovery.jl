@@ -86,8 +86,8 @@ function showstring(expr::Expr)
   @match expr begin
     Expr(:program, statements...) => join(map(showstring, expr.args), "\n")
     Expr(:producttype, ts) => join(map(showstring, ts), "×")
-    Expr(:functiontype, int, outt) => "$(showstring(int)) -> $(showstring(outt))"
-    Expr(:functiontype, vars...) => reduce(((x, y) -> string(x, " -> ", showstring(y))), vars; init = "")
+    Expr(:functiontype, int, outt) => "($(showstring(int)) -> $(showstring(outt)))"
+    Expr(:functiontype, vars...) => reduce(((x, y) -> string(showstring(x), " -> ", showstring(y))), vars)
     Expr(:typedecl, x, val) => "$x : $(showstring(val))"
     Expr(:externaldecl, x, val) => "external $x : $(showstring(val))"
     Expr(:external, val) => "external $(showstring(val))"
@@ -113,6 +113,7 @@ function showstring(expr::Expr)
   end
 end
 
+showstring(str::String) = str
 needequals(val) = "="
 
 function needequals(val)
