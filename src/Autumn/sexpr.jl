@@ -9,7 +9,7 @@ export parseau, @au_str
 
 #fix map
 #fix = in type
-#fix BigInt 
+#fix BigInt
 prog = au"""
     (program
     (external (: z Int))
@@ -30,6 +30,7 @@ prog = au"""
                   (=> (Dog a_ b_) 5))))
     (: o Int)
     (= o (let (q 3 d 12) (+ q d)))
+    (--> x (+ x 1))
   )
   """
 
@@ -59,7 +60,7 @@ prog = \"\"\"
 
 """
 parseautumn(sexprstring::AbstractString) =
-  AExpr(parseau(array(SExpressions.Parser.parse(sexprstring))))
+  parseau(array(SExpressions.Parser.parse(sexprstring)))
 
 #map is wrong
 #shouldnt say BigInt
@@ -69,28 +70,25 @@ parseautumn(sexprstring::AbstractString) =
 # (: map (-> (-> a b) (List a) (List b)))
 "Parse SExpression into Autumn Expressions"
 function parseau(sexpr::AbstractArray)
-  headis(s) = first(sexpr) == s
-  nargs(expr, n) = length(rest(expr)) == n
-  print(sexpr)
+  print(typeof(sexpr))
   print("\n")
   print("\n")
   res = MLStyle.@match sexpr begin
-    [:program, lines...]              => Expr(:program, map(parseau, lines)...)
-    [:if, c, t, e]                    => Expr(:if, parseau(c), parseau(t), parseau(e))
-    [:initnext, i, n]                 => Expr(:initnext, parseau(i), parseau(n))
+    [:program, lines...]              => AExpr(:program, map(parseau, lines)...)
+    [:if, c, t, e]                    => AExpr(:if, parseau(c), parseau(t), parseau(e))
+    [:initnext, i, n]                 => AExpr(:initnext, parseau(i), parseau(n))
     # [:let, ]                           => parse_letexpr(sexpr)
-    [:(=), x::Symbol, y]              => Expr(:assign, x, parseau(y))
-    [:(:), v::Symbol, τ]              => Expr(:typedecl, v, parsetypeau(τ))
-    [:typedecl, v::Symbol, τ]         => Expr(:typedecl, v, parsetypeau(τ))
-    [:external, tdef]                 => Expr(:external, parseau(tdef))
-    [:let, vars, todo]                => Expr(:let, parseletvars(vars)..., parseau(todo))
-    [:case, type, cases...]           => Expr(:case, type, map(parseau, cases)...)
-    [:(=>), type, value]              => Expr(:casevalue, parsecase(type), value)
-    [:type, values...]                => Expr(:type, map(parsecase, values)...)
-    [:fn, name, func]                 => Expr(:fn, parseau(name), parseau(func))
-    [f, xs...]                        => Expr(:call, parseau(f), map(parseau, xs)...)
-
-    # [:type, ...]                      => parse_typeexpr(sexpr)
+    [:(=), x::Symbol, y]              => AExpr(:assign, x, parseau(y))
+    [:(:), v::Symbol, τ]              => AExpr(:typedecl, v, parsetypeau(τ))
+    [:typedecl, v::Symbol, τ]         => AExpr(:typedecl, v, parsetypeau(τ))
+    [:external, tdef]                 => AExpr(:external, parseau(tdef))
+    [:let, vars, todo]                => AExpr(:let, parseletvars(vars)..., parseau(todo))
+    [:case, type, cases...]           => AExpr(:case, type, map(parseau, cases)...)
+    [:(=>), type, value]              => AExpr(:casevalue, parsecase(type), value)
+    [:type, values...]                => AExpr(:type, map(parsecase, values)...)
+    [:fn, name, func]                 => AExpr(:fn, parseau(name), parseau(func))
+    [:(-->), var, val]                => AExpr(:lambda, parseau(var), parseau(val))
+    [f, xs...]                        => AExpr(:call, parseau(f), map(parseau, xs)...)
   end
 end
 
@@ -104,10 +102,10 @@ end
 #(: map (-> (-> a b) (List a) (List b)))
 function parsetypeau(sexpr::AbstractArray)
   MLStyle.@match sexpr begin
-    [τ, tvs...]  && if (istypesymbol(τ) && all(istypevarsymbol.(tvs)))  end => Expr(:paramtype, τ, tvs...)
-    [:->, τ1, τ2]                                                           => Expr(:functiontype, parsetypeau(τ1), parsetypeau(τ2))
-    [:×, τs...]                                                             => Expr(:producttype, map(parsetypepau, τs)...)
-    [:->, τs...]                                                            => Expr(:functiontype, map(parsetypeau, τs)...)
+    [τ, tvs...]  && if (istypesymbol(τ) && all(istypevarsymbol.(tvs)))  end => AExpr(:paramtype, τ, tvs...)
+    [:->, τ1, τ2]                                                           => AExpr(:functiontype, parsetypeau(τ1), parsetypeau(τ2))
+    [:×, τs...]                                                             => AExpr(:producttype, map(parsetypepau, τs)...)
+    [:->, τs...]                                                            => AExpr(:functiontype, map(parsetypeau, τs)...)
     τ && if istypesymbol(τ) end                                             => τ
 
   end

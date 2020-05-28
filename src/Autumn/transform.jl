@@ -4,7 +4,7 @@ using ..AExpressions
 using ..SubExpressions
 using ..Parameters
 using MLStyle
-export expand, sub, recursub
+export sub, recursub
 # using OmegaCore
 
 """
@@ -25,10 +25,6 @@ xnew = replace(x, sub)   # Construct `x`
 ```
 """
 
-# Non-terminal nodes to be replaced
-
-# FIXME: Do these fit into all the expr types
-# FIXME: Some naming convention
 
 abstract type NonTerminal end
 
@@ -37,10 +33,24 @@ struct External <: NonTerminal end
 struct Assignment <: NonTerminal end
 struct TypeDeclaration <: NonTerminal end
 struct VariableName <: NonTerminal end
+
+# ## Values
 struct ValueExpression <: NonTerminal end
 struct Literal <: NonTerminal end
+struct FunctionApp <: NonTerminal end
+struct Lambda <: NonTerminal end
 
-AExpressions.showstring(T::NonTerminal) = "{$(string(typeof(T)))}"
+struct ArgumentList <: NonTerminal end
+
+# ## Types
+struct TypeExpression <: NonTerminal end
+struct PrimitiveType <: NonTerminal end
+struct CustomType <: NonTerminal end
+struct FunctionType <: NonTerminal end
+
+
+# Base.string(::NonTerminal)
+AExpressions.showstring(T::Q) where {Q <: NonTerminal} = "{$(Q.name.name)}"
 Base.show(io::IO, nt::NonTerminal) = print(io, AExpressions.showstring(nt))
 
 "`sub(ϕ, subexpr::SubExpr{<:Statement})`returns `parent` with subexpression subed"
@@ -48,26 +58,70 @@ function sub end
 
 function sub(ϕ, sexpr::SubExpr, ::Statement)
   choice(ϕ, [External(), Assignment(), TypeDeclaration()])
+  # choice(ϕ, [Assignment()])
 end
 
-function sub(ϕ, ::SubExpr{Assignment})
-  AssignExpr(VariableName(), ValueExpression())
+function sub(ϕ, sexpr::SubExpr, ::External)
+  AExpr(:external, TypeDeclaration())
 end
 
-function sub(ϕ, ::SubExpr{VariableName})
+# ## Types
+function sub(ϕ, sexpr::SubExpr, ::TypeDeclaration)
+  AExpr(:typedecl, VariableName(), TypeExpression())
+end
+
+function sub(ϕ, sexpr::SubExpr, ::TypeExpression)
+  choice(ϕ, [PrimitiveType(), FunctionType()])
+end
+
+function sub(ϕ, sexpr::SubExpr, ::PrimitiveType)
+  primtypes = [Int, Float64, Bool]
+  choice(ϕ, primtypes)
+end
+
+function sub(ϕ, sexpr::SubExpr, ::FunctionType)
+  AExpr(:functiontype, TypeExpression(), TypeExpression())
+end
+
+# ## Declarations
+function sub(ϕ, sexpr::SubExpr, ::Assignment)
+  AExpr(:assign, VariableName(), ValueExpression())
+end
+
+const VARNAMES = 
+  map(Symbol ∘ join,
+      Iterators.product('a':'z', 'a':'z', 'a':'z'))[:]
+
+function sub(ϕ, sexpr::SubExpr, ::VariableName)
   ## Choose a variable name that is correct in this context
-  extantvars = # Look through parents
   # Choose a variable that is not in extandvars
-  choice(ϕ, [:x, :y, :z])
+  choice(ϕ, VARNAMES)
 end
 
-function sub(ϕ, ::SubExpr{ValueExpression})
-  choice(ϕ, [Literal(), FunctionApp()])
+function sub(ϕ, sexpr::SubExpr, ::ValueExpression)
+  choice(ϕ, [Literal(), FunctionApp(), Lambda()])
 end
 
-function sub(ϕ, ::SubExpr{Literal})
+function sub(ϕ, sexpr::SubExpr, ::Lambda)
+  AExpr(:fn, ArgumentList(), ValueExpression())
+end
+
+function sub(ϕ, sexpr::SubExpr, ::ArgumentList)
+  MAXARGS = 4
+  nargs = choice(ϕ, 1:MAXARGS)
+  args = [VariableName() for i = 1:nargs]
+  AExpr(:args, args...)
+end
+
+function sub(ϕ, sexpr::SubExpr, ::FunctionApp)
+  # TODO: Need type constraitns
+  AExpr(:call, ValueExpression(), ValueExpression(), ValueExpression())
+end
+
+function sub(ϕ, sexpr::SubExpr, ::Literal)
   # FINISHME: Do type inference
-  choice(ϕ, [1, 2, 3])
+  literaltype = Int
+  choice(ϕ, literaltype)
 end
 
 function sub(ϕ, subexpr::SubExpr)
@@ -77,12 +131,8 @@ function sub(ϕ, subexpr::SubExpr)
   end
 end
 
-"(Parametrically) find a non-terminal subexpr"
-function findnonterminal(ϕ, sexpr)
-  # Walk the graph, and in the presence of a non-terminal, decide whether to stop or not
-  allnonterminals = # FINISHME
-  choice(ϕ, allnonterminals)
-end
+allnonterminals(aex) = 
+  filter(x-> resolve(x) isa NonTerminal, subexprs(aex))
 
 "Stop when the graph is too large"
 stopwhenbig(subexpr; sizelimit = 100) = nnodes(sexpr) > sizelimit
@@ -91,39 +141,21 @@ stopwhenbig(subexpr; sizelimit = 100) = nnodes(sexpr) > sizelimit
 stopaftern(n) = (i = 1; (ϕ, subexpr) -> (i += 1; i > n))
 
 "Recursively fill `sexpr` until `stop`"
-function recursub(ϕ, subexpr, stop = stopaftern(10))
+function recursub(ϕ, aex::AExpr, stop = stopaftern(100))
   #FIXME, what if i want stop to have state
-  while !stop(ϕ, subexpr)
-    newexpr = sub(ϕ, subexpr)
-    aexpr = update(subexpr, newexpr)
-    subexpr = findnonterminal(ϕ, aexpr)
+  # FIXME: account for fact that there is none
+  while !stop(ϕ, aex)
+    nts = allnonterminals(aex)
+    if isempty(nts)
+      break
+    else
+      subex = choice(ϕ, nts)
+      newex = sub(ϕ, subex)
+      aex = update(subex, newex)
+      println("#### Done\n")
+    end
   end
-  subexpr
+  aex
 end
-
-# function sub(φ, ::SubExpr{FAppExpr})
-#   #
-# end
-
-## Type specific
-# function sub(ϕ, ::SubExpr{Type{Int}})
-# end
-
-## Test
-
-## Things to consider:
-## What are the lexical constraints
-## - You can't use a variable before its been defined
-## - If a variable is already defined you can't define it again
-## - You can't use a type name if its already been used
-## - You can't use a type variable if its already been used in that type definition
-
-# Q: Are these abstract / Do they require convergence?
-# Q: if for example there are no variables defined, then I won't be able to pick any variables
-# Can i avoid going down a garden path
-# or must i be able to backtrack
-
-## How does type inference fit into all of this
-
 
 end
