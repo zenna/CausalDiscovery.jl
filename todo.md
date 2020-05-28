@@ -1,3 +1,9 @@
+-1. Expand out grammar with all terms
+-2. include variable binding
+-3. Figure out how to deal with this statement / use case problem
+4. Understand RJMCMC
+
+
 - Should we use an expr type or something else?
 -- One probllem with wrapping expr is that we can't store meta-data
 What metadata will we need to store?

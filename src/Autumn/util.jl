@@ -5,7 +5,8 @@ using MLStyle
 using ..AExpressions
 
 export postwalkstate,
-       postwalkpos
+       postwalkpos,
+       parentwalk
 
 """
 Wraps MacroToolls.postwalk:
@@ -60,10 +61,26 @@ postwalkstate(f, x, state, statef) = f(x, state)
 
 idappend(state, arg, i) = [state; i]
 postwalkpos(f, x, p0 = Int[]) = postwalkstate(f, x, p0, idappend)
-"""
 
 """
-function statewalk()
+Walk from `subex` upwards through parents
+
+```
+prog = au\"\"\"
+(program
+  (= x 3)
+  (= y (fn (a b c) (+ a b c))))\"\"\"
+
+subex = subexpr(prog, [2, 2, 3])
+f(x) = println(x.head)
+parentwalk(f, prog)
+```
+"""
+function parentwalk(f, subex)
+  while !isroot(subex)
+    subex = parent(subex)
+    f(subex)
+  end
 end
 
 

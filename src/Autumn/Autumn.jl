@@ -26,7 +26,11 @@ include("compile.jl")
 include("abstractinterpretation.jl")
 @reexport using .AbstractInterpretation
 
+include("scope.jl")
+@reexport using .Scope
+
 include("transform.jl")
 @reexport using .Transform
+
 
 end

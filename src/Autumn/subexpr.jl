@@ -9,7 +9,11 @@ export SubExpr,
        resolve,
        update,
        subexprdfs,
-       subexprs
+       subexprs,
+       parent,
+       isroot,
+       parentwalk
+
        
 "Subexpression of `parent::AE` indicated by pointer `p::P`"
 struct SubExpr{AExpr, P}
@@ -20,6 +24,19 @@ end
 subexpr(aexpr, id) = SubExpr(aexpr, id)
 subexpr(aexpr, id::Integer) = SubExpr(aexpr, [id])
 subexpr(::SubExpr) = error("Cannot take subexpression of subexpression, yet")
+
+"`parent(subex::SubExpr)` Parent SubExpr of `subex`"
+Base.parent(subex::SubExpr) = SubExpr(subex.parent, pop(subex.pointer))
+
+"Remove last element of `xs`"
+pop(xs::AbstractVector) = xs[1:end-1]
+
+"Is `subex` the root expression?"
+isroot(subex::SubExpr) = isempty(subex.pointer)
+
+"Head of AExpr pointed to by `subex`"
+AExpressions.head(subex::SubExpr) =
+  AExpressions.head(resolve(subex))
 
 "Returns subexpressions that are children"
 function AExpressions.args(subexpr::SubExpr)
@@ -39,6 +56,8 @@ function resolve(subexpr::SubExpr)
   ex
 end
 
+# ## Traversal
+
 """Update subexpr.parent such that `subexpr` is `newexpr`
 
 ```
@@ -57,7 +76,6 @@ prog2 = au\"\"\"(= x 4000)\"\"\"
 update(subexpr_, prog2)
 ```
 \"\"\"
-
 ```
 """
 function update(subexpr::SubExpr, newexpr)
@@ -71,6 +89,12 @@ end
 
 "Depth first search of subexpressions"
 function subexprdfs(subexpr::SubExpr)
+  # What's wrong with this
+  # 1. we're not using the result 
+  # 2. push pop needs better data structure
+  # 3. not iterator friedly
+  # 4. will be ha       parentwalk
+
   s = SubExpr[]
   res = SubExpr[]
   push!(s, subexpr)
@@ -86,21 +110,35 @@ function subexprdfs(subexpr::SubExpr)
     end
   end
   res
+end
 
-  # What's wrong with this
-  # 1. we're not using the result 
-  # 2. push pop needs better data structure
-  # 3. not iterator friedly
-  # 4. will be hashing these sexpr, which is slow
-  # 5. args(v) undefiined on most things ERR
-  # 6. args(v) doesn't returb subexpression ERR
+"""
+`parentwalk(f, subex, s = f(subex))`
+Walk from `subex` upwards through parents
+
+```
+prog = au\"\"\"
+(program
+  (= x 3)
+  (= y (fn (a b c) (+ a b c))))\"\"\"
+
+subex = subexpr(prog, [2, 2, 3])
+f(x) = println(x.head)
+parentwalk(subex, prog)
+```
+"""
+function parentwalk(f, subex, s)
+  while !isroot(subex)
+    subex = Base.parent(subex)
+    s = f(subex, s)
+  end
+  s
 end
 
 # Use DFS by default
 subexprs(x) = subexprdfs(x)
 
 # Base.iterate(S::SubExpr, state)
-
 
 subexprdfs(aexpr::AExpr) =
   subexprdfs(subexpr(aexpr, Int[]))
