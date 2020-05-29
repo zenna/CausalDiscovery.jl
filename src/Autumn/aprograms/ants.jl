@@ -50,7 +50,7 @@ function antGen(count)
     xCoords = rand(Categorical(ones(length(collect(0:(GRID_SIZE - 1))))/length(collect(0:(GRID_SIZE - 1)))), count)
     yCoords = rand(Categorical(ones(length(collect(0:(GRID_SIZE - 1))))/length(collect(0:(GRID_SIZE - 1)))), count)
 
-    positions = [] # FIX ME
+    positions = reshape(collect(Base.product(xCoords, yCoords)), (count,))
     ants = map(createAnt, positions)
     ants
 end
@@ -60,7 +60,7 @@ function foodGen(count)
     xCoords = rand(Categorical(ones(length(collect(0:(GRID_SIZE - 1))))/length(collect(0:(GRID_SIZE - 1)))), count)
     yCoords = rand(Categorical(ones(length(collect(0:(GRID_SIZE - 1))))/length(collect(0:(GRID_SIZE - 1)))), count)
 
-    positions = [] # FIX ME
+    positions = reshape(collect(Base.product(xCoords, yCoords)), (count,))
     food = map(createFood, positions)
 end
 
