@@ -81,7 +81,7 @@ end
 function next(click::Union{Click, Nothing})
   time += 1
   if click != Nothing
-    particleGen(initPosition)
+    particleGen(1,1)
   end
   map(nextParticle, particles)
 end

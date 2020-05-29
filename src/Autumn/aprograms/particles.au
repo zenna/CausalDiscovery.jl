@@ -1,9 +1,9 @@
 GRID_SIZE = 16
 
-type Position = x Int y Int
+type alias Position = {Int, Int} -- x::Int, y::Int
 
 -- A mouse click is a position that might occur
-type Click = x Int y Int
+type Click = x::Int, y::Int
 
 -- click is an external time-varying value
 external click : Click | Nothing
@@ -12,8 +12,8 @@ type Particle = particle Position #save
 
 particles : List Particle
 init particles = []
-next particles = if occured click
-                 then particles :: particleGen (1, 1)
+next particles = if occurred click
+                 then prev particles :: particleGen (1, 1)
                  else map nextParticle particles
 
 -- Lifted (automatically)
