@@ -20,6 +20,7 @@ end
 """ ----- global variables --- """
 GRID_SIZE = 16
 particles = []
+noFoodRemaining = false
 time = 0
 
 # history-related 
@@ -116,8 +117,6 @@ function nextFoodParticle(food::Particle)::Particle
   newFood
 end
 
-noFoodRemaining = length(filter(particle -> particle.color == "red" && particle.render, particles)) == 0
-
 """ ----- INIT and NEXT functions ----- """
 
 function init(initPosition::Position)::Particle
@@ -130,6 +129,7 @@ function next(click::Union{Click, Nothing})
     particles = vcat(particles, foodGen(1,1))
   end
   particles = map(nextParticle, particles)
+  noFoodRemaining = length(filter(particle -> particle.color == "red" && particle.render, particles)) == 0
   
   particlesHistory[time] = particles
   clickHistory[time] = particles
