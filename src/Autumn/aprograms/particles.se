@@ -1,0 +1,44 @@
+prog = au"""(program
+(type alias (= Position (list Int Int)))
+(type alias (: Click (Event (list Int Int))))
+(external (: click Click))
+(: particles (List Particle))
+(type (fn Particle (Particle Position)))
+(initnext (= particles emptylist) (= particles (if (occurred click) (: particles particleGen (list 1 1)) (particles))))
+(= nparticles (length particles))
+(: isfree (-> Position Bool))
+(isfree (fn position (not (all (map (--> (\particle) (== particle.position position)) particles)))))
+(: nextPosition (-> Particle Position))
+(nextParticle (fn (particle) (let (freePositions (filter isfree (adjacentPositions particle.position))) (case freePositions (-> emptylist particle) (-> _ (uniformChoice freePositions))))))
+(: nextPosition (-> Particle Position))
+(: particleGen (-> Position Particle))
+(particleGen (fn (initPosition) (initnext (Particle initPosition) (nextPosition this))))
+)"""
+
+#Output
+type alias Position = (Int, Int)
+type alias Click : Event (Int, Int)
+external click : Click
+particles : List Particle
+type Particle = Particle Position
+
+	init particles = Any[]
+	next particles = if occurred click
+	then : particles particleGen (1, 1)
+	else particles
+nparticles = length particles
+isfree : (Position -> Bool)
+isfree position = (not (all (map (\particle -> particle.position == position) particles)))
+nextPosition : (Particle -> Position)
+nextParticle particle = let
+	freePositions = filter isfree adjacentPositions particle.position
+	in
+
+	case freePositions
+		(Any[] -> particle)
+		(_ -> uniformChoice freePositions)
+nextPosition : (Particle -> Position)
+particleGen : (Position -> Particle)
+particleGen initPosition =
+	init Particle initPosition
+	next nextPosition this

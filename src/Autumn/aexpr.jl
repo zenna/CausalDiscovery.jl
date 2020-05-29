@@ -60,34 +60,16 @@ arg(aex, i) = args(aex)[i]
 
 Base.Expr(aex::AExpr) = Expr(aex.head, aex.args...)
 
-# wrap(expr::Expr) = AExpr(expr)
-# wrap(x) = x
-
-# AExpr(xs...) = AExpr(Expr(xs...))
-
-# function Base.getproperty(aexpr::AExpr, name::Symbol)
-#   expr = getfield(aexpr, :expr)
-#   if name == :expr
-#     expr
-#   elseif name == :head
-#     expr.head
-#   elseif name == :args
-#     expr.args
-#   else
-#     error("no property $name of AExpr")
-#   end
-# end
-
-
 # Expression types
 "Is `sym` a type symbol"
 istypesymbol(sym) = (q = string(sym); length(q) > 0 && isuppercase(q[1]))
 istypevarsymbol(sym) = (q = string(sym); length(q) > 0 && islowercase(q[1]))
 
 # ## Printing
-isinfix(f::Symbol) = f ∈ [:+, :-, :/, :*]
+isinfix(f::Symbol) = f ∈ [:+, :-, :/, :*, :(==)]
 isinfix(f) = false
-
+needsparen(f::Symbol) = f ∈ [:map, :all, :not]
+needsparen(f) = false
 
 "Pretty print"
 function showstring(expr::Expr)
@@ -100,19 +82,18 @@ function showstring(expr::Expr)
     Expr(:externaldecl, x, val) => "external $x : $(showstring(val))"
     Expr(:external, val) => "external $(showstring(val))"
     Expr(:assign, x, val) => "$x $(needequals(val)) $(showstring(val))"
-    Expr(:if, i, t, e) => "if $(showstring(i)) then $(showstring(t)) else $(showstring(e))"
-    Expr(:initnext, i, n) => "init $(showstring(i)) next $(showstring(n))"
+    Expr(:if, i, t, e) => "if $(showstring(i))\n\tthen $(showstring(t))\n\telse $(showstring(e))"
+    Expr(:initnext, i, n) => "\n\tinit $(showstring(i)) \n\tnext $(showstring(n))"
     Expr(:args, args...) => join(map(showstring, args), " ")
     Expr(:call, f, arg1, arg2) && if isinfix(f) end => "$(showstring(arg1)) $f $(showstring(arg2))"
+    Expr(:call, f, args...) && if needsparen(f) end => "($(join(map(showstring, [f ; args]), " ")))"
     Expr(:call, f, args...) => join(map(showstring, [f ; args]), " ")
-    Expr(:let, args...) => "let \n\t$(join(map(showstring, args), "\n\t"))"
+    Expr(:let, letvar, invar) => "let \n\t$(showstring(letvar))\n\tin\n\t$(showstring(invar))"
     Expr(:paramtype, type, param) => string(type, " ", param)
     Expr(:paramtype, type) => string(type)
-    Expr(:case, type, vars...) => string("\n\tcase $(showstring(type)) of \n\t\t", join(map(showstring, vars), "\n\t\t"))
+    Expr(:case, type, vars...) => string("\n\tcase $(showstring(type)) \n\t\t", join(map(showstring, vars), "\n\t\t"))
     Expr(:casevalue, type, value) => "($(showstring(type))) => $value"
     Expr(:casetype, type, vars...) => "$type $(join(vars, " "))"
-    Expr(:type, vars...) => "type $(vars[1]) $(vars[2]) = $(join(map(showstring, vars[3:length(vars)]), " | "))"
-    Expr(:typealias, var, val) => "type alias $(showstring(var)) = $(showstring(val))"
     Expr(:fn, name, func) => "$(showstring(name)) = $(showstring(func))"
     Expr(:list, vals...) => "($(join(vals, ", ")))"
     Expr(:lambda, var, val) => "($(showstring(var)) -> $(showstring(val)))"

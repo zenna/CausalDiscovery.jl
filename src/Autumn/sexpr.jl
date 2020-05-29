@@ -49,12 +49,11 @@ function parseau(sexpr::AbstractArray)
     [:let, vars, todo]                => AExpr(:let, parseletvars(vars)..., parseau(todo))
     [:case, type, cases...]           => AExpr(:case, type, map(parseau, cases)...)
     [:(=>), type, value]              => AExpr(:casevalue, parsecase(type), value)
-    [:type, :alias, var, value]       => AExpr(:typealias, var, parsealias(value))
-    [:type, values...]                => AExpr(:type, map(parsecase, values)...)
     [:fn, name, func]                 => AExpr(:fn, parseau(name), parseau(func))
     [:(-->), var, val]                => AExpr(:lambda, parseau(var), parseau(val))
+    [:(->), first, second]            => AExpr(:functiontype, parseau(first), parseau(second))
+    [:list, vars...]                  => AExpr(:list, map(parseau, vars)...)
     [f, xs...]                        => AExpr(:call, parseau(f), map(parseau, xs)...)
-    [vars...]                         => AExpr(:list, vars...)
   end
 end
 
@@ -63,16 +62,21 @@ function parsealias(expr)
 end
 
 function parsecase(sym::Symbol)
-  sym
+  if sym == :emptylist
+    []
+  else
+    sym
+  end
 end
 
 function parsecase(list::Array{})
-  Expr(:casetype, list...)
+  Expr(:casetype, map(parseau, list)...)
 end
 #(: map (-> (-> a b) (List a) (List b)))
 function parsetypeau(sexpr::AbstractArray)
   MLStyle.@match sexpr begin
     [τ, tvs...]  && if (istypesymbol(τ) && all(istypevarsymbol.(tvs)))  end => AExpr(:paramtype, τ, tvs...)
+    [τ, tvs] && if istypesymbol(τ) end                                      => AExpr(:paramtype, τ, parseau(tvs))
     [:->, τ1, τ2]                                                           => AExpr(:functiontype, parsetypeau(τ1), parsetypeau(τ2))
     [:×, τs...]                                                             => AExpr(:producttype, map(parsetypepau, τs)...)
     [:->, τs...]                                                            => AExpr(:functiontype, map(parsetypeau, τs)...)
@@ -93,7 +97,7 @@ end
 
 parseau(list::Array{BigInt, 1}) = list
 parsetypeau(s::Symbol) = s
-parseau(s::Symbol) = s
+parseau(s::Symbol) = parsecase(s)
 parseau(s::Union{Number, String}) = s
 
 """
