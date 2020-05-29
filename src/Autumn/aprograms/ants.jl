@@ -131,9 +131,7 @@ function next(click::Union{Click, Nothing})
   particles = map(nextParticle, particles)
   noFoodRemaining = length(filter(particle -> particle.color == "red" && particle.render, particles)) == 0
   
-  particlesHistory[time] = particles
-  clickHistory[time] = particles
+  particlesHistory[time] = deepcopy(particles)
+  clickHistory[time] = click
   noFoodRemainingHistory[time] = noFoodRemaining
 end
-
-
