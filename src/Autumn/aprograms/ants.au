@@ -3,8 +3,9 @@ GRID_SIZE = 16
 type alias Position = { x : Int, y : Int}
 type alias Particle = { position : Position, color : String, render : Boolean }
 
-type alias Click = { x : Int, y : Int}
-external click : Click | Nothing
+-- assume that two below lines are auto-defined, i.e. click can be used without explicit definition
+-- type alias Click = { x : Int, y : Int}
+-- external click : Click | Nothing
 
 particles : List Particle
 init particles = antGen(4)

@@ -14,7 +14,7 @@ x           := a | b | ... | aa ...
 program     := statement* 
 statement   := externaldecl | assignexpr | typedecl | typedef
 
-typedef     := type fields  #FIXME
+typedef     := type fields #FIXME
 fields      := field | fields field
 field       := constructor | constructor typesymbol*
 cosntructor := typesymbol
