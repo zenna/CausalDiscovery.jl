@@ -1,18 +1,15 @@
-GRID_SIZE = 16
+const GRID_SIZE = 16
 
-type alias Position = {Int, Int} -- x::Int, y::Int
+type alias Position = { x : Int, y : Int}
+type alias Particle = { position : Position }
 
--- A mouse click is a position that might occur
-type Click = x::Int, y::Int
-
--- click is an external time-varying value
-external click : Click | Nothing
-
-type Particle = particle Position #save
+-- assume that below line is auto-defined, i.e. Click can be used without explicit definition
+-- type alias Click = { x : Int, y : Int}
+external click : Click
 
 particles : List Particle
-init particles = []
-next particles = if occurred click
+particles = init [] 
+            next if occurred click
                  then prev particles :: particleGen (1, 1)
                  else map nextParticle particles
 
@@ -26,7 +23,7 @@ isFree position = length(filter (\particle -> particle.positon == position) part
 -- !! particles.position (above and below) is not valid Elm, should it be valid Autumn?
 
 isWithinBounds : Position -> Bool
-isWithinBounds position = position.x >= 0 && position.x < GRID_SIZE && position.y >= 0 and position.y < GRID_SIZE
+isWithinBounds position = position.x >= 0 && position.x < GRID_SIZE && position.y >= 0 && position.y < GRID_SIZE
 
 adjacentPositions : Position -> List
 adjacentPositions position = 
@@ -38,7 +35,7 @@ adjacentPositions position =
   positions
 
 -- At every time step, look for a free space around me and try to move into it
-nextParticle : Particle -> Particle #update
+nextParticle : Particle -> Particle
 nextParticle particle =
   let
     freePositions = filter isfree (adjacentPositions particle.position)
@@ -47,5 +44,5 @@ nextParticle particle =
       [] -> particle
       _ -> Particle (uniformChoice freePositions)  -- !! this uniformChoice is suepect, need to decide on probabilities
 
-particleGen : Position -> Particle #new
+particleGen : Position -> Particle
 particleGen initPosition = Particle initPosition

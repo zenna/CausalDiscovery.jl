@@ -85,7 +85,7 @@ istypesymbol(sym) = (q = string(sym); length(q) > 0 && isuppercase(q[1]))
 istypevarsymbol(sym) = (q = string(sym); length(q) > 0 && islowercase(q[1]))
 
 # ## Printing
-isinfix(f::Symbol) = f ∈ [:+, :-, :/, :*]
+isinfix(f::Symbol) = f ∈ [:+, :-, :/, :*, :&&, :||, :>=, :<=, :>, :<, :(==)]
 isinfix(f) = false
 
 
@@ -100,24 +100,25 @@ function showstring(expr::Expr)
     Expr(:externaldecl, x, val) => "external $x : $(showstring(val))"
     Expr(:external, val) => "external $(showstring(val))"
     Expr(:assign, x, val) => "$x $(needequals(val)) $(showstring(val))"
-    Expr(:if, i, t, e) => "if $(showstring(i)) then $(showstring(t)) else $(showstring(e))"
+    Expr(:if, i, t, e) => "if ($(showstring(i))) then ($(showstring(t))) else ($(showstring(e)))"
     Expr(:initnext, i, n) => "init $(showstring(i)) next $(showstring(n))"
     Expr(:args, args...) => join(map(showstring, args), " ")
     Expr(:call, f, arg1, arg2) && if isinfix(f) end => "$(showstring(arg1)) $f $(showstring(arg2))"
-    Expr(:call, f, args...) => join(map(showstring, [f ; args]), " ")
+    Expr(:call, f, args...) => "($(join(map(showstring, [f ; args]), " ")))"
     Expr(:let, vars, val) => "let \n\t$(join(map(showstring, vars), "\n\t"))\n in \n\t $(showstring(val))"
     Expr(:paramtype, type, param) => string(type, " ", param)
     Expr(:paramtype, type) => string(type)
     Expr(:case, type, vars...) => string("\n\tcase $(showstring(type)) of \n\t\t", join(map(showstring, vars), "\n\t\t"))
-    Expr(:casevalue, type, value) => "($(showstring(type))) => $value"
+    Expr(:casevalue, type, value) => "$(showstring(type)) => $value"
     Expr(:casetype, type, vars...) => "$type $(join(vars, " "))"
     Expr(:type, vars...) => "type $(vars[1]) $(vars[2]) = $(join(map(showstring, vars[3:length(vars)]), " | "))"
     Expr(:typealias, var, val) => "type alias $(showstring(var)) = $(showstring(val))"
-    Expr(:fn, params, body) => "$(showstring(params)) -> ($(showstring(body)))"
+    Expr(:fn, params, body) => "fn $(showstring(params)) ($(showstring(body)))"
     Expr(:list, vals...) => "($(join(vals, ", ")))"
     Expr(:field, var, field) => "$(showstring(var)).$(showstring(field))"
     Expr(:typealiasargs, vals...) => "$(string("{ ", join(map(showstring, vals), ", ")," }"))"
-    Expr(:lambda, var, val) => "($(showstring(var)) -> $(showstring(val)))"
+    Expr(:lambda, var, val) => "($(showstring(var)) -> ($(showstring(val))))"
+    Expr(:const, assignment) => "const $(showstring(assignment))"
     x                       => "Fail $x"
 
   end

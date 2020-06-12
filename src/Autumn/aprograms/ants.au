@@ -8,9 +8,9 @@ type alias Particle = { position : Position, color : String, render : Boolean }
 external click : Click
 
 particles : List Particle
-init particles = antGen(4)
-next particles = if occurred click && noFoodRemaining
-                 then particles :: foodGen(4)
+particles = init antGen(4)
+            next if occurred click && noFoodRemaining
+                 then (prev particles) :: foodGen(4)
                  else map nextParticle particles
 
 -- compute Manhattan distance between two particles
@@ -32,7 +32,7 @@ antGen count =
     xCoords = uniformChoice (range 0 (GRID_SIZE-1)) count
     yCoords = uniformChoice (range 0 (GRID_SIZE-1)) count
 
-    positions = concatMap ( \xCoord -> List.map ( \yCoord -> {x = xCoord, y = yCoord} ) yCoords ) xCoords
+    positions = concatMap ( \xCoord -> map ( \yCoord -> {x = xCoord, y = yCoord} ) yCoords ) xCoords
     ants = map createAnt positions
   in
   ants
@@ -44,7 +44,7 @@ foodGen count =
     xCoords = uniformChoice (range 0 (GRID_SIZE-1)) count
     yCoords = uniformChoice (range 0 (GRID_SIZE-1)) count
 
-    positions = concatMap ( \xCoord -> List.map ( \yCoord -> {x = xCoord, y = yCoord} ) yCoords ) xCoords
+    positions = concatMap ( \xCoord -> map ( \yCoord -> Position xCoord yCoord ) yCoords ) xCoords
     food = map createFood positions
   in
   food
