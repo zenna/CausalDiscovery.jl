@@ -4,7 +4,8 @@ export init, next, AProgram
 
 "Autumn Program"
 struct AProgram
-  x
+  expr::Expr
+  
 end
 
 "Return state of `p::Program` initialised with external values `externals` "

@@ -13,22 +13,19 @@ end
 
 struct Particle
   position::Position
-  id::Int # based on global counter variable
 end
 
 """ ----- global variables --- """
 GRID_SIZE = 16
 particles = []
-
-# history-related 
-history = Dict{Int64, Any}
-global_count = 0
 time = 0
 
+# history-related 
+particlesHistory = Dict{Int64, Any}
+clickHistory = Dict{Int64, Any}
+
 """ ----- helper functions ----- """
-function nparticles
-  length(particles)
-end
+nparticles = length(particles)
 
 function isFree(position::Position)::Bool
   length(filter(particle -> particle.position == position, particles)) == 0
@@ -53,23 +50,12 @@ function nextParticle(particle::Particle)::Particle
     newPosition = freePositions[rand(Categorical(ones(length(freePositions))/length(freePositions)))]
     nextParticle = Particle(newPosition, particle.id)
 
-    # BEGIN HISTORY HANDLING
-    history[nextParticle.id][time] = nextParticle
-    # END HISTORY HANDLING
-
     nextParticle
   end
 end
 
 function particleGen(initPosition::Position)::Particle
-  particle = Particle(initPosition, global_count)
-  
-  # BEGIN HISTORY HANDLING
-  global_count += 1
-  history[global_count] = Dict([(time, particle)])
-  # END HISTORY HANDLING
-
-  particle
+  Particle(initPosition)
 end
 
 """ ----- INIT and NEXT functions ----- """
@@ -83,7 +69,10 @@ function next(click::Union{Click, Nothing})
   if click != Nothing
     particleGen(1,1)
   end
-  map(nextParticle, particles)
+  particles = map(nextParticle, particles)
+  
+  particlesHistory[time] = deepcopy(particles)
+  clickHistory[time] = click
 end
 
 

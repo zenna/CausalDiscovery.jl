@@ -1,6 +1,6 @@
 const GRID_SIZE = 16
 
-type alias Position = { x : Int, y : Int}
+type alias Position = { x : Int, y : Int }
 type alias Particle = { position : Position }
 
 -- assume that below line is auto-defined, i.e. Click can be used without explicit definition
