@@ -8,7 +8,7 @@
 
   (: particles (List Particle))
   (= particles (initnext (list) (if (occurred click) 
-                               then (extend (prev particles) (particleGen 1 1)) 
+                               then (push! (prev particles) (particleGen 1 1)) 
                                else (map nextParticle particles))))
   
   (= nparticles (length particles))

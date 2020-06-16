@@ -15,6 +15,7 @@ fixedSymbols = [:+, :-, :/, :*, :&&, :||, :>=, :<=, :>, :<, :(==)]
 historyVars = []
 externalVars = []
 initnextVars = []
+initnextOther = []
 types = []
 
 AutumnCompileError() = AutumnCompileError("")
@@ -34,14 +35,18 @@ function compileToJulia(aexpr::AExpr) #::AProgram
     println(string("initnextVars: ", repr(initnextVars)))
     println(string("historyVars: ", repr(historyVars)))
     initFunction = string("function init()\n", 
-                          join(map(x -> string("\t",toRepr(x.args[1]), " = ", toRepr(x.args[2].args[1]), "\n"), initnextVars)), 
+                          join(map(x -> string("\t",toRepr(x.args[1]), " = ", toRepr(x.args[2].args[1]), "\n"), initnextVars)),
+                          "\n", 
+                          join(map(expr -> string(toRepr(expr.args[1]), " = ", toRepr(expr.args[2]), "\n"), initnextOther)),
                           "\nend\n")
     println("hi 2.5")
     nextFunction = string("function next(", 
-                          join(map(x -> toRepr(x.args[1].args[1]), externalVars),","), 
+                          join(map(x -> toRepr(x), externalVars),","), 
                           ")\n time += 1\n", 
                           join(map(x -> string("\t",toRepr(x.args[1]), " = ", toRepr(x.args[2].args[2]), "\n"), initnextVars)),
                           "\n", 
+                          join(map(expr -> string(toRepr(expr.args[1]), " = ", toRepr(expr.args[2]), "\n"), initnextOther)),
+                          "\n",
                           join(map(expr -> string(toRepr(expr),"History[time] = deepcopy(",toRepr(expr),")\n"), historyVars),"\n"), 
                           "\nend\n")
     println("hi 3")
@@ -50,7 +55,9 @@ function compileToJulia(aexpr::AExpr) #::AProgram
     println("nextFunction")
     println(nextFunction)
     println("nextFunction end")
-    args = vcat(["quote\n"],args, initGlobalVars, initHistoryDictArgs, ["end"])
+    prevFunctions = join(map(x -> string(toRepr(x),"Prev = function(n::Int=0) \n", toRepr(x),"History[time - n]\nend\n"), historyVars)) 
+    println(string("prevFunctions: ", prevFunctions))
+    args = vcat(["quote\n using Distributions\n"], initGlobalVars, initHistoryDictArgs, prevFunctions, """uniformChoice = function(freePositions)\n freePositions[rand(Categorical(ones(length(freePositions))/length(freePositions)))] \nend\n""",args,["end"])
     println(join(args))
     Meta.parse(join(args)).args[1]
   else
@@ -68,11 +75,16 @@ function toRepr(expr::AExpr, parent=Nothing)::String
    if (typeof(expr.args[2]) == AExpr && expr.args[2].head == :initnext)
       println("HERE")
       push!(initnextVars, expr)
+      push!(historyVars, expr.args[1])
       ""
     else
       if parent != Nothing && (parent.head == :program || parent.head == :external)
         if !(typeof(expr.args[2]) == AExpr && expr.args[2].head == :fn)
           push!(historyVars, expr.args[1])
+          # patch fix, will refactor
+          if (parent.head == :program)
+            push!(initnextOther, expr)
+          end
         end
         ""
       end
@@ -83,7 +95,7 @@ function toRepr(expr::AExpr, parent=Nothing)::String
     ""
   elseif expr.head == :external
     println("HELLO")
-    push!(externalVars, expr)
+    push!(externalVars, expr.args[1].args[1])
     push!(historyVars, expr.args[1].args[1])
     ""
   elseif expr.head == :const
@@ -112,8 +124,10 @@ function toRepr(expr::AExpr, parent=Nothing)::String
     string("[",join(map(toRepr, expr.args),","),"]")
   elseif expr.head == :call
     fnName = expr.args[1]
-    if !(fnName in fixedSymbols)
+    if !(fnName in fixedSymbols) && fnName != :prev
       string(toRepr(fnName), "(", join(map(toRepr, expr.args[2:end]), ", "), ")")
+    elseif fnName == :prev 
+      string(toRepr(fnName), uppercase(toRepr(expr.args[2])[1]), toRepr(expr.args[2])[2:end],"(",join(map(toRepr, expr.args[3:end])),")")
     elseif fnName != :(==)
       string("(", toRepr(expr.args[2]) ,toRepr(fnName), toRepr(expr.args[3]), ")")
     else
