@@ -24,22 +24,17 @@ AutumnCompileError() = AutumnCompileError("")
 function compileToJulia(aexpr::AExpr) #::AProgram
   if (aexpr.head == :program)
     args = map(arg -> toRepr(arg, aexpr), aexpr.args)
-    println("hi 1")
     # handle history 
     initGlobalVars = map(expr -> string(toRepr(expr), " = Nothing\n"), historyVars)
     push!(initGlobalVars, "time = 0\n")
     initHistoryDictArgs = map(expr -> string(toRepr(expr),"History = Dict{Any, Any}\n"), historyVars)
     println("hi 2")
     # handle initnext
-    println(string("externalVars: ", repr(externalVars)))
-    println(string("initnextVars: ", repr(initnextVars)))
-    println(string("historyVars: ", repr(historyVars)))
     initFunction = string("function init()\n", 
                           join(map(x -> string("\t",toRepr(x.args[1]), " = ", toRepr(x.args[2].args[1]), "\n"), initnextVars)),
                           "\n", 
                           join(map(expr -> string(toRepr(expr.args[1]), " = ", toRepr(expr.args[2]), "\n"), initnextOther)),
                           "\nend\n")
-    println("hi 2.5")
     nextFunction = string("function next(", 
                           join(map(x -> toRepr(x), externalVars),","), 
                           ")\n time += 1\n", 
@@ -49,16 +44,13 @@ function compileToJulia(aexpr::AExpr) #::AProgram
                           "\n",
                           join(map(expr -> string(toRepr(expr),"History[time] = deepcopy(",toRepr(expr),")\n"), historyVars),"\n"), 
                           "\nend\n")
-    println("hi 3")
     push!(args, initFunction, nextFunction)
-    println("hi 4")
-    println("nextFunction")
-    println(nextFunction)
-    println("nextFunction end")
+    
+    # construct prev functions
     prevFunctions = join(map(x -> string(toRepr(x),"Prev = function(n::Int=0) \n", toRepr(x),"History[time - n]\nend\n"), historyVars)) 
-    println(string("prevFunctions: ", prevFunctions))
+
     args = vcat(["quote\n using Distributions\n"], initGlobalVars, initHistoryDictArgs, prevFunctions, """uniformChoice = function(freePositions)\n freePositions[rand(Categorical(ones(length(freePositions))/length(freePositions)))] \nend\n""",args,["end"])
-    println(join(args))
+    # println(join(args))
     Meta.parse(join(args)).args[1]
   else
     throw(AutumnCompileError())
@@ -73,7 +65,6 @@ function toRepr(expr::AExpr, parent=Nothing)::String
     string("(",toRepr(cond, expr), ") ? ", toRepr(then, expr), " : ", toRepr(els, expr), "\n")
   elseif expr.head == :assign
    if (typeof(expr.args[2]) == AExpr && expr.args[2].head == :initnext)
-      println("HERE")
       push!(initnextVars, expr)
       push!(historyVars, expr.args[1])
       ""
@@ -94,7 +85,6 @@ function toRepr(expr::AExpr, parent=Nothing)::String
     push!(types, expr)
     ""
   elseif expr.head == :external
-    println("HELLO")
     push!(externalVars, expr.args[1].args[1])
     push!(historyVars, expr.args[1].args[1])
     ""
