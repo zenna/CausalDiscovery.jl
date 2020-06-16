@@ -28,7 +28,6 @@ function compileToJulia(aexpr::AExpr) #::AProgram
     initGlobalVars = map(expr -> string(toRepr(expr), " = Nothing\n"), historyVars)
     push!(initGlobalVars, "time = 0\n")
     initHistoryDictArgs = map(expr -> string(toRepr(expr),"History = Dict{Any, Any}\n"), historyVars)
-    println("hi 2")
     # handle initnext
     initFunction = string("function init()\n", 
                           join(map(x -> string("\t",toRepr(x.args[1]), " = ", toRepr(x.args[2].args[1]), "\n"), initnextVars)),
