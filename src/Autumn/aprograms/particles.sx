@@ -8,14 +8,14 @@
 
   (: particles (List Particle))
   (= particles (initnext (list) (if (occurred click) 
-                               then (:: (prev particles) (particleGen 1 1)) 
+                               then (extend (prev particles) (particleGen 1 1)) 
                                else (map nextParticle particles))))
   
   (= nparticles (length particles))
   
   (: isFree (-> Position Bool))
   (= isFree (fn (position) 
-                (length (filter (-> (particle) (== (.. particle position) position)) particles))))
+                (length (filter (--> particle (== (.. particle position) position)) particles))))
 
   (: isWithinBounds (-> Position Bool))
   (= isWithinBounds (fn (position) 

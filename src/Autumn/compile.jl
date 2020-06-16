@@ -4,66 +4,92 @@ module Compile
 using ..AExpressions
 using ..Program
 
+export compileToJulia, toRepr
+
 struct AutumnCompileError <: Exception
   msg
 end
 
-AutumnCompileError() = AutumnCompileError("")
+fixedSymbols = [:+, :-, :/, :*, :&&, :||, :>=, :<=, :>, :<, :(==)]
 
 historyVars = []
 externalVars = []
 initnextVars = []
+types = []
+
+AutumnCompileError() = AutumnCompileError("")
 
 "Compile `aexpr` into `program::Program`"
-function compileToJulia(aexpr::AExpr)::AProgram
+function compileToJulia(aexpr::AExpr) #::AProgram
   if (aexpr.head == :program)
     args = map(arg -> toRepr(arg, aexpr), aexpr.args)
-    
-    # handle initnext and history 
-    globalVars = map(expr -> string(toRepr(expr.args[1], " = Nothing\n"), historyVars))
-    push!(globalVars, "time = 0\n")
-    initHistoryDictArgs = map(expr -> string(toRepr(expr.args[1]),"History = Dict{Any, Any}"), historyVars)
-    
-    initnextFunctionArgs = []
-    initFunction = string("function init()\n", join(map(x -> string("\t",toRepr(x.args[1]), " == ", toRepr(x.args[2].args[1]), "\n")), initnextFunctionArgs), "\nend")
-    nextFunction = string("function next(", join(map(x -> toRepr(x.args[1].args[1]), externalVars)), ")\n", join(map(x -> string("\t",toRepr(x.args[1]), " == ", toRepr(x.args[2].args[1]), "\n")), initnextFunctionArgs),"\n", join(map(expr -> string(toRepr(expr.args[1]),"History[time] = deepcopy(",toRepr(expr.args[1],")\n")), historyVars),"\n"), "\nend")
-
+    println("hi 1")
+    # handle history 
+    initGlobalVars = map(expr -> string(toRepr(expr), " = Nothing\n"), historyVars)
+    push!(initGlobalVars, "time = 0\n")
+    initHistoryDictArgs = map(expr -> string(toRepr(expr),"History = Dict{Any, Any}\n"), historyVars)
+    println("hi 2")
+    # handle initnext
+    println(string("externalVars: ", repr(externalVars)))
+    println(string("initnextVars: ", repr(initnextVars)))
+    println(string("historyVars: ", repr(historyVars)))
+    initFunction = string("function init()\n", 
+                          join(map(x -> string("\t",toRepr(x.args[1]), " = ", toRepr(x.args[2].args[1]), "\n"), initnextVars)), 
+                          "\nend\n")
+    println("hi 2.5")
+    nextFunction = string("function next(", 
+                          join(map(x -> toRepr(x.args[1].args[1]), externalVars),","), 
+                          ")\n time += 1\n", 
+                          join(map(x -> string("\t",toRepr(x.args[1]), " = ", toRepr(x.args[2].args[2]), "\n"), initnextVars)),
+                          "\n", 
+                          join(map(expr -> string(toRepr(expr),"History[time] = deepcopy(",toRepr(expr),")\n"), historyVars),"\n"), 
+                          "\nend\n")
+    println("hi 3")
     push!(args, initFunction, nextFunction)
-    args = vcat(args, globalVars, initHistoryDictArgs)
-
-    Expr(:block, map(Meta.parse, split(join(args), "\n")...))
+    println("hi 4")
+    println("nextFunction")
+    println(nextFunction)
+    println("nextFunction end")
+    args = vcat(["quote\n"],args, initGlobalVars, initHistoryDictArgs, ["end"])
+    println(join(args))
+    Meta.parse(join(args)).args[1]
   else
     throw(AutumnCompileError())
   end
 end
 
-function toRepr(expr::AExpr, parent::Union{AExpr, Nothing}=Nothing)::String
+function toRepr(expr::AExpr, parent=Nothing)::String
   if expr.head == :if
-    var = parent.args[1]
     cond = expr.args[1]
     then = expr.args[2]
     els = expr.args[3]
-    string("if (", toRepr(cond), ")\n", toRepr(var), " = ", toRepr(then), "\nelse", toRepr(var), " = ", toRepr(els), "\nend")
+    string("(",toRepr(cond, expr), ") ? ", toRepr(then, expr), " : ", toRepr(els, expr), "\n")
   elseif expr.head == :assign
-    if (typeof(expr.args[2]) == AExpr && expr.args[2].head == :if)
-      toRepr(expr.args[2], expr)
-    elseif expr.args[2].head == :initnext
+   if (typeof(expr.args[2]) == AExpr && expr.args[2].head == :initnext)
+      println("HERE")
       push!(initnextVars, expr)
+      ""
     else
-      if parent.head == :program || parent.head == :external
-        push!(historyVars, expr)
+      if parent != Nothing && (parent.head == :program || parent.head == :external)
+        if !(typeof(expr.args[2]) == AExpr && expr.args[2].head == :fn)
+          push!(historyVars, expr.args[1])
+        end
+        ""
       end
       string(toRepr(expr.args[1]), " = ", toRepr(expr.args[2]), "\n")
     end
   elseif expr.head == :typedecl
-    string(toRepr(expr.args[1], " : ", toRepr(expr.args[2])), "\n")
+    push!(types, expr)
+    ""
   elseif expr.head == :external
+    println("HELLO")
     push!(externalVars, expr)
-    string("external ", toRepr(expr.args[1]), "\n")
+    push!(historyVars, expr.args[1].args[1])
+    ""
   elseif expr.head == :const
-    string("const ", toRepr(expr.args[1]), "\n")
+    string("const ", toRepr(expr.args[1], expr), "\n")
   elseif expr.head == :let
-    string(join(map(toRepr, expr.args[1]),"\n"), toRepr(expr.args[2]))
+    string(join(map(x -> toRepr(x, expr), expr.args[1]),"\n"), toRepr(expr.args[2]))
   elseif expr.head == :case
     name = expr.args[1]
     cases = expr.args[2]
@@ -73,25 +99,34 @@ function toRepr(expr::AExpr, parent::Union{AExpr, Nothing}=Nothing)::String
     fields = map(field -> (
       string(repr(field.args[1])[2:end], "::", repr(field.args[2])[2:end])
     ), expr.args[2].args)
-    string("struct ", repr(name)[2:end], "\n", join(fields, "\n"), "end")
+    string("struct ", toRepr(name), "\n", join(fields, "\n"), "\nend\n")
   elseif expr.head == :fn
-    string("function", toRepr(expr.args[1]), "\n", join(map(toRepr, expr.args[2], "\n")), "\nend\n")    
+    string("function(", toRepr(expr.args[1])[2:(end-1)], ")\n", toRepr(expr.args[2]), "\nend\n")    
   elseif expr.head == :lambda
     string(toRepr(expr.args[1]), " -> " , toRepr(expr.args[2]))
   elseif expr.head == :list
-    repr(expr.args)[4:end]
+    string("[",join(map(toRepr, expr.args),","),"]")
   elseif expr.head == :call
-    string(toRepr(expr.args[1]), "(", join(map(repr, expr.args[2:end]), ", "), ")")
+    fnName = expr.args[1]
+    if !(fnName in fixedSymbols)
+      string(toRepr(fnName), "(", join(map(toRepr, expr.args[2:end]), ", "), ")")
+    elseif fnName != :(==)
+      string("(", toRepr(expr.args[2]) ,toRepr(fnName), toRepr(expr.args[3]), ")")
+    else
+      string("(", toRepr(expr.args[2]) ," == ", toRepr(expr.args[3]), ")")
+    end
+  elseif expr.head == :field
+    string(toRepr(expr.args[1]), ".", toRepr(expr.args[2]))
   else
-    throw(AutumnCompileError())
+    throw(AutumnCompileError(string("expr.head is undefined: ",repr(expr.head))))
   end
 end
 
-function toRepr(expr::Symbol)::String
+function toRepr(expr::Symbol, parent=Nothing)::String
   repr(expr)[2:end]
 end
 
-function toRepr(expr)::String
+function toRepr(expr, parent=Nothing)::String
   repr(expr)
 end
 
