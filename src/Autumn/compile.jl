@@ -92,8 +92,12 @@ function toRepr(expr::AExpr, parent=Nothing)::String
     string(join(map(x -> toRepr(x, expr), expr.args[1]),"\n"), toRepr(expr.args[2]))
   elseif expr.head == :case
     name = expr.args[1]
-    cases = expr.args[2]
-    string("if ", toRepr(name), " == ", toRepr(cases[1].args[1]), "\n", toRepr(cases[1].args[2]), map(x -> string("elseif ", toRepr(name), " == ", toRepr(x.args[1]), "\n", toRepr(x.args[2]), "\n"), cases[2:end]), "\nend") #TODO
+    string("if ", toRepr(name), " == ", toRepr(expr.args[2].args[1]), "\n", 
+      toRepr(expr.args[2].args[2]), "\n", 
+      join(map(x -> (x.args[1] == :_) ?
+          string("else\n", toRepr(x.args[2])) :
+          string("elseif ", toRepr(name), " == ", toRepr(x.args[1]), "\n", toRepr(x.args[2]), "\n"), expr.args[3:end])),
+    "\nend")
   elseif expr.head == :typealias
     name = expr.args[1]
     fields = map(field -> (

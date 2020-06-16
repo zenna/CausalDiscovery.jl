@@ -66,8 +66,7 @@ end
 #(: map (-> (-> a b) (List a) (List b)))
 function parsetypeau(sexpr::AbstractArray)
   MLStyle.@match sexpr begin
-    [τ, tvs...]  && if (istypesymbol(τ) && all(istypevarsymbol.(tvs)))  end => AExpr(:paramtype, τ, tvs...)
-    [:->, τ1, τ2]                                                           => AExpr(:functiontype, parsetypeau(τ1), parsetypeau(τ2))
+    [τ, tvs...] && if (istypesymbol(τ) && all(istypevarsymbol.(tvs)))   end => AExpr(:paramtype, τ, tvs...)
     [:->, τs...]                                                            => AExpr(:functiontype, map(parsetypeau, τs)...)
     τ && if istypesymbol(τ) end                                             => τ
   end
