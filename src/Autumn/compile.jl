@@ -102,7 +102,7 @@ function compileToJulia(aexpr::AExpr)::Expr
       if !(fnName in fixedSymbols) && fnName != :prev
         string(toRepr(fnName), "(", join(map(toRepr, expr.args[2:end]), ", "), ")")
       elseif fnName == :prev 
-        string(toRepr(fnName), uppercase(toRepr(expr.args[2])[1]), toRepr(expr.args[2])[2:end],"(",join(map(toRepr, expr.args[3:end])),")")
+        string(toRepr(expr.args[2]),"Prev(",join(map(toRepr, expr.args[3:end])),")")
       elseif fnName != :(==)
         string("(", toRepr(expr.args[2]) ,toRepr(fnName), toRepr(expr.args[3]), ")")
       else
@@ -141,13 +141,14 @@ function compileToJulia(aexpr::AExpr)::Expr
     args = map(arg -> toRepr(arg, aexpr), aexpr.args)
     # handle history 
     initGlobalVars = map(expr -> string(toRepr(expr), " = nothing\n"), data["historyVars"])
-    push!(initGlobalVars, "global time = 0\n")
+    push!(initGlobalVars, "time = 0\n")
     initHistoryDictArgs = map(expr -> string(toRepr(expr),"History = Dict{Int64, Any}()\n"), data["historyVars"])
     # handle initnext
     initFunction = string("function init()\n", 
                           join(map(x -> string("\t global ",toRepr(x.args[1]), " = ", toRepr(x.args[2].args[1]), "\n"), data["initnextVars"])),
                           "\n", 
                           join(map(expr -> string("global ",toRepr(expr.args[1]), " = ", toRepr(expr.args[2]), "\n"), data["liftedVars"])),
+                          join(map(expr -> string(toRepr(expr),"History[time] = deepcopy(",toRepr(expr),")\n"), data["historyVars"]),"\n"), 
                           "\nend\n")
     nextFunction = string("function next(", 
                           join(map(x -> toRepr(x), data["externalVars"]),","), 
@@ -162,7 +163,7 @@ function compileToJulia(aexpr::AExpr)::Expr
     
     # construct built-in functions
     prevFunctions = join(map(x -> string(toRepr(x),"Prev = function(n::Int=0) \n", toRepr(x),"History[time - n]\nend\n"), data["historyVars"])) 
-    occurredFunction = """function occurred(click)\n click != nothing \nend\n"""
+    occurredFunction = """function occurred(click)\n click !== nothing \nend\n"""
     uniformChoiceFunction = """uniformChoice = function(freePositions)\n freePositions[rand(Categorical(ones(length(freePositions))/length(freePositions)))] \nend\n"""
     clickType = """struct Click\n x::Int\n y::Int\n end\n"""
     args = vcat(["quote\n module CompiledProgram \n export init, next \n using Distributions\n"], initGlobalVars, initHistoryDictArgs, prevFunctions, occurredFunction, uniformChoiceFunction, clickType, args,["\nend\nend"])
