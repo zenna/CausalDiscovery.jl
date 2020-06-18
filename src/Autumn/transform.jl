@@ -25,7 +25,6 @@ xnew = replace(x, sub)   # Construct `x`
 ```
 """
 
-
 abstract type NonTerminal end
 
 struct Statement <: NonTerminal end
