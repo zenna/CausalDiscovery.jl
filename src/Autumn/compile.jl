@@ -4,7 +4,7 @@ module Compile
 using ..AExpressions
 using ..Program
 
-export compileToJulia, toRepr
+export compileToJulia
 
 struct AutumnCompileError <: Exception
   msg
@@ -15,16 +15,16 @@ fixedSymbols = [:+, :-, :/, :*, :&&, :||, :>=, :<=, :>, :<, :(==)]
 AutumnCompileError() = AutumnCompileError("")
 
 "Compile `aexpr` into `program::Program`"
-function compileToJulia(aexpr::AExpr) #::AProgram
+function compileToJulia(aexpr::AExpr)::Expr
 
   ### DATA ###
   data = Dict([("historyVars" => []),
                ("externalVars" => []),
                ("initnextVars" => []),
-               ("initnextOther" => []),
-               ("types" => [])])
+               ("liftedVars" => []),
+               ("types" => Dict())])
 
-  ### HELPER FUNCTION ###
+  ### HELPER FUNCTIONS ###
   function toRepr(expr::AExpr, parent=Nothing)::String
     if expr.head == :if
       cond = expr.args[1]
@@ -42,16 +42,32 @@ function compileToJulia(aexpr::AExpr) #::AProgram
             push!(data["historyVars"], expr.args[1])
             # patch fix, will refactor
             if (parent.head == :program)
-              push!(data["initnextOther"], expr)
+              push!(data["liftedVars"], expr)
             end
+            ""
+          else
+            if haskey(data["types"], (expr.args[1], parent))
+              type = data["types"][(expr.args[1], parent)]
+              string("function ", toRepr(expr.args[1]), typedFnHelper(expr.args[2], type), "\n")              
+            else
+              string(toRepr(expr.args[1]), " = ", toRepr(expr.args[2]), "\n")            
+            end  
           end
-          ""
         else
-          string(toRepr(expr.args[1]), " = ", toRepr(expr.args[2]), "\n")
+          if haskey(data["types"], (expr.args[1], parent))
+            type = data["types"][(expr.args[1], parent)]
+            if !(typeof(expr.args[2]) == AExpr && expr.args[2].head == :fn)
+              string(toRepr(expr.args[1]), "::", toRepr(type), " = ", toRepr(expr.args[2]), "\n")
+            else
+              string("function ", toRepr(expr.args[1]), typedFnHelper(expr.args[2], type), "\n")              
+            end
+          else
+            string(toRepr(expr.args[1]), " = ", toRepr(expr.args[2]), "\n")            
+          end
         end
       end
     elseif expr.head == :typedecl
-      push!(data["types"], expr)
+      data["types"][(expr.args[1], parent)] = expr.args[2]
       ""
     elseif expr.head == :external
       push!(data["externalVars"], expr.args[1].args[1])
@@ -98,9 +114,26 @@ function compileToJulia(aexpr::AExpr) #::AProgram
       throw(AutumnCompileError(string("expr.head is undefined: ",repr(expr.head))))
     end
   end
-  
+
+  function toRepr(expr::AbstractArray, parent=Nothing)::String
+    if expr == [] 
+      "" 
+    elseif (expr[1] == :List)
+      string("Array{", toRepr(expr[2:end]),"}")
+    else
+      string(expr[1])
+    end
+  end
+
   function toRepr(expr, parent=Nothing)::String
     string(expr)
+  end
+
+  function typedFnHelper(expr, type)
+    args = expr.args[1].args
+    argTypes = type.args[1:(end-1)]
+    tuples = [(arg, type) for arg in args, type in argTypes]
+    string("(", join(map(x -> string(toRepr(x[1]), "::", toRepr(x[2])), tuples), ", "), ")::", toRepr(type.args[end]),"\n", toRepr(expr.args[2]), "\nend\n")    
   end
 
   ### COMPILATION ###
@@ -109,19 +142,19 @@ function compileToJulia(aexpr::AExpr) #::AProgram
     # handle history 
     initGlobalVars = map(expr -> string(toRepr(expr), " = Nothing\n"), data["historyVars"])
     push!(initGlobalVars, "global time = 0\n")
-    initHistoryDictArgs = map(expr -> string(toRepr(expr),"History = Dict{Any, Any}\n"), data["historyVars"])
+    initHistoryDictArgs = map(expr -> string(toRepr(expr),"History = Dict{Int64, Any}()\n"), data["historyVars"])
     # handle initnext
     initFunction = string("function init()\n", 
                           join(map(x -> string("\t global ",toRepr(x.args[1]), " = ", toRepr(x.args[2].args[1]), "\n"), data["initnextVars"])),
                           "\n", 
-                          join(map(expr -> string("global ",toRepr(expr.args[1]), " = ", toRepr(expr.args[2]), "\n"), data["initnextOther"])),
+                          join(map(expr -> string("global ",toRepr(expr.args[1]), " = ", toRepr(expr.args[2]), "\n"), data["liftedVars"])),
                           "\nend\n")
     nextFunction = string("function next(", 
                           join(map(x -> toRepr(x), data["externalVars"]),","), 
                           ")\n global time += 1\n", 
                           join(map(x -> string("\t global ",toRepr(x.args[1]), " = ", toRepr(x.args[2].args[2]), "\n"), data["initnextVars"])),
                           "\n", 
-                          join(map(expr -> string("global ",toRepr(expr.args[1]), " = ", toRepr(expr.args[2]), "\n"), data["initnextOther"])),
+                          join(map(expr -> string("global ",toRepr(expr.args[1]), " = ", toRepr(expr.args[2]), "\n"), data["liftedVars"])),
                           "\n",
                           join(map(expr -> string(toRepr(expr),"History[time] = deepcopy(",toRepr(expr),")\n"), data["historyVars"]),"\n"), 
                           "\nend\n")
@@ -131,10 +164,12 @@ function compileToJulia(aexpr::AExpr) #::AProgram
     prevFunctions = join(map(x -> string(toRepr(x),"Prev = function(n::Int=0) \n", toRepr(x),"History[time - n]\nend\n"), data["historyVars"])) 
     occurredFunction = """function occurred(click)\n click != Nothing \nend\n"""
     uniformChoiceFunction = """uniformChoice = function(freePositions)\n freePositions[rand(Categorical(ones(length(freePositions))/length(freePositions)))] \nend\n"""
-
-    args = vcat(["quote\n using Distributions\n"], initGlobalVars, initHistoryDictArgs, prevFunctions, occurredFunction, uniformChoiceFunction,args,["end"])
-    # println(join(args))
-    Meta.parse(join(args)).args[1]
+    clickType = """struct Click\n x::Int\n y::Int\n end\n"""
+    args = vcat(["quote\n module CompiledProgram \n export init, next \n using Distributions\n"], initGlobalVars, initHistoryDictArgs, prevFunctions, occurredFunction, uniformChoiceFunction, clickType, args,["\nend\nend"])
+    println(join(args))
+    expr = Meta.parse(join(args))
+    expr.args[1].head = :toplevel
+    expr.args[1]
   else
     throw(AutumnCompileError())
   end
