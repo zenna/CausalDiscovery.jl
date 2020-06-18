@@ -1,3 +1,5 @@
+module CompiledProgram
+
 using Distributions
 
 """ ----- custom types ----- """
@@ -75,7 +77,7 @@ function next(click::Union{Click, Nothing})
   clickHistory[time] = click
 end
 
-
+end
 
 
 

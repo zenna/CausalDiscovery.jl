@@ -25,7 +25,7 @@ function compileToJulia(aexpr::AExpr)::Expr
                ("types" => Dict())])
 
   ### HELPER FUNCTIONS ###
-  function toRepr(expr::AExpr, parent=Nothing)::String
+  function toRepr(expr::AExpr, parent=nothing)::String
     if expr.head == :if
       cond = expr.args[1]
       then = expr.args[2]
@@ -37,7 +37,7 @@ function compileToJulia(aexpr::AExpr)::Expr
         push!(data["historyVars"], expr.args[1])
         ""
       else
-        if parent != Nothing && (parent.head == :program || parent.head == :external)
+        if parent != nothing && (parent.head == :program || parent.head == :external)
           if !(typeof(expr.args[2]) == AExpr && expr.args[2].head == :fn)
             push!(data["historyVars"], expr.args[1])
             # patch fix, will refactor
@@ -115,7 +115,7 @@ function compileToJulia(aexpr::AExpr)::Expr
     end
   end
 
-  function toRepr(expr::AbstractArray, parent=Nothing)::String
+  function toRepr(expr::AbstractArray, parent=nothing)::String
     if expr == [] 
       "" 
     elseif (expr[1] == :List)
@@ -125,7 +125,7 @@ function compileToJulia(aexpr::AExpr)::Expr
     end
   end
 
-  function toRepr(expr, parent=Nothing)::String
+  function toRepr(expr, parent=nothing)::String
     string(expr)
   end
 
@@ -140,7 +140,7 @@ function compileToJulia(aexpr::AExpr)::Expr
   if (aexpr.head == :program)
     args = map(arg -> toRepr(arg, aexpr), aexpr.args)
     # handle history 
-    initGlobalVars = map(expr -> string(toRepr(expr), " = Nothing\n"), data["historyVars"])
+    initGlobalVars = map(expr -> string(toRepr(expr), " = nothing\n"), data["historyVars"])
     push!(initGlobalVars, "global time = 0\n")
     initHistoryDictArgs = map(expr -> string(toRepr(expr),"History = Dict{Int64, Any}()\n"), data["historyVars"])
     # handle initnext
@@ -162,7 +162,7 @@ function compileToJulia(aexpr::AExpr)::Expr
     
     # construct built-in functions
     prevFunctions = join(map(x -> string(toRepr(x),"Prev = function(n::Int=0) \n", toRepr(x),"History[time - n]\nend\n"), data["historyVars"])) 
-    occurredFunction = """function occurred(click)\n click != Nothing \nend\n"""
+    occurredFunction = """function occurred(click)\n click != nothing \nend\n"""
     uniformChoiceFunction = """uniformChoice = function(freePositions)\n freePositions[rand(Categorical(ones(length(freePositions))/length(freePositions)))] \nend\n"""
     clickType = """struct Click\n x::Int\n y::Int\n end\n"""
     args = vcat(["quote\n module CompiledProgram \n export init, next \n using Distributions\n"], initGlobalVars, initHistoryDictArgs, prevFunctions, occurredFunction, uniformChoiceFunction, clickType, args,["\nend\nend"])
