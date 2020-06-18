@@ -15,7 +15,7 @@ fixedSymbols = [:+, :-, :/, :*, :&&, :||, :>=, :<=, :>, :<, :(==)]
 AutumnCompileError() = AutumnCompileError("")
 
 "Compile `aexpr` into `program::Program`"
-function compileToJulia(aexpr::AExpr)::Expr
+function compiletojulia(aexpr::AExpr)::Expr
 
   ### DATA ###
   data = Dict([("historyVars" => []),
