@@ -3,8 +3,9 @@ module Compile
 
 using ..AExpressions
 using ..Program
+using MLStyle 
 
-export compileToJulia
+export compiletojulia
 
 struct AutumnCompileError <: Exception
   msg
@@ -23,95 +24,25 @@ function compiletojulia(aexpr::AExpr)::Expr
                ("initnextVars" => []),
                ("liftedVars" => []),
                ("types" => Dict())])
-
+  
   ### HELPER FUNCTIONS ###
-  function toRepr(expr::AExpr, parent=nothing)::String
-    if expr.head == :if
-      cond = expr.args[1]
-      then = expr.args[2]
-      els = expr.args[3]
-      string("(",toRepr(cond, expr), ") ? ", toRepr(then, expr), " : ", toRepr(els, expr), "\n")
-    elseif expr.head == :assign
-     if (typeof(expr.args[2]) == AExpr && expr.args[2].head == :initnext)
-        push!(data["initnextVars"], expr)
-        push!(data["historyVars"], expr.args[1])
-        ""
-      else
-        if parent != nothing && (parent.head == :program || parent.head == :external)
-          if !(typeof(expr.args[2]) == AExpr && expr.args[2].head == :fn)
-            push!(data["historyVars"], expr.args[1])
-            # patch fix, will refactor
-            if (parent.head == :program)
-              push!(data["liftedVars"], expr)
-            end
-            ""
-          else
-            if haskey(data["types"], (expr.args[1], parent))
-              type = data["types"][(expr.args[1], parent)]
-              string("function ", toRepr(expr.args[1]), typedFnHelper(expr.args[2], type), "\n")              
-            else
-              string(toRepr(expr.args[1]), " = ", toRepr(expr.args[2]), "\n")            
-            end  
-          end
-        else
-          if haskey(data["types"], (expr.args[1], parent))
-            type = data["types"][(expr.args[1], parent)]
-            if !(typeof(expr.args[2]) == AExpr && expr.args[2].head == :fn)
-              string(toRepr(expr.args[1]), "::", toRepr(type), " = ", toRepr(expr.args[2]), "\n")
-            else
-              string("function ", toRepr(expr.args[1]), typedFnHelper(expr.args[2], type), "\n")              
-            end
-          else
-            string(toRepr(expr.args[1]), " = ", toRepr(expr.args[2]), "\n")            
-          end
-        end
-      end
-    elseif expr.head == :typedecl
-      data["types"][(expr.args[1], parent)] = expr.args[2]
-      ""
-    elseif expr.head == :external
-      push!(data["externalVars"], expr.args[1].args[1])
-      push!(data["historyVars"], expr.args[1].args[1])
-      ""
-    elseif expr.head == :const
-      string("const ", toRepr(expr.args[1], expr), "\n")
-    elseif expr.head == :let
-      string(join(map(x -> toRepr(x, expr), expr.args[1]),"\n"), toRepr(expr.args[2]))
-    elseif expr.head == :case
-      name = expr.args[1]
-      string("if ", toRepr(name), " == ", toRepr(expr.args[2].args[1]), "\n", 
-        toRepr(expr.args[2].args[2]), "\n", 
-        join(map(x -> (x.args[1] == :_) ?
-            string("else\n", toRepr(x.args[2])) :
-            string("elseif ", toRepr(name), " == ", toRepr(x.args[1]), "\n", toRepr(x.args[2]), "\n"), expr.args[3:end])),
-      "\nend")
-    elseif expr.head == :typealias
-      name = expr.args[1]
-      fields = map(field -> (
-        string(repr(field.args[1])[2:end], "::", repr(field.args[2])[2:end])
-      ), expr.args[2].args)
-      string("struct ", toRepr(name), "\n", join(fields, "\n"), "\nend\n")
-    elseif expr.head == :fn
-      string("function(", toRepr(expr.args[1])[2:(end-1)], ")\n", toRepr(expr.args[2]), "\nend\n")    
-    elseif expr.head == :lambda
-      string(toRepr(expr.args[1]), " -> " , toRepr(expr.args[2]))
-    elseif expr.head == :list
-      string("[",join(map(toRepr, expr.args),","),"]")
-    elseif expr.head == :call
-      fnName = expr.args[1]
-      if !(fnName in fixedSymbols) && fnName != :prev
-        string(toRepr(fnName), "(", join(map(toRepr, expr.args[2:end]), ", "), ")")
-      elseif fnName == :prev 
-        string(toRepr(expr.args[2]),"Prev(",join(map(toRepr, expr.args[3:end])),")")
-      elseif fnName != :(==)
-        string("(", toRepr(expr.args[2]) ,toRepr(fnName), toRepr(expr.args[3]), ")")
-      else
-        string("(", toRepr(expr.args[2]) ," == ", toRepr(expr.args[3]), ")")
-      end
-    elseif expr.head == :field
-      string(toRepr(expr.args[1]), ".", toRepr(expr.args[2]))
-    else
-      throw(AutumnCompileError(string("expr.head is undefined: ",repr(expr.head))))
+  function toRepr(expr::AExpr, parent=nothing)
+    arr = [expr.head, expr.args...]
+    res = MLStyle.@match arr begin
+      [:if, args...] => string("(",toRepr(expr.args[1], expr), ") ? ", toRepr(expr.args[2], expr), " : ", toRepr(expr.args[3], expr), "\n")
+      [:assign, args...] => toReprAssign(expr, parent, data)
+      [:typedecl, args...] => toReprTypeDecl(expr, parent, data)
+      [:external, args...] => toReprExternal(expr, data)
+      [:const, args...] => string("const ", toRepr(expr.args[1], expr), "\n")
+      [:let, args...] => string(join(map(x -> toRepr(x, expr), expr.args[1]),"\n"), toRepr(expr.args[2]))
+      [:case, args...] => toReprCase(expr)
+      [:typealias, args...] => toReprTypeAlias(expr)
+      [:fn, args...] => string("function(", toRepr(expr.args[1])[2:(end-1)], ")\n", toRepr(expr.args[2]), "\nend\n") 
+      [:lambda, args...] => string(toRepr(expr.args[1]), " -> " , toRepr(expr.args[2]))
+      [:list, args...] => string("[",join(map(toRepr, expr.args),","),"]")
+      [:call, args...] => toReprCall(expr)
+      [:field, args...] => string(toRepr(expr.args[1]), ".", toRepr(expr.args[2]))
+      [args...] => throw(AutumnCompileError())
     end
   end
 
@@ -124,16 +55,85 @@ function compiletojulia(aexpr::AExpr)::Expr
       string(expr[1])
     end
   end
-
+  
   function toRepr(expr, parent=nothing)::String
     string(expr)
   end
-
+  
   function typedFnHelper(expr, type)
     args = expr.args[1].args
     argTypes = type.args[1:(end-1)]
     tuples = [(arg, type) for arg in args, type in argTypes]
     string("(", join(map(x -> string(toRepr(x[1]), "::", toRepr(x[2])), tuples), ", "), ")::", toRepr(type.args[end]),"\n", toRepr(expr.args[2]), "\nend\n")    
+  end
+  
+  function toReprAssign(expr, parent, data)
+    type = haskey(data["types"], (expr.args[1], parent)) ? data["types"][(expr.args[1], parent)] : nothing
+    if (typeof(expr.args[2]) == AExpr && expr.args[2].head == :fn)
+      if type !== nothing
+        string("function ", toRepr(expr.args[1]), typedFnHelper(expr.args[2], type), "\n")              
+      else
+        string(toRepr(expr.args[1]), " = ", toRepr(expr.args[2]), "\n")            
+      end
+    else
+      if parent !== nothing && (parent.head == :program || parent.head == :external)
+        push!(data["historyVars"], expr.args[1])
+        if (typeof(expr.args[2]) == AExpr && expr.args[2].head == :initnext)
+          push!(data["initnextVars"], expr)
+        elseif (parent.head == :program)
+          push!(data["liftedVars"], expr)
+        end
+        ""
+      else
+        if type !== nothing
+          string(toRepr(expr.args[1]), "::", toRepr(type), " = ", toRepr(expr.args[2]), "\n")
+        else
+          string(toRepr(expr.args[1]), " = ", toRepr(expr.args[2]), "\n")            
+        end
+      end
+    end
+  end
+  
+  function toReprTypeDecl(expr, parent, data)
+    data["types"][(expr.args[1], parent)] = expr.args[2]
+    ""
+  end
+  
+  function toReprExternal(expr, data)
+    push!(data["externalVars"], expr.args[1].args[1])
+    push!(data["historyVars"], expr.args[1].args[1])
+    ""
+  end
+  
+  function toReprCase(expr)
+    name = expr.args[1]
+      string("if ", toRepr(expr.args[1]), " == ", toRepr(expr.args[2].args[1]), "\n", 
+        toRepr(expr.args[2].args[2]), "\n", 
+        join(map(x -> (x.args[1] == :_) ?
+            string("else\n", toRepr(x.args[2])) :
+            string("elseif ", toRepr(expr.args[1]), " == ", toRepr(x.args[1]), "\n", toRepr(x.args[2]), "\n"), expr.args[3:end])),
+      "\nend")
+  end
+  
+  function toReprTypeAlias(expr)
+    name = expr.args[1]
+    fields = map(field -> (
+      string(repr(field.args[1])[2:end], "::", repr(field.args[2])[2:end])
+    ), expr.args[2].args)
+    string("struct ", toRepr(name), "\n", join(fields, "\n"), "\nend\n")
+  end
+  
+  function toReprCall(expr)
+    fnName = expr.args[1]
+    if !(fnName in fixedSymbols) && fnName != :prev
+      string(toRepr(fnName), "(", join(map(toRepr, expr.args[2:end]), ", "), ")")
+    elseif fnName == :prev 
+      string(toRepr(expr.args[2]),"Prev(",join(map(toRepr, expr.args[3:end])),")")
+    elseif fnName != :(==)
+      string("(", toRepr(expr.args[2]) ,toRepr(fnName), toRepr(expr.args[3]), ")")
+    else
+      string("(", toRepr(expr.args[2]) ," == ", toRepr(expr.args[3]), ")")
+    end
   end
 
   ### COMPILATION ###
@@ -167,7 +167,6 @@ function compiletojulia(aexpr::AExpr)::Expr
     uniformChoiceFunction = """uniformChoice = function(freePositions)\n freePositions[rand(Categorical(ones(length(freePositions))/length(freePositions)))] \nend\n"""
     clickType = """struct Click\n x::Int\n y::Int\n end\n"""
     args = vcat(["quote\n module CompiledProgram \n export init, next \n using Distributions\n"], initGlobalVars, initHistoryDictArgs, prevFunctions, occurredFunction, uniformChoiceFunction, clickType, args,["\nend\nend"])
-    println(join(args))
     expr = Meta.parse(join(args))
     expr.args[1].head = :toplevel
     expr.args[1]

@@ -2,7 +2,6 @@ module CompiledProgram
 export init, next
 using Distributions
 
-""" ----- built-in ----- """
 struct Click
   x::Int
   y::Int
@@ -16,7 +15,6 @@ uniformChoice = function (freePositions)
   freePositions[rand(Categorical(ones(length(freePositions)) / length(freePositions)))]
 end
 
-""" ----- custom types ----- """
 struct Position
   x::Int
   y::Int
@@ -26,7 +24,6 @@ struct Particle
   position::Position
 end
 
-""" ----- global variables --- """
 const GRID_SIZE = 16
 click = nothing
 particles = nothing
@@ -38,7 +35,6 @@ clickHistory = Dict{Int64, Click}()
 particlesHistory = Dict{Int64, Array{Particle}}()
 nparticlesHistory = Dict{Int64, Array{Int64}}()
 
-""" ----- prev functions --- """
 clickPrev = function(n::Int)
   clickHistory[time - n]
 end
@@ -51,7 +47,6 @@ nparticlesPrev = function(n::Int)
   nparticlesHistory[time - n]
 end
 
-""" ----- helper functions ----- """
 function isFree(position::Position)::Bool
   length(filter(particle -> particle.position == position, particles)) == 0
 end
@@ -82,8 +77,6 @@ end
 function particleGen(initPosition::Position)::Particle
   Particle(initPosition)
 end
-
-""" ----- INIT and NEXT functions ----- """
 
 function init(initPosition::Position)::Particle
   global particles = []
