@@ -26,7 +26,7 @@
                            (let ((= x (.. position x)) 
                                  (= y (.. position y)) 
                                  (= positions (filter isWithinBounds (list (Position (+ x 1) y) (Position (- x 1) y) (Position x (+ y 1)) (Position x (- y 1))))))
-                                (positions))))
+                                positions)))
 
   (: nextParticle (-> Particle Particle))
   (= nextParticle (fn (particle) 

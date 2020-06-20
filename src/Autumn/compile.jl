@@ -15,7 +15,7 @@ fixedSymbols = [:+, :-, :/, :*, :&&, :||, :>=, :<=, :>, :<, :(==)]
 
 AutumnCompileError() = AutumnCompileError("")
 
-"Compile `aexpr` into `program::Program`"
+"compile `aexpr` into `program::Program`"
 function compiletojulia(aexpr::AExpr)::Expr
 
   ### DATA ###
@@ -26,150 +26,174 @@ function compiletojulia(aexpr::AExpr)::Expr
                ("types" => Dict())])
   
   ### HELPER FUNCTIONS ###
-  function toRepr(expr::AExpr, parent=nothing)
+  function compile(expr::AExpr, parent)
     arr = [expr.head, expr.args...]
-    res = MLStyle.@match arr begin
-      [:if, args...] => string("(",toRepr(expr.args[1], expr), ") ? ", toRepr(expr.args[2], expr), " : ", toRepr(expr.args[3], expr), "\n")
-      [:assign, args...] => toReprAssign(expr, parent, data)
-      [:typedecl, args...] => toReprTypeDecl(expr, parent, data)
-      [:external, args...] => toReprExternal(expr, data)
-      [:const, args...] => string("const ", toRepr(expr.args[1], expr), "\n")
-      [:let, args...] => string(join(map(x -> toRepr(x, expr), expr.args[1]),"\n"), toRepr(expr.args[2]))
-      [:case, args...] => toReprCase(expr)
-      [:typealias, args...] => toReprTypeAlias(expr)
-      [:fn, args...] => string("function(", toRepr(expr.args[1])[2:(end-1)], ")\n", toRepr(expr.args[2]), "\nend\n") 
-      [:lambda, args...] => string(toRepr(expr.args[1]), " -> " , toRepr(expr.args[2]))
-      [:list, args...] => string("[",join(map(toRepr, expr.args),","),"]")
-      [:call, args...] => toReprCall(expr)
-      [:field, args...] => string(toRepr(expr.args[1]), ".", toRepr(expr.args[2]))
-      [args...] => throw(AutumnCompileError())
+      res = MLStyle.@match arr begin
+        [:if, args...] => :($(compile(args[1], expr)) ? $(compile(args[2], expr)) : $(compile(args[3], expr)))
+        [:assign, args...] => compileAssign(expr, parent, data)
+        [:typedecl, args...] => compileTypeDecl(expr, parent, data)
+        [:external, args...] => compileExternal(expr, data)
+        [:const, args...] => :(const $(compile(args[1].args[1])) = $(compile(args[1].args[2])))
+        [:let, args...] => quote
+                             $(vcat(map(x -> compile(x, expr), expr.args[1]), compile(expr.args[2]))...)
+                           end
+        [:case, args...] => quote 
+                              MLStyle.@match $(compile(expr.args[1])) begin
+                                $(map(x -> :($(compile(x.args[1])) => $(compile(x.args[2]))), expr.args[3:end])...)
+                              end
+                            end
+        [:typealias, args...] => compileTypeAlias(expr)
+        [:lambda, args...] => :($(compile(args[1])) -> $(compile(args[2])))
+        [:list, args...] => :([$(map(compile, expr.args)...)])
+        [:call, args...] => compileCall(expr)
+        [:field, args...] => :($(compile(expr.args[1])).$(compile(expr.args[2])))
+        [args...] => throw(AutumnCompileError())
+      end
     end
-  end
 
-  function toRepr(expr::AbstractArray, parent=nothing)::String
-    if expr == [] 
-      "" 
-    elseif (expr[1] == :List)
-      string("Array{", toRepr(expr[2:end]),"}")
-    else
-      string(expr[1])
+    function compile(expr, parent=nothing)
+      expr
     end
-  end
-  
-  function toRepr(expr, parent=nothing)::String
-    string(expr)
-  end
-  
-  function typedFnHelper(expr, type)
-    args = expr.args[1].args
-    argTypes = type.args[1:(end-1)]
-    tuples = [(arg, type) for arg in args, type in argTypes]
-    string("(", join(map(x -> string(toRepr(x[1]), "::", toRepr(x[2])), tuples), ", "), ")::", toRepr(type.args[end]),"\n", toRepr(expr.args[2]), "\nend\n")    
-  end
-  
-  function toReprAssign(expr, parent, data)
-    type = haskey(data["types"], (expr.args[1], parent)) ? data["types"][(expr.args[1], parent)] : nothing
-    if (typeof(expr.args[2]) == AExpr && expr.args[2].head == :fn)
-      if type !== nothing
-        string("function ", toRepr(expr.args[1]), typedFnHelper(expr.args[2], type), "\n")              
-      else
-        string(toRepr(expr.args[1]), " = ", toRepr(expr.args[2]), "\n")            
-      end
-    else
-      if parent !== nothing && (parent.head == :program || parent.head == :external)
-        push!(data["historyVars"], expr.args[1])
-        if (typeof(expr.args[2]) == AExpr && expr.args[2].head == :initnext)
-          push!(data["initnextVars"], expr)
-        elseif (parent.head == :program)
-          push!(data["liftedVars"], expr)
-        end
-        ""
-      else
+
+    function compileAssign(expr, parent, data)
+      type = haskey(data["types"], (expr.args[1], parent)) ? data["types"][(expr.args[1], parent)] : nothing
+      if (typeof(expr.args[2]) == AExpr && expr.args[2].head == :fn)
         if type !== nothing
-          string(toRepr(expr.args[1]), "::", toRepr(type), " = ", toRepr(expr.args[2]), "\n")
+          args = compile(expr.args[2].args[1]).args
+          argTypes = type.args[1:(end-1)]
+          tuples = [(arg, type) for arg in args, type in argTypes]
+          typedArgExprs = map(x -> :($(x[1])::$(x[2])), tuples)
+          quote 
+            function $(compile(expr.args[1]))($(typedArgExprs...))::$(type.args[end])
+              $(compile(expr.args[2].args[2]))  
+            end
+          end 
         else
-          string(toRepr(expr.args[1]), " = ", toRepr(expr.args[2]), "\n")            
+          quote 
+            function $(compile(expr.args[1]))($(compile(expr.args[2].args[1]).args...))
+                $(compile(expr.args[2].args[2]))  
+            end 
+          end          
+        end
+      else
+          if parent !== nothing && (parent.head == :program || parent.head == :external)
+          push!(data["historyVars"], expr.args[1])
+            if (typeof(expr.args[2]) == AExpr && expr.args[2].head == :initnext)
+              push!(data["initnextVars"], expr)
+            elseif (parent.head == :program)
+              push!(data["liftedVars"], expr)
+            end
+            :()
+          else
+            if type !== nothing
+              :($(compile(expr.args[1]))::$(compile(type)) = compile(expr.args[2]))
+            else
+                :($(compile(expr.args[1])) = $(compile(expr.args[2])))
+            end
+          end
+      end
+    end
+    
+    function compileTypeDecl(expr, parent, data)
+      data["types"][(expr.args[1], parent)] = expr.args[2]
+      :()
+    end
+    
+    function compileExternal(expr, datax)
+      push!(data["externalVars"], expr.args[1].args[1])
+      push!(data["historyVars"], expr.args[1].args[1])
+      :()
+    end
+    
+    function compileTypeAlias(expr)
+      name = expr.args[1]
+      fields = map(field -> (
+        :($(field.args[1])::$(field.args[2]))
+      ), expr.args[2].args)
+      quote
+        struct $(name)
+          $(fields...) 
         end
       end
     end
-  end
-  
-  function toReprTypeDecl(expr, parent, data)
-    data["types"][(expr.args[1], parent)] = expr.args[2]
-    ""
-  end
-  
-  function toReprExternal(expr, data)
-    push!(data["externalVars"], expr.args[1].args[1])
-    push!(data["historyVars"], expr.args[1].args[1])
-    ""
-  end
-  
-  function toReprCase(expr)
-    name = expr.args[1]
-      string("if ", toRepr(expr.args[1]), " == ", toRepr(expr.args[2].args[1]), "\n", 
-        toRepr(expr.args[2].args[2]), "\n", 
-        join(map(x -> (x.args[1] == :_) ?
-            string("else\n", toRepr(x.args[2])) :
-            string("elseif ", toRepr(expr.args[1]), " == ", toRepr(x.args[1]), "\n", toRepr(x.args[2]), "\n"), expr.args[3:end])),
-      "\nend")
-  end
-  
-  function toReprTypeAlias(expr)
-    name = expr.args[1]
-    fields = map(field -> (
-      string(repr(field.args[1])[2:end], "::", repr(field.args[2])[2:end])
-    ), expr.args[2].args)
-    string("struct ", toRepr(name), "\n", join(fields, "\n"), "\nend\n")
-  end
-  
-  function toReprCall(expr)
-    fnName = expr.args[1]
-    if !(fnName in fixedSymbols) && fnName != :prev
-      string(toRepr(fnName), "(", join(map(toRepr, expr.args[2:end]), ", "), ")")
-    elseif fnName == :prev 
-      string(toRepr(expr.args[2]),"Prev(",join(map(toRepr, expr.args[3:end])),")")
-    elseif fnName != :(==)
-      string("(", toRepr(expr.args[2]) ,toRepr(fnName), toRepr(expr.args[3]), ")")
-    else
-      string("(", toRepr(expr.args[2]) ," == ", toRepr(expr.args[3]), ")")
+    
+    function compileCall(expr)
+      fnName = expr.args[1]
+        if !(fnName in fixedSymbols) && fnName != :prev
+          :($(fnName)($(map(compile, expr.args[2:end])...)))
+        elseif fnName == :prev
+          :($(Symbol(string(expr.args[2]) * "Prev"))($(map(compile, expr.args[3:end])...)))
+        elseif fnName != :(==)        
+          :($(fnName)($(compile(expr.args[2])), $(expr.args[3])))
+        else
+          :($(compile(expr.args[2])) == $(compile(expr.args[3])))
+        end
     end
-  end
+    
+    
+  
 
   ### COMPILATION ###
   if (aexpr.head == :program)
-    args = map(arg -> toRepr(arg, aexpr), aexpr.args)
+    args = map(arg -> compile(arg, aexpr), aexpr.args)
     # handle history 
-    initGlobalVars = map(expr -> string(toRepr(expr), " = nothing\n"), data["historyVars"])
-    push!(initGlobalVars, "time = 0\n")
-    initHistoryDictArgs = map(expr -> string(toRepr(expr),"History = Dict{Int64, Any}()\n"), data["historyVars"])
+    initGlobalVars = map(expr -> :($(compile(expr)) = nothing), data["historyVars"])
+    push!(initGlobalVars, :(time = 0))
+    initHistoryDictArgs = map(expr -> :($(Symbol(string(expr) * "History")) = Dict{Int64, Any}), data["historyVars"])
     # handle initnext
-    initFunction = string("function init()\n", 
-                          join(map(x -> string("\t global ",toRepr(x.args[1]), " = ", toRepr(x.args[2].args[1]), "\n"), data["initnextVars"])),
-                          "\n", 
-                          join(map(expr -> string("global ",toRepr(expr.args[1]), " = ", toRepr(expr.args[2]), "\n"), data["liftedVars"])),
-                          join(map(expr -> string(toRepr(expr),"History[time] = deepcopy(",toRepr(expr),")\n"), data["historyVars"]),"\n"), 
-                          "\nend\n")
-    nextFunction = string("function next(", 
-                          join(map(x -> toRepr(x), data["externalVars"]),","), 
-                          ")\n global time += 1\n", 
-                          join(map(x -> string("\t global ",toRepr(x.args[1]), " = ", toRepr(x.args[2].args[2]), "\n"), data["initnextVars"])),
-                          "\n", 
-                          join(map(expr -> string("global ",toRepr(expr.args[1]), " = ", toRepr(expr.args[2]), "\n"), data["liftedVars"])),
-                          "\n",
-                          join(map(expr -> string(toRepr(expr),"History[time] = deepcopy(",toRepr(expr),")\n"), data["historyVars"]),"\n"), 
-                          "\nend\n")
+    initFunction = quote
+                    function init()
+                      $(map(x -> :(global $(compile(x.args[1])) = $(compile(x.args[2].args[1]))), data["initnextVars"])...)
+                      $(map(x -> :(global $(compile(x.args[1])) = $(compile(x.args[2]))), data["liftedVars"])...)
+                      $(map(x -> :($(Symbol(string(x)*"History"))[time] = deepcopy($(compile(x)))), data["historyVars"])...)
+                    end
+                   end
+    nextFunction = quote
+                    function next($(map(compile, data["externalVars"])...))
+                      global time += 1
+                      $(map(x -> :(global $(compile(x.args[1])) = $(compile(x.args[2].args[2]))), data["initnextVars"])...)
+                      $(map(x -> :(global $(compile(x.args[1])) = $(compile(x.args[2]))), data["liftedVars"])...)
+                      $(map(x -> :($(Symbol(string(x) * "History"))[time] = deepcopy($(compile(x)))), data["historyVars"])...)
+                    end
+                   end
     push!(args, initFunction, nextFunction)
     
     # construct built-in functions
-    prevFunctions = join(map(x -> string(toRepr(x),"Prev = function(n::Int=0) \n", toRepr(x),"History[time - n]\nend\n"), data["historyVars"])) 
-    occurredFunction = """function occurred(click)\n click !== nothing \nend\n"""
-    uniformChoiceFunction = """uniformChoice = function(freePositions)\n freePositions[rand(Categorical(ones(length(freePositions))/length(freePositions)))] \nend\n"""
-    clickType = """struct Click\n x::Int\n y::Int\n end\n"""
-    args = vcat(["quote\n module CompiledProgram \n export init, next \n using Distributions\n"], initGlobalVars, initHistoryDictArgs, prevFunctions, occurredFunction, uniformChoiceFunction, clickType, args,["\nend\nend"])
-    expr = Meta.parse(join(args))
-    expr.args[1].head = :toplevel
-    expr.args[1]
+    prevFunctions = map(x -> quote
+                              function $(Symbol(string(x) * "Prev"))(n::Int)
+                                $(Symbol(string(x) * "History"))[time - n] 
+                              end
+                             end, 
+                        data["historyVars"])
+    occurredFunction = quote
+                        function occurred(click)
+                          click !== nothing
+                        end
+                       end
+
+    uniformChoiceFunction = quote
+                              function uniformChoice(freePositions)
+                                freePositions[rand(Categorical(ones(length(freePositions))/length(freePositions)))]
+                              end
+                            end
+    
+    clickType = quote
+                  struct Click
+                    x::Int
+                    y::Int                    
+                  end
+                end
+    lines = filter(x -> x != :(), vcat(initGlobalVars, initHistoryDictArgs, prevFunctions, [occurredFunction, uniformChoiceFunction, clickType], args))
+    expr = quote
+             module CompiledProgram
+               export init, next
+               using Distributions
+               using MLStyle 
+               $(lines...)
+             end
+           end  
+    expr.head = :toplevel
+    expr
   else
     throw(AutumnCompileError())
   end
