@@ -20,10 +20,6 @@ include("sexpr.jl")
 include("program.jl")
 @reexport using .Program
 
-
-include("compileutils.jl")
-@reexport using .CompileUtils
-
 include("compile.jl")
 @reexport using .Compile
 
