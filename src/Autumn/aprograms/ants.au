@@ -1,4 +1,4 @@
-GRID_SIZE = 16
+const GRID_SIZE = 16
 
 type alias Position = { x : Int, y : Int}
 type alias Particle = { position : Position, color : String, render : Boolean }
@@ -14,7 +14,7 @@ particles = init antGen(4)
                  else map nextParticle particles
 
 -- compute Manhattan distance between two particles
-manhattanDistance : Particle -> Particle -> Number
+manhattanDistance : Particle -> Particle -> Int
 manhattanDistance particle1 particle2 = (abs (particle1.position.x - particle2.position.x)) + (abs (particle1.position.y - particle2.position.y))
 
 -- create single ant particle at given position
@@ -26,7 +26,7 @@ createFood : Position -> Particle
 createFood initPosition = Particle initPosition "red" True
 
 -- create multiple ant particles at random positions
-antGen : Number -> List
+antGen : Int -> List Particle
 antGen count = 
   let 
     xCoords = uniformChoice (range 0 (GRID_SIZE-1)) count
@@ -38,7 +38,7 @@ antGen count =
   ants
 
 -- create multiple food particles at random positions
-foodGen : Number -> List
+foodGen : Int -> List Particle
 foodGen count = 
   let 
     xCoords = uniformChoice (range 0 (GRID_SIZE-1)) count

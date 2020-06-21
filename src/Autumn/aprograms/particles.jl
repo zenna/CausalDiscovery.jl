@@ -85,13 +85,12 @@ function init(initPosition::Position)::Particle
   clickHistory[time] = deepcopy(click)
   particlesHistory[time] = deepcopy(particles)
   nparticlesHistory[time] = deepcopy(nparticles)
-
 end
 
 function next(click::Union{Click, Nothing})
   global time += 1
   global particles = if occurred(click)
-              push!(particlesPrev(), particleGen(1, 1))
+              push!(particlesPrev(), particleGen(Position(1, 1)))
           else
               map(nextParticle, particles)
           end

@@ -2,20 +2,20 @@
 module Compile
 
 using ..AExpressions
-using ..Program
-using MLStyle 
+using Distributions
+using MLStyle: @match
 import MacroTools: striplines
 
 export compiletojulia, runprogram
 
-binaryOperators = [:+, :-, :/, :*, :&&, :||, :>=, :<=, :>, :<, :(==)]
+binaryOperators = [:+, :-, :/, :*, :&, :||, :>=, :<=, :>, :<, :(==), :!=]
 
 struct AutumnCompileError <: Exception
   msg
 end
 AutumnCompileError() = AutumnCompileError("")
 
-"compile `aexpr` into `program::Program`"
+"compile `aexpr` into Expr"
 function compiletojulia(aexpr::AExpr)::Expr
 
   data = Dict([("historyVars" => []),
@@ -27,7 +27,7 @@ function compiletojulia(aexpr::AExpr)::Expr
   # ----- HELPER FUNCTIONS ----- #
   function compile(expr::AExpr, parent=nothing)
     arr = [expr.head, expr.args...]
-    res = MLStyle.@match arr begin
+    res = @match arr begin
       [:if, args...] => :($(compile(args[1], expr)) ? $(compile(args[2], expr)) : $(compile(args[3], expr)))
       [:assign, args...] => compileassign(expr, parent, data)
       [:typedecl, args...] => compiletypedecl(expr, parent, data)
@@ -64,11 +64,11 @@ function compiletojulia(aexpr::AExpr)::Expr
     if (typeof(expr.args[2]) == AExpr && expr.args[2].head == :fn)
       if type !== nothing # handle function with typed arguments/return type
         args = compile(expr.args[2].args[1]).args # function args
-        argTypes = type.args[1:(end-1)] # function arg types
+        argTypes = map(compile, type.args[1:(end-1)]) # function arg types
         tuples = [(arg, type) for arg in args, type in argTypes]
         typedArgExprs = map(x -> :($(x[1])::$(x[2])), tuples)
         quote 
-          function $(compile(expr.args[1]))($(typedArgExprs...))::$(type.args[end])
+          function $(compile(expr.args[1]))($(typedArgExprs...))::$(compile(type.args[end]))
             $(compile(expr.args[2].args[2]))  
           end
         end 
@@ -130,7 +130,7 @@ function compiletojulia(aexpr::AExpr)::Expr
       elseif fnName == :prev
         :($(Symbol(string(expr.args[2]) * "Prev"))($(map(compile, expr.args[3:end])...)))
       elseif fnName != :(==)        
-        :($(fnName)($(compile(expr.args[2])), $(expr.args[3])))
+        :($(fnName)($(compile(expr.args[2])), $(compile(expr.args[3]))))
       else
         :($(compile(expr.args[2])) == $(compile(expr.args[3])))
       end
@@ -144,18 +144,19 @@ function compiletojulia(aexpr::AExpr)::Expr
 
   function compilecase(expr)
     quote 
-      MLStyle.@match $(compile(expr.args[1])) begin
-        $(map(x -> :($(compile(x.args[1])) => $(compile(x.args[2]))), expr.args[3:end])...)
+      @match $(compile(expr.args[1])) begin
+        $(map(x -> :($(compile(x.args[1])) => $(compile(x.args[2]))), expr.args[2:end])...)
       end
     end
   end
   
   function compileinitnext(data)
     initFunction = quote
-      function init()
+      function init($(map(x -> compile(x), data["externalVars"])...))
         $(map(x -> :(global $(compile(x.args[1])) = $(compile(x.args[2].args[1]))), data["initnextVars"])...)
         $(map(x -> :(global $(compile(x.args[1])) = $(compile(x.args[2]))), data["liftedVars"])...)
         $(map(x -> :($(Symbol(string(x[1])*"History"))[time] = deepcopy($(compile(x[1])))), data["historyVars"])...)
+        particles
       end
      end
     nextFunction = quote
@@ -164,6 +165,7 @@ function compiletojulia(aexpr::AExpr)::Expr
         $(map(x -> :(global $(compile(x.args[1])) = $(compile(x.args[2].args[2]))), data["initnextVars"])...)
         $(map(x -> :(global $(compile(x.args[1])) = $(compile(x.args[2]))), data["liftedVars"])...)
         $(map(x -> :($(Symbol(string(x[1]) * "History"))[time] = deepcopy($(compile(x[1])))), data["historyVars"])...)
+        particles
       end
      end
      [initFunction, nextFunction]
@@ -179,9 +181,14 @@ function compiletojulia(aexpr::AExpr)::Expr
     # handle history 
     initGlobalVars = map(expr -> :($(compile(expr[1])) = nothing), data["historyVars"])
     push!(initGlobalVars, :(time = 0))
+    # non-external variable history dicts
     initHistoryDictArgs = map(expr -> 
-      :($(Symbol(string(expr[1]) * "History")) = Dict{Int64, $(haskey(data["types"], expr) ? compile(data["types"][expr]) : Any)}),
-      data["historyVars"])
+      :($(Symbol(string(expr[1]) * "History")) = Dict{Int64, $(haskey(data["types"], expr) ? compile(data["types"][expr]) : Any)}()),
+      filter(x -> !(x[1] in data["externalVars"]), data["historyVars"]))
+    # external variable history dicts
+    initHistoryDictArgs = vcat(initHistoryDictArgs, map(expr -> 
+    :($(Symbol(string(expr[1]) * "History")) = Dict{Int64, Union{$(compile(data["types"][expr])), Nothing}}())
+    , filter(x -> (x[1] in data["externalVars"]), data["historyVars"])))
     
     # handle initnext
     initnextFunctions = compileinitnext(data)
@@ -190,14 +197,14 @@ function compiletojulia(aexpr::AExpr)::Expr
 
     # remove empty lines
     lines = filter(x -> x != :(), 
-            vcat(initGlobalVars, initHistoryDictArgs, prevFunctions, builtinFunctions, lines, initnextFunctions))
+            vcat(builtinFunctions, initGlobalVars, lines, initHistoryDictArgs, prevFunctions, initnextFunctions))
 
     # construct module
     expr = quote
       module CompiledProgram
         export init, next
         using Distributions
-        using MLStyle 
+        using MLStyle: @match 
         $(lines...)
       end
     end  
@@ -209,21 +216,20 @@ function compiletojulia(aexpr::AExpr)::Expr
 end
 
 "Run `prog` forever"
-function runprogram(prog::AProgram)
-  initexterns = (x = 3, y = 2)
-  state = init(p, initexterns)
+function runprogram(prog::Expr)
+  mod = eval(prog)
+  mod.init(mod.Click(5, 5))
   while true
-    externs = (x = rand(3:10), y = rand(1:10))
-    state = next(state, externs)
+    externals = [nothing, mod.Click(rand([1:10;]), rand([1:10;]))]
+    mod.next(mod.next(externals[rand(Categorical([0.7, 0.3]))]))
   end
-  state
 end
 
 # ----- Built-In and Prev Function Helpers ----- #
 
 function compileprevfuncs(data::Dict{String, Any})
   prevFunctions = map(x -> quote
-        function $(Symbol(string(x[1]) * "Prev"))(n::Int)
+        function $(Symbol(string(x[1]) * "Prev"))(n::Int=1)
           $(Symbol(string(x[1]) * "History"))[time - n] 
         end
         end, 
