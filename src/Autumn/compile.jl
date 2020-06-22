@@ -2,7 +2,7 @@
 module Compile
 
 using ..AExpressions
-using Distributions
+using Distributions: Categorical
 using MLStyle: @match
 import MacroTools: striplines
 
@@ -216,13 +216,16 @@ function compiletojulia(aexpr::AExpr)::Expr
 end
 
 "Run `prog` forever"
-function runprogram(prog::Expr)
+function runprogram(prog::Expr, n::Int)
   mod = eval(prog)
-  mod.init(mod.Click(5, 5))
-  while true
+  particles = mod.init(mod.Click(5, 5))
+
+  externals = [nothing, nothing]
+  for i in 1:n
     externals = [nothing, mod.Click(rand([1:10;]), rand([1:10;]))]
-    mod.next(mod.next(externals[rand(Categorical([0.7, 0.3]))]))
+    particles = mod.next(mod.next(externals[rand(Categorical([0.7, 0.3]))]))
   end
+  particles
 end
 
 # ----- Built-In and Prev Function Helpers ----- #

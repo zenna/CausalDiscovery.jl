@@ -8,7 +8,8 @@ export istypesymbol,
        istypevarsymbol,
        args,
        arg,
-       wrap
+       wrap,
+       showstring
 
 const autumngrammar = """
 x           := a | b | ... | aa ...
@@ -124,7 +125,7 @@ function showstring(expr::Expr)
   end
 end
 
-showstring(lst::Array{}) = lst
+showstring(lst::Array{}) = join(map(string, lst), " ")
 showstring(str::String) = str
 
 function needequals(val)
