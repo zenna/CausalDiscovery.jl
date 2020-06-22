@@ -10,4 +10,5 @@ using Test
 @testset "Autumn" begin
   include("Autumn/sexpr.jl")
   include("Autumn/transform.jl")
+  include("Autumn/particles.jl")
 end

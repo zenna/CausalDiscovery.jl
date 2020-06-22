@@ -8,7 +8,8 @@ export istypesymbol,
        istypevarsymbol,
        args,
        arg,
-       wrap
+       wrap,
+       showstring
 
 const autumngrammar = """
 x           := a | b | ... | aa ...
