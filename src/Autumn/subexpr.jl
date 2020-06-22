@@ -3,6 +3,7 @@ module SubExpressions
 
 using ..AExpressions
 using ..Util
+import Base.Iterators
 
 export SubExpr,
        subexpr,
@@ -12,7 +13,11 @@ export SubExpr,
        subexprs,
        parent,
        isroot,
-       parentwalk
+       parentwalk,
+       depth,
+       siblings,
+       ancestors,
+       youngersiblings
 
        
 "Subexpression of `parent::AE` indicated by pointer `p::P`"
@@ -31,11 +36,16 @@ Base.parent(subex::SubExpr) = SubExpr(subex.parent, pop(subex.pointer))
 "Remove last element of `xs`"
 pop(xs::AbstractVector) = xs[1:end-1]
 
+"remove last `n` memebers of xs"
+pop(xs, n) = xs[1:end-n]
+
 "`subex` is is the `pop(subex)`th child of `parent(subex)`"
 pos(subex::SubExpr) = subex.pointer[end]
 
 "Is `subex` the root expression?"
 isroot(subex::SubExpr) = isempty(subex.pointer)
+
+depth(subex::SubExpr) = length(subex.pointer)
 
 "Head of AExpr pointed to by `subex`"
 AExpressions.head(subex::SubExpr) =
@@ -149,16 +159,18 @@ subexprdfs(aexpr::AExpr) =
 # Relations
 
 "Ancestors of `subexpr`"
-ancestors(subex::SubExpr) = (parent(subex))
+ancestors(subex::SubExpr) =
+  (SubExpr(subex.parent, pop(subex.pointer, i)) for i = 1:depth(subex))
 siblings(subex::SubExpr) = args(parent(subex))
 
 "Siblings that have an position greater than subex"
 youngersiblings(subex::SubExpr) =
-  filter(sib -> pos(sib) > pos(subex), siblings(subex))
+  Iterators.filter(sib -> pos(sib) > pos(subex), siblings(subex))
 
 Base.show(io::IO, subexpr::SubExpr) =
-  print(io, "Subexpression @ ", subexpr.pointer, ":\n", subexpr.parent, " => \n", resolve(subexpr), "\n")
+  print(io, "Subexpression @ ", subexpr.pointer, ":\n", subexpr.parent, "\n=>\n", resolve(subexpr), "\n")
 
+  
   
 
 end
