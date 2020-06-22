@@ -87,5 +87,11 @@ end
 ## Two types of scope, global, vs nested
 ##
 
+ancestors(::SubExpr) = ..
+siblings(::SubExpr) = ..
+
+"Does `a` project variables to `b`" 
+doesaprojectb(a, b) = parent(a) ∈ ancestors(b)
+  
 
 end

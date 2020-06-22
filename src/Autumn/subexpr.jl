@@ -31,6 +31,9 @@ Base.parent(subex::SubExpr) = SubExpr(subex.parent, pop(subex.pointer))
 "Remove last element of `xs`"
 pop(xs::AbstractVector) = xs[1:end-1]
 
+"`subex` is is the `pop(subex)`th child of `parent(subex)`"
+pos(subex::SubExpr) = subex.pointer[end]
+
 "Is `subex` the root expression?"
 isroot(subex::SubExpr) = isempty(subex.pointer)
 
@@ -41,7 +44,7 @@ AExpressions.head(subex::SubExpr) =
 "Returns subexpressions that are children"
 function AExpressions.args(subexpr::SubExpr)
   q = g(resolve(subexpr))
-  [SubExpr(subexpr.parent, append(subexpr.pointer, i)) for i = 1:length(q)]
+  (SubExpr(subexpr.parent, append(subexpr.pointer, i)) for i = 1:length(q))
 end
 g(aex::AExpr) = aex.args
 g(x) = []
@@ -143,7 +146,19 @@ subexprs(x) = subexprdfs(x)
 subexprdfs(aexpr::AExpr) =
   subexprdfs(subexpr(aexpr, Int[]))
 
+# Relations
+
+"Ancestors of `subexpr`"
+ancestors(subex::SubExpr) = (parent(subex))
+siblings(subex::SubExpr) = args(parent(subex))
+
+"Siblings that have an position greater than subex"
+youngersiblings(subex::SubExpr) =
+  filter(sib -> pos(sib) > pos(subex), siblings(subex))
+
 Base.show(io::IO, subexpr::SubExpr) =
   print(io, "Subexpression @ ", subexpr.pointer, ":\n", subexpr.parent, " => \n", resolve(subexpr), "\n")
+
+  
 
 end
