@@ -29,10 +29,9 @@ createFood initPosition = Particle initPosition "red" True
 antGen : Int -> List Particle
 antGen count = 
   let 
-    xCoords = uniformChoice (range 0 (GRID_SIZE-1)) count
-    yCoords = uniformChoice (range 0 (GRID_SIZE-1)) count
+    coords = uniformChoice (range 0 (GRID_SIZE*GRID_SIZE - 1)) count
 
-    positions = concatMap ( \xCoord -> map ( \yCoord -> {x = xCoord, y = yCoord} ) yCoords ) xCoords
+    positions = map (coord -> Position(coord % GRID_SIZE, parse(Int, coord/GRID_SIZE)))
     ants = map createAnt positions
   in
   ants
@@ -41,10 +40,9 @@ antGen count =
 foodGen : Int -> List Particle
 foodGen count = 
   let 
-    xCoords = uniformChoice (range 0 (GRID_SIZE-1)) count
-    yCoords = uniformChoice (range 0 (GRID_SIZE-1)) count
+    coords = uniformChoice (range 0 (GRID_SIZE*GRID_SIZE - 1)) count
 
-    positions = concatMap ( \xCoord -> map ( \yCoord -> Position xCoord yCoord ) yCoords ) xCoords
+    positions = map (coord -> Position(coord % GRID_SIZE, parse(Int, coord/GRID_SIZE)))
     food = map createFood positions
   in
   food

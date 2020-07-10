@@ -1,17 +1,17 @@
 (program
   (const (= GRID_SIZE 16))
 
-  (type alias Position ((: x Int) (: y Int)))
-  (type alias Particle ((: position Position)))
+  (type alias Position ((: x BigInt) (: y BigInt)))
+  (type alias Particle ((: position Position) (: color String) (: render Bool)))
 
   (external (: click Click))
   
   (: particles (List Particle))
-  (= particles (init (antGen 4) next (if (&& (occurred click) noFoodRemaining) 
-                                      then (push! (prev particles) (foodGen 4)) 
+  (= particles (initnext (antGen 4) (if (& (occurred click) noFoodRemaining) 
+                                      then (vcat (prev particles) (foodGen 4)) 
                                       else (map nextParticle particles))))
   
-  (: manhattanDistance (-> Particle Particle Int))
+  (: manhattanDistance (-> Particle Particle BigInt))
   (= manhattanDistance (fn (particle1 particle2) 
                             (+ 
                               (abs
@@ -31,18 +31,52 @@
   
   (: createAnt (-> Position Particle))
   (= createAnt (fn (initPosition) 
-                   (Particle initPosition "gray" True)))
+                   (Particle initPosition "gray" true)))
   
   (: createFood (-> Position Particle))
   (= createFood (fn (initPosition)
-                    (Particle initPosition "red" True)))
+                    (Particle initPosition "red" true)))
   
-  (: antGen (-> Int (List Particle)))
+  (: antGen (-> BigInt (List Particle)))
   (= antGen (fn (count) 
-                (let ((= xCoords (uniformChoice (range 0 (- GRID_SIZE 1)) count))
-                      (= yCoords (uniformChoice (range 0 (- GRID_SIZE 1)) count))
-                      (= positions (concatMap ))
+                (let ((= coords (uniformChoice (range 0 (- (* GRID_SIZE GRID_SIZE) 1)) count))
+                      (= positions (map (--> coord (Position (% coord GRID_SIZE) (floor BigInt (/ coord GRID_SIZE)))) coords))
                       (= ants (map createAnt positions))) 
-                     ants))
-  
+                     ants)))
+    
+  (: foodGen (-> BigInt (List Particle)))
+  (= foodGen (fn (count) 
+                (let ((= coords (uniformChoice (range 0 (- (* GRID_SIZE GRID_SIZE) 1)) count))
+                      (= positions (map (--> coord (Position (% coord GRID_SIZE) (floor BigInt (/ coord GRID_SIZE)))) coords))
+                      (= food (map createFood positions))) 
+                     food))) 
+
+  (: nextParticle (-> Particle Particle))
+  (= nextParticle (fn (particle) 
+                      (if (== (.. particle color) "gray") 
+                       then (nextAntParticle particle) 
+                       else (nextFoodParticle particle))))
+
+  (: nextAntParticle (-> Particle Particle))
+  (= nextAntParticle (fn (ant)  
+                         (let ((= x (.. (.. ant position) x))
+                               (= y (.. (.. ant position) y))
+                               (= foods (filter (--> particle (& (== (.. particle color) "red") (.. particle render))) particles))
+                               (= closestDistance (if (== (length foods) 0) then -1 else (min (map (--> food (manhattanDistance ant food)) foods))))
+                               (= closestFoods (filter (--> food (== closestDistance (manhattanDistance ant food))) foods))
+                               (= closestFoodPosition (if (== 0 (length closestFoods)) then (Position -1 -1) else (.. (first closestFoods) position)))
+                               (= delta (if (| (== -1 (.. closestFoodPosition x)) (& (== (.. closestFoodPosition x) x) (== (.. closestFoodPosition y) y)))
+                                         then (Position 0 0)
+                                         else (if (& (== x (.. closestFoodPosition x)) (!= y (.. closestFoodPosition y))) 
+                                               then (Position (- (.. closestFoodPosition x) x) (/ (- (.. closestFoodPosition y) y) (abs (- (.. closestFoodPosition y) y))))
+                                               else (Position (/ (- (.. closestFoodPosition x) x) (abs (- (.. closestFoodPosition x) x))) 0))))) 
+                              (createAnt (Position (+ x (.. delta x)) (+ y (.. delta y)))))))
+
+  (: nextFoodParticle (-> Particle Particle))
+  (= nextFoodParticle (fn (food) 
+                          (let ((= antsWithSamePosition (filter (--> particle (& (== (.. particle color) "gray") (& (== (string (.. particle position)) (string (.. food position))) (.. particle render)))) particles))
+                                (= newFood (if (== (length antsWithSamePosition) 0) then food else (Particle (.. food position) "red" false))) 
+                               ) newFood)))
+
+  (= noFoodRemaining (== (length (filter (--> particle (& (== (.. particle color) "red") (.. particle render))) particles)) 0))
 )

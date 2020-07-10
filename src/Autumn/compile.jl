@@ -8,7 +8,7 @@ import MacroTools: striplines
 
 export compiletojulia, runprogram
 
-binaryOperators = [:+, :-, :/, :*, :&, :||, :>=, :<=, :>, :<, :(==), :!=]
+binaryOperators = [:+, :-, :/, :*, :&, :|, :>=, :<=, :>, :<, :(==), :!=, :%, :&&]
 
 struct AutumnCompileError <: Exception
   msg
@@ -58,14 +58,14 @@ function compiletojulia(aexpr::AExpr)::Expr
     expr
   end
   
-  function compileassign(expr::AExpr, parent::AExpr, data::Dict{String, Any})
+  function compileassign(expr::AExpr, parent::Union{AExpr, Nothing}, data::Dict{String, Any})
     # get type, if declared
     type = haskey(data["types"], (expr.args[1], parent)) ? data["types"][(expr.args[1], parent)] : nothing
     if (typeof(expr.args[2]) == AExpr && expr.args[2].head == :fn)
       if type !== nothing # handle function with typed arguments/return type
         args = compile(expr.args[2].args[1]).args # function args
         argTypes = map(compile, type.args[1:(end-1)]) # function arg types
-        tuples = [(arg, type) for arg in args, type in argTypes]
+        tuples = [(args[i], argTypes[i]) for i in [1:length(args);]]
         typedArgExprs = map(x -> :($(x[1])::$(x[2])), tuples)
         quote 
           function $(compile(expr.args[1]))($(typedArgExprs...))::$(compile(type.args[end]))
@@ -101,8 +101,12 @@ function compiletojulia(aexpr::AExpr)::Expr
   end
   
   function compiletypedecl(expr, parent, data)
-    data["types"][(expr.args[1], parent)] = expr.args[2]
-    :()
+    if (parent !== nothing && (parent.head == :program || parent.head == :external))
+      data["types"][(expr.args[1], parent)] = expr.args[2]
+      :()
+    else
+      :(local $(compile(expr.args[1]))::$(compile(expr.args[2])))
+    end
   end
   
   function compileexternal(expr, data)
@@ -138,7 +142,7 @@ function compiletojulia(aexpr::AExpr)::Expr
   
   function compilelet(expr)
     quote
-      $(vcat(map(x -> compile(x, expr), expr.args[1]), compile(expr.args[2]))...)
+      $(map(x -> compile(x, expr), expr.args)...)
     end
   end
 
@@ -152,20 +156,19 @@ function compiletojulia(aexpr::AExpr)::Expr
   
   function compileinitnext(data)
     initFunction = quote
-      function init($(map(x -> compile(x), data["externalVars"])...))
-        $(map(x -> :(global $(compile(x.args[1])) = $(compile(x.args[2].args[1]))), data["initnextVars"])...)
-        $(map(x -> :(global $(compile(x.args[1])) = $(compile(x.args[2]))), data["liftedVars"])...)
-        $(map(x -> :($(Symbol(string(x[1])*"History"))[time] = deepcopy($(compile(x[1])))), data["historyVars"])...)
-        particles
+      function init($(map(x -> :($(compile(x[1]))::Union{$(compile(data["types"][x])), Nothing}), filter(x -> (x[1] in data["externalVars"]), data["historyVars"]))...))::STATE
+        $(map(x -> :(state.$(Symbol(string(x.args[1])*"History"))[state.time] = $(compile(x.args[2].args[1]))), data["initnextVars"])...)
+        $(map(x -> :(state.$(Symbol(string(x.args[1])*"History"))[state.time] = $(compile(x.args[2]))), data["liftedVars"])...)
+        state
       end
      end
     nextFunction = quote
-      function next($(map(x -> compile(x), data["externalVars"])...))
-        global time += 1
-        $(map(x -> :(global $(compile(x.args[1])) = $(compile(x.args[2].args[2]))), data["initnextVars"])...)
-        $(map(x -> :(global $(compile(x.args[1])) = $(compile(x.args[2]))), data["liftedVars"])...)
-        $(map(x -> :($(Symbol(string(x[1]) * "History"))[time] = deepcopy($(compile(x[1])))), data["historyVars"])...)
-        particles
+      function next($([:(old_state::STATE), map(x -> :($(compile(x[1]))::Union{$(compile(data["types"][x])), Nothing}), filter(x -> (x[1] in data["externalVars"]), data["historyVars"]))...]...))::STATE
+        state = old_state
+        state.time = state.time + 1
+        $(map(x -> :(state.$(Symbol(string(x.args[1]) * "History"))[state.time] = $(compile(x.args[2].args[2]))), data["initnextVars"])...)
+        $(map(x -> :(state.$(Symbol(string(x.args[1]) * "History"))[state.time] = $(compile(x.args[2]))), data["liftedVars"])...)
+        state
       end
      end
      [initFunction, nextFunction]
@@ -176,19 +179,28 @@ function compiletojulia(aexpr::AExpr)::Expr
   # ----- COMPILATION -----#
   if (aexpr.head == :program)
     # handle AExpression lines
-    lines = filter(x -> x !== :(),map(arg -> compile(arg, aexpr), aexpr.args))
+    lines = filter(x -> x !== :(), map(arg -> compile(arg, aexpr), aexpr.args))
     
-    # handle history 
-    initGlobalVars = map(expr -> :($(compile(expr[1])) = nothing), data["historyVars"])
-    push!(initGlobalVars, :(time = 0))
-    # non-external variable history dicts
-    initHistoryDictArgs = map(expr -> 
-      :($(Symbol(string(expr[1]) * "History")) = Dict{Int64, $(haskey(data["types"], expr) ? compile(data["types"][expr]) : Any)}()),
-      filter(x -> !(x[1] in data["externalVars"]), data["historyVars"]))
-    # external variable history dicts
-    initHistoryDictArgs = vcat(initHistoryDictArgs, map(expr -> 
-    :($(Symbol(string(expr[1]) * "History")) = Dict{Int64, Union{$(compile(data["types"][expr])), Nothing}}())
-    , filter(x -> (x[1] in data["externalVars"]), data["historyVars"])))
+    # construct STATE struct
+    stateParamsInternal = map(expr -> :($(Symbol(string(expr[1]) * "History"))::Dict{Int64, $(haskey(data["types"], expr) ? compile(data["types"][expr]) : Any)}), 
+                              filter(x -> !(x[1] in data["externalVars"]), data["historyVars"]))
+    stateParamsExternal = map(expr -> :($(Symbol(string(expr[1]) * "History"))::Dict{Int64, Union{$(compile(data["types"][expr])), Nothing}}), 
+                              filter(x -> (x[1] in data["externalVars"]), data["historyVars"]))
+    stateStruct = quote
+      mutable struct STATE
+        time::Int
+        $(stateParamsInternal...)
+        $(stateParamsExternal...)
+      end
+    end
+
+    # initialize state::STATE variable
+    initStateParamsInternal = map(expr -> :(Dict{Int64, $(haskey(data["types"], expr) ? compile(data["types"][expr]) : Any)}()), 
+                                 filter(x -> !(x[1] in data["externalVars"]), data["historyVars"]))
+    initStateParamsExternal = map(expr -> :(Dict{Int64, Union{$(compile(data["types"][expr])), Nothing}}()), 
+                                 filter(x -> (x[1] in data["externalVars"]), data["historyVars"]))
+    initStateParams = [0, initStateParamsInternal..., initStateParamsExternal...]
+    initStateStruct = :(state = STATE($(initStateParams...)))
     
     # handle initnext
     initnextFunctions = compileinitnext(data)
@@ -197,12 +209,13 @@ function compiletojulia(aexpr::AExpr)::Expr
 
     # remove empty lines
     lines = filter(x -> x != :(), 
-            vcat(builtinFunctions, initGlobalVars, lines, initHistoryDictArgs, prevFunctions, initnextFunctions))
+            vcat(builtinFunctions, lines, stateStruct, initStateStruct, prevFunctions, initnextFunctions))
 
     # construct module
     expr = quote
       module CompiledProgram
         export init, next
+        import Base.min
         using Distributions
         using MLStyle: @match 
         $(lines...)
@@ -233,7 +246,7 @@ end
 function compileprevfuncs(data::Dict{String, Any})
   prevFunctions = map(x -> quote
         function $(Symbol(string(x[1]) * "Prev"))(n::Int=1)
-          $(Symbol(string(x[1]) * "History"))[time - n] 
+          state.$(Symbol(string(x[1]) * "History"))[state.time - n >= 0 ? state.time - n : 0] 
         end
         end, 
   data["historyVars"])
@@ -243,8 +256,11 @@ end
 function compilebuiltin()
   occurredFunction = builtInDict["occurred"]
   uniformChoiceFunction = builtInDict["uniformChoice"]
+  uniformChoiceFunction2 = builtInDict["uniformChoice2"]
+  minFunction = builtInDict["min"]
   clickType = builtInDict["clickType"]
-  [occurredFunction, uniformChoiceFunction, clickType]
+  rangeFunction = builtInDict["range"]
+  [occurredFunction, uniformChoiceFunction, uniformChoiceFunction2, minFunction, clickType, rangeFunction]
 end
 
 builtInDict = Dict([
@@ -258,12 +274,27 @@ builtInDict = Dict([
                           freePositions[rand(Categorical(ones(length(freePositions))/length(freePositions)))]
                         end
                       end,
+"uniformChoice2"   =>  quote
+                        function uniformChoice(freePositions, n)
+                          map(idx -> freePositions[idx], rand(Categorical(ones(length(freePositions))/length(freePositions)), n))
+                        end
+                      end,
+"min"              => quote
+                        function min(arr)
+                          min(arr...)
+                        end
+                      end,
 "clickType"       =>  quote
                         struct Click
-                          x::Int
-                          y::Int                    
+                          x::BigInt
+                          y::BigInt                    
                         end     
+                      end,
+"range"           => quote
+                      function range(start::BigInt, stop::BigInt)
+                        [start:stop;]
                       end
+                     end
 ])
 
 end

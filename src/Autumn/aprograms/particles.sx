@@ -9,13 +9,13 @@
   (: particles (List Particle))
   (= particles (initnext (list) (if (occurred click) 
                                then (push! (prev particles) (particleGen (Position 1 1))) 
-                               else (map nextParticle particles))))
-  
-  (= nparticles (length particles))
+                               else (map nextParticle (prev particles)))))
+  (: nparticles Int)
+  (= nparticles (length (prev particles)))
   
   (: isFree (-> Position Bool))
   (= isFree (fn (position) 
-                (length (filter (--> particle (!= (.. particle position) position)) particles))))
+                (== (length (filter (--> particle (== (.. particle position) position)) (prev particles))) 0)))
 
   (: isWithinBounds (-> Position Bool))
   (= isWithinBounds (fn (position) 
