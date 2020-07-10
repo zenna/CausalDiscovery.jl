@@ -155,20 +155,30 @@ function compiletojulia(aexpr::AExpr)::Expr
   end
   
   function compileinitnext(data)
+    initStateParamsInternal = map(expr -> :(Dict{Int64, $(haskey(data["types"], expr) ? compile(data["types"][expr]) : Any)}()), 
+    filter(x -> !(x[1] in data["externalVars"]), data["historyVars"]))
+    initStateParamsExternal = map(expr -> :(Dict{Int64, Union{$(compile(data["types"][expr])), Nothing}}()), 
+        filter(x -> (x[1] in data["externalVars"]), data["historyVars"]))
+    initStateParams = [0, initStateParamsInternal..., initStateParamsExternal...]
+    initStateStruct = :(state = STATE($(initStateParams...)))
+
     initFunction = quote
       function init($(map(x -> :($(compile(x[1]))::Union{$(compile(data["types"][x])), Nothing}), filter(x -> (x[1] in data["externalVars"]), data["historyVars"]))...))::STATE
-        $(map(x -> :(state.$(Symbol(string(x.args[1])*"History"))[state.time] = $(compile(x.args[2].args[1]))), data["initnextVars"])...)
-        $(map(x -> :(state.$(Symbol(string(x.args[1])*"History"))[state.time] = $(compile(x.args[2]))), data["liftedVars"])...)
-        state
+        $(initStateStruct)
+        $(map(x -> :($(compile(x.args[1])) = $(compile(x.args[2].args[1]))), data["initnextVars"])...)
+        $(map(x -> :($(compile(x.args[1])) = $(compile(x.args[2]))), data["liftedVars"])...)
+        $(map(x -> :(state.$(Symbol(string(x[1])*"History"))[state.time] = $(compile(x[1]))), data["historyVars"])...)
+        deepcopy(state)
       end
      end
     nextFunction = quote
       function next($([:(old_state::STATE), map(x -> :($(compile(x[1]))::Union{$(compile(data["types"][x])), Nothing}), filter(x -> (x[1] in data["externalVars"]), data["historyVars"]))...]...))::STATE
-        state = old_state
+        global state = deepcopy(old_state)
         state.time = state.time + 1
-        $(map(x -> :(state.$(Symbol(string(x.args[1]) * "History"))[state.time] = $(compile(x.args[2].args[2]))), data["initnextVars"])...)
-        $(map(x -> :(state.$(Symbol(string(x.args[1]) * "History"))[state.time] = $(compile(x.args[2]))), data["liftedVars"])...)
-        state
+        $(map(x -> :($(compile(x.args[1])) = $(compile(x.args[2].args[2]))), data["initnextVars"])...)
+        $(map(x -> :($(compile(x.args[1])) = $(compile(x.args[2]))), data["liftedVars"])...)
+        $(map(x -> :(state.$(Symbol(string(x[1])*"History"))[state.time] = $(compile(x[1]))), data["historyVars"])...)
+        deepcopy(state)
       end
      end
      [initFunction, nextFunction]

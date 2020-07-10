@@ -11,7 +11,7 @@
                                then (push! (prev particles) (particleGen (Position 1 1))) 
                                else (map nextParticle (prev particles)))))
   (: nparticles Int)
-  (= nparticles (length (prev particles)))
+  (= nparticles (length particles))
   
   (: isFree (-> Position Bool))
   (= isFree (fn (position) 
