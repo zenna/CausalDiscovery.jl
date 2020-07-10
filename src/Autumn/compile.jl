@@ -155,16 +155,9 @@ function compiletojulia(aexpr::AExpr)::Expr
   end
   
   function compileinitnext(data)
-    initStateParamsInternal = map(expr -> :(Dict{Int64, $(haskey(data["types"], expr) ? compile(data["types"][expr]) : Any)}()), 
-    filter(x -> !(x[1] in data["externalVars"]), data["historyVars"]))
-    initStateParamsExternal = map(expr -> :(Dict{Int64, Union{$(compile(data["types"][expr])), Nothing}}()), 
-        filter(x -> (x[1] in data["externalVars"]), data["historyVars"]))
-    initStateParams = [0, initStateParamsInternal..., initStateParamsExternal...]
-    initStateStruct = :(state = STATE($(initStateParams...)))
-
     initFunction = quote
       function init($(map(x -> :($(compile(x[1]))::Union{$(compile(data["types"][x])), Nothing}), filter(x -> (x[1] in data["externalVars"]), data["historyVars"]))...))::STATE
-        $(initStateStruct)
+        $(compileinitstate(data))
         $(map(x -> :($(compile(x.args[1])) = $(compile(x.args[2].args[1]))), data["initnextVars"])...)
         $(map(x -> :($(compile(x.args[1])) = $(compile(x.args[2]))), data["liftedVars"])...)
         $(map(x -> :(state.$(Symbol(string(x[1])*"History"))[state.time] = $(compile(x[1]))), data["historyVars"])...)
@@ -182,6 +175,17 @@ function compiletojulia(aexpr::AExpr)::Expr
       end
      end
      [initFunction, nextFunction]
+  end
+
+  # initialize state::STATE variable
+  function compileinitstate(data)
+    initStateParamsInternal = map(expr -> :(Dict{Int64, $(haskey(data["types"], expr) ? compile(data["types"][expr]) : Any)}()), 
+    filter(x -> !(x[1] in data["externalVars"]), data["historyVars"]))
+    initStateParamsExternal = map(expr -> :(Dict{Int64, Union{$(compile(data["types"][expr])), Nothing}}()), 
+        filter(x -> (x[1] in data["externalVars"]), data["historyVars"]))
+    initStateParams = [0, initStateParamsInternal..., initStateParamsExternal...]
+    initState = :(global state = STATE($(initStateParams...)))
+    initState
   end
   # ----- END HELPER FUNCTIONS ----- #
 
@@ -203,14 +207,7 @@ function compiletojulia(aexpr::AExpr)::Expr
         $(stateParamsExternal...)
       end
     end
-
-    # initialize state::STATE variable
-    initStateParamsInternal = map(expr -> :(Dict{Int64, $(haskey(data["types"], expr) ? compile(data["types"][expr]) : Any)}()), 
-                                 filter(x -> !(x[1] in data["externalVars"]), data["historyVars"]))
-    initStateParamsExternal = map(expr -> :(Dict{Int64, Union{$(compile(data["types"][expr])), Nothing}}()), 
-                                 filter(x -> (x[1] in data["externalVars"]), data["historyVars"]))
-    initStateParams = [0, initStateParamsInternal..., initStateParamsExternal...]
-    initStateStruct = :(state = STATE($(initStateParams...)))
+    initStateStruct = compileinitstate(data)
     
     # handle initnext
     initnextFunctions = compileinitnext(data)
