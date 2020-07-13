@@ -119,7 +119,6 @@ function showstring(expr::Expr)
     Expr(:field, var, field) => "$(showstring(var)).$(showstring(field))"
     Expr(:typealiasargs, vals...) => "$(string("{ ", join(map(showstring, vals), ", ")," }"))"
     Expr(:lambda, var, val) => "($(showstring(var)) -> ($(showstring(val))))"
-    Expr(:const, assignment) => "const $(showstring(assignment))"
     x                       => "Fail $x"
 
   end

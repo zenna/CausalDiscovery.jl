@@ -1,5 +1,5 @@
 (program
-  (const (= GRID_SIZE 16))
+  (= GRID_SIZE 16)
 
   (type alias Position ((: x BigInt) (: y BigInt)))
   (type alias Particle ((: position Position) (: color String) (: render Bool)))
@@ -7,7 +7,7 @@
   (external (: click Click))
   
   (: particles (List Particle))
-  (= particles (initnext (antGen 4) (if (& (occurred click) noFoodRemaining) 
+  (= particles (initnext (antGen 6) (if (occurred click) 
                                       then (vcat (prev particles) (foodGen 4)) 
                                       else (map nextParticle particles))))
   
