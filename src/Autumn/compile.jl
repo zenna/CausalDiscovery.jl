@@ -15,7 +15,6 @@ function compiletojulia(aexpr::AExpr)::Expr
                ("liftedVars" => []),
                ("types" => Dict())])
 
-  # ----- COMPILATION -----#
   if (aexpr.head == :program)
     # handle AExpression lines
     lines = filter(x -> x !== :(), map(arg -> compile(arg, data, aexpr), aexpr.args))

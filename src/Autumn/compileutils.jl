@@ -28,13 +28,13 @@ function compile(expr::AExpr, data::Dict{String, Any}, parent::Union{AExpr, Noth
     [:list, args...] => :([$(map(x -> compile(x, data), expr.args)...)])
     [:call, args...] => compilecall(expr, data)
     [:field, args...] => :($(compile(expr.args[1], data)).$(compile(expr.args[2], data)))
-    [args...] => throw(AutumnCompileError(string("Invalid AExpr Head: ", expr.head)))
+    [args...] => throw(AutumnCompileError(string("Invalid AExpr Head: ", expr.head))) # if expr head is not one of the above, throw error
   end
 end
 
 function compile(expr::AbstractArray, data::Dict{String, Any}, parent::Union{AExpr, Nothing}=nothing)
   if length(expr) == 0 || (length(expr) > 1 && expr[1] != :List)
-    throw(AutumnCompileError("Invalid Array"))
+    throw(AutumnCompileError("Invalid List Syntax"))
   elseif expr[1] == :List
     :(Array{$(compile(expr[2:end], data))})
   else
@@ -52,11 +52,11 @@ function compileassign(expr::AExpr, data::Dict{String, Any}, parent::Union{AExpr
   if (typeof(expr.args[2]) == AExpr && expr.args[2].head == :fn)
     if type !== nothing # handle function with typed arguments/return type
       args = compile(expr.args[2].args[1], data).args # function args
-      argTypes = map(x -> compile(x, data), type.args[1:(end-1)]) # function arg types
-      tuples = [(args[i], argTypes[i]) for i in [1:length(args);]]
-      typedArgExprs = map(x -> :($(x[1])::$(x[2])), tuples)
+      argtypes = map(x -> compile(x, data), type.args[1:(end-1)]) # function arg types
+      tuples = [(args[i], argtypes[i]) for i in [1:length(args);]]
+      typedargexprs = map(x -> :($(x[1])::$(x[2])), tuples)
       quote 
-        function $(compile(expr.args[1], data))($(typedArgExprs...))::$(compile(type.args[end], data))
+        function $(compile(expr.args[1], data))($(typedargexprs...))::$(compile(type.args[end], data))
           $(compile(expr.args[2].args[2], data))  
         end
       end 
@@ -213,7 +213,7 @@ function compilebuiltin()
   [occurredFunction, uniformChoiceFunction, uniformChoiceFunction2, minFunction, clickType, rangeFunction]
 end
 
-builtInDict = Dict([
+const builtInDict = Dict([
 "occurred"        =>  quote
                         function occurred(click)
                           click !== nothing
