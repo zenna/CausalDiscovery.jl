@@ -31,7 +31,7 @@ antGen count =
   let 
     coords = uniformChoice (range 0 (GRID_SIZE*GRID_SIZE - 1)) count
 
-    positions = map (coord -> Position(coord % GRID_SIZE, parse(Int, coord/GRID_SIZE)))
+    positions = map (coord -> Position(coord % GRID_SIZE, floor(Int, coord/GRID_SIZE)))
     ants = map createAnt positions
   in
   ants
@@ -42,7 +42,7 @@ foodGen count =
   let 
     coords = uniformChoice (range 0 (GRID_SIZE*GRID_SIZE - 1)) count
 
-    positions = map (coord -> Position(coord % GRID_SIZE, parse(Int, coord/GRID_SIZE)))
+    positions = map (coord -> Position(coord % GRID_SIZE, floor(Int, coord/GRID_SIZE)))
     food = map createFood positions
   in
   food
