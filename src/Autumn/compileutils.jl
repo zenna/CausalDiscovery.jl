@@ -195,11 +195,17 @@ end
 
 function compileprevfuncs(data::Dict{String, Any})
   prevFunctions = map(x -> quote
-        function $(Symbol(string(x.args[1]) * "Prev"))(n::Int=1)
+        function $(Symbol(string(x.args[1]) * "Prev"))(n::Int=1)::$(haskey(data["types"], x.args[1]) ? compile(data["types"][x.args[1]], data) : Any)
           state.$(Symbol(string(x.args[1]) * "History"))[state.time - n >= 0 ? state.time - n : 0] 
         end
         end, 
-  vcat(data["external"], data["initnext"], data["lifted"]))
+  vcat(data["initnext"], data["lifted"]))
+  prevFunctions = vcat(prevFunctions, map(x -> quote
+        function $(Symbol(string(x.args[1]) * "Prev"))(n::Int=1)::Union{$(compile(data["types"][x.args[1]], data)), Nothing}
+          state.$(Symbol(string(x.args[1]) * "History"))[state.time - n >= 0 ? state.time - n : 0] 
+        end
+        end, 
+  data["external"]))
   prevFunctions
 end
 
