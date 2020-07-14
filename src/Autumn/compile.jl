@@ -9,23 +9,24 @@ export compiletojulia, runprogram
 "compile `aexpr` into Expr"
 function compiletojulia(aexpr::AExpr)::Expr
 
-  data = Dict([("historyVars" => []),
-               ("externalVars" => []),
-               ("initnextVars" => []),
-               ("liftedVars" => []),
-               ("types" => Dict())])
+  # dictionary containing types/definitions of global variables, for use in constructing init func.,
+  # next func., etcetera; the three categories of global variable are external, initnext, and lifted  
+  historydata = Dict([("external" => []), # :typedecl aexprs for all external variables
+               ("initnext" => []), # :assign aexprs for all initnext variables
+               ("lifted" => []), # :assign aexprs for all lifted variables
+               ("types" => Dict())]) # map of global variable names (symbols) to types
 
   if (aexpr.head == :program)
     # handle AExpression lines
-    lines = filter(x -> x !== :(), map(arg -> compile(arg, data, aexpr), aexpr.args))
+    lines = filter(x -> x !== :(), map(arg -> compile(arg, historydata, aexpr), aexpr.args))
     
     # construct STATE struct and initialize state::STATE
-    stateStruct = compilestatestruct(data)
-    initStateStruct = compileinitstate(data)
+    stateStruct = compilestatestruct(historydata)
+    initStateStruct = compileinitstate(historydata)
     
     # handle init, next, prev, and built-in functions
-    initnextFunctions = compileinitnext(data)
-    prevFunctions = compileprevfuncs(data)
+    initnextFunctions = compileinitnext(historydata)
+    prevFunctions = compileprevfuncs(historydata)
     builtinFunctions = compilebuiltin()
 
     # remove empty lines

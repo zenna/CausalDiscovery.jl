@@ -48,7 +48,7 @@ end
 
 function compileassign(expr::AExpr, data::Dict{String, Any}, parent::Union{AExpr, Nothing})
   # get type, if declared
-  type = haskey(data["types"], (expr.args[1], parent)) ? data["types"][(expr.args[1], parent)] : nothing
+  type = haskey(data["types"], expr.args[1]) ? data["types"][expr.args[1]] : nothing
   if (typeof(expr.args[2]) == AExpr && expr.args[2].head == :fn)
     if type !== nothing # handle function with typed arguments/return type
       args = compile(expr.args[2].args[1], data).args # function args
@@ -70,11 +70,10 @@ function compileassign(expr::AExpr, data::Dict{String, Any}, parent::Union{AExpr
   else # handle non-function assignments
     # handle global assignments
     if parent !== nothing && (parent.head == :program) 
-      push!(data["historyVars"], (expr.args[1], parent))
       if (typeof(expr.args[2]) == AExpr && expr.args[2].head == :initnext)
-        push!(data["initnextVars"], expr)
-      elseif (parent.head == :program)
-        push!(data["liftedVars"], expr)
+        push!(data["initnext"], expr)
+      else
+        push!(data["lifted"], expr)
       end
       :()
     # handle non-global assignments
@@ -90,7 +89,7 @@ end
 
 function compiletypedecl(expr::AExpr, data::Dict{String, Any}, parent::Union{AExpr, Nothing})
   if (parent !== nothing && (parent.head == :program || parent.head == :external))
-    data["types"][(expr.args[1], parent)] = expr.args[2]
+    data["types"][expr.args[1]] = expr.args[2]
     :()
   else
     :(local $(compile(expr.args[1], data))::$(compile(expr.args[2], data)))
@@ -98,8 +97,7 @@ function compiletypedecl(expr::AExpr, data::Dict{String, Any}, parent::Union{AEx
 end
 
 function compileexternal(expr::AExpr, data::Dict{String, Any})
-  push!(data["externalVars"], expr.args[1].args[1])
-  push!(data["historyVars"], (expr.args[1].args[1], expr))
+  push!(data["external"], expr.args[1])
   compiletypedecl(expr.args[1], data, expr)
 end
 
@@ -144,21 +142,23 @@ end
 
 function compileinitnext(data::Dict{String, Any})
   initFunction = quote
-    function init($(map(x -> :($(compile(x[1], data))::Union{$(compile(data["types"][x], data)), Nothing}), filter(x -> (x[1] in data["externalVars"]), data["historyVars"]))...))::STATE
+    function init($(map(x -> :($(compile(x.args[1], data))::Union{$(compile(data["types"][x.args[1]], data)), Nothing}), data["external"])...))::STATE
       $(compileinitstate(data))
-      $(map(x -> :($(compile(x.args[1], data)) = $(compile(x.args[2].args[1], data))), data["initnextVars"])...)
-      $(map(x -> :($(compile(x.args[1], data)) = $(compile(x.args[2], data))), data["liftedVars"])...)
-      $(map(x -> :(state.$(Symbol(string(x[1])*"History"))[state.time] = $(compile(x[1], data))), data["historyVars"])...)
+      $(map(x -> :($(compile(x.args[1], data)) = $(compile(x.args[2].args[1], data))), data["initnext"])...)
+      $(map(x -> :($(compile(x.args[1], data)) = $(compile(x.args[2], data))), data["lifted"])...)
+      $(map(x -> :(state.$(Symbol(string(x.args[1])*"History"))[state.time] = $(compile(x.args[1], data))), 
+            vcat(data["external"], data["initnext"], data["lifted"]))...)
       deepcopy(state)
     end
     end
   nextFunction = quote
-    function next($([:(old_state::STATE), map(x -> :($(compile(x[1], data))::Union{$(compile(data["types"][x], data)), Nothing}), filter(x -> (x[1] in data["externalVars"]), data["historyVars"]))...]...))::STATE
+    function next($([:(old_state::STATE), map(x -> :($(compile(x.args[1], data))::Union{$(compile(data["types"][x.args[1]], data)), Nothing}), data["external"])...]...))::STATE
       global state = deepcopy(old_state)
       state.time = state.time + 1
-      $(map(x -> :($(compile(x.args[1], data)) = $(compile(x.args[2].args[2], data))), data["initnextVars"])...)
-      $(map(x -> :($(compile(x.args[1], data)) = $(compile(x.args[2], data))), data["liftedVars"])...)
-      $(map(x -> :(state.$(Symbol(string(x[1])*"History"))[state.time] = $(compile(x[1], data))), data["historyVars"])...)
+      $(map(x -> :($(compile(x.args[1], data)) = $(compile(x.args[2].args[2], data))), data["initnext"])...)
+      $(map(x -> :($(compile(x.args[1], data)) = $(compile(x.args[2], data))), data["lifted"])...)
+      $(map(x -> :(state.$(Symbol(string(x.args[1])*"History"))[state.time] = $(compile(x.args[1], data))), 
+            vcat(data["external"], data["initnext"], data["lifted"]))...)
       deepcopy(state)
     end
     end
@@ -167,10 +167,10 @@ end
 
 # construct STATE struct
 function compilestatestruct(data::Dict{String, Any})
-  stateParamsInternal = map(expr -> :($(Symbol(string(expr[1]) * "History"))::Dict{Int64, $(haskey(data["types"], expr) ? compile(data["types"][expr], data) : Any)}), 
-                              filter(x -> !(x[1] in data["externalVars"]), data["historyVars"]))
-  stateParamsExternal = map(expr -> :($(Symbol(string(expr[1]) * "History"))::Dict{Int64, Union{$(compile(data["types"][expr], data)), Nothing}}), 
-                            filter(x -> (x[1] in data["externalVars"]), data["historyVars"]))
+  stateParamsInternal = map(expr -> :($(Symbol(string(expr.args[1]) * "History"))::Dict{Int64, $(haskey(data["types"], expr.args[1]) ? compile(data["types"][expr.args[1]], data) : Any)}), 
+                            vcat(data["initnext"], data["lifted"]))
+  stateParamsExternal = map(expr -> :($(Symbol(string(expr.args[1]) * "History"))::Dict{Int64, Union{$(compile(data["types"][expr.args[1]], data)), Nothing}}), 
+                            data["external"])
   quote
     mutable struct STATE
       time::Int
@@ -182,10 +182,10 @@ end
 
 # initialize state::STATE variable
 function compileinitstate(data::Dict{String, Any})
-  initStateParamsInternal = map(expr -> :(Dict{Int64, $(haskey(data["types"], expr) ? compile(data["types"][expr], data) : Any)}()), 
-  filter(x -> !(x[1] in data["externalVars"]), data["historyVars"]))
-  initStateParamsExternal = map(expr -> :(Dict{Int64, Union{$(compile(data["types"][expr], data)), Nothing}}()), 
-      filter(x -> (x[1] in data["externalVars"]), data["historyVars"]))
+  initStateParamsInternal = map(expr -> :(Dict{Int64, $(haskey(data["types"], expr.args[1]) ? compile(data["types"][expr.args[1]], data) : Any)}()), 
+                                vcat(data["initnext"], data["lifted"]))
+  initStateParamsExternal = map(expr -> :(Dict{Int64, Union{$(compile(data["types"][expr.args[1]], data)), Nothing}}()), 
+                                data["external"])
   initStateParams = [0, initStateParamsInternal..., initStateParamsExternal...]
   initState = :(state = STATE($(initStateParams...)))
   initState
@@ -195,11 +195,11 @@ end
 
 function compileprevfuncs(data::Dict{String, Any})
   prevFunctions = map(x -> quote
-        function $(Symbol(string(x[1]) * "Prev"))(n::Int=1)
-          state.$(Symbol(string(x[1]) * "History"))[state.time - n >= 0 ? state.time - n : 0] 
+        function $(Symbol(string(x.args[1]) * "Prev"))(n::Int=1)
+          state.$(Symbol(string(x.args[1]) * "History"))[state.time - n >= 0 ? state.time - n : 0] 
         end
         end, 
-  data["historyVars"])
+  vcat(data["external"], data["initnext"], data["lifted"]))
   prevFunctions
 end
 
@@ -248,6 +248,6 @@ const builtInDict = Dict([
 ])
 
 # binary operators
-binaryOperators = [:+, :-, :/, :*, :&, :|, :>=, :<=, :>, :<, :(==), :!=, :%, :&&]
+const binaryOperators = [:+, :-, :/, :*, :&, :|, :>=, :<=, :>, :<, :(==), :!=, :%, :&&]
 
 end

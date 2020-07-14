@@ -1,4 +1,5 @@
 (program
+  (: GRID_SIZE Int)
   (= GRID_SIZE 16)
 
   (type alias Position ((: x Int) (: y Int)))
