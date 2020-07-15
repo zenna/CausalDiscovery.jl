@@ -1,6 +1,6 @@
+using Test
 using CausalDiscovery.Autumn
 using CausalDiscovery.Autumn.Transform: Statement
-# using CausalDiscovery.Autumn.Transform: findnonterminal
 
 function test1()
   p = AExpr(:program, Statement())

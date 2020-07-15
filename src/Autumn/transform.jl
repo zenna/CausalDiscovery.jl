@@ -8,24 +8,7 @@ using MLStyle
 export sub, recursub
 # using OmegaCore
 
-"""
-Expand a subexpression.
-
-Returns a parametric representation over graphs.
-
-x = au\"\"\"
-(program
-  (= x 3)
-  (= y (x + ?)))
-\"\"\"
-
-hole = first(holes(x))    # Find the first hole
-ϕ = expand(hole)          # Get parametric representation of hole
-sub = sat(ϕ)             # Find any expression
-xnew = replace(x, sub)   # Construct `x`
-```
-"""
-
+"Non-terminal node in grammar"
 abstract type NonTerminal end
 
 struct Statement <: NonTerminal end
@@ -33,6 +16,7 @@ struct External <: NonTerminal end
 struct Assignment <: NonTerminal end
 struct TypeDeclaration <: NonTerminal end
 struct VariableName <: NonTerminal end
+struct ExistingVariableName <: NonTerminal end
 
 # ## Values
 struct ValueExpression <: NonTerminal end
@@ -59,7 +43,6 @@ function sub end
 
 function sub(ϕ, subex::SubExpr, ::Statement)
   choice(ϕ, [External(), Assignment(), TypeDeclaration()])
-  # choice(ϕ, [Assignment()])
 end
 
 function sub(ϕ, subex::SubExpr, ::External)
@@ -76,6 +59,7 @@ function sub(ϕ, subex::SubExpr, ::TypeExpression)
 end
 
 function sub(ϕ, subex::SubExpr, ::PrimitiveType)
+  # FIXME: include all primitive types
   primtypes = [Int, Float64, Bool]
   choice(ϕ, primtypes)
 end
@@ -84,33 +68,38 @@ function sub(ϕ, subex::SubExpr, ::FunctionType)
   AExpr(:functiontype, TypeExpression(), TypeExpression())
 end
 
-# ## Declarations
 function sub(ϕ, subex::SubExpr, ::Assignment)
   # @show vars_in_scope(subex)
   AExpr(:assign, VariableName(), ValueExpression())
 end
 
+# FIXME: This is a finite set, is it enough?
 const VARNAMES = 
   map(Symbol ∘ join,
       Iterators.product('a':'z', 'a':'z', 'a':'z'))[:]
 
 function sub(ϕ, subex::SubExpr, ::VariableName)
-  ## Choose a variable name that is correct in this context
-  # Choose a variable that is not in extandvars
-  # @show vars_in_scope(subex)
-  choice_ = choice(ϕ, VARNAMES)
-  # Choice(VARNAMES)(id, φ) |ᶜ var -> var ∉ vars_in_scope(subex)
+  # Choose a variable name that is correct in this context
+  # i.e., not already in scope 
+  vars = vars_in_scope(subex)
+  choice_ = choice(ϕ, setdiff(VARNAMES, vars))
 end
 
-# function ssub(φ, subex::SubExpr, ::VariableOK)
-#   Choice(VARNAMES)(id, φ) |ᶜ var -> var ∈ vars_in_scope(subex)
-# end
+function sub(φ, subex::SubExpr, ::ExistingVariableName)
+  vars = vars_in_scope(subex)
+
+  # If there are no variables to use then we have to backtrack
+  # For the moment, we simply return the same node which essentially means do nothin
+  if isempty(vars)
+    ExistingVariableName()
+  else
+    choice(φ, vars)
+  end
+end
 
 function sub(ϕ, subex::SubExpr, ::ValueExpression)
-  choice(ϕ, [Literal(), FunctionApp(), Lambda(), Let(), VariableName()])
+  choice(ϕ, [Literal(), FunctionApp(), Lambda(), Let(), ExistingVariableName()])
 end
-
-
 
 function sub(ϕ, subex::SubExpr, ::Lambda)
   AExpr(:fn, ArgumentList(), ValueExpression())
@@ -153,8 +142,11 @@ function sub(ϕ, subexpr::SubExpr)
   end
 end
 
+"all nonterminals in `aex`"
 allnonterminals(aex) = 
   filter(x-> resolve(x) isa NonTerminal, subexprs(aex))
+
+## Stopping functions
 
 "Stop when the graph is too large"
 stopwhenbig(subexpr; sizelimit = 100) = nnodes(subex) > sizelimit
@@ -162,24 +154,41 @@ stopwhenbig(subexpr; sizelimit = 100) = nnodes(subex) > sizelimit
 "Returns a stop function that stops after `n` calls"
 stopaftern(n) = (i = 1; (ϕ, subexpr) -> (i += 1; i > n))
 
-"Recursively fill `subex` until `stop`"
+"""
+  `recursub(ϕ, aex::AExpr, stop`
+
+Recursively fill `aex` until `stop`
+
+# Arguments
+- `ϕ`: parameter space (in Omega sense)
+- `aex`: Autumn expression containing non-terminals
+- `stop`: when `stop(ϕ, aex)` is true the procedure will stop and return `aex`
+  stop takes a parameter ϕ so that an inference procedure can determine when to sotp
+
+# Returns
+AExpression which has some or all non-terminal nodes expanded
+
+```
+aex = AExpr(:program, Statement(), Statement(), Statement(), Statement())
+ϕ = Phi()
+recursub(ϕ, aex)
+```
+"""
 function recursub(ϕ, aex::AExpr, stop = stopaftern(100))
-  #FIXME, what if i want stop to have state
+  # FIXME, what if i want stop to have state
   # FIXME: account for fact that there is none
   while !stop(ϕ, aex)
-    nts = allnonterminals(aex)
+    nts = allnonterminals(aex)      
     if isempty(nts)
       break
     else
-      subex = choice(ϕ, nts)
-      newex = sub(ϕ, subex)
-      aex = update(subex, newex)
-      println("#### Done\n")
+      subex = choice(ϕ, nts)      # Choose a nonterminal
+      newex = sub(ϕ, subex)       # find replacement for chosen NT
+      aex = update(subex, newex)  # substiute replacement into aex
+      # println("#### Done\n")
     end
   end
   aex
 end
-
-
 
 end
