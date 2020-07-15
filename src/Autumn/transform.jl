@@ -3,6 +3,7 @@ module Transform
 using ..AExpressions
 using ..SubExpressions
 using ..Parameters
+using ..Scope
 using MLStyle
 export sub, recursub
 # using OmegaCore
@@ -38,6 +39,9 @@ struct ValueExpression <: NonTerminal end
 struct Literal <: NonTerminal end
 struct FunctionApp <: NonTerminal end
 struct Lambda <: NonTerminal end
+struct Let <: NonTerminal end
+struct LetBindings <: NonTerminal end
+struct LetBinding <: NonTerminal end
 
 struct ArgumentList <: NonTerminal end
 
@@ -47,43 +51,42 @@ struct PrimitiveType <: NonTerminal end
 struct CustomType <: NonTerminal end
 struct FunctionType <: NonTerminal end
 
-
-# Base.string(::NonTerminal)
 AExpressions.showstring(T::Q) where {Q <: NonTerminal} = "{$(Q.name.name)}"
 Base.show(io::IO, nt::NonTerminal) = print(io, AExpressions.showstring(nt))
 
 "`sub(ϕ, subexpr::SubExpr{<:Statement})`returns `parent` with subexpression subed"
 function sub end
 
-function sub(ϕ, sexpr::SubExpr, ::Statement)
+function sub(ϕ, subex::SubExpr, ::Statement)
   choice(ϕ, [External(), Assignment(), TypeDeclaration()])
   # choice(ϕ, [Assignment()])
 end
 
-function sub(ϕ, sexpr::SubExpr, ::External)
+function sub(ϕ, subex::SubExpr, ::External)
   AExpr(:external, TypeDeclaration())
 end
 
 # ## Types
-function sub(ϕ, sexpr::SubExpr, ::TypeDeclaration)
+function sub(ϕ, subex::SubExpr, ::TypeDeclaration)
   AExpr(:typedecl, VariableName(), TypeExpression())
 end
 
-function sub(ϕ, sexpr::SubExpr, ::TypeExpression)
+function sub(ϕ, subex::SubExpr, ::TypeExpression)
   choice(ϕ, [PrimitiveType(), FunctionType()])
 end
 
-function sub(ϕ, sexpr::SubExpr, ::PrimitiveType)
+function sub(ϕ, subex::SubExpr, ::PrimitiveType)
   primtypes = [Int, Float64, Bool]
   choice(ϕ, primtypes)
 end
 
-function sub(ϕ, sexpr::SubExpr, ::FunctionType)
+function sub(ϕ, subex::SubExpr, ::FunctionType)
   AExpr(:functiontype, TypeExpression(), TypeExpression())
 end
 
 # ## Declarations
-function sub(ϕ, sexpr::SubExpr, ::Assignment)
+function sub(ϕ, subex::SubExpr, ::Assignment)
+  # @show vars_in_scope(subex)
   AExpr(:assign, VariableName(), ValueExpression())
 end
 
@@ -91,33 +94,52 @@ const VARNAMES =
   map(Symbol ∘ join,
       Iterators.product('a':'z', 'a':'z', 'a':'z'))[:]
 
-function sub(ϕ, sexpr::SubExpr, ::VariableName)
+function sub(ϕ, subex::SubExpr, ::VariableName)
   ## Choose a variable name that is correct in this context
   # Choose a variable that is not in extandvars
-  choice(ϕ, VARNAMES)
+  # @show vars_in_scope(subex)
+  choice_ = choice(ϕ, VARNAMES)
+  # Choice(VARNAMES)(id, φ) |ᶜ var -> var ∉ vars_in_scope(subex)
 end
 
-function sub(ϕ, sexpr::SubExpr, ::ValueExpression)
-  choice(ϕ, [Literal(), FunctionApp(), Lambda()])
+# function ssub(φ, subex::SubExpr, ::VariableOK)
+#   Choice(VARNAMES)(id, φ) |ᶜ var -> var ∈ vars_in_scope(subex)
+# end
+
+function sub(ϕ, subex::SubExpr, ::ValueExpression)
+  choice(ϕ, [Literal(), FunctionApp(), Lambda(), Let(), VariableName()])
 end
 
-function sub(ϕ, sexpr::SubExpr, ::Lambda)
+
+
+function sub(ϕ, subex::SubExpr, ::Lambda)
   AExpr(:fn, ArgumentList(), ValueExpression())
 end
 
-function sub(ϕ, sexpr::SubExpr, ::ArgumentList)
+function sub(ϕ, subex::SubExpr, ::LetBindings)
+  MAXARGS = 4
+  nargs = choice(ϕ, 1:MAXARGS)
+  args = [Assignment() for i = 1:nargs]
+  AExpr(:letargs, args...)
+end
+
+function sub(ϕ, subex::SubExpr, ::Let)
+  AExpr(:let, LetBindings(), ValueExpression())
+end
+
+function sub(ϕ, subex::SubExpr, ::ArgumentList)
   MAXARGS = 4
   nargs = choice(ϕ, 1:MAXARGS)
   args = [VariableName() for i = 1:nargs]
   AExpr(:args, args...)
 end
 
-function sub(ϕ, sexpr::SubExpr, ::FunctionApp)
+function sub(ϕ, subex::SubExpr, ::FunctionApp)
   # TODO: Need type constraitns
   AExpr(:call, ValueExpression(), ValueExpression(), ValueExpression())
 end
 
-function sub(ϕ, sexpr::SubExpr, ::Literal)
+function sub(ϕ, subex::SubExpr, ::Literal)
   # FINISHME: Do type inference
   literaltype = Int
   choice(ϕ, literaltype)
@@ -135,12 +157,12 @@ allnonterminals(aex) =
   filter(x-> resolve(x) isa NonTerminal, subexprs(aex))
 
 "Stop when the graph is too large"
-stopwhenbig(subexpr; sizelimit = 100) = nnodes(sexpr) > sizelimit
+stopwhenbig(subexpr; sizelimit = 100) = nnodes(subex) > sizelimit
 
 "Returns a stop function that stops after `n` calls"
 stopaftern(n) = (i = 1; (ϕ, subexpr) -> (i += 1; i > n))
 
-"Recursively fill `sexpr` until `stop`"
+"Recursively fill `subex` until `stop`"
 function recursub(ϕ, aex::AExpr, stop = stopaftern(100))
   #FIXME, what if i want stop to have state
   # FIXME: account for fact that there is none

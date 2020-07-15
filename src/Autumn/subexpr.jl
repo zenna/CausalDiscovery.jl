@@ -11,27 +11,39 @@ export SubExpr,
        update,
        subexprdfs,
        subexprs,
+       pos,
        parent,
        isroot,
        parentwalk,
        depth,
        siblings,
        ancestors,
-       youngersiblings
+       youngersiblings,
+       isyoungersibling,
+       descendents
 
        
 "Subexpression of `parent::AE` indicated by pointer `p::P`"
 struct SubExpr{AExpr, P}
-  parent::AExpr
+  aex::AExpr
   pointer::P
 end
+
+function Base.getproperty(subex::SubExpr, v::Symbol)
+  if v == :head
+    resolve(subex).head
+  elseif v == :args
+    resolve(subex).args
+  else
+    getfield(subex, v)
+  end
+end
+
+Base.:(==)(x::SubExpr, y::SubExpr) = (x.aex == y.aex) && (x.pointer == y.pointer)
 
 subexpr(aexpr, id) = SubExpr(aexpr, id)
 subexpr(aexpr, id::Integer) = SubExpr(aexpr, [id])
 subexpr(::SubExpr) = error("Cannot take subexpression of subexpression, yet")
-
-"`parent(subex::SubExpr)` Parent SubExpr of `subex`"
-Base.parent(subex::SubExpr) = SubExpr(subex.parent, pop(subex.pointer))
 
 "Remove last element of `xs`"
 pop(xs::AbstractVector) = xs[1:end-1]
@@ -39,7 +51,7 @@ pop(xs::AbstractVector) = xs[1:end-1]
 "remove last `n` memebers of xs"
 pop(xs, n) = xs[1:end-n]
 
-"`subex` is is the `pop(subex)`th child of `parent(subex)`"
+"`subex` is is the `pos(subex)`th child of `parent(subex)`"
 pos(subex::SubExpr) = subex.pointer[end]
 
 "Is `subex` the root expression?"
@@ -54,15 +66,18 @@ AExpressions.head(subex::SubExpr) =
 "Returns subexpressions that are children"
 function AExpressions.args(subexpr::SubExpr)
   q = g(resolve(subexpr))
-  (SubExpr(subexpr.parent, append(subexpr.pointer, i)) for i = 1:length(q))
+  (SubExpr(subexpr.aex, append(subexpr.pointer, i)) for i = 1:length(q))
 end
 g(aex::AExpr) = aex.args
 g(x) = []
 append(xs::AbstractVector, x) = [xs; x]
 
+AExpressions.args(subexpr::SubExpr, i) = 
+  SubExpr(subexpr.aex, append(subexpr.pointer, i))
+
 "Resolve Value pointed to by `subexpr`"
 function resolve(subexpr::SubExpr)
-  ex = subexpr.parent
+  ex = subexpr.aex
   for id in subexpr.pointer
     ex = arg(ex, id)
   end
@@ -71,7 +86,7 @@ end
 
 # ## Traversal
 
-"""Update subexpr.parent such that `subexpr` is `newexpr`
+"""Update subexpr.aex such that `subexpr` is `newexpr`
 
 ```
 prog = au\"\"\"
@@ -97,7 +112,7 @@ function update(subexpr::SubExpr, newexpr)
     # @show pos == subexpr.pointer
     pos == subexpr.pointer ? newexpr : expr
   end
-  postwalkpos(subchild, subexpr.parent)
+  postwalkpos(subchild, subexpr.aex)
 end
 
 "Depth first search of subexpressions"
@@ -142,7 +157,7 @@ parentwalk(subex, prog)
 """
 function parentwalk(f, subex, s)
   while !isroot(subex)
-    subex = Base.parent(subex)
+    subex = Base.aex(subex)
     s = f(subex, s)
   end
   s
@@ -158,17 +173,30 @@ subexprdfs(aexpr::AExpr) =
 
 # Relations
 
+"`parent(subex::SubExpr)` Parent SubExpr of `subex`"
+Base.parent(subex::SubExpr) = SubExpr(subex.aex, pop(subex.pointer))
+
+"`i`th order parent.  `i==1` is parent, `i == 2` is grandparent, etc"
+Base.parent(subex::SubExpr, i) = SubExpr(subex.aex, pop(subex.pointer, i))
+
+"Descendents of `subex`"
+descendents(subex::SubExpr) = subexprdfs(subex)
+
 "Ancestors of `subexpr`"
 ancestors(subex::SubExpr) =
-  (SubExpr(subex.parent, pop(subex.pointer, i)) for i = 1:depth(subex))
+  (SubExpr(subex.aex, pop(subex.pointer, i)) for i = 1:depth(subex))
 siblings(subex::SubExpr) = args(parent(subex))
 
 "Siblings that have an position greater than subex"
 youngersiblings(subex::SubExpr) =
   Iterators.filter(sib -> pos(sib) > pos(subex), siblings(subex))
 
+"is `subexa` a youngersibling of `subexb`"
+isyoungersibling(subexa::SubExpr, subexb::SubExpr) = 
+  subexa ∈ youngersiblings(subexb)
+
 Base.show(io::IO, subexpr::SubExpr) =
-  print(io, "Subexpression @ ", subexpr.pointer, ":\n", subexpr.parent, "\n=>\n", resolve(subexpr), "\n")
+  print(io, "Subexpression @ ", subexpr.pointer, ":\n", subexpr.aex, "\n=>\n", resolve(subexpr), "\n")
 
   
   

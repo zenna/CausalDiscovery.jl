@@ -57,7 +57,7 @@ head(aex::AExpr) = aex.head
 args(ex::Expr) = ex.args
 
 "Expr in ith location in arg"
-arg(aex, i) = args(aex)[i]
+arg(aex::AExpr, i) = args(aex)[i]
 
 Base.Expr(aex::AExpr) = Expr(aex.head, aex.args...)
 
@@ -106,7 +106,8 @@ function showstring(expr::Expr)
     Expr(:args, args...) => join(map(showstring, args), " ")
     Expr(:call, f, arg1, arg2) && if isinfix(f) end => "$(showstring(arg1)) $f $(showstring(arg2))"
     Expr(:call, f, args...) => "($(join(map(showstring, [f ; args]), " ")))"
-    Expr(:let, vars, val) => "let \n\t$(join(map(showstring, vars), "\n\t"))\n in \n\t $(showstring(val))"
+    Expr(:let, letargs, val) => "let \n\t$(showstring(letargs))\n in \n\t $(showstring(val))"
+    Expr(:letargs, vars...) => "$(join(map(showstring, vars), "\n\t"))"
     Expr(:paramtype, type, param) => string(type, " ", param)
     Expr(:paramtype, type) => string(type)
     Expr(:case, type, vars...) => string("\n\tcase $(showstring(type)) of \n\t\t", join(map(showstring, vars), "\n\t\t"))
