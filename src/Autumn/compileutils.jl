@@ -4,14 +4,14 @@ using ..AExpressions
 using Distributions: Categorical
 using MLStyle: @match
 
-export AutumnCompileError, compile, compilestatestruct, compileinitstate, compileinitnext, compileprevfuncs, compilebuiltin
+export AutumnCompileError, compile, compilestatestruct, compileinitstate, compileinitnext, compileprevfuncs, compilebuiltin, compileobject, compileon
 
 "Autumn Compile Error"
 struct AutumnCompileError <: Exception
   msg
 end
 AutumnCompileError() = AutumnCompileError("")
-
+abstract type Object end
 # ----- Compile Helper Functions ----- #
 
 function compile(expr::AExpr, data::Dict{String, Any}, parent::Union{AExpr, Nothing}=nothing)
@@ -28,6 +28,8 @@ function compile(expr::AExpr, data::Dict{String, Any}, parent::Union{AExpr, Noth
     [:list, args...] => :([$(map(x -> compile(x, data), expr.args)...)])
     [:call, args...] => compilecall(expr, data)
     [:field, args...] => :($(compile(expr.args[1], data)).$(compile(expr.args[2], data)))
+    [:object, args...] => compileobject(expr, data)
+    [:on, args...] => compileon(expr, data)
     [args...] => throw(AutumnCompileError(string("Invalid AExpr Head: ", expr.head))) # if expr head is not one of the above, throw error
   end
 end
@@ -63,7 +65,7 @@ function compileassign(expr::AExpr, data::Dict{String, Any}, parent::Union{AExpr
     else # handle function without typed arguments/return type
       quote 
         function $(compile(expr.args[1], data))($(compile(expr.args[2].args[1], data).args[2]...))
-            $(compile(expr.args[2].args[2], data))  
+            $(compile(expr.args[2].args[2], data))
         end 
       end          
     end
@@ -79,7 +81,7 @@ function compileassign(expr::AExpr, data::Dict{String, Any}, parent::Union{AExpr
     # handle non-global assignments
     else 
       if type !== nothing
-        :($(compile(expr.args[1], data))::$(compile(type, data)) = compile(expr.args[2], data))
+        :($(compile(expr.args[1], data))::$(compile(type, data)) = $(compile(expr.args[2], data)))
       else
           :($(compile(expr.args[1], data)) = $(compile(expr.args[2], data)))
       end
@@ -140,14 +142,73 @@ function compilecase(expr::AExpr, data::Dict{String, Any})
   end
 end
 
+function compileobject(expr::AExpr, data::Dict{String, Any})
+  name = expr.args[1]
+  push!(data["objects"], name)
+  custom_fields = map(field -> (
+    :($(field.args[1])::$(field.args[2]))
+  ), filter(x -> x.head == :typedecl, expr.args[2:end]))
+  custom_field_names = map(field -> field.args[1], filter(x -> x.head == :typedecl, expr.args[2:end]))
+  rendering = compile(filter(x -> x.head == :assign, expr.args[2:end])[1].args[2], data)
+  quote
+    mutable struct $(name) <: Object
+      id::Int
+      origin::Position
+      alive::Bool
+      $(custom_fields...) 
+      render::Array{ColoredCell}
+    end
+
+    function $(name)($(vcat(custom_fields, :(origin::Position))...))::$(name)
+      state.objectsCreated += 1
+      rendering = map(x -> ColoredCell(move(x.position, origin), x.color), $(rendering))
+      $(name)(state.objectsCreated, origin, true, $(custom_field_names...), rendering)
+    end
+  end
+end
+
+function compileon(expr::AExpr, data::Dict{String, Any})
+  println(compile(expr.args[2], data))
+  data["on"][compile(expr.args[1], data)] = compile(expr.args[2], data)
+  :()
+end
+
 function compileinitnext(data::Dict{String, Any})
+  println("HEREEE")
+  println(data["on"])
+  if (haskey(data["on"], :click))
+    init = quote
+       if occurred(click)
+        $(data["on"][:click])
+       else
+        $(map(x -> :($(compile(x.args[1], data)) = $(compile(x.args[2].args[1], data))), data["initnext"])...) 
+       end 
+    end
+    next = quote
+      if occurred(click)
+        $(data["on"][:click])
+      else
+        $(map(x -> :($(compile(x.args[1], data)) = $(compile(x.args[2].args[2], data))), data["initnext"])...)
+      end
+    end
+  else
+    init = quote
+      $(map(x -> :($(compile(x.args[1], data)) = $(compile(x.args[2].args[1], data))), data["initnext"])...) 
+    end
+    next = quote
+      $(map(x -> :($(compile(x.args[1], data)) = $(compile(x.args[2].args[2], data))), data["initnext"])...)
+    end
+  end
+
   initFunction = quote
     function init($(map(x -> :($(compile(x.args[1], data))::Union{$(compile(data["types"][x.args[1]], data)), Nothing}), data["external"])...))::STATE
       $(compileinitstate(data))
-      $(map(x -> :($(compile(x.args[1], data)) = $(compile(x.args[2].args[1], data))), data["initnext"])...)
+      $(init)
       $(map(x -> :($(compile(x.args[1], data)) = $(compile(x.args[2], data))), data["lifted"])...)
       $(map(x -> :(state.$(Symbol(string(x.args[1])*"History"))[state.time] = $(compile(x.args[1], data))), 
             vcat(data["external"], data["initnext"], data["lifted"]))...)
+      state.scene = Scene(vcat([$(filter(x -> get(data["types"], x, :Any) in vcat(data["objects"], map(x -> [:List, x], data["objects"])), 
+        map(x -> x.args[1], vcat(data["initnext"], data["lifted"])))...)]...))
       deepcopy(state)
     end
     end
@@ -155,10 +216,12 @@ function compileinitnext(data::Dict{String, Any})
     function next($([:(old_state::STATE), map(x -> :($(compile(x.args[1], data))::Union{$(compile(data["types"][x.args[1]], data)), Nothing}), data["external"])...]...))::STATE
       global state = deepcopy(old_state)
       state.time = state.time + 1
-      $(map(x -> :($(compile(x.args[1], data)) = $(compile(x.args[2].args[2], data))), data["initnext"])...)
+      $(next)
       $(map(x -> :($(compile(x.args[1], data)) = $(compile(x.args[2], data))), data["lifted"])...)
       $(map(x -> :(state.$(Symbol(string(x.args[1])*"History"))[state.time] = $(compile(x.args[1], data))), 
             vcat(data["external"], data["initnext"], data["lifted"]))...)
+      state.scene = Scene(vcat([$(filter(x -> get(data["types"], x, :Any) in vcat(data["objects"], map(x -> [:List, x], data["objects"])), 
+        map(x -> x.args[1], vcat(data["initnext"], data["lifted"])))...)]...))
       deepcopy(state)
     end
     end
@@ -174,6 +237,8 @@ function compilestatestruct(data::Dict{String, Any})
   quote
     mutable struct STATE
       time::Int
+      objectsCreated::Int
+      scene::Scene
       $(stateParamsInternal...)
       $(stateParamsExternal...)
     end
@@ -186,7 +251,7 @@ function compileinitstate(data::Dict{String, Any})
                                 vcat(data["initnext"], data["lifted"]))
   initStateParamsExternal = map(expr -> :(Dict{Int64, Union{$(compile(data["types"][expr.args[1]], data)), Nothing}}()), 
                                 data["external"])
-  initStateParams = [0, initStateParamsInternal..., initStateParamsExternal...]
+  initStateParams = [0, 0, :(Scene([])), initStateParamsInternal..., initStateParamsExternal...]
   initState = :(state = STATE($(initStateParams...)))
   initState
 end
@@ -216,7 +281,8 @@ function compilebuiltin()
   minFunction = builtInDict["min"]
   clickType = builtInDict["clickType"]
   rangeFunction = builtInDict["range"]
-  [occurredFunction, uniformChoiceFunction, uniformChoiceFunction2, minFunction, clickType, rangeFunction]
+  utils = builtInDict["utils"]
+  [occurredFunction, utils, uniformChoiceFunction, uniformChoiceFunction2, minFunction, clickType, rangeFunction]
 end
 
 const builtInDict = Dict([
@@ -250,7 +316,106 @@ const builtInDict = Dict([
                       function range(start::BigInt, stop::BigInt)
                         [start:stop;]
                       end
-                     end
+                    end,
+"utils"           => quote
+                        abstract type Object end
+
+                        struct Position
+                          x::BigInt
+                          y::BigInt
+                        end
+
+                        struct ColoredCell 
+                          position::Position
+                          color::String
+                          opacity::Float64
+                        end
+
+                        ColoredCell(position::Position, color::String) = ColoredCell(position, color, 0.6)
+
+                        struct Scene
+                          objects::Array{Object}
+                        end
+
+                        function render(scene::Scene)::Array{ColoredCell}
+                          vcat(map(obj -> obj.render, filter(obj -> obj.alive, scene.objects))...)
+                        end
+
+
+                        function addObj(list::Array{<:Object}, obj::Object)
+                          push!(list, obj)
+                          list
+                        end
+
+                        function removeObj(list::Array{<:Object}, obj::Object)
+                          old_obj = filter(x -> x.id == obj.id, list)
+                          old_obj.alive = false
+                          list
+                        end
+
+                        function removeObj(list::Array{<:Object}, fn)
+                          orig_list = filter(obj -> !fn(obj), list)
+                          removed_list = filter(obj -> fn(obj), list)
+                          foreach(obj -> (obj.alive = false), removed_list)
+                          vcat(orig_list, removed_list)
+                        end
+
+                        function removeObj(obj::Object)
+                          obj.alive = false
+                          obj
+                        end
+
+                        function updateObj(obj::Object, field, value)
+                          new_obj = deepcopy(obj)
+                          eval(:(new_obj.$(field) = value))
+                          new_obj
+                        end
+
+                        function filter_fallback(obj::Object)
+                          true
+                        end
+
+                        function updateObj(list::Array{<:Object}, map_fn, filter_fn=filter_fallback)
+                          orig_list = filter(obj -> !filter_fn(obj), list)
+                          filtered_list = filter(filter_fn, list)
+                          new_filtered_list = map(map_fn, filtered_list)
+                          vcat(orig_list, new_filtered_list)
+                        end
+
+                        function adjPositions(position::Position)::Array{Position}
+                          filter(isWithinBounds, [Position(position.x, position.y + 1), Position(position.x, position.y - 1), Position(position.x + 1, position.y), Position(position.x - 1, position.y)])
+                        end
+
+                        function isWithinBounds(position::Position)::Bool
+                          (position.x >= 0) && (position.x < state.GRID_SIZEHistory[0]) && (position.y >= 0) && (position.y < state.GRID_SIZEHistory[0])                          
+                        end
+
+                        function isFree(position::Position)::Bool
+                          length(filter(cell -> cell.position == position, render(state.scene))) == 0
+                        end
+
+                        function unitDistance(position1::Position, position2::Position)::Int
+                          deltaX = position2.x - position1.x
+                          deltaY = position2.y - position1.y
+                          Position(sign(deltaX), sign(deltaY))  
+                        end
+
+                        function unitDistance(object1, object2)::Int
+                          position1 = object1.origin
+                          position2 = object2.origin
+                          unitDistance(position1, position2)
+                        end
+
+                        function move(position1::Position, position2::Position)
+                          Position(position1.x + position2.x, position1.y + position2.y)
+                        end
+
+                        function randomPositions(n::Int)
+                          nums = uniformChoice([0:(state.GRID_SIZEHistory[0]*state.GRID_SIZEHistory[0] - 1)])
+                          map(num -> Position(num % GRID_SIZEHistory[0], floor(Int, num / GRID_SIZEHistory[0])), nums)
+                        end
+
+                    end
 ])
 
 # binary operators

@@ -39,3 +39,19 @@
   (: particleGen (-> Position Particle))
   (= particleGen (fn (initPosition) (Particle initPosition)))
 )
+
+(program
+  (: GRID_SIZE Int)
+  (= GRID_SIZE 16)
+
+  (external (: click Click))
+
+  (object Particle (= render (list (ColoredCell (Position 0 0) "blue")) ))
+	
+  (: particles (List Particle))
+  (= particles (initnext 
+                  (list) 
+				          (updateObj (prev particles) (--> obj (Particle (uniformChoice (adjPositions (.. obj origin))))))))	
+  
+  (on click (= particles (addObj (prev particles) (Particle (Position (.. click x) (.. click y))))))
+)

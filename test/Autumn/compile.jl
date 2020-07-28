@@ -5,7 +5,9 @@ function construct_data()
   Dict([("external" => []),
         ("initnext" => []),
         ("lifted" => []),
-        ("types" => Dict())])
+        ("types" => Dict()),
+        ("on" => Dict()),
+        ("objects" => [])])
 end
 
 mod = nothing

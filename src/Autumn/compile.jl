@@ -14,8 +14,10 @@ function compiletojulia(aexpr::AExpr)::Expr
   historydata = Dict([("external" => []), # :typedecl aexprs for all external variables
                ("initnext" => []), # :assign aexprs for all initnext variables
                ("lifted" => []), # :assign aexprs for all lifted variables
-               ("types" => Dict())]) # map of global variable names (symbols) to types
-
+               ("types" => Dict()), # map of global variable names (symbols) to types
+               ("on" => Dict()),
+               ("objects" => [])]) 
+               
   if (aexpr.head == :program)
     # handle AExpression lines
     lines = filter(x -> x !== :(), map(arg -> compile(arg, historydata, aexpr), aexpr.args))
