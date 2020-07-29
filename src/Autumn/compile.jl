@@ -1,7 +1,7 @@
 "Compilation to Julia (and other targets, if you want)"
 module Compile
 
-using ..AExpressions, ..CompileUtils
+using ..AExpressions, ..CompileUtils, ..SExpr
 import MacroTools: striplines
 
 export compiletojulia, runprogram
@@ -11,10 +11,10 @@ function compiletojulia(aexpr::AExpr)::Expr
 
   # dictionary containing types/definitions of global variables, for use in constructing init func.,
   # next func., etcetera; the three categories of global variable are external, initnext, and lifted  
-  historydata = Dict([("external" => []), # :typedecl aexprs for all external variables
+  historydata = Dict([("external" => [au"""(external (: click Click))""".args[1], au"""(external (: keypress KeyPress))""".args[1]]), # :typedecl aexprs for all external variables
                ("initnext" => []), # :assign aexprs for all initnext variables
                ("lifted" => []), # :assign aexprs for all lifted variables
-               ("types" => Dict()), # map of global variable names (symbols) to types
+               ("types" => Dict{Symbol, Any}([:click => :Click, :keypress => :KeyPress, :GRID_SIZE => :Int, :background => :String])), # map of global variable names (symbols) to types
                ("on" => Dict()),
                ("objects" => [])]) 
                

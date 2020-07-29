@@ -92,6 +92,8 @@ end
 
 function compiletypedecl(expr::AExpr, data::Dict{String, Any}, parent::Union{AExpr, Nothing})
   if (parent !== nothing && (parent.head == :program || parent.head == :external))
+    println(expr.args[1])
+    println(expr.args[2])
     data["types"][expr.args[1]] = expr.args[2]
     :()
   else
@@ -100,7 +102,11 @@ function compiletypedecl(expr::AExpr, data::Dict{String, Any}, parent::Union{AEx
 end
 
 function compileexternal(expr::AExpr, data::Dict{String, Any})
-  push!(data["external"], expr.args[1])
+  println("here: ")
+  println(expr.args[1])
+  if !(expr.args[1] in data["external"])
+    push!(data["external"], expr.args[1])
+  end
   compiletypedecl(expr.args[1], data, expr)
 end
 
@@ -150,7 +156,7 @@ function compileobject(expr::AExpr, data::Dict{String, Any})
     :($(field.args[1])::$(field.args[2]))
   ), filter(x -> x.head == :typedecl, expr.args[2:end]))
   custom_field_names = map(field -> field.args[1], filter(x -> x.head == :typedecl, expr.args[2:end]))
-  rendering = compile(filter(x -> x.head == :assign, expr.args[2:end])[1].args[2], data)
+  rendering = compile(filter(x -> x.head != :typedecl, expr.args[2:end])[1], data)
   quote
     mutable struct $(name) <: Object
       id::Int
@@ -162,8 +168,8 @@ function compileobject(expr::AExpr, data::Dict{String, Any})
 
     function $(name)($(vcat(custom_fields, :(origin::Position))...))::$(name)
       state.objectsCreated += 1
-      rendering = map(x -> ColoredCell(move(x.position, origin), x.color), $(rendering))
-      $(name)(state.objectsCreated, origin, true, $(custom_field_names...), $(rendering))
+      rendering = $(rendering)      
+      $(name)(state.objectsCreated, origin, true, $(custom_field_names...), rendering isa AbstractArray ? rendering : [rendering])
     end
   end
 end
@@ -176,43 +182,39 @@ end
 
 function compileinitnext(data::Dict{String, Any})
   init = quote
-      $(map(x -> :($(compile(x.args[1], data)) = $(compile(x.args[2].args[1], data))), data["initnext"])...)
+    $(map(x -> :($(compile(x.args[1], data)) = $(compile(x.args[2].args[1], data))), data["initnext"])...)
   end
-  if (haskey(data["on"], :click))
-    next = quote
-      if occurred(click)
+  next = quote
+    if occurred(click)
+      $(map(x -> :($(compile(x.args[1], data)) = state.$(Symbol(string(x.args[1])*"History"))[state.time - 1]), 
+          vcat(data["initnext"], data["lifted"]))...)
+      $(get(data["on"], :click, :(GRID_SIZE = GRID_SIZE)))
+    elseif occurred(keypress)
+      if keypress == Left()
         $(map(x -> :($(compile(x.args[1], data)) = state.$(Symbol(string(x.args[1])*"History"))[state.time - 1]), 
-            vcat(data["initnext"], data["lifted"]))...)
-        $(get(data["on"], :click, :(GRID_SIZE = GRID_SIZE)))
-      elseif occurred(keypress)
-        if keypress == Left()
-          $(map(x -> :($(compile(x.args[1], data)) = state.$(Symbol(string(x.args[1])*"History"))[state.time - 1]), 
-            vcat(data["initnext"], data["lifted"]))...)
-          $(get(data["on"], :(keypress("left")), :(GRID_SIZE = GRID_SIZE)))
-        elseif keypress == Right()
-          $(map(x -> :($(compile(x.args[1], data)) = state.$(Symbol(string(x.args[1])*"History"))[state.time - 1]), 
           vcat(data["initnext"], data["lifted"]))...)
-          $(get(data["on"], :(keypress("right")), :(GRID_SIZE = GRID_SIZE)))
-        elseif keypress == Up() 
-          $(map(x -> :($(compile(x.args[1], data)) = state.$(Symbol(string(x.args[1])*"History"))[state.time - 1]), 
-          vcat(data["initnext"], data["lifted"]))...)
-          $(get(data["on"], :(keypress("up")), :(GRID_SIZE = GRID_SIZE)))
-        elseif keypress == Down()
-          $(map(x -> :($(compile(x.args[1], data)) = state.$(Symbol(string(x.args[1])*"History"))[state.time - 1]), 
-          vcat(data["initnext"], data["lifted"]))...)
-          $(get(data["on"], :(keypress("down")), :(GRID_SIZE = GRID_SIZE)))
-        end
-      else
+        $(get(data["on"], :(keypress("left")), :(GRID_SIZE = GRID_SIZE)))
+      elseif keypress == Right()
         $(map(x -> :($(compile(x.args[1], data)) = state.$(Symbol(string(x.args[1])*"History"))[state.time - 1]), 
-            vcat(data["external"], data["initnext"], data["lifted"]))...)
-        $(map(x -> :($(compile(x.args[1], data)) = $(compile(x.args[2].args[2], data))), data["initnext"])...)
+        vcat(data["initnext"], data["lifted"]))...)
+        $(get(data["on"], :(keypress("right")), :(GRID_SIZE = GRID_SIZE)))
+      elseif keypress == Up() 
+        $(map(x -> :($(compile(x.args[1], data)) = state.$(Symbol(string(x.args[1])*"History"))[state.time - 1]), 
+        vcat(data["initnext"], data["lifted"]))...)
+        $(get(data["on"], :(keypress("up")), :(GRID_SIZE = GRID_SIZE)))
+      elseif keypress == Down()
+        $(map(x -> :($(compile(x.args[1], data)) = state.$(Symbol(string(x.args[1])*"History"))[state.time - 1]), 
+        vcat(data["initnext"], data["lifted"]))...)
+        $(get(data["on"], :(keypress("down")), :(GRID_SIZE = GRID_SIZE)))
       end
-    end
-  else
-    next = quote
+    else
+      $(map(x -> :($(compile(x.args[1], data)) = state.$(Symbol(string(x.args[1])*"History"))[state.time - 1]), 
+          vcat(data["external"], data["initnext"], data["lifted"]))...)
       $(map(x -> :($(compile(x.args[1], data)) = $(compile(x.args[2].args[2], data))), data["initnext"])...)
+      $(map(x -> :($(compile(x.args[1], data)) = $(compile(x.args[2], data))), filter(x -> x.args[1] != :GRID_SIZE, data["lifted"]))...)
     end
   end
+  
 
   initFunction = quote
     function init($(map(x -> :($(compile(x.args[1], data))::Union{$(compile(data["types"][x.args[1]], data)), Nothing}), data["external"])...))::STATE
@@ -222,8 +224,8 @@ function compileinitnext(data::Dict{String, Any})
       $(map(x -> :($(compile(x.args[1], data)) = $(compile(x.args[2], data))), filter(x -> x.args[1] != :GRID_SIZE, data["lifted"]))...)
       $(map(x -> :(state.$(Symbol(string(x.args[1])*"History"))[state.time] = $(compile(x.args[1], data))), 
             vcat(data["external"], data["initnext"], data["lifted"]))...)
-      state.scene = Scene(vcat([$(filter(x -> get(data["types"], x, :Any) in vcat(data["objects"], map(x -> [:List, x], data["objects"])), 
-        map(x -> x.args[1], vcat(data["initnext"], data["lifted"])))...)]...))
+            state.scene = Scene(vcat([$(filter(x -> get(data["types"], x, :Any) in vcat(data["objects"], map(x -> [:List, x], data["objects"])), 
+        map(x -> x.args[1], vcat(data["initnext"], data["lifted"])))...)]...), :backgroundHistory in fieldnames(STATE) ? state.backgroundHistory[state.time] : "transparent")
       deepcopy(state)
     end
     end
@@ -233,11 +235,10 @@ function compileinitnext(data::Dict{String, Any})
       state.time = state.time + 1
       $(map(x -> :($(compile(x.args[1], data)) = $(compile(x.args[2], data))), filter(x -> x.args[1] == :GRID_SIZE, data["lifted"]))...)
       $(next)
-      $(map(x -> :($(compile(x.args[1], data)) = $(compile(x.args[2], data))), filter(x -> x.args[1] != :GRID_SIZE, data["lifted"]))...)
       $(map(x -> :(state.$(Symbol(string(x.args[1])*"History"))[state.time] = $(compile(x.args[1], data))), 
             vcat(data["external"], data["initnext"], data["lifted"]))...)
       state.scene = Scene(vcat([$(filter(x -> get(data["types"], x, :Any) in vcat(data["objects"], map(x -> [:List, x], data["objects"])), 
-        map(x -> x.args[1], vcat(data["initnext"], data["lifted"])))...)]...))
+        map(x -> x.args[1], vcat(data["initnext"], data["lifted"])))...)]...), :backgroundHistory in fieldnames(STATE) ? state.backgroundHistory[state.time] : "transparent")
       deepcopy(state)
     end
     end
@@ -358,7 +359,10 @@ const builtInDict = Dict([
 
                         struct Scene
                           objects::Array{Object}
+                          background::String
                         end
+
+                        Scene(objects::AbstractArray) = Scene(objects, "transparent")
 
                         function render(scene::Scene)::Array{ColoredCell}
                           vcat(map(obj -> map(cell -> ColoredCell(move(cell.position, obj.origin), cell.color), obj.render), filter(obj -> obj.alive, scene.objects))...)
@@ -393,9 +397,16 @@ const builtInDict = Dict([
                           obj
                         end
 
-                        function updateObj(obj::Object, field, value)
-                          new_obj = deepcopy(obj)
-                          eval(:(new_obj.$(field) = value))
+                        function updateObj(obj::Object, field::String, value)
+                          fields = fieldnames(typeof(obj))
+                          custom_fields = fields[4:end-1]
+                          origin_field = (fields[2],)
+
+                          constructor_fields = (custom_fields..., origin_field...)
+                          constructor_values = map(x -> x == Symbol(field) ? value : getproperty(obj, x), constructor_fields)
+
+                          new_obj = typeof(obj)(constructor_values...)
+                          setproperty!(new_obj, :id, obj.id) 
                           new_obj
                         end
 
@@ -489,6 +500,15 @@ const builtInDict = Dict([
                             min_distance = min(map(obj -> distance(object, obj), objects_of_type))
                             filter(obj -> distance(object, obj) == min_distance, objects_of_type)[1].origin
                           end
+                        end
+
+                        function mapPositions(constructor, GRID_SIZE::Union{Int, BigInt}, filterFunction, args...)::Union{Object, Array{<:Object}}
+                          map(pos -> constructor(args..., pos), filter(filterFunction, allPositions(GRID_SIZE)))
+                        end
+
+                        function allPositions(GRID_SIZE::Union{Int, BigInt})
+                          nums = [0:(GRID_SIZE * GRID_SIZE - 1);]
+                          map(num -> Position(num % GRID_SIZE, floor(Int, num / GRID_SIZE)), nums)
                         end
 
                         function updateOrigin(object::Object, new_origin::Position)::Object
