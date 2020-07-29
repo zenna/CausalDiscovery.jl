@@ -55,3 +55,29 @@
   
   (on click (= particles (addObj (prev particles) (Particle (Position (.. click x) (.. click y))))))
 )
+
+(program
+  (: GRID_SIZE Int)
+  (= GRID_SIZE 16)
+
+  (external (: click Click))
+  (external (: keypress KeyPress))
+  
+  (object Ant (= render (list (ColoredCell (Position 0 0) "gray"))))
+  (object Food (= render (list (ColoredCell (Position 0 0) "red"))))
+
+  (: ants (List Ant))
+	(= ants (initnext (map Ant (randomPositions GRID_SIZE 6)) 
+										(updateObj (prev ants) nextAnt)))
+
+  (: foods (List Food))
+	(= foods (initnext (list) 
+										 (updateObj (prev foods) (--> obj (if (== (distance obj (closest obj Ant)) 0)
+																						 	         then (removeObj obj)
+																							         else obj)))))
+
+	(on click (= foods (addObj (prev foods) (map Food (randomPositions GRID_SIZE 4)))))
+
+  (: nextAnt (-> Ant Ant))
+  (= nextAnt (fn (ant) (move ant (unitDistance ant (closest ant Food)))))
+)

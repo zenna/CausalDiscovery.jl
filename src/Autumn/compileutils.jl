@@ -81,7 +81,8 @@ function compileassign(expr::AExpr, data::Dict{String, Any}, parent::Union{AExpr
     # handle non-global assignments
     else 
       if type !== nothing
-        :($(compile(expr.args[1], data))::$(compile(type, data)) = $(compile(expr.args[2], data)))
+        # :($(compile(expr.args[1], data))::$(compile(type, data)) = $(compile(expr.args[2], data)))
+        :($(compile(expr.args[1], data)) = $(compile(expr.args[2], data)))
       else
           :($(compile(expr.args[1], data)) = $(compile(expr.args[2], data)))
       end
@@ -162,7 +163,7 @@ function compileobject(expr::AExpr, data::Dict{String, Any})
     function $(name)($(vcat(custom_fields, :(origin::Position))...))::$(name)
       state.objectsCreated += 1
       rendering = map(x -> ColoredCell(move(x.position, origin), x.color), $(rendering))
-      $(name)(state.objectsCreated, origin, true, $(custom_field_names...), rendering)
+      $(name)(state.objectsCreated, origin, true, $(custom_field_names...), $(rendering))
     end
   end
 end
@@ -174,27 +175,40 @@ function compileon(expr::AExpr, data::Dict{String, Any})
 end
 
 function compileinitnext(data::Dict{String, Any})
-  println("HEREEE")
-  println(data["on"])
+  init = quote
+      $(map(x -> :($(compile(x.args[1], data)) = $(compile(x.args[2].args[1], data))), data["initnext"])...)
+  end
   if (haskey(data["on"], :click))
-    init = quote
-       if occurred(click)
-        $(data["on"][:click])
-       else
-        $(map(x -> :($(compile(x.args[1], data)) = $(compile(x.args[2].args[1], data))), data["initnext"])...) 
-       end 
-    end
     next = quote
       if occurred(click)
-        $(data["on"][:click])
+        $(map(x -> :($(compile(x.args[1], data)) = state.$(Symbol(string(x.args[1])*"History"))[state.time - 1]), 
+            vcat(data["initnext"], data["lifted"]))...)
+        $(get(data["on"], :click, :(GRID_SIZE = GRID_SIZE)))
+      elseif occurred(keypress)
+        if keypress == Left()
+          $(map(x -> :($(compile(x.args[1], data)) = state.$(Symbol(string(x.args[1])*"History"))[state.time - 1]), 
+            vcat(data["initnext"], data["lifted"]))...)
+          $(get(data["on"], :(keypress("left")), :(GRID_SIZE = GRID_SIZE)))
+        elseif keypress == Right()
+          $(map(x -> :($(compile(x.args[1], data)) = state.$(Symbol(string(x.args[1])*"History"))[state.time - 1]), 
+          vcat(data["initnext"], data["lifted"]))...)
+          $(get(data["on"], :(keypress("right")), :(GRID_SIZE = GRID_SIZE)))
+        elseif keypress == Up() 
+          $(map(x -> :($(compile(x.args[1], data)) = state.$(Symbol(string(x.args[1])*"History"))[state.time - 1]), 
+          vcat(data["initnext"], data["lifted"]))...)
+          $(get(data["on"], :(keypress("up")), :(GRID_SIZE = GRID_SIZE)))
+        elseif keypress == Down()
+          $(map(x -> :($(compile(x.args[1], data)) = state.$(Symbol(string(x.args[1])*"History"))[state.time - 1]), 
+          vcat(data["initnext"], data["lifted"]))...)
+          $(get(data["on"], :(keypress("down")), :(GRID_SIZE = GRID_SIZE)))
+        end
       else
+        $(map(x -> :($(compile(x.args[1], data)) = state.$(Symbol(string(x.args[1])*"History"))[state.time - 1]), 
+            vcat(data["external"], data["initnext"], data["lifted"]))...)
         $(map(x -> :($(compile(x.args[1], data)) = $(compile(x.args[2].args[2], data))), data["initnext"])...)
       end
     end
   else
-    init = quote
-      $(map(x -> :($(compile(x.args[1], data)) = $(compile(x.args[2].args[1], data))), data["initnext"])...) 
-    end
     next = quote
       $(map(x -> :($(compile(x.args[1], data)) = $(compile(x.args[2].args[2], data))), data["initnext"])...)
     end
@@ -203,8 +217,9 @@ function compileinitnext(data::Dict{String, Any})
   initFunction = quote
     function init($(map(x -> :($(compile(x.args[1], data))::Union{$(compile(data["types"][x.args[1]], data)), Nothing}), data["external"])...))::STATE
       $(compileinitstate(data))
+      $(map(x -> :($(compile(x.args[1], data)) = $(compile(x.args[2], data))), filter(x -> x.args[1] == :GRID_SIZE, data["lifted"]))...)
       $(init)
-      $(map(x -> :($(compile(x.args[1], data)) = $(compile(x.args[2], data))), data["lifted"])...)
+      $(map(x -> :($(compile(x.args[1], data)) = $(compile(x.args[2], data))), filter(x -> x.args[1] != :GRID_SIZE, data["lifted"]))...)
       $(map(x -> :(state.$(Symbol(string(x.args[1])*"History"))[state.time] = $(compile(x.args[1], data))), 
             vcat(data["external"], data["initnext"], data["lifted"]))...)
       state.scene = Scene(vcat([$(filter(x -> get(data["types"], x, :Any) in vcat(data["objects"], map(x -> [:List, x], data["objects"])), 
@@ -216,8 +231,9 @@ function compileinitnext(data::Dict{String, Any})
     function next($([:(old_state::STATE), map(x -> :($(compile(x.args[1], data))::Union{$(compile(data["types"][x.args[1]], data)), Nothing}), data["external"])...]...))::STATE
       global state = deepcopy(old_state)
       state.time = state.time + 1
+      $(map(x -> :($(compile(x.args[1], data)) = $(compile(x.args[2], data))), filter(x -> x.args[1] == :GRID_SIZE, data["lifted"]))...)
       $(next)
-      $(map(x -> :($(compile(x.args[1], data)) = $(compile(x.args[2], data))), data["lifted"])...)
+      $(map(x -> :($(compile(x.args[1], data)) = $(compile(x.args[2], data))), filter(x -> x.args[1] != :GRID_SIZE, data["lifted"]))...)
       $(map(x -> :(state.$(Symbol(string(x.args[1])*"History"))[state.time] = $(compile(x.args[1], data))), 
             vcat(data["external"], data["initnext"], data["lifted"]))...)
       state.scene = Scene(vcat([$(filter(x -> get(data["types"], x, :Any) in vcat(data["objects"], map(x -> [:List, x], data["objects"])), 
@@ -308,21 +324,28 @@ const builtInDict = Dict([
                       end,
 "clickType"       =>  quote
                         struct Click
-                          x::BigInt
-                          y::BigInt                    
+                          x::Union{BigInt, Int}
+                          y::Union{BigInt, Int}                    
                         end     
                       end,
 "range"           => quote
-                      function range(start::BigInt, stop::BigInt)
+                      function range(start::Union{BigInt, Int}, stop::Union{BigInt, Int})
                         [start:stop;]
                       end
                     end,
 "utils"           => quote
                         abstract type Object end
 
+                        abstract type KeyPress end
+
+                        struct Left <: KeyPress end
+                        struct Right <: KeyPress end
+                        struct Up <: KeyPress end
+                        struct Down <: KeyPress end
+
                         struct Position
-                          x::BigInt
-                          y::BigInt
+                          x::Union{BigInt, Int}
+                          y::Union{BigInt, Int}
                         end
 
                         struct ColoredCell 
@@ -338,12 +361,17 @@ const builtInDict = Dict([
                         end
 
                         function render(scene::Scene)::Array{ColoredCell}
-                          vcat(map(obj -> obj.render, filter(obj -> obj.alive, scene.objects))...)
+                          vcat(map(obj -> map(cell -> ColoredCell(move(cell.position, obj.origin), cell.color), obj.render), filter(obj -> obj.alive, scene.objects))...)
                         end
 
 
                         function addObj(list::Array{<:Object}, obj::Object)
                           push!(list, obj)
+                          list
+                        end
+
+                        function addObj(list::Array{<:Object}, objs::Array{<:Object})
+                          list = vcat(list, objs)
                           list
                         end
 
@@ -394,25 +422,109 @@ const builtInDict = Dict([
                           length(filter(cell -> cell.position == position, render(state.scene))) == 0
                         end
 
-                        function unitDistance(position1::Position, position2::Position)::Int
+                        function unitDistance(position1::Position, position2::Position)::Position
                           deltaX = position2.x - position1.x
                           deltaY = position2.y - position1.y
-                          Position(sign(deltaX), sign(deltaY))  
+                          if (abs(sign(deltaX)) == 1 && abs(sign(deltaY) == 1))
+                            uniformChoice([Position(sign(deltaX), 0), Position(0, sign(deltaY))])
+                          else
+                            Position(sign(deltaX), sign(deltaY))  
+                          end
                         end
 
-                        function unitDistance(object1, object2)::Int
+                        function unitDistance(object1::Object, object2::Object)::Position
                           position1 = object1.origin
                           position2 = object2.origin
                           unitDistance(position1, position2)
+                        end
+
+                        function unitDistance(object::Object, position::Position)::Position
+                          unitDistance(object.origin, position)
+                        end
+
+                        function unitDistance(position::Position, object::Object)::Position
+                          unitDistance(position, object.origin)
                         end
 
                         function move(position1::Position, position2::Position)
                           Position(position1.x + position2.x, position1.y + position2.y)
                         end
 
-                        function randomPositions(n::Int)
-                          nums = uniformChoice([0:(state.GRID_SIZEHistory[0]*state.GRID_SIZEHistory[0] - 1)])
-                          map(num -> Position(num % GRID_SIZEHistory[0], floor(Int, num / GRID_SIZEHistory[0])), nums)
+                        function move(object::Object, position::Position)
+                          new_object = deepcopy(object)
+                          new_object.origin = move(object.origin, position)
+                          new_object
+                        end
+
+                        function randomPositions(GRID_SIZE::Union{BigInt, Int}, n::Union{BigInt, Int})::Array{Position}
+                          nums = uniformChoice([0:(GRID_SIZE * GRID_SIZE - 1);], n)
+                          println(nums)
+                          println(map(num -> Position(num % GRID_SIZE, floor(Int, num / GRID_SIZE)), nums))
+                          map(num -> Position(num % GRID_SIZE, floor(Int, num / GRID_SIZE)), nums)
+                        end
+
+                        function distance(position1::Position, position2::Position)::Int
+                          abs(position1.x - position2.x) + abs(position1.y - position2.y)
+                        end
+
+                        function distance(object1::Object, object2::Object)::Int
+                          position1 = object1.origin
+                          position2 = object2.origin
+                          distance(position1, position2)
+                        end
+
+                        function distance(object::Object, position::Position)::Int
+                          distance(object.origin, position)
+                        end
+
+                        function distance(position::Position, object::Object)::Int
+                          distance(object.origin, position)
+                        end
+
+                        function closest(object::Object, type::DataType)::Position
+                          objects_of_type = filter(obj -> (obj isa type) && (obj.alive), state.scene.objects)
+                          if length(objects_of_type) == 0
+                            object.origin
+                          else
+                            min_distance = min(map(obj -> distance(object, obj), objects_of_type))
+                            filter(obj -> distance(object, obj) == min_distance, objects_of_type)[1].origin
+                          end
+                        end
+
+                        function updateOrigin(object::Object, new_origin::Position)::Object
+                          new_object = deepcopy(object)
+                          new_object.origin = new_origin
+                          new_object
+                        end
+
+                        function updateAlive(object::Object, new_alive::Bool)::Object
+                          new_object = deepcopy(object)
+                          new_object.alive = new_alive
+                          new_object
+                        end
+
+                        function addToRender(object::Object, cell::ColoredCell)
+
+                        end
+
+                        function addToRender(object::Object, cells::Array{ColoredCell})
+
+                        end
+
+                        function addToRender(object::Array{Object}, map_fn, filter_fn)
+
+                        end
+
+                        function removeFromRender(object)
+
+                        end
+
+                        function updateRender(object::Object, map_fn, filter_fn)
+
+                        end
+
+                        function updateRender(object::Array{Object}, map_fn, filter_fn)
+
                         end
 
                     end

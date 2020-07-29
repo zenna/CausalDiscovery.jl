@@ -119,6 +119,8 @@ function showstring(expr::Expr)
     Expr(:field, var, field) => "$(showstring(var)).$(showstring(field))"
     Expr(:typealiasargs, vals...) => "$(string("{ ", join(map(showstring, vals), ", ")," }"))"
     Expr(:lambda, var, val) => "($(showstring(var)) -> ($(showstring(val))))"
+    Expr(:object, name, args...) => "object $(showstring(name)) {$(join(map(showstring, args), ","))}"
+    Expr(:on, name, args...) => "on $(showstring(name)) ($(join(map(showstring, args))))"
     x                       => "Fail $x"
 
   end
