@@ -1,0 +1,100 @@
+GRID_SIZE = 16
+
+type alias Position = { x : Int, y : Int}
+type alias Particle = { position : Position, color : String, render : Boolean }
+
+-- assume that below line is auto-defined, i.e. Click can be used without explicit definition
+-- type alias Click = { x : Int, y : Int}
+external click : Click
+
+particles : List Particle
+particles = init antGen(4)
+            next if occurred click && noFoodRemaining
+                 then (prev particles) :: foodGen(4)
+                 else map nextParticle particles
+
+-- compute Manhattan distance between two particles
+manhattanDistance : Particle -> Particle -> Int
+manhattanDistance particle1 particle2 = (abs (particle1.position.x - particle2.position.x)) + (abs (particle1.position.y - particle2.position.y))
+
+-- create single ant particle at given position
+createAnt : Position -> Particle
+createAnt initPosition = Particle initPosition "gray" True
+
+-- create single food particle at given position
+createFood : Position -> Particle
+createFood initPosition = Particle initPosition "red" True
+
+-- create multiple ant particles at random positions
+antGen : Int -> List Particle
+antGen count = 
+  let 
+    coords = uniformChoice (range 0 (GRID_SIZE*GRID_SIZE - 1)) count
+
+    positions = map (coord -> Position(coord % GRID_SIZE, floor(Int, coord/GRID_SIZE)))
+    ants = map createAnt positions
+  in
+  ants
+
+-- create multiple food particles at random positions
+foodGen : Int -> List Particle
+foodGen count = 
+  let 
+    coords = uniformChoice (range 0 (GRID_SIZE*GRID_SIZE - 1)) count
+
+    positions = map (coord -> Position(coord % GRID_SIZE, floor(Int, coord/GRID_SIZE)))
+    food = map createFood positions
+  in
+  food
+
+-- determine particle state at next time step
+nextParticle : Particle -> Particle
+nextParticle particle = if particle.color == "gray"
+                        then nextAntParticle particle
+                        else nextFoodParticle particle
+
+-- determine ant state at next time step
+nextAntParticle : Particle -> Particle
+nextAntParticle ant = 
+let 
+    x = ant.position.x
+    y = ant.position.y
+
+    foods = filter (\particle -> particle.color == "red" && particle.render && particle.position != ant.position)
+    closestDistance = Maybe.withDefault -1 (minimum (map manhattanDistance foods)) 
+    closestFoods = filter (\n -> manhattanDistance n == closestDistance) foods
+
+    (foodX, foodY) = if (length closestFoods == 0) then
+                        (-1,-1)
+                    else
+                        Maybe.withDefault (-1, -1) (List.head closestFoods)                 
+    
+    (deltaX, deltaY) = if (foodX == -1 && foodY == -1) then
+                            (0, 0)
+                        else if (foodX - x) == 0 && (foodY - y) == 0 then
+                            (foodX - x, foodY - y)
+                        else if (foodX - x) == 0 && (foodY - y) /= 0 then
+                            (foodX - x, (foodY - y)//(abs (foodY - y)))
+                        else if (foodX - x ) /= 0 && (foodY - y) == 0 then
+                            ((foodX - x)//(abs (foodX - x)), foodY - y)
+                        else 
+                            ((foodX - x)//(abs (foodX - x)), 0)
+
+
+    nextPosition = { x = x + deltaX, y = y + deltaY }  
+in
+{ position: nextPosition, color : gray, render : True}
+
+-- determine food state at next time step
+nextFoodParticle : Particle -> Particle
+nextFoodParticle food = 
+  let
+    antsWithSamePosition = filter (\particle -> particle.color == "gray" && particle.position == food.position) particles
+    newFood = if length antsWithSamePosition == 0
+                food
+              else
+                { position: food.position, color: "red", render : False}
+  in
+  newFood
+
+noFoodRemaining = length filter (\particle -> particle.color == "red" && particle.render) == 0

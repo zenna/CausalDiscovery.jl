@@ -1,41 +1,48 @@
-type alias Position = (Int, Int)
+GRID_SIZE = 16
 
--- A mouse click is a position that might occur
-type alias Click : Event (Int, Int)
+type alias Position = { x : Int, y : Int }
+type alias Particle = { position : Position }
 
--- click is an external time-varying value
+-- assume that below line is auto-defined, i.e. Click can be used without explicit definition
+-- type alias Click = { x : Int, y : Int}
 external click : Click
 
-type Particle = Particle Position
-
 particles : List Particle
-init particles = []
-next particles = if occured click
-                 then particles :: particleGen (1, 1)
-                 else particles
+particles = init [] 
+            next if occurred click
+                 then prev particles :: particleGen (1, 1)
+                 else map nextParticle particles
 
 -- Lifted (automatically)
 nparticles = length particles
 
 -- A position is free iff there
-isfree : Position -> Bool
-isfree position = not (all (map (\particle -> particle.positon == position) particles) )
+isFree : Position -> Bool
+isFree position = length(filter (\particle -> particle.positon == position) particles) == 0
 
 -- !! particles.position (above and below) is not valid Elm, should it be valid Autumn?
 
+isWithinBounds : Position -> Bool
+isWithinBounds position = position.x >= 0 && position.x < GRID_SIZE && position.y >= 0 && position.y < GRID_SIZE
+
+adjacentPositions : Position -> List
+adjacentPositions position = 
+  let
+    x = position.x
+    y = position.y
+    positions = filter isWithinBounds [Position (x+1) y, Position (x-1) y, Position x (y+1), Position x (y-1)]
+  in
+  positions
+
 -- At every time step, look for a free space around me and try to move into it
-nextPosition : Particle -> Position
-nextPosition particle =
+nextParticle : Particle -> Particle
+nextParticle particle =
   let
     freePositions = filter isfree (adjacentPositions particle.position)
   in
     case freePositions
       [] -> particle
-      _ -> uniformChoice freePositions  -- !! this uniformChoice is suepect, need to decide on probabilities
+      _ -> Particle (uniformChoice freePositions)  -- !! this uniformChoice is suepect, need to decide on probabilities
 
--- Maps an initial position to a particle that chooses its next position
--- using nextPosition, which depends on `particles`
 particleGen : Position -> Particle
-particleGen initPosition = 
-  init Particle initPosition
-  next nextPosition this
+particleGen initPosition = Particle initPosition
