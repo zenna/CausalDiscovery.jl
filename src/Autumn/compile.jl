@@ -11,11 +11,11 @@ function compiletojulia(aexpr::AExpr)::Expr
 
   # dictionary containing types/definitions of global variables, for use in constructing init func.,
   # next func., etcetera; the three categories of global variable are external, initnext, and lifted  
-  historydata = Dict([("external" => [au"""(external (: click Click))""".args[1], au"""(external (: keypress KeyPress))""".args[1]]), # :typedecl aexprs for all external variables
+  historydata = Dict([("external" => [au"""(external (: click Click))""".args[1], au"""(external (: left KeyPress))""".args[1], au"""(external (: right KeyPress))""".args[1], au"""(external (: up KeyPress))""".args[1], au"""(external (: down KeyPress))""".args[1]]), # :typedecl aexprs for all external variables
                ("initnext" => []), # :assign aexprs for all initnext variables
                ("lifted" => []), # :assign aexprs for all lifted variables
-               ("types" => Dict{Symbol, Any}([:click => :Click, :keypress => :KeyPress, :GRID_SIZE => :Int, :background => :String])), # map of global variable names (symbols) to types
-               ("on" => Dict()),
+               ("types" => Dict{Symbol, Any}([:click => :Click, :left => :KeyPress, :right => :KeyPress, :up => :KeyPress, :down => :KeyPress, :GRID_SIZE => :Int, :background => :String])), # map of global variable names (symbols) to types
+               ("on" => []),
                ("objects" => [])]) 
                
   if (aexpr.head == :program)

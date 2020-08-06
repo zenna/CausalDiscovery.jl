@@ -45,7 +45,7 @@ function parseau(sexpr::AbstractArray)
     [:(=), x::Symbol, y]              => AExpr(:assign, x, parseau(y))
     [:(:), v::Symbol, τ]              => AExpr(:typedecl, v, parsetypeau(τ))
     [:external, tdef]                 => AExpr(:external, parseau(tdef))
-    [:let, vars, val]                 => AExpr(:let, map(parseau, vars)..., parseau(val))
+    [:let, vars]                      => AExpr(:let, map(parseau, vars)...)
     [:case, name, cases...]           => AExpr(:case, name, map(parseau, cases)...)
     [:(=>), type, value]              => AExpr(:casevalue, parseau(type), parseau(value))
     [:type, :alias, var, val]         => AExpr(:typealias, var, parsealias(val))
@@ -84,7 +84,7 @@ function parsetypeau(sexpr::AbstractArray)
   end
 end
 
-parseau(list::Array{BigInt, 1}) = list[1]
+parseau(list::Array{Int, 1}) = list[1]
 parsetypeau(s::Symbol) = s
 parseau(s::Symbol) = s
 parseau(s::Union{Number, String}) = s

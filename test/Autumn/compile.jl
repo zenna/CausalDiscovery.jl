@@ -6,7 +6,7 @@ function construct_data()
         ("initnext" => []),
         ("lifted" => []),
         ("types" => Dict()),
-        ("on" => Dict()),
+        ("on" => []),
         ("objects" => [])])
 end
 
