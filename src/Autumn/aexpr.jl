@@ -106,7 +106,7 @@ function showstring(expr::Expr)
     Expr(:args, args...) => join(map(showstring, args), " ")
     Expr(:call, f, arg1, arg2) && if isinfix(f) end => "$(showstring(arg1)) $f $(showstring(arg2))"
     Expr(:call, f, args...) => "($(join(map(showstring, [f ; args]), " ")))"
-    Expr(:let, vars...) => "let \n\t$(join(map(showstring, vars[1:end-1]), "\n\t"))\nin\n\t$(showstring(vars[end]))"
+    Expr(:let, vars...) => "let \n\t$(join(map(showstring, vars), "\n\t"))"
     Expr(:paramtype, type, param) => string(type, " ", param)
     Expr(:paramtype, type) => string(type)
     Expr(:case, type, vars...) => string("\n\tcase $(showstring(type)) of \n\t\t", join(map(showstring, vars), "\n\t\t"))

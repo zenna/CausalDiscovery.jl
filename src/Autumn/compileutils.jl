@@ -233,7 +233,7 @@ function compileinitnext(data::Dict{String, Any})
             state.scene = Scene(vcat([$(filter(x -> get(data["types"], x, :Any) in vcat(data["objects"], map(x -> [:List, x], data["objects"])), 
         map(x -> x.args[1], vcat(data["initnext"], data["lifted"])))...)]...), :backgroundHistory in fieldnames(STATE) ? state.backgroundHistory[state.time] : "#ffffff00")
       
-      global state = deepcopy(state)
+      global state = state
       state
     end
     end
@@ -247,7 +247,7 @@ function compileinitnext(data::Dict{String, Any})
             vcat(data["external"], data["initnext"], data["lifted"]))...)
       state.scene = Scene(vcat([$(filter(x -> get(data["types"], x, :Any) in vcat(data["objects"], map(x -> [:List, x], data["objects"])), 
         map(x -> x.args[1], vcat(data["initnext"], data["lifted"])))...)]...), :backgroundHistory in fieldnames(STATE) ? state.backgroundHistory[state.time] : "#ffffff00")
-      global state = deepcopy(state)
+      global state = state
       state
     end
     end
@@ -401,6 +401,11 @@ const builtInDict = Dict([
                           reduce(|, map(obj -> clicked(click, obj), objects))
                         end
 
+                        function objClicked(click::Union{Click, Nothing}, objects::AbstractArray)::Object
+                          println(click)
+                          filter(obj -> clicked(click, obj), objects)[1]
+                        end
+
                         function clicked(click::Union{Click, Nothing}, x::Int, y::Int)::Bool
                           if click == nothing
                             false
@@ -429,32 +434,36 @@ const builtInDict = Dict([
                           length(intersect(nums1, nums2)) != 0
                         end
 
+                        function intersects(list1, list2)::Bool
+                          length(intersect(list1, list2)) != 0 
+                        end
+
+                        function intersects(object::Object)::Bool
+                          objects = state.scene.objects
+                          intersects(object, objects)
+                        end
+
                         function addObj(list::Array{<:Object}, obj::Object)
-                          push!(list, obj)
-                          list
+                          new_list = vcat(list, obj)
+                          new_list
                         end
 
                         function addObj(list::Array{<:Object}, objs::Array{<:Object})
-                          list = vcat(list, objs)
-                          list
+                          new_list = vcat(list, objs)
+                          new_list
                         end
 
                         function removeObj(list::Array{<:Object}, obj::Object)
-                          old_obj = filter(x -> x.id == obj.id, list)
-                          old_obj.alive = false
-                          list
+                          filter(x -> x.id != obj.id, list)
                         end
 
                         function removeObj(list::Array{<:Object}, fn)
                           orig_list = filter(obj -> !fn(obj), list)
-                          removed_list = filter(obj -> fn(obj), list)
-                          foreach(obj -> (obj.alive = false), removed_list)
-                          vcat(orig_list, removed_list)
                         end
 
                         function removeObj(obj::Object)
                           obj.alive = false
-                          obj
+                          deepcopy(obj)
                         end
 
                         function updateObj(obj::Object, field::String, value)
@@ -497,6 +506,14 @@ const builtInDict = Dict([
                           length(filter(cell -> cell.position.x == position.x && cell.position.y == position.y, render(state.scene))) == 0
                         end
 
+                        function isFree(click::Union{Click, Nothing})::Bool
+                          if click == nothing
+                            false
+                          else
+                            isFree(Position(click.x, click.y))
+                          end
+                        end
+
                         function unitVector(position1::Position, position2::Position)::Position
                           deltaX = position2.x - position1.x
                           deltaY = position2.y - position1.y
@@ -537,8 +554,12 @@ const builtInDict = Dict([
                           displacement(position1, position2) in [Position(0,1), Position(1, 0), Position(0, -1), Position(-1, 0)]
                         end
 
-                        function adjacent(cell1::Cell, cell2::Cell)
+                        function adjacent(cell1::Cell, cell2::Cell)::Bool
                           adjacent(cell1.position, cell2.position)
+                        end
+
+                        function adjacent(cell::Cell, cells::Array{Cell})
+                          length(filter(x -> adjacent(cell, x), cells)) != 0
                         end
 
                         function rotate(object::Object)::Object
@@ -586,8 +607,9 @@ const builtInDict = Dict([
                         end
 
                         function moveWrap(object::Object, position::Position)::Object
-                          object.position = moveWrap(object.origin, position.x, position.y)
-                          object
+                          new_object = deepcopy(object)
+                          new_object.position = moveWrap(object.origin, position.x, position.y)
+                          new_object
                         end
 
                         function moveWrap(cell::Cell, position::Position)
@@ -599,12 +621,13 @@ const builtInDict = Dict([
                         end
 
                         function moveWrap(object::Object, x::Int, y::Int)::Object
-                          object.position = moveWrap(object.origin, x, y)
-                          object
+                          new_object = deepcopy(object)
+                          new_object.position = moveWrap(object.origin, x, y)
+                          new_object
                         end
                         
                         function moveWrap(position1::Position, position2::Position)::Position
-                          moveWrap(position, position2.x, position2.y)
+                          moveWrap(position1, position2.x, position2.y)
                         end
 
                         function moveWrap(position::Position, x::Int, y::Int)::Position

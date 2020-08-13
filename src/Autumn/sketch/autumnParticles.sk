@@ -1,0 +1,209 @@
+include "autumnStandardLibrary.sk";
+include "autumnGenerators.sk";
+
+// global variables
+int GRID_SIZE = 16; // final
+int ARR_BND = 100; // final
+int objectsCreated = 0; // non-final
+
+// Particle struct
+struct Particle extends Object {
+	Position origin;
+  bit alive;
+  Cell[ARR_BND] render; 
+}
+
+Particle particle(Position origin) {
+	Particle particle_ = new Particle(origin=origin, alive=1, render={ new Cell(0, 0) });
+	objectsCreated++;
+	return particle_;
+}
+
+struct State {
+	int time;
+	Click[ARR_BND] clickHistory;
+	Particle[ARR_BND][ARR_BND] particlesHistory;
+	Scene scene;
+}
+
+State init() {
+	int time = 0;
+	Particle[ARR_BND] particles;
+	
+	state = new State();
+	state.time = time;
+	state.clickHistory[time] = null;
+	state.particlesHistory[time] = particles;
+	state.scene = new Scene(objects=particles, background="transparent");
+	return state;
+}
+
+State next(State state, Click click) {
+	Particle[ARR_BND] particles = state.particles[state.time];
+	
+	if (occurred(click)) {
+		particles = addObj(particles, particle(click.position)); // hole 1
+	}
+	
+	if (!(occurred(click))) {
+		particles = updateObj(particles, (obj) -> (particle(uniformChoice(adjPositions(obj.origin))))); // hole 2
+	}
+	
+	state.time = state.time + 1;
+	state.clickHistory[state.time] = click;
+	state.particlesHistory[state.time] = particles;
+	state.scene = new Scene(objects=particles, background="transparent");
+	return state;
+}
+
+
+State synthNext(State state, Click click) {
+	Particle[ARR_BND] particles = state.particles[state.time];
+	
+	if (occurred(click)) {
+		particles = genParticleArray();
+	}
+	
+	if (!(occurred(click))) {
+		particles = genParticleArray();
+	}
+	
+	state.time = state.time + 1;
+	state.clickHistory[state.time] = click;
+	state.particlesHistory[state.time] = particles;
+	state.scene = new Scene(objects=particles, background="transparent");
+	return state;
+}
+
+/* ----- generate non-functions ----- */
+/* (Object, Object[], Click, Cell, Cell[], Position, Position[], Scene, Int/Bool/Char[]) */
+generator Particle genParticle() {
+	return {| $(Particle) | genFunRetParticle() | genParticleArray()[genInt()] |};	
+}
+
+generator Particle[ARR_BND] genParticleArray() {
+	return {| $(Particle[ARR_BND]) | genFunRetParticleArray() |};
+}
+
+generator Click genClick() {
+	return $(Click);
+}
+
+generator Cell genCell() {
+	return {| $(Cell) | new Cell(genInt(), genInt(), genCharArray()) | genCellArray()[genInt()] |};
+}
+
+generator Cell[ARR_BND] genCellArray() {
+	return {| $(Cell[ARR_BND]) | genFunRetCellArray() |};
+}
+
+generator Position genPosition() {
+	return {| $(Position) | new Position(genInt(), genInt()) | genParticle().origin | genFunRetPosition() | genFunRetPositionArray()[genInt()] | genClick().position | genCell().position |};
+}
+
+generator Position[ARR_BND] genPositionArray() {
+	return {| $(Position[ARR_BND]) | genFunRetParticleArray() |};
+}
+
+generator Scene genScene() {
+	return {| $(Scene) | state.scene |};
+}
+
+generator int genInt() {
+  Position pos = genPosition();
+	return {| $(int) | pos.x | pos.y |};
+}
+
+generator bit genBit() {
+	return {| $(bit) | genFunRetBit() |};
+}
+
+generator char[ARR_BND] genCharArray() {
+	return {| $(char[ARR_BND]) |};
+}
+
+
+// ----- generate function calls -----
+generator Particle genFunRetParticle() {
+	return {| 
+		particle(genPosition()) |
+		removeObj(genParticle())
+	|};
+}
+
+generator Particle[ARR_BND] genFunRetParticleArray() {	
+	Particle particle_ = genParticle();
+	Particle[ARR_BND] particles1 = genParticleArray();
+	Particle[ARR_BND] particles2 = genParticleArray();
+	return {| 
+		addObj(particles1, particle_) |
+		addObjs(particles1, particles2) |
+		removeObjFromArray(particles1, particle_) |
+		removeObjsFromArray(particles1, particles2) |
+		updateObjArray(particles1, (p) -> (genParticle())) 
+	|};
+}
+
+generator Cell[ARR_BND] genFunRetCellArray() {
+	return {| 
+		renderScene(genScene()) |
+		renderObj(genParticle())
+	|};
+}
+
+generator bit genFunRetBit() {
+	int i = genInt();
+	Position pos = genPos();
+	Particle particle1 = genParticle();
+	Particle particle2 = genParticle();
+	Particle[ARR_BND] particles1 = genParticleArray();
+	Particle[ARR_BND] particles2 = genParticleArray();
+	Click click_ = genClick();
+	
+	return {|
+		isWithinBoundsPosition(i, pos) |
+		isWithinBoundsObject(i, particle1) |
+		clickedObj(click_, particle1) |
+		clickedObjArray(click_, particles1) |
+		clickedPosition(click_, pos) |
+		intersectsObjObj(particle1, particle2) |
+		intersectsObjObjArray(particle1, particles1) | 
+		intersectsObjArrays(particles1, particles2) |
+		intersectsScene(particle1)
+		isFreePosition(pos) |
+		isFreeClick(click_)
+	|};
+}
+
+generator Position[ARR_BND] genFunRetPositionArray() {
+	return {|
+		adjPositions(genPosition()) 
+	|};
+}
+
+generator Position genFunRetPosition() {
+	return {|
+		unitVectorPositions(genPosition(), genPosition()) |
+		unitVectorPositionObject(genPosition(), genParticle()) |
+		unitVectorObjectPosition(genParticle(), genPosition()) |
+		unitVectorObjects(genParticle(), genParticle())
+	|};
+}
+
+
+// harness suite
+
+harness void test1() {
+	State state = init();	
+  state = next(state, new Click(5, 5));
+	Cell[ARR_BND] renderedScene = render(state.scene);
+  assert length(renderedScene) == 1;
+  assert renderedScene[0].position.x == 5 && renderedScene[0].position.y == 5;
+}
+
+harness void test2() {
+  
+
+}
+
+
