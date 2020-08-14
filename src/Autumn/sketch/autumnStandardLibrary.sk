@@ -1,5 +1,16 @@
-int ARR_BND = 100;
-int STR_BND = 10;
+int ARR_BND = 20;
+int STR_BND = 20;
+
+// Particle struct
+struct Particle extends Object {
+	Position origin;
+  bit alive;
+  Cell[ARR_BND] render; 
+}
+
+Particle particle(Position origin) {
+	return new Particle(origin=origin, alive=1, render={ new Cell(position=new Position(x=0,y=0), color="blue") });
+}
 
 // abstract type
 struct Object {
@@ -21,57 +32,212 @@ struct Cell {
 }
 
 struct Scene {
-	Object[] objects;
+	Particle[] objects;
 	char[STR_BND] background;
 }
 
 // render functions
-Cell[ARR_BND] renderScene(Scene scene) {}
+Cell[ARR_BND] renderScene(Scene scene) {
+  Cell[ARR_BND] cells;
+  Cell[ARR_BND] objCells;
+  int cellIndex = 0;
 
-Cell[ARR_BND] renderObj(Object object) {}
+  for (int objIndex = 0; objIndex < ARR_BND; objIndex++) {
+    Particle obj = scene.objects[objIndex];
+    if (obj != null) {
+      objCells = renderObj(obj);
+      for (int objCellIndex = 0; objCellIndex < ARR_BND; objCellIndex++) {
+        cells[cellIndex++] = objCells[objCellIndex];
+      }
+    }
+  }
+  return cells;
+}
+
+Cell[ARR_BND] renderObj(Particle object) {
+  Cell[ARR_BND] cells;
+  for (int i = 0; i < ARR_BND; i++) {
+    Cell cell = object.render[i];
+    if (cell != null) {
+      cells[i] = new Cell(position=new Position(x=cell.position.x+object.origin.x,
+                                                y=cell.position.y+object.origin.y),
+                          color=cell.color);
+    }
+  }
+  return cells;
+}
 
 // is within bounds
-bit isWithinBoundsPosition(int gridSize, Position position) {}
+bit isWithinBoundsPosition(int gridSize, Position position) {
+  int num = gridSize * position.x + position.y;
+  if (num >= 0 && num < gridSize * gridSize) {
+    return true;
+  } else {
+    return false;
+  }
+}
 
-bit isWithinBoundsObject(int gridSize, Object object) {}
+bit isWithinBoundsObject(int gridSize, Particle object) {
+  Cell[ARR_BND] cells = renderObj(object);
+  Cell cell;
+  for (int cellIndex = 0; cellIndex < ARR_BND; cellIndex++) {
+    cell = cells[cellIndex];
+    if (cell == null) {
+      return true;
+    }
+    if (!isWithinBoundsPosition(gridSize, cell.position)) {
+      return false;
+    }
+  }  
+  return true;
+}
 
 // clicked
-bit clickedObj(Click click, Object object) {}
+bit clickedObj(Click click, Particle object) {
+  Cell[ARR_BND] cells = renderObj(object);
+  Cell cell;
+  for (int cellIndex = 0; cellIndex < ARR_BND; cellIndex++ ) {
+    if (cell == null) {
+      return false;
+    }
 
-bit clickedObjArray(Click click, Object[ARR_BND] objects) {}
+    if (clickedPosition(click, cell.position)) {
+      return true;
+    }
+  }
+  return false;
+}
 
-bit clickedPosition(Click click, Position position) {}
+bit clickedObjArray(Click click, Particle[ARR_BND] objects) {
+  Particle object;
+  Cell cell;
+  for (int objectIndex = 0; objectIndex < ARR_BND; objectIndex++) {
+    object = objects[objectIndex];
+    if (object == null) {
+      return false;
+    }
+
+    if (clickedObj(click, object)) {
+      return true;
+    } 
+  }
+  return false;
+}
+
+bit clickedPosition(Click click, Position position) {
+  return (position.x == click.position.x) && (position.y == click.position.y);
+}
 
 // intersects
-bit intersectsObjObj(Object object1, Object object2) {}
+/*
+bit intersectsObjObj(Object object1, Particle object2) {
 
-bit intersectsObjObjArray(Object object, Object[] objects)
+}
 
-bit intersectsObjArrays(Object[] objects1, Object[] objects2) {}
+bit intersectsObjObjArray(Object object, Particle[] objects) {
 
-bit intersectsScene(Object object) {}
+}
+
+bit intersectsObjArrays(Object[] objects1, Particle[] objects2) {
+
+}
+
+bit intersectsScene(Object object) {
+
+}
+*/
 
 // add/remove/update objects 
-Object[ARR_BND] addObj(Object[] objects, Object object) {}
+Particle[ARR_BND] addObj(Particle[ARR_BND] objects, Particle object) {
+  Particle[ARR_BND] newObjects = objects;
+  for (int i = 0; i < ARR_BND; i++) {
+    if (newObjects[i] == null) {
+      newObjects[i] = object;
+      return newObjects;
+    }
+  }
+  return newObjects;
+}
 
-Object[ARR_BND] addObjs(Object[] objects1, Object[] objects2) {}
+Particle[ARR_BND] addObjs(Particle[ARR_BND] objects1, Particle[ARR_BND] objects2) {
+  Particle[ARR_BND] newObjects = objects1;
+  for (int i = 0; i < ARR_BND; i++) {
+    if (newObjects[i] == null) {
+      newObjects[i::(ARR_BND - i)] = objects2[0::(ARR_BND - i)];
+    }
+  }
+  return newObjects;
+}
 
-Object[ARR_BND] removeObjFromArray(Object[] objects1, Object object) {}
+Particle[ARR_BND] removeObjFromArray(Particle[ARR_BND] objects, Particle object) {
+  Particle[ARR_BND] newObjects;
+  int objectIndex = ARR_BND;
+  for (int i = 0; i < ARR_BND; i++) {
+    if (objects[i] == object) {
+      objectIndex = i;
+    }
+    if (i >= objectIndex) {
+      if (i == ARR_BND - 1) {
+        newObjects[i] = null;
+      } else {
+        newObjects[i] = objects[i + 1];
+      }
+    } else {
+      newObjects[i] = objects[i];
+    }
+  }
+  return newObjects;
+}
 
-Object[ARR_BND] removeObjsFromArray(Object[] objects1, fun mapFn) {}
+/*
+Object[ARR_BND] removeObjsFromArray(Object[] objects, fun mapFn) {
+  
+}
+*/
+/*
+Object removeObj(Object object) {
 
-Object removeObj(Object object) {}
+}
+*/
 
-// ??? Object updateObj(Object object, char[STR_BND] field, value) {}
 
-Object[ARR_BND] updateObjArray(Object[ARR_BND] objects, fun map_fn) {}
+// ??? Particle updateObj(Object object, char[STR_BND] field, value) {}
+
+Particle[ARR_BND] updateObjArray(Particle[ARR_BND] objects, fun map_fn) {
+  Particle[ARR_BND] newObjects;
+  for (int i = 0; i < ARR_BND; i++) {
+    if (objects[i] != null) {
+      newObjects[i] = map_fn(objects[i]);
+    } else {
+      newObjects[i] = objects[i];
+    }
+  }
+  return newObjects;
+}
+
 
 // adjacent positions
+Position[ARR_BND] adjPositions(int gridSize, Position position) {
+  int x = position.x;
+  int y = position.y;
+  Position[4] positions = { new Position(x=x+1, y=y),
+                            new Position(x=x-1, y=y),
+                            new Position(x=x, y=y-1),
+                            new Position(x=x, y=y+1) };
 
-Position[ARR_BND] adjPositions(Position position) {}
+  Position[4] retVal;
+  int retIndex = 0;
+  
+  for (int i = 0; i < ARR_BND; i++) {
+    if (isWithinBoundsPosition(gridSize, positions[i])) {
+      retVal[retIndex++] = positions[i];
+    }
+  }
+  return positions;
+}
 
 // is free functions
-
+/*
 bit isFreePosition(Position position) {}
 
 bit isFreeClick(Click click) {}
@@ -82,16 +248,17 @@ Position unitVectorPositions(Position position1, Position position2) {}
 
 Position unitVectorObjectPosition(Object object, Position position) {}
 
-Position unitVectorPositionObject(Position position, Object object) {}
+Position unitVectorPositionObject(Position position, Particle object) {}
 
-Position unitVectorObjects(Object object1, Object object2) {}
+Position unitVectorObjects(Object object1, Particle object2) {}
 
 // displacement
 
 // adjacent
-
+ 
 // rotate
 
 // move
 
 // random
+*/
