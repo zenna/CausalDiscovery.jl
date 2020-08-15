@@ -228,12 +228,12 @@ Position[ARR_BND] adjPositions(int gridSize, Position position) {
   Position[4] retVal;
   int retIndex = 0;
   
-  for (int i = 0; i < ARR_BND; i++) {
+  for (int i = 0; i < 4; i++) {
     if (isWithinBoundsPosition(gridSize, positions[i])) {
       retVal[retIndex++] = positions[i];
     }
   }
-  return positions;
+  return retVal;
 }
 
 // is free functions
