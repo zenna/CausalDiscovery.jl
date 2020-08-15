@@ -1,11 +1,11 @@
-int ARR_BND = 20;
+int ARR_BND = 10;
 int STR_BND = 20;
 
 // Particle struct
 struct Particle extends Object {
-	Position origin;
+  Position origin;
   bit alive;
-  Cell[ARR_BND] render; 
+  Cell[ARR_BND] render;	
 }
 
 Particle particle(Position origin) {
@@ -14,7 +14,7 @@ Particle particle(Position origin) {
 
 // abstract type
 struct Object {
-	// empty struct?	
+
 }
 
 struct Position {
@@ -32,7 +32,7 @@ struct Cell {
 }
 
 struct Scene {
-	Particle[] objects;
+	Particle[ARR_BND] objects;
 	char[STR_BND] background;
 }
 
