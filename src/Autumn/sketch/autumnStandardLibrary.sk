@@ -128,24 +128,52 @@ bit clickedPosition(Click click, Position position) {
   return (position.x == click.position.x) && (position.y == click.position.y);
 }
 
-// intersects
-/*
-bit intersectsObjObj(Object object1, Particle object2) {
+// intersects NEW
 
+bit intersectsObjObj(Particle object1, Particle object2) {
+  Cell[ARR_BND] cells1 = renderObj(object1);
+  Cell[ARR_BND] cells2 = renderObj(object2);
+  Cell cell1;
+  Cell cell2;
+  for (int i = 0; i < ARR_BND; i++) {
+    cell1 = cells1[i];
+    for (int j = 0; j < ARR_BND; j++) {
+      cell2 = cells2[j];
+      if (cell1 != null && cell2 != null) {
+        if (cell1.position.x == cell2.position.x && cell1.position.y == cell2.position.y) {
+          return true;
+        }
+      }
+    }
+  }
+  return false;
 }
 
-bit intersectsObjObjArray(Object object, Particle[] objects) {
-
+bit intersectsObjObjArray(Particle object, Particle[ARR_BND] objects) {
+  for (int i = 0; i < ARR_BND; i++) {
+    Particle object2 = objects[i];
+    if (intersectsObjObj(object, object2)) {
+      return true;
+    }
+  }
+  return false;   
 }
 
-bit intersectsObjArrays(Object[] objects1, Particle[] objects2) {
 
+bit intersectsObjArrays(Particle[ARR_BND] objects1, Particle[ARR_BND] objects2) {
+  for (int i = 0; i < ARR_BND; i++) {
+    Particle object1 = objects1[i];
+    if (intersectsObjObjArray(object1, objects2)) {
+      return true;
+    }
+  }
+  return false;
 }
 
-bit intersectsScene(Object object) {
-
+bit intersectsScene(Scene scene, Particle object) {
+  Particle[ARR_BND] objects = scene.objects;
+  return intersectsObjObjArray(object, objects);
 }
-*/
 
 // add/remove/update objects 
 Particle[ARR_BND] addObj(Particle[ARR_BND] objects, Particle object) {
@@ -189,17 +217,24 @@ Particle[ARR_BND] removeObjFromArray(Particle[ARR_BND] objects, Particle object)
   return newObjects;
 }
 
-/*
-Object[ARR_BND] removeObjsFromArray(Object[] objects, fun mapFn) {
-  
+// NEW
+Particle[ARR_BND] removeObjsFromArray(Particle[ARR_BND] objects, fun mapFn) {
+  Particle[ARR_BND] newObjects;
+  int newIndex = 0;
+  for (int i = 0; i < ARR_BND; i++) {
+    Particle object = objects[i];
+    if (!mapFn(objects[i])) {
+      newObjects[newIndex++] = object;
+    }
+  }
+  return newObjects;
 }
-*/
-/*
-Object removeObj(Object object) {
 
+// NEW
+Particle removeObj(Particle object) {
+  object.alive = false;
+  return object;
 }
-*/
-
 
 // ??? Particle updateObj(Object object, char[STR_BND] field, value) {}
 
@@ -236,29 +271,109 @@ Position[ARR_BND] adjPositions(int gridSize, Position position) {
   return retVal;
 }
 
-// is free functions
-/*
-bit isFreePosition(Position position) {}
+// NEW (ALL BELOW)
 
-bit isFreeClick(Click click) {}
+// is free functions
+
+bit isFreePosition(Scene scene, Position position) {
+  Particle[ARR_BND] objects = scene.objects;
+  Particle object;
+  for (int i = 0; i < ARR_BND; i++) {
+    object = objects[i];
+    if (object != null) {
+      if (object.origin.x == position.x && object.origin.y == position.y) {
+        return false;
+      }
+    }
+  }
+  return true;
+}
+
+bit isFreeClick(Scene scene, Click click) {
+  return isFreePosition(scene, click.position);
+}
 
 // unitVector
 
-Position unitVectorPositions(Position position1, Position position2) {}
+Position unitVector(Position position1, Position position2) {
+  int deltaX = position2.x - position1.x;
+  int deltaY = position2.y - position1.y;
+  if (abs(sign(deltaX)) == 1 && abs(sign(deltaY)) == 1) {
+    return new Position(x=1, y=0);
+  } else {
+    return new Position(x=sign(deltaX), y=sign(deltaY));
+  }
+}
 
-Position unitVectorObjectPosition(Object object, Position position) {}
+int sign(int num) {
+  if (num > 0) {
+    return 1;
+  } else {
+    if (num < 0) {
+      return -1;
+    } else {
+      return 0;
+    }
+  }
+}
 
-Position unitVectorPositionObject(Position position, Particle object) {}
+int abs(int num) {
+  if (num > 0) {
+    return num;
+  } else {
+    return -num;
+  }
+}
 
-Position unitVectorObjects(Object object1, Particle object2) {}
 
 // displacement
+Position displacement(Position position1, Position position2) {
+  return new Position(x=position2.x - position1.x, y=position2.y - position1.y);
+}
 
 // adjacent
- 
+bit adjacentPositions(Position position1, Position position2) {
+  int deltaX = position2.x - position1.x;
+  int deltaY = position2.y - position1.y;
+  if (abs(deltaX) == 1 && deltaY == 0) {
+    return true;
+  } else {
+    if (abs(deltaY) == 1 && deltaX == 0) {
+      return true;
+    } else {
+      return false;
+    }
+  }
+}
+
+/*
+bit adjacentObjects(Particle object1, Particle object2) {
+  
+}
+
 // rotate
+Position rotatePosition(Position position) {
+  return new Position(x=-position.y, y=position.x);
+}
+
+Particle rotateObject(Particle object) {
+
+}
+
+Particle rotateNoCollision(Particle object) {
+
+}
 
 // move
+Particle moveObject(Particle object, Position position) {
 
-// random
+}
+
+Particle moveNoCollision(Particle object, Position position) {
+
+}
+
+Position movePosition(Position position1, Position position2) {
+
+}
 */
