@@ -260,11 +260,7 @@ State synthNext(State state, Click click) {
         if (??) {
           return removeObjFromArray(particles1, particle_);
         } else {
-          if (??) {
-            return removeObjFromArray(particles1, particle_);
-          } else {
-            return updateObjArray(particles1, (obj) -> (genParticle(particles, click, obj)));
-          }
+          return updateObjArray(particles1, (obj) -> (genParticle(particles, click, obj)));
         }
       }
     }
