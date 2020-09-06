@@ -9,7 +9,14 @@ export istypesymbol,
        args,
        arg,
        wrap,
-       showstring
+       showstring,
+       AutumnError
+
+"Autumn Error"
+struct AutumnError <: Exception
+  msg
+end
+AutumnError() = AutumnError("")
 
 const autumngrammar = """
 x           := a | b | ... | aa ...

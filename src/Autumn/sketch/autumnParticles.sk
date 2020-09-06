@@ -91,7 +91,27 @@ harness void addParticle2() {
 
 State synthNext(State state, Click click) {
 	Particle[ARR_BND] particles = state.particlesHistory[state.time];
+  
+  minrepeat {
+    if (genEvent(particles, click, null)) {
+      particles = genParticleArray(particles, click, null);
+    }
+  }
 
+  /*
+  if (genEvent(particles, click, null)) {
+		// particles = addObj($(Particle[ARR_BND]), particle(genPosition(particles, click)));
+    particles = genParticleArray(particles, click, null);
+    // particles = addObj(particles, particle(click.position));
+	}
+  */
+
+  if (click == null) {
+		particles = genParticleArray(particles, click, null);
+    // particles = updateObjArray(particles, (obj) -> (particle(uniformChoice(uniformChoiceCounter, adjPositions(GRID_SIZE, obj.origin)))));
+	}
+
+  /*
 	if (click != null) {
 		// particles = addObj($(Particle[ARR_BND]), particle(genPosition(particles, click)));
     particles = genParticleArray(particles, click, null);
@@ -102,6 +122,7 @@ State synthNext(State state, Click click) {
 		particles = genParticleArray(particles, click, null);
     // particles = updateObjArray(particles, (obj) -> (particle(uniformChoice(uniformChoiceCounter, adjPositions(GRID_SIZE, obj.origin)))));
 	}
+  */
 	
 	state.time = state.time + 1;
 	state.clickHistory[state.time] = click;
@@ -266,22 +287,18 @@ State synthNext(State state, Click click) {
     }
   }
 
-  
-
   generator Cell[ARR_BND] genFunRetCellArray(Particle[ARR_BND] particles, Click click, Particle particle) {
     return renderObj(genParticle(particles, click, particle));
     // return {| renderScene(genScene(particles, click)) | renderObj(genParticle(particles, click)) |};
   }
 
   generator bit genFunRetBit(Particle[ARR_BND] particles, Click click, Particle particle) {
-    int i = genInt(particles, click, particle);
-    Position pos = genPosition(particles, click, particle);
-    Particle particle1 = genParticle(particles, click, particle);
-    Particle particle2 = genParticle(particles, click, particle);
-    Particle[ARR_BND] particles1 = genParticleArray(particles, click, particle);
-    Particle[ARR_BND] particles2 = genParticleArray(particles, click, particle);
     Click c = genClick(particles, click, particle);
-    return {| isWithinBoundsPosition(i, pos) | isWithinBoundsObject(i, particle1) | clickedObj(c, particle1) | clickedObjArray(c, particles1) | clickedPosition(c, pos) |};
+    Position pos = genPosition(particles, click, particle);
+    Particle particle_ = genParticle(particles, click, particle);
+    Particle[ARR_BND] particles_ = genParticleArray(particles, click, particle);
+    return occurred(click);
+    // return {| occurred(c) | isWithinBoundsPosition(GRID_SIZE, pos) | isWithinBoundsObject(GRID_SIZE, particle_) | clickedObj(c, particle_) | clickedObjArray(c, particles_) | clickedPosition(c, pos) |};
   }
 
   generator Position[ARR_BND] genFunRetPositionArray(Particle[ARR_BND] particles, Click click, Particle particle) {
@@ -290,6 +307,10 @@ State synthNext(State state, Click click) {
 
   generator Position genFunRetPosition(Particle[ARR_BND] particles, Click click, Particle particle) {
     return uniformChoice(uniformChoiceCounter, genPositionArray(particles, click, particle));
+  }
+
+  generator bit genEvent(Particle[ARR_BND] particles, Click click, Particle particle) {
+    return genBit(particles, click, particle);
   }
 
   /* ----- END GENERATORS ----- */

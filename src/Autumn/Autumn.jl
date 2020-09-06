@@ -20,6 +20,9 @@ include("sexpr.jl")
 include("compileutils.jl")
 @reexport using .CompileUtils
 
+include("compilesketchutils.jl")
+@reexport using .CompileSketchUtils
+
 include("compile.jl")
 @reexport using .Compile
 

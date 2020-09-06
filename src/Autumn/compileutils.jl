@@ -4,13 +4,8 @@ using ..AExpressions
 using Distributions: Categorical
 using MLStyle: @match
 
-export AutumnCompileError, compile, compilestatestruct, compileinitstate, compileinitnext, compileprevfuncs, compilebuiltin, compileobject, compileon
+export compile, compilestatestruct, compileinitstate, compileinitnext, compileprevfuncs, compilebuiltin, compileobject, compileon
 
-"Autumn Compile Error"
-struct AutumnCompileError <: Exception
-  msg
-end
-AutumnCompileError() = AutumnCompileError("")
 abstract type Object end
 # ----- Compile Helper Functions ----- #
 
@@ -30,13 +25,13 @@ function compile(expr::AExpr, data::Dict{String, Any}, parent::Union{AExpr, Noth
     [:field, args...] => :($(compile(expr.args[1], data)).$(compile(expr.args[2], data)))
     [:object, args...] => compileobject(expr, data)
     [:on, args...] => compileon(expr, data)
-    [args...] => throw(AutumnCompileError(string("Invalid AExpr Head: ", expr.head))) # if expr head is not one of the above, throw error
+    [args...] => throw(AutumnError(string("Invalid AExpr Head: ", expr.head))) # if expr head is not one of the above, throw error
   end
 end
 
 function compile(expr::AbstractArray, data::Dict{String, Any}, parent::Union{AExpr, Nothing}=nothing)
   if length(expr) == 0 || (length(expr) > 1 && expr[1] != :List)
-    throw(AutumnCompileError("Invalid List Syntax"))
+    throw(AutumnError("Invalid List Syntax"))
   elseif expr[1] == :List
     :(Array{$(compile(expr[2:end], data))})
   else
@@ -230,8 +225,8 @@ function compileinitnext(data::Dict{String, Any})
       $(map(x -> :($(compile(x.args[1], data)) = $(compile(x.args[2], data))), filter(x -> x.args[1] != :GRID_SIZE, data["lifted"]))...)
       $(map(x -> :(state.$(Symbol(string(x.args[1])*"History"))[state.time] = $(x.args[1])), 
             vcat(data["external"], data["initnext"], data["lifted"]))...)
-            state.scene = Scene(vcat([$(filter(x -> get(data["types"], x, :Any) in vcat(data["objects"], map(x -> [:List, x], data["objects"])), 
-        map(x -> x.args[1], vcat(data["initnext"], data["lifted"])))...)]...), :backgroundHistory in fieldnames(STATE) ? state.backgroundHistory[state.time] : "#ffffff00")
+      state.scene = Scene(vcat([$(filter(x -> get(data["types"], x, :Any) in vcat(data["objects"], map(x -> [:List, x], data["objects"])), 
+                                  map(x -> x.args[1], vcat(data["initnext"], data["lifted"])))...)]...), :backgroundHistory in fieldnames(STATE) ? state.backgroundHistory[state.time] : "#ffffff00")
       
       global state = state
       state
@@ -784,8 +779,5 @@ const builtInDict = Dict([
                       
                     end
 ])
-
-# binary operators
-const binaryOperators = [:+, :-, :/, :*, :&, :|, :>=, :<=, :>, :<, :(==), :!=, :%, :&&]
 
 end
