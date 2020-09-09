@@ -41,7 +41,9 @@ function compiletojulia(aexpr::AExpr)::Expr
         export init, next
         import Base.min
         using Distributions
-        using MLStyle: @match 
+        using MLStyle: @match
+        using Random
+        rng = Random.GLOBAL_RNG
         $(lines...)
       end
     end  

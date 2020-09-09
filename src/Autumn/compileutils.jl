@@ -6,6 +6,9 @@ using MLStyle: @match
 
 export compile, compilestatestruct, compileinitstate, compileinitnext, compileprevfuncs, compilebuiltin, compileobject, compileon
 
+# binary operators
+binaryOperators = map(string, [:+, :-, :/, :*, :&, :|, :>=, :<=, :>, :<, :(==), :!=, :%, :&&])
+
 abstract type Object end
 # ----- Compile Helper Functions ----- #
 
@@ -133,6 +136,8 @@ function compilecall(expr::AExpr, data::Dict{String, Any})
   fnName = expr.args[1]
   if fnName == :clicked
     :(clicked(click, $(map(x -> compile(x, data), expr.args[2:end])...)))
+  elseif fnName == :uniformChoice
+    :(uniformChoice(rng, $(map(x -> compile(x, data), expr.args[2:end])...)))
   elseif !(fnName in binaryOperators) && fnName != :prev
     :($(fnName)($(map(x -> compile(x, data), expr.args[2:end])...)))
   elseif fnName == :prev
@@ -219,7 +224,8 @@ function compileinitnext(data::Dict{String, Any})
   end
 
   initFunction = quote
-    function init($(map(x -> :($(x.args[1])::Union{$(compile(data["types"][x.args[1]], data)), Nothing}), data["external"])...))::STATE
+    function init($(map(x -> :($(x.args[1])::Union{$(compile(data["types"][x.args[1]], data)), Nothing}), data["external"])...), custom_rng=rng)::STATE
+      global rng = custom_rng
       $(compileinitstate(data))
       $(init)
       $(map(x -> :($(compile(x.args[1], data)) = $(compile(x.args[2], data))), filter(x -> x.args[1] != :GRID_SIZE, data["lifted"]))...)
@@ -312,12 +318,12 @@ const builtInDict = Dict([
                         end
                       end,
 "uniformChoice"   =>  quote
-                        function uniformChoice(freePositions)
+                        function uniformChoice(rng, freePositions)
                           freePositions[rand(Categorical(ones(length(freePositions))/length(freePositions)))]
                         end
                       end,
 "uniformChoice2"   =>  quote
-                        function uniformChoice(freePositions, n)
+                        function uniformChoice(rng, freePositions, n)
                           map(idx -> freePositions[idx], rand(Categorical(ones(length(freePositions))/length(freePositions)), n))
                         end
                       end,
