@@ -57,7 +57,8 @@ function compiletosketch(aexpr::AExpr, observations)::String
                ("lifted" => []), # :assign aexprs for all lifted variables
                ("types" => Dict{Symbol, Any}([:click => :Click, :left => :KeyPress, :right => :KeyPress, :up => :KeyPress, :down => :KeyPress, :GRID_SIZE => :Int, :background => :String])), # map of global variable names (symbols) to types
                ("on" => []),
-               ("objects" => [])]) 
+               ("objects" => []),
+               ("customFields" => Dict{Symbol, Any}())]) 
   if (aexpr.head == :program)
     # handle AExpr lines
     lines = map(arg -> compile_sk(arg, metadata, aexpr), aexpr.args)
@@ -71,10 +72,10 @@ function compiletosketch(aexpr::AExpr, observations)::String
 
     # construct prev functions
     prevFunctions = compileprev_sk(metadata)
-    
-    #=
+
     # construct library
     library = compilelibrary_sk(metadata)
+    #=
 
     # construct harnesses 
     harnesses = compileharnesses_sk(metadata);
@@ -84,13 +85,13 @@ function compiletosketch(aexpr::AExpr, observations)::String
     =#
     join([
       "int ARR_BND = 10;",
-      "int uniformChoiceCounter = 0;",
+      "int STR_BND = 20;",
       lines...,
       stateStruct,
       initFunction,
       nextFunction,
-      prevFunctions, #=
-      library,
+      prevFunctions, 
+      library, #=
       harnesses,
       generators =#
     ], "\n")

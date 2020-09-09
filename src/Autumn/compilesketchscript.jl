@@ -15,4 +15,4 @@ open("myfile.txt", "w") do io
   aexpr = au"""$(aprogram)"""
   sketchprogram = compiletosketch(aexpr)
   write(io, sketchprogram)
-end;
+end

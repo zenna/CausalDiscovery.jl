@@ -17,6 +17,9 @@ include("subexpr.jl")
 include("sexpr.jl")
 @reexport using .SExpr
 
+include("autumnstdlib.jl")
+@reexport using .AutumnStandardLibrary
+
 include("compileutils.jl")
 @reexport using .CompileUtils
 
