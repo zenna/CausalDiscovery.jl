@@ -319,12 +319,12 @@ const builtInDict = Dict([
                       end,
 "uniformChoice"   =>  quote
                         function uniformChoice(rng, freePositions)
-                          freePositions[rand(Categorical(ones(length(freePositions))/length(freePositions)))]
+                          freePositions[rand(rng, Categorical(ones(length(freePositions))/length(freePositions)))]
                         end
                       end,
 "uniformChoice2"   =>  quote
                         function uniformChoice(rng, freePositions, n)
-                          map(idx -> freePositions[idx], rand(Categorical(ones(length(freePositions))/length(freePositions)), n))
+                          map(idx -> freePositions[idx], rand(rng, Categorical(ones(length(freePositions))/length(freePositions)), n))
                         end
                       end,
 "min"              => quote
