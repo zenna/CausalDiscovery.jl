@@ -2,7 +2,7 @@ using Test
 using CausalDiscovery
 
 @test showstring(au"""(program
-(const (= GRID_SIZE 16))
+(= GRID_SIZE 16)
 
 (type alias Position ((: x Int) (: y Int)))
 (type alias Particle ((: position Position)))
@@ -40,4 +40,4 @@ using CausalDiscovery
 
 (: particleGen (-> Position Particle))
 (= particleGen (fn (initPosition) (Particle initPosition)))
-)""") == "const GRID_SIZE = 16\ntype alias Position = { x : Int, y : Int }\ntype alias Particle = { position : Position }\nexternal click : Click\nparticles : List Particle\nparticles = init () next if ((occurred click)) then ((push! (prev particles) (particleGen (Position 1 1)))) else ((map nextParticle particles))\nnparticles = (length particles)\nisFree : (Position -> Bool)\nisFree = fn (position) ((length (filter (particle -> ((!= particle.position position))) particles)))\nisWithinBounds : (Position -> Bool)\nisWithinBounds = fn (position) ((& position.x >= 0 (& position.x < GRID_SIZE (& position.y >= 0 position.y < GRID_SIZE))))\nadjacentPositions : (Position -> List Position)\nadjacentPositions = fn (position) (let \n\tx = position.x\n\ty = position.y\n\tpositions = (filter isWithinBounds ((Position x + 1 y), (Position x - 1 y), (Position x y + 1), (Position x y - 1)))\n in \n\t positions)\nnextParticle : (Particle -> Particle)\nnextParticle = fn (particle) (let \n\tfreePositions = (filter isFree (adjacentPositions particle.position))\n in \n\t \n\tcase freePositions of \n\t\t() => particle\n\t\t_ => (Particle (uniformChoice freePositions)))\nparticleGen : (Position -> Particle)\nparticleGen = fn (initPosition) ((Particle initPosition))"
+)""") == "GRID_SIZE = 16\ntype alias Position = { x : Int, y : Int }\ntype alias Particle = { position : Position }\nexternal click : Click\nparticles : List Particle\nparticles = init () next if ((occurred click)) then ((push! (prev particles) (particleGen (Position 1 1)))) else ((map nextParticle particles))\nnparticles = (length particles)\nisFree : (Position -> Bool)\nisFree = fn (position) ((length (filter (particle -> ((!= particle.position position))) particles)))\nisWithinBounds : (Position -> Bool)\nisWithinBounds = fn (position) ((& position.x >= 0 (& position.x < GRID_SIZE (& position.y >= 0 position.y < GRID_SIZE))))\nadjacentPositions : (Position -> List Position)\nadjacentPositions = fn (position) (let \n\tx = position.x\n\ty = position.y\n\tpositions = (filter isWithinBounds ((Position x + 1 y), (Position x - 1 y), (Position x y + 1), (Position x y - 1)))\nin\n\tpositions)\nnextParticle : (Particle -> Particle)\nnextParticle = fn (particle) (let \n\tfreePositions = (filter isFree (adjacentPositions particle.position))\nin\n\t\n\tcase freePositions of \n\t\t() => particle\n\t\t_ => (Particle (uniformChoice freePositions)))\nparticleGen : (Position -> Particle)\nparticleGen = fn (initPosition) ((Particle initPosition))"

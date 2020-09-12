@@ -9,7 +9,14 @@ export istypesymbol,
        args,
        arg,
        wrap,
-       showstring
+       showstring,
+       AutumnError
+
+"Autumn Error"
+struct AutumnError <: Exception
+  msg
+end
+AutumnError() = AutumnError("")
 
 const autumngrammar = """
 x           := a | b | ... | aa ...
@@ -101,13 +108,17 @@ function showstring(expr::Expr)
     Expr(:externaldecl, x, val) => "external $x : $(showstring(val))"
     Expr(:external, val) => "external $(showstring(val))"
     Expr(:assign, x, val) => "$x $(needequals(val)) $(showstring(val))"
-    Expr(:if, i, t, e) => "if ($(showstring(i))) then ($(showstring(t))) else ($(showstring(e)))"
+    Expr(:if, i, t, e) => "if ($(showstring(i)))\n  then ($(showstring(t)))\n  else ($(showstring(e)))"
     Expr(:initnext, i, n) => "init $(showstring(i)) next $(showstring(n))"
     Expr(:args, args...) => join(map(showstring, args), " ")
     Expr(:call, f, arg1, arg2) && if isinfix(f) end => "$(showstring(arg1)) $f $(showstring(arg2))"
     Expr(:call, f, args...) => "($(join(map(showstring, [f ; args]), " ")))"
-    Expr(:let, letargs, val) => "let \n\t$(showstring(letargs))\n in \n\t $(showstring(val))"
-    Expr(:letargs, vars...) => "$(join(map(showstring, vars), "\n\t"))"
+# <<<<<<< HEAD
+#     Expr(:let, letargs, val) => "let \n\t$(showstring(letargs))\n in \n\t $(showstring(val))"
+#     Expr(:letargs, vars...) => "$(join(map(showstring, vars), "\n\t"))"
+# =======
+    Expr(:let, vars...) => "let \n\t$(join(map(showstring, vars), "\n\t"))"
+# >>>>>>> on-compiler
     Expr(:paramtype, type, param) => string(type, " ", param)
     Expr(:paramtype, type) => string(type)
     Expr(:case, type, vars...) => string("\n\tcase $(showstring(type)) of \n\t\t", join(map(showstring, vars), "\n\t\t"))
@@ -120,7 +131,8 @@ function showstring(expr::Expr)
     Expr(:field, var, field) => "$(showstring(var)).$(showstring(field))"
     Expr(:typealiasargs, vals...) => "$(string("{ ", join(map(showstring, vals), ", ")," }"))"
     Expr(:lambda, var, val) => "($(showstring(var)) -> ($(showstring(val))))"
-    Expr(:const, assignment) => "const $(showstring(assignment))"
+    Expr(:object, name, args...) => "object $(showstring(name)) {$(join(map(showstring, args), ","))}"
+    Expr(:on, name, args...) => "on $(showstring(name)) ($(join(map(showstring, args))))"
     x                       => "Fail $x"
 
   end

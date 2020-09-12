@@ -1,0 +1,288 @@
+include "autumnStandardLibrary.sk";
+
+// global variables
+int GRID_SIZE = 16; // final
+int ARR_BND = 20; // final
+int uniformChoiceCounter = 0;
+
+/* ----- BEGIN FULL PARTICLES EXAMPLE -----*/
+
+struct State {
+	int time;
+	Click[ARR_BND] clickHistory;
+	Particle[ARR_BND][ARR_BND] particlesHistory;
+	Scene scene;
+}
+
+State init() {
+	int time = 0;
+	Particle[ARR_BND] particles;
+	
+	State state = new State();
+	state.time = time;
+	state.clickHistory[time] = null;
+	state.particlesHistory[time] = particles;
+	state.scene = new Scene(objects=particles, background="transparent");
+	return state;
+}
+
+State next(State state, Click click) {
+	Particle[ARR_BND] particles = state.particlesHistory[state.time];
+	
+	if (click != null) {
+		particles = addObj(particles, particle(click.position)); // hole 1
+	}
+	
+	if (click == null) {
+		particles = updateObjArray(particles, (obj) -> (particle(uniformChoice(uniformChoiceCounter, adjPositions(GRID_SIZE, obj.origin))))); // hole 2
+	}
+	
+	state.time = state.time + 1;
+	state.clickHistory[state.time] = click;
+	state.particlesHistory[state.time] = particles;
+	state.scene = new Scene(objects=particles, background="transparent");
+	return state;
+}
+
+/* ----- END FULL PARTICLES EXAMPLE -----*/
+
+/* ----- UNIFORM CHOICE UTIL FUNC ----- */
+Position uniformChoice(ref int counter, Position[ARR_BND] positions) {
+  Position position;
+  if (positions[4] == null) {
+    position = positions[counter % 3];
+  } else {
+    position = positions[counter % 4];
+  }
+  counter++;
+  return position;
+}
+
+/* ----- BEGIN HARNESS SUITE ----- */
+harness void addParticle1() {
+  State state = init();	
+  state = synthNext(state, new Click(position=new Position(x=1, y=1)));
+	Cell[ARR_BND] renderedScene = renderScene(state.scene);
+  assert renderedScene[0] != null;
+  assert renderedScene[0].position.x == 1 && renderedScene[0].position.y == 1;
+}
+
+/*
+harness void addParticle1() {
+	State state = init();	
+  state = synthNext(state, new Click(position=new Position(x=1, y=1)));
+	Cell[ARR_BND] renderedScene = renderScene(state.scene);
+  assert renderedScene[0] != null;
+  assert renderedScene[0].position.x == 1 && renderedScene[0].position.y == 1;
+}
+
+
+harness void addParticle2() {
+  State state = init();	
+  state = synthNext(state, new Click(position=new Position(x=4, y=5)));
+	Cell[ARR_BND] renderedScene = renderScene(state.scene);
+  assert renderedScene[0] != null;
+  assert renderedScene[0].position.x == 4 && renderedScene[0].position.y == 5;
+}
+*/
+
+/* ----- END HARNESS SUITE ------ */
+
+/* ------ BEGIN INCOMPLETE FUNCTION ----- */
+
+State synthNext(State state, Click click) {
+	Particle[ARR_BND] particles = state.particlesHistory[state.time];
+	Position clickPosition = click.position;
+	if (click != null) {
+		particles = addObj($(Particle[ARR_BND]), particle($(Position)));
+    // particles = genParticleArray();
+    // particles = addObj(particles, particle(click.position));
+	}
+	
+	if (click == null) {
+		// particles = genParticleArray();
+    particles = updateObjArray(particles, (obj) -> (particle(uniformChoice(uniformChoiceCounter, adjPositions(GRID_SIZE, obj.origin)))));
+	}
+	
+	state.time = state.time + 1;
+	state.clickHistory[state.time] = click;
+	state.particlesHistory[state.time] = particles;
+	state.scene = new Scene(objects=particles, background="transparent");
+	return state;
+}
+
+/* ----- END INCOMPLETE FUNCTION ------ */
+
+/* ----- BEGIN GENERATORS ----- */
+// generate non-functions
+// (Object, Object[], Click, Cell, Cell[], Position, Position[], Scene, Int/Bool/Char[]) 
+generator Particle genParticle() {
+  if (??) {
+    return $(Particle);
+  } else {
+    if (??) {
+      return genFunRetParticle();
+    } else {
+      return genParticleArray()[genInt()];
+    }
+  }
+  // return {| $(Particle) | genFunRetParticle() | genParticleArray()[genInt()] |};  
+}
+
+generator Particle[ARR_BND] genParticleArray() {
+  if (??) {
+    return $(Particle[ARR_BND]);
+  } else {
+    return genFunRetParticleArray();
+  }
+  //return {| $(Particle[ARR_BND]) | genFunRetParticleArray() |};
+}
+
+generator Click genClick() {
+  return $(Click);
+}
+
+generator Cell genCell() {
+  if (??) {
+    return $(Cell);
+  } else {
+    if (??) {
+      return {| new Cell(position=new Position(x=genInt(), y=genInt()), color=genCharArray()) |};
+    } else {
+      return genCellArray()[genInt()];
+    }
+  }
+  // return {| $(Cell) | new Cell(genInt(), genInt(), genCharArray()) | genCellArray()[genInt()] |};
+}
+
+generator Cell[ARR_BND] genCellArray() {
+  if (??) {
+    return $(Cell[ARR_BND]);
+  } else {
+    return genFunRetCellArray();
+  }
+  // return {| $(Cell[ARR_BND]) | genFunRetCellArray() |};
+}
+
+generator Position genPosition() {
+  if (??) {
+    return $(Position);
+  } else {
+    if (??) {
+      return genFunRetPositionArray()[genInt()];
+    } else {
+      return {| new Position(x=genInt(), y=genInt()) | genClick().position | genCell().position | genParticle().origin | genFunRetPosition() |};
+    }
+  }
+}
+
+generator Position[ARR_BND] genPositionArray() {
+  if (??) {
+    return $(Position[ARR_BND]);
+  } else {
+    return genFunRetParticleArray();
+  }
+  // return {| $(Position[ARR_BND]) | genFunRetParticleArray() |};
+}
+
+generator Scene genScene() {
+  if (??) {
+    return $(Scene);
+  } else {
+    return state.scene;
+  }
+  //return {| $(Scene) | state.scene |};
+}
+
+generator int genInt() {
+  Position pos = genPosition();
+  if (??) {
+    return $(int);
+  } else {
+    return {| pos.x | pos.y |};
+  }
+  // return {| $(int) | pos.x | pos.y |};
+}
+
+generator bit genBit() {
+  if (??) {
+    return $(bit);
+  } else {
+    return genFunRetBit();
+  }
+  // return {| $(bit) | genFunRetBit() |};
+}
+
+generator char[ARR_BND] genCharArray() {
+  if (??) {
+    return $(char[ARR_BND]);
+  } else {
+    return {| genCell().color |};
+  }
+  // return {| $(char[ARR_BND]) | genCell().color |};
+}
+
+// ----- generate function calls -----
+generator Particle genFunRetParticle() {
+  return {| particle(genPosition()) |};
+}
+
+generator Particle[ARR_BND] genFunRetParticleArray() {  
+  Particle particle_ = genParticle();
+  Particle[ARR_BND] particles1 = genParticleArray();
+  Particle[ARR_BND] particles2 = genParticleArray();
+  if (??) {
+    return {| addObj(particles1, particle_) | addObjs(particles1, particles2) | removeObjFromArray(particles1, particle_) |};
+  } else {
+    return updateObjArray(particles1, (obj) -> (genParticle()));
+  }
+}
+
+generator Cell[ARR_BND] genFunRetCellArray() {
+  return {| renderScene(genScene()) | renderObj(genParticle()) |};
+}
+
+generator bit genFunRetBit() {
+  int i = genInt();
+  Position pos = genPos();
+  Particle particle1 = genParticle();
+  Particle particle2 = genParticle();
+  Particle[ARR_BND] particles1 = genParticleArray();
+  Particle[ARR_BND] particles2 = genParticleArray();
+  Click click = genClick();
+  /*
+  return {|
+    isWithinBoundsPosition(i, pos) |
+    isWithinBoundsObject(i, particle1) |
+    clickedObj(click_, particle1) |
+    clickedObjArray(click_, particles1) |
+    clickedPosition(click_, pos) |
+    intersectsObjObj(particle1, particle2) |
+    intersectsObjObjArray(particle1, particles1) | 
+    intersectsObjArrays(particles1, particles2) |
+    intersectsScene(particle1)
+    isFreePosition(pos) |
+    isFreeClick(click_)
+  |};
+  */
+  return {| isWithinBoundsPosition(i, pos) | isWithinBoundsObject(i, particle1) | clickedObj(click, particle1) | clickedObjArray(click, particles1) | clickedPosition(click, pos) |};
+}
+
+generator Position[ARR_BND] genFunRetPositionArray() {
+  return {| adjPositions(GRID_SIZE, genPosition()) |};
+}
+
+generator Position genFunRetPosition() {
+  /*
+  return {|
+    uniformChoice(uniformChoiceCounter, genPositionArray()) |
+    unitVectorPositions(genPosition(), genPosition()) |
+    unitVectorPositionObject(genPosition(), genParticle()) |
+    unitVectorObjectPosition(genParticle(), genPosition()) |
+    unitVectorObjects(genParticle(), genParticle())
+  |};
+  */
+  return {| uniformChoice(uniformChoiceCounter, genPositionArray()) |};
+}
+
+/* ----- END GENERATORS ----- */
