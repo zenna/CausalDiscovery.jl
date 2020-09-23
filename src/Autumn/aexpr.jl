@@ -10,7 +10,8 @@ export istypesymbol,
        arg,
        wrap,
        showstring,
-       AutumnError
+       AutumnError,
+       sizeA
 
 "Autumn Error"
 struct AutumnError <: Exception
@@ -86,6 +87,17 @@ Base.Expr(aex::AExpr) = Expr(aex.head, aex.args...)
 #   end
 # end
 
+function sizeA(a::AExpr, scale=0.1)
+  siz = 1
+  for arg in a.args
+    siz += scale*sizeA(arg, scale)
+  end
+  siz
+end
+
+function sizeA(a, scale=0.1)
+  1
+end
 
 # Expression types
 "Is `sym` a type symbol"

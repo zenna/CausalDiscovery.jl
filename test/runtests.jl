@@ -10,6 +10,8 @@ using Test
 @testset "Autumn" begin
   # include("Autumn/sexpr.jl")
   # include("Autumn/transform.jl")
-  include("Autumn/particles.jl")
-  include("Autumn/compile.jl")
+  # include("Autumn/particles.jl")
+  # include("Autumn/compile.jl")
+  # include("Autumn/eval.jl")
+  include("Autumn/best_effort_ranking.jl")
 end
