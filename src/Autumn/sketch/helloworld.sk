@@ -13,6 +13,6 @@ Object f1(Object obj) {
 harness void doubleSketch(int x) {
   Particle p = new Particle(id=1, size=1);
   //Particle p1 = f1(p);
-  Object[10][10] objs = {{p}};
+  Object[10][2] objs = {{p, p, p} };
   int[5] l = {1, 2, 3};
 }

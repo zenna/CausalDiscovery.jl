@@ -57,10 +57,11 @@ end
 function compiletosketch(aexpr::AExpr, observations)::String
   metadata = Dict([("initnext" => []), # :assign aexprs for all initnext variables
                ("lifted" => []), # :assign aexprs for all lifted variables
-               ("types" => Dict{Symbol, Any}([:click => :Click, :left => :KeyPress, :right => :KeyPress, :up => :KeyPress, :down => :KeyPress, :GRID_SIZE => :Int, :background => :String])), # map of global variable names (symbols) to types
+               ("varTypes" => Dict{Symbol, Any}([:click => :Click, :left => :KeyPress, :right => :KeyPress, :up => :KeyPress, :down => :KeyPress, :GRID_SIZE => :Int, :background => :String])), # map of global variable names (symbols) to types
                ("on" => []),
                ("objects" => []),
-               ("customFields" => Dict{Symbol, Any}())]) 
+               ("customFields" => Dict{Symbol, Any}()),
+               ("types" => ["Int", "Bool", "Cell", "Position", "Click"])]) 
   if (aexpr.head == :program)
     # handle AExpr lines
     lines = map(arg -> compile_sk(arg, metadata, aexpr), aexpr.args)
@@ -77,14 +78,14 @@ function compiletosketch(aexpr::AExpr, observations)::String
 
     # construct library
     library = compilelibrary_sk(metadata)
-    #=
+    
 
     # construct harnesses 
-    harnesses = compileharnesses_sk(metadata);
-
+    harnesses = compileharnesses_sk(observations);
+        
     # construct generators
     generators = compilegenerators_sk(metadata);
-    =#
+    
     join([
       "int ARR_BND = 10;",
       "int STR_BND = 20;",
@@ -93,9 +94,9 @@ function compiletosketch(aexpr::AExpr, observations)::String
       initFunction,
       nextFunction,
       prevFunctions, 
-      library, #=
-      harnesses,
-      generators =#
+      library, 
+      harnesses, 
+      generators 
     ], "\n")
   else
     throw(AutumnError("AExpr Head != :program"))
