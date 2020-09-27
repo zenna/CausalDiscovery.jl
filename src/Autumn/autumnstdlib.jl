@@ -479,7 +479,7 @@ if (!intersectsScene(scene, movedObject)) {
 }
 
 Position getObjOrigin(Object object) {
-  return object.type;
+  return object.origin;
 }
 
 bit getObjAlive(Object object) {
