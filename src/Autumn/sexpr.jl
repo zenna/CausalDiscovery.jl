@@ -5,7 +5,7 @@ using MLStyle
 using SExpressions
 using ..AExpressions
 
-export parseau, @au_str
+export parseau, @au_str, parseautumn
 
 
 fg(s) = s

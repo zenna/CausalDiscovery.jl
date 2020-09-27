@@ -283,6 +283,23 @@ function compilegenerators_sk(data)
   (: distancePositions (-> Position Position Int))
   (: move (-> Object Position Object))
   (: moveNoCollision (-> Object Position Scene Object))
+  (: closest (-> Scene Oject String Object))
+  (: updateObjOrigin (-> Object Position Object))
+  (: updateObjAlive (-> Object Bool Object))
+  (: updateObjRender (-> Object (List Cell) Object))
+  (: getObjOrigin (-> Object Position))
+  (: getObjAlive (-> Object Bool))
+  (: getObjRender (-> Object (List Cell)))
+  (: getPositionX (-> Position Int))
+  (: getPositionY (-> Position Int))
+  (: getCellPosition (-> Cell Position))
+  (: and (-> Bool Bool Bool))
+  (: or (-> Bool Bool Bool))
+  (: not (-> Bool Bool Bool))
+  (: equalsInt (-> Int Int Bool))
+  (: equalsBit (-> Bool Bool Bool))
+  (: equalsPosition (-> Position Position Bool))
+  (: equalsCell (-> Cell Cell Bool))
 )"""
 
   lines = map(sig -> compile_sk(sig, data, signatures), signatures.args)
@@ -338,7 +355,7 @@ function compilegenerators_sk(data)
                     } 
 
                     generator Object[ARR_BND] genObjectArray($(global_vars)) {
-                      return {| $(join(map(x -> "gen$(uppercase(compile_sk(x, data)[1]))$(compile_sk(x, data)[2:end])Array($(untyped_global_vars))", data["objects"])), " | ") |} ;
+                      return {| $(join(map(x -> "gen$(uppercase(compile_sk(x, data)[1]))$(compile_sk(x, data)[2:end])Array($(untyped_global_vars))", data["objects"]), " | ")) |} ;
                     }
                     
                     generator Scene genScene($(global_vars)) {
@@ -454,14 +471,36 @@ function compiletypealias(expr, data, parent)
   name = string(expr.args[1]);
   fields = map(field -> "$(compile_sk(field.args[2], data)) $(compile_sk(field.args[1], data));", 
            expr.args[2].args)
-
+  
   # update data["types"]
   push!(data["types"], name)
+
+  # add type decls of new get field functions
+  decls = parseautumn("""
+    (program
+      $(join(map(field -> """
+      (: getObj$(name)$(uppercasefirst(compile_sk(field.args[1], data))) (-> $(name) $(compile_sk(field.args[2], data))))
+      """, expr.args[2].args), "\n"))
+    )
+    """)
+
+  lines = map(decl -> compile_sk(decl, data, decls), decls.args)
+  println("post-adding library signatures for updateObj/getObj")
+  println(data["types"])
+  println(data["objects"])
 
   """
   struct $(name) {
     $(join(fields, "\n"))
   }
+  
+  $(join(map(
+    field -> """ 
+      getObj$(name)$(uppercasefirst(compile_sk(field.args[1], data)))(Object object, $(compile_sk(field.args[2], data)) $(compile_sk(field.args[1], data))) {
+        return object.$(compile_sk(field.args[1], data));
+      }
+    """,
+    expr.args[2].args), "\n"))
   """
 end
 
@@ -529,15 +568,31 @@ function compileobject(expr, data, parent)
                                filter(x -> (typeof(x) == AExpr && x.head == :typedecl), expr.args[2:end]))
   update_obj_field_assigns = map(x -> "$(x[2])=object.$(x[2])", update_obj_fields)
   update_obj_functions = map(x -> """
-                                  Object function updateObj$(name)$(string(uppercase(x[2][1]), x[2][2:end]))(Object object, $(x[1]) $(x[2])) {
+                                  Object updateObj$(name)$(string(uppercase(x[2][1]), x[2][2:end]))(Object object, $(x[1]) $(x[2])) {
                                     return new $(name)($(join(vcat(string(x[2], "=", x[2]), filter(y -> split(y, "=")[1] != x[2], update_obj_field_assigns)), ", ")));
-                                  }  
+                                  } 
+                                  
+                                  $(x[1]) getObj$(name)$(string(uppercase(x[2][1]), x[2][2:end]))(Object object) {
+                                    return object.$(x[2]);
+                                  }
+                                  
                                   """, update_obj_fields)                               
   
   # update data["varTypes"]
-  for x in update_obj_fields
-    compiletypedecl(au"""(: updateObj$(name)$(string(uppercase(x[2][1]), x[2][2:end])) (-> $(name) $(x[1] $(name))))""", data, au"""(program )""")
-  end
+  decls = parseautumn("""
+          (program
+            $(join(map(x -> """
+            (: updateObj$(name)$(string(uppercase(x[2][1]), x[2][2:end])) (-> $(name) $(x[1]) $(name)))
+            (: getObj$(name)$(string(uppercase(x[2][1]), x[2][2:end])) (-> $(name) $(x[1])))
+            """, update_obj_fields), "\n"))
+          )
+          """)
+  
+  lines = map(decl -> compile_sk(decl, data, decls), decls.args)
+  println("post-adding library signatures for updateObj/getObj")
+  println(data["types"])
+  println(data["objects"])
+  
 
   # update data["types"]
   push!(data["types"], name)

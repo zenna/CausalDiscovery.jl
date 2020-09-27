@@ -1,5 +1,5 @@
 module AutumnStandardLibrary
-export library, library_signatures
+export library
 
 library = """
 int uniformChoiceCounter = 0;
@@ -477,6 +477,65 @@ if (!intersectsScene(scene, movedObject)) {
   return object;
 }
 }
+
+Position getObjOrigin(Object object) {
+  return object.type;
+}
+
+bit getObjAlive(Object object) {
+  return object.alive;
+}
+
+Cell[ARR_BND] getObjRender(Object object) {
+  return object.render;
+}
+
+int getPositionX(Position position) {
+  return position.x;
+}
+
+int getPositionY(Position position) {
+  return position.y;
+}
+
+Position getCellPosition(Cell cell) {
+  return cell.position;
+}
+
+/*
+char[STR_BND] getCellColor(Cell cell) {
+  return cell.color;
+}
+*/
+
+bit and(bit b1, bit b2) {
+  return b1 == b2;
+}
+
+bit or(bit b1, bit b2) {
+  return b1 || b2;
+}
+
+bit not(bit b) {
+  return !b;
+}
+
+bit equalsInt(int i1, int i2) {
+  return i1 == i2;
+}
+
+bit equalsBit(bit b1, bit b2) {
+  return b1 == b2;
+}
+
+bit equalsPosition(Position pos1, Position pos2) {
+  return (pos1.x == pos2.x) && (pos1.y == pos2.y);
+}
+
+bit equalsCell(Cell cell1, Cell cell2) {
+  return equalsPosition(cell1.position, cell2.position) && (cell1.color == cell2.color);
+}
+
 """
 
 #=
@@ -494,36 +553,6 @@ Object nextSolid() {}
 */
 
 =#
-
-library_signatures = """(program
-(: uniformChoice (-> Int (List Position) Position))
-(: isWithinBoundsPosition (-> Position Bool))
-(: isWithinBoundsObject (-> Object Bool))
-(: occurred (-> Click Bool))
-(: clickedObj (-> Click Object Bool))
-(: clickedObjArray (-> Click (List Object) Bool))
-(: clickedPosition (-> Click Position Bool))
-(: intersectsObjObj (-> Object Object Bool))
-(: intersectsObjObjArray (-> Object (List Object) Bool))
-(: intersectsObjArrays (-> (List Object) (List Object) Bool))
-(: intersectsScene (-> Scene Object Bool))
-(: addObj (-> (List Object) Object (List Object)))
-(: addObjs (-> (List Object) (List Object) (List Object)))
-(: removeObjFromArray (-> (List Object) Object (List Object)))
-(: removeObj (-> Object Object))
-(: adjPositions (-> Position (List Position)))
-(: isFreePosition (-> Scene Position Bool))
-(: isFreeClick (-> Scene Click Bool))
-(: unitVector (-> Position Position Position))
-(: displacement (-> Position Position Position)) 
-(: isAdjacentPosition (-> Position Position Bool))
-(: objectClicked (-> Click (List Object) Object))
-(: isAdjacentObject (-> Object Object Bool))
-(: distanceObjs (-> Object Object Int))
-(: distancePositions (-> Position Position Int))
-(: move (-> Object Position Object))
-(: moveNoCollision (-> Object Position Scene Object))
-)"""
 
 #=
   (: initObjectPositions (-> fun fun (List Object)))
