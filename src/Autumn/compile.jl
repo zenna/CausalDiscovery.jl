@@ -61,7 +61,8 @@ function compiletosketch(aexpr::AExpr, observations)::String
                ("on" => []),
                ("objects" => []),
                ("customFields" => Dict{Symbol, Any}()),
-               ("types" => ["Int", "Bool", "Cell", "Position", "Click"])]) 
+               ("types" => ["Int", "Bool", "Cell", "Position", "Click"]),
+               ("strings" => [])]) 
   if (aexpr.head == :program)
     # handle AExpr lines
     lines = map(arg -> compile_sk(arg, metadata, aexpr), aexpr.args)

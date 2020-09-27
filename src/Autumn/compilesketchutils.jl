@@ -29,6 +29,7 @@ function compile_sk(expr::AExpr, data::Dict{String, Any}, parent::Union{AExpr, N
 end
 
 function compile_sk(expr::String, data::Dict{String, Any}, parent::Union{AExpr, Nothing}=nothing)
+  push!(data["strings"], """\"$(expr)\"""")
   return """\"$(expr)\""""
 end
 
@@ -300,20 +301,25 @@ function compilegenerators_sk(data)
   (: equalsBit (-> Bool Bool Bool))
   (: equalsPosition (-> Position Position Bool))
   (: equalsCell (-> Cell Cell Bool))
+  (: initObjectPositions (-> fun fun (List Object)))
+  (: updateObjArray (-> (List Object) fun (List Object)))
+  (: removeObjsFromArray (-> (List Object) fun (List Object)))
 )"""
 
   lines = map(sig -> compile_sk(sig, data, signatures), signatures.args)
   println("post-adding library signatures")
   println(data["types"])
   println(data["objects"])
+  lambda_vars = join(vcat(map(x -> "Object obj$(x)", [1:length(data["objects"]);]), "Position position"), ", ")
+  untyped_lambda_vars = join(vcat(map(x -> "obj$(x)", [1:length(data["objects"]);]), "position"), ", ")
   
-  global_vars = join(map(x -> "$(data["varTypes"][x] in vcat(data["objects"], map(x -> [:List, x], data["objects"])) 
-                                ? "Object$(data["varTypes"][x] isa AbstractArray ? "[ARR_BND]" : "")" : 
-                                  compile_sk(data["varTypes"][x], data)) $(compile_sk(x, data))", 
-                         filter(var -> !(data["varTypes"][var] isa AExpr) && (data["varTypes"][var] != :KeyPress && !(var in [:GRID_SIZE, :background, :state])), collect(keys(data["varTypes"])))), ", ")
+  global_vars = join(vcat(map(x -> "$(data["varTypes"][x] in vcat(data["objects"], map(x -> [:List, x], data["objects"])) 
+                                  ? "Object$(data["varTypes"][x] isa AbstractArray ? "[ARR_BND]" : "")" : 
+                                    compile_sk(data["varTypes"][x], data)) $(compile_sk(x, data))", 
+                          filter(var -> !(data["varTypes"][var] isa AExpr) && (data["varTypes"][var] != :KeyPress && !(var in [:GRID_SIZE, :background, :state])), collect(keys(data["varTypes"])))), lambda_vars), ", ")
 
-  untyped_global_vars = join(map(x -> "$(compile_sk(x, data))", 
-                  filter(var -> !(data["varTypes"][var] isa AExpr) && (data["varTypes"][var] != :KeyPress && !(var in [:GRID_SIZE, :background, :state])), collect(keys(data["varTypes"])))), ", ")
+  untyped_global_vars = join(vcat(map(x -> "$(compile_sk(x, data))", 
+                                      filter(var -> !(data["varTypes"][var] isa AExpr) && (data["varTypes"][var] != :KeyPress && !(var in [:GRID_SIZE, :background, :state])), collect(keys(data["varTypes"])))), untyped_lambda_vars), ", ")
 
   matching_funcs = Dict(zip(data["types"], 
                         map(type -> 
@@ -362,6 +368,10 @@ function compilegenerators_sk(data)
                       return state.scene;
                     }
 
+                    generator char[STR_BND] genCharArray($(global_vars)) {
+                      $(compilestringgenerator(data["strings"]))
+                    }
+
                     """
 
   join(vcat(generators, array_generators, fixedGenerators), "\n")
@@ -372,10 +382,12 @@ function compilegenerators_helper(type::String, funcs::Array{Symbol}, global_var
   println(type)
   println(funcs[1])
   println(data["varTypes"][funcs[1]].args[1:end-1])
-  println(join(map(x -> "gen$(x in [:Object, [:List, :Object]] ? (Symbol(type) in data["objects"] ? "$(uppercase((type == "Bool" ? "bit" : type)[1]))$((type == "Bool" ? "bit" : type)[2:end])" : "Object") : "$(uppercase(compile_sk(x isa AbstractArray ? x[2] : x, data)[1]))$(compile_sk(x isa AbstractArray ? x[2] : x, data)[2:end])")$(x isa AbstractArray ? "Array" : "")($(global_vars))", data["varTypes"][funcs[1]].args[1:end-1]), ", "))
+  println(join(map(x -> "gen$(x in [:Object, [:List, :Object]] ? (Symbol(type) in data["objects"] ? "$(uppercase((type == "Bool" ? "bit" : type)[1]))$((type == "Bool" ? "bit" : type)[2:end])" : "Object") : "$(uppercasefirst(compile_sk(x isa AbstractArray ? x[2] : x, data)))")$(x isa AbstractArray ? "Array" : "")($(global_vars))", data["varTypes"][funcs[1]].args[1:end-1]), ", "))
   ret_statement = funcs[1] == :closest ? 
                   "closest(genScene($(global_vars)), genObject($(global_vars)), \"$(type)\")" : 
-                  "$(compile_sk(funcs[1], data))($(join(map(x -> "gen$(x in [:Object, [:List, :Object]] ? (Symbol(type) in data["objects"] ? "$(uppercase((type == "Bool" ? "bit" : type)[1]))$((type == "Bool" ? "bit" : type)[2:end])" : "Object") : "$(uppercase(compile_sk(x isa AbstractArray ? x[2] : x, data)[1]))$(compile_sk(x isa AbstractArray ? x[2] : x, data)[2:end])")$(x isa AbstractArray ? "Array" : "")($(global_vars))", data["varTypes"][funcs[1]].args[1:end-1]), ", ")))"
+                  (funcs[1] in [:initObjectPositions, :updateObjArray, :removeObjsFromArray] ? 
+                      compilespecialfuncs(type, funcs[1], global_vars, data) : 
+                      "$(compile_sk(funcs[1], data))($(join(map(x -> "gen$(x in [:Object, [:List, :Object]] ? (Symbol(type) in data["objects"] ? "$(uppercase((type == "Bool" ? "bit" : type)[1]))$((type == "Bool" ? "bit" : type)[2:end])" : "Object") : "$(uppercasefirst(compile_sk(x isa AbstractArray ? x[2] : x isa AbstractString ? :char : x, data)))")$(x isa AbstractArray || x isa AbstractString ? "Array" : "")($(global_vars))", data["varTypes"][funcs[1]].args[1:end-1]), ", ")))")
   if length(funcs) == 1
     """
     return $(ret_statement);
@@ -386,6 +398,35 @@ function compilegenerators_helper(type::String, funcs::Array{Symbol}, global_var
         return $(ret_statement);
       } else {
       $(compilegenerators_helper(type, funcs[2:end], global_vars, data))
+    }
+    """
+  end
+end
+
+function compilespecialfuncs(type_name, func_name, global_vars, data)
+  type_index = findall(x -> x == Symbol(type_name), data["objects"])[1]
+  if func_name == :initObjectPositions
+    "initObjectPositions($(lowercase(type_name)), (pos) -> genBit($(replace(global_vars, "position" => "pos"))))"
+  elseif func_name == :updateObjArray
+    "updateObjArray(gen$(uppercasefirst(type_name))Array($(global_vars)), (obj) -> gen$(uppercasefirst(type_name))($(replace(global_vars, "obj$(type_index)" => "obj"))))"
+  elseif func_name == :removeObjsFromArray
+    "removeObjsFromArray(gen$(uppercasefirst(type_name))Array($(global_vars)), (obj) -> genBit($(replace(global_vars, "obj$(type_index)" => "obj"))))"
+  else
+    ""
+  end
+end
+
+function compilestringgenerator(strings)
+  if length(strings) == 1 
+    """
+    return $(strings[1]);
+    """
+  else
+    """
+    if (??) {
+      return $(strings[1]);
+    } else {
+      $(compilestringgenerator(strings[2:end]))
     }
     """
   end
