@@ -1,0 +1,780 @@
+int ARR_BND = 10;
+int STR_BND = 20;
+
+struct Particle extends Object {
+  
+}
+
+Particle particle(Position origin) {
+  return new Particle(origin=origin, type="Particle", alive=true, render={new Cell(position=new Position(x=0, y=0), color="blue")});
+}
+
+
+
+
+
+
+
+int GRID_SIZE = 16;
+struct State {
+  int time;
+  Object[ARR_BND][ARR_BND] particlesHistory;
+int[ARR_BND] GRID_SIZEHistory;
+  Click[ARR_BND] clickHistory;
+  Left[ARR_BND] leftHistory;
+  Right[ARR_BND] rightHistory;
+  Up[ARR_BND] upHistory;
+  Down[ARR_BND] downHistory;
+  Scene scene;
+}
+
+  State state;
+  State init() {
+    int time = 0;
+    Object[ARR_BND] particles = {  };
+    int GRID_SIZE = 16;
+	  state = new State();
+    state.time = time;
+    state.particlesHistory[0] = particles;
+state.GRID_SIZEHistory[0] = GRID_SIZE;
+    state.clickHistory[0] = null;
+    state.leftHistory[0] = null;
+    state.rightHistory[0] = null;
+    state.upHistory[0] = null;
+    state.downHistory[0] = null;
+    state.scene = new Scene(objects={particles}, background="transparent");
+    return state;
+  }
+  
+State next(State state, Click click, Left left, Right right, Up up, Down down) {
+  Object[ARR_BND] particles = state.particlesHistory[state.time];
+int GRID_SIZE = state.GRID_SIZEHistory[state.time];
+  
+  if (occurred(click)) {
+  particles = addObj(particlesPrev(state), particle(new Position(x=click.position.x, y=click.position.y)));
+}
+
+  state.time = state.time + 1;
+  state.particlesHistory[state.time] = particles;
+state.GRID_SIZEHistory[state.time] = GRID_SIZE;
+  state.clickHistory[state.time] = click;
+  state.leftHistory[state.time] = left;
+  state.rightHistory[state.time] = right;
+  state.upHistory[state.time] = up;
+  state.downHistory[state.time] = down;
+  state.scene = new Scene(objects={particles}, background="transparent");
+  return state;
+}
+
+Object[ARR_BND] particlesPrevN(State state, int n) {
+     return state.particlesHistory[state.time - n >= 0 ? state.time - n : 0];
+}
+Object[ARR_BND] particlesPrev(State state) {
+    return state.particlesHistory[state.time];
+}
+
+Object updateObjOrigin(Object object, Position origin) {
+  if (object.type == "Particle") {
+  return new Particle(origin=origin, alive=object.alive, type=object.type, render=object.render);
+} 
+
+}
+Object updateObjAlive(Object object, bit alive) {
+  if (object.type == "Particle") {
+  return new Particle(origin=object.origin, alive=alive, type=object.type, render=object.render);
+} 
+
+}
+Object updateObjRender(Object object, Cell[ARR_BND] render) {
+  if (object.type == "Particle") {
+  return new Particle(origin=object.origin, alive=object.alive, type=object.type, render=render);
+}
+
+}
+int uniformChoiceCounter = 0;
+Position uniformChoice(ref int counter, Position[ARR_BND] positions) {
+  Position position;
+  if (positions[4] == null) {
+    position = positions[counter % 3];
+  } else {
+    position = positions[counter % 4];
+  }
+  counter++;
+  return position;
+}
+
+Object[ARR_BND] flattenSceneObjects(Object[ARR_BND][ARR_BND] nestedObjects) {
+  Object[ARR_BND] objects;
+  int topIndex = 0;
+  for (int objArrIndex = 0; objArrIndex < ARR_BND; objArrIndex++) {
+    Object[ARR_BND] objArr = nestedObjects[objArrIndex];
+    for (int objIndex = 0; objIndex < ARR_BND; objIndex++) {
+      Object obj = objArr[objIndex];
+      if (obj != null) {
+        if (topIndex < ARR_BND) {
+          objects[topIndex++] = obj;
+        } else {
+          return objects;
+        }
+      }
+    }
+  }
+  return objects;
+}
+
+struct Object {
+  Position origin;
+  bit alive;
+  char[STR_BND] type;
+  Cell[ARR_BND] render;	
+}
+
+struct Position {
+  int x;
+  int y;
+}
+
+struct Click {
+  Position position;
+}
+struct KeyPress {}
+struct Left extends KeyPress {}
+struct Right extends KeyPress {}
+struct Up extends KeyPress {}
+struct Down extends KeyPress {}
+
+struct Cell {
+  Position position;
+  char[STR_BND] color; 
+}
+
+struct Scene {
+  Object[ARR_BND][ARR_BND] objects;
+  char[STR_BND] background;
+}
+
+// render functions
+Cell[ARR_BND] renderScene(Scene scene) {
+  Cell[ARR_BND] cells;
+  Cell[ARR_BND] objCells;
+  int cellIndex = 0;
+
+  for (int objIndex = 0; objIndex < ARR_BND; objIndex++) {
+    Object obj = flattenSceneObjects(scene.objects)[objIndex];
+    if (obj != null) {
+      objCells = renderObj(obj);
+      for (int objCellIndex = 0; objCellIndex < ARR_BND; objCellIndex++) {
+        cells[cellIndex++] = objCells[objCellIndex];
+      }
+    }
+  }
+  return cells;
+}
+
+bit sceneEquals(Cell[ARR_BND] cells1, Cell[ARR_BND] cells2) {
+  return true;
+}
+
+Cell[ARR_BND] renderObj(Object object) {
+  Cell[ARR_BND] cells;
+  for (int i = 0; i < ARR_BND; i++) {
+    Cell cell = object.render[i];
+    if (cell != null) {
+      cells[i] = new Cell(position=new Position(x=cell.position.x+object.origin.x,
+                                                y=cell.position.y+object.origin.y),
+                          color=cell.color);
+    }
+  }
+  return cells;
+}
+
+// is within bounds
+bit isWithinBoundsPosition(Position position) {
+  int num = GRID_SIZE * position.x + position.y;
+  if (num >= 0 && num < GRID_SIZE * GRID_SIZE) {
+    return true;
+  } else {
+    return false;
+  }
+}
+
+bit isWithinBoundsObject(Object object) {
+  Cell[ARR_BND] cells = renderObj(object);
+  Cell cell;
+  for (int cellIndex = 0; cellIndex < ARR_BND; cellIndex++) {
+    cell = cells[cellIndex];
+    if (cell == null) {
+      return true;
+    }
+    if (!isWithinBoundsPosition(cell.position)) {
+      return false;
+    }
+  }  
+  return true;
+}
+
+bit occurred(Click click) {
+  if (click == null) {
+    return false;
+  } else {
+    return true;
+  }
+}
+
+// clicked
+bit clickedObj(Click click, Object object) {
+  Cell[ARR_BND] cells = renderObj(object);
+  Cell cell;
+  for (int cellIndex = 0; cellIndex < ARR_BND; cellIndex++ ) {
+    if (cell == null) {
+      return false;
+    }
+
+    if (clickedPosition(click, cell.position)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+bit clickedObjArray(Click click, Object[ARR_BND] objects) {
+  Object object;
+  Cell cell;
+  for (int objectIndex = 0; objectIndex < ARR_BND; objectIndex++) {
+    object = objects[objectIndex];
+    if (object == null) {
+      return false;
+    }
+
+    if (clickedObj(click, object)) {
+      return true;
+    } 
+  }
+  return false;
+}
+
+bit clickedPosition(Click click, Position position) {
+  return (position.x == click.position.x) && (position.y == click.position.y);
+}
+
+// intersects NEW
+
+bit intersectsObjObj(Object object1, Object object2) {
+  Cell[ARR_BND] cells1 = renderObj(object1);
+  Cell[ARR_BND] cells2 = renderObj(object2);
+  Cell cell1;
+  Cell cell2;
+  for (int i = 0; i < ARR_BND; i++) {
+    cell1 = cells1[i];
+    for (int j = 0; j < ARR_BND; j++) {
+      cell2 = cells2[j];
+      if (cell1 != null && cell2 != null) {
+        if (cell1.position.x == cell2.position.x && cell1.position.y == cell2.position.y) {
+          return true;
+        }
+      }
+    }
+  }
+  return false;
+}
+
+bit intersectsObjObjArray(Object object, Object[ARR_BND] objects) {
+  for (int i = 0; i < ARR_BND; i++) {
+    Object object2 = objects[i];
+    if (intersectsObjObj(object, object2)) {
+      return true;
+    }
+  }
+  return false;   
+}
+
+
+bit intersectsObjArrays(Object[ARR_BND] objects1, Object[ARR_BND] objects2) {
+  for (int i = 0; i < ARR_BND; i++) {
+    Object object1 = objects1[i];
+    if (intersectsObjObjArray(object1, objects2)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+bit intersectsScene(Scene scene, Object object) {
+  Object[ARR_BND] objects = flattenSceneObjects(scene.objects);
+  return intersectsObjObjArray(object, objects);
+}
+
+// add/remove/update objects 
+Object[ARR_BND] addObj(Object[ARR_BND] objects, Object object) {
+  Object[ARR_BND] newObjects = objects;
+  for (int i = 0; i < ARR_BND; i++) {
+    if (newObjects[i] == null) {
+      newObjects[i] = object;
+      return newObjects;
+    }
+  }
+  return newObjects;
+}
+
+Object[ARR_BND] addObjs(Object[ARR_BND] objects1, Object[ARR_BND] objects2) {
+  Object[ARR_BND] newObjects = objects1;
+  for (int i = 0; i < ARR_BND; i++) {
+    if (newObjects[i] == null) {
+      newObjects[i::(ARR_BND - i)] = objects2[0::(ARR_BND - i)];
+    }
+  }
+  return newObjects;
+}
+
+Object[ARR_BND] removeObjFromArray(Object[ARR_BND] objects, Object object) {
+  Object[ARR_BND] newObjects;
+  int objectIndex = ARR_BND;
+  for (int i = 0; i < ARR_BND; i++) {
+    if (objects[i] == object) {
+      objectIndex = i;
+    }
+    if (i >= objectIndex) {
+      if (i == ARR_BND - 1) {
+        newObjects[i] = null;
+      } else {
+        newObjects[i] = objects[i + 1];
+      }
+    } else {
+      newObjects[i] = objects[i];
+    }
+  }
+  return newObjects;
+}
+
+// NEW
+Object[ARR_BND] removeObjsFromArray(Object[ARR_BND] objects, fun mapFn) {
+  Object[ARR_BND] newObjects;
+  int newIndex = 0;
+  for (int i = 0; i < ARR_BND; i++) {
+    Object object = objects[i];
+    if (!mapFn(objects[i])) {
+      newObjects[newIndex++] = object;
+    }
+  }
+  return newObjects;
+}
+
+// NEW
+Object removeObj(Object object) {
+  object.alive = false;
+  return object;
+}
+
+Object[ARR_BND] updateObjArray(Object[ARR_BND] objects, fun map_fn) {
+  Object[ARR_BND] newObjects;
+  for (int i = 0; i < ARR_BND; i++) {
+    if (objects[i] != null) {
+      newObjects[i] = map_fn(objects[i]);
+    } else {
+      newObjects[i] = objects[i];
+    }
+  }
+  return newObjects;
+}
+
+
+// adjacent positions
+Position[ARR_BND] adjPositions(Position position) {
+  int x = position.x;
+  int y = position.y;
+  Position[4] positions = { new Position(x=x+1, y=y),
+                            new Position(x=x-1, y=y),
+                            new Position(x=x, y=y-1),
+                            new Position(x=x, y=y+1) };
+
+  Position[4] retVal;
+  int retIndex = 0;
+  
+  for (int i = 0; i < 4; i++) {
+    if (isWithinBoundsPosition(positions[i])) {
+      retVal[retIndex++] = positions[i];
+    }
+  }
+  return retVal;
+}
+
+// NEW (ALL BELOW)
+
+// is free functions
+
+bit isFreePosition(Scene scene, Position position) {
+  Object[ARR_BND] objects = flattenSceneObjects(scene.objects);
+  Object object;
+  for (int i = 0; i < ARR_BND; i++) {
+    object = objects[i];
+    if (object != null) {
+      if (object.origin.x == position.x && object.origin.y == position.y) {
+        return false;
+      }
+    }
+  }
+  return true;
+}
+
+bit isFreeClick(Scene scene, Click click) {
+  return isFreePosition(scene, click.position);
+}
+
+// unitVector
+
+Position unitVector(Position position1, Position position2) {
+  int deltaX = position2.x - position1.x;
+  int deltaY = position2.y - position1.y;
+  if (abs(sign(deltaX)) == 1 && abs(sign(deltaY)) == 1) {
+    return new Position(x=1, y=0);
+  } else {
+    return new Position(x=sign(deltaX), y=sign(deltaY));
+  }
+}
+
+int sign(int num) {
+  if (num > 0) {
+    return 1;
+  } else {
+    if (num < 0) {
+      return -1;
+    } else {
+      return 0;
+    }
+  }
+}
+
+int abs(int num) {
+  if (num > 0) {
+    return num;
+  } else {
+    return -num;
+  }
+}
+
+
+// displacement
+Position displacement(Position position1, Position position2) {
+  return new Position(x=position2.x - position1.x, y=position2.y - position1.y);
+}
+
+// adjacent
+bit isAdjacentPosition(Position position1, Position position2) {
+  int deltaX = position2.x - position1.x;
+  int deltaY = position2.y - position1.y;
+  if (abs(deltaX) == 1 && deltaY == 0) {
+    return true;
+  } else {
+    if (abs(deltaY) == 1 && deltaX == 0) {
+      return true;
+    } else {
+      return false;
+    }
+  }
+}
+
+Object objectClicked(Click click, Object[ARR_BND] objects) {
+for (int i = 0; i < ARR_BND; i++) {
+  Object obj = objects[i];
+  if (obj != null) {
+    if (obj.origin.x == click.position.x && obj.origin.y == click.position.y) {
+      return obj;
+    }
+  } 
+}
+return null;
+}
+
+bit isAdjacentObject(Object object1, Object object2) {
+if (intersectsObjObj(object1, object2)) {
+  return false;
+} 
+Cell[ARR_BND] cells1 = renderObj(object1);
+Cell[ARR_BND] cells2 = renderObj(object2);
+for (int i = 0; i < ARR_BND; i++) {
+  Cell cell1 = cells1[i];
+  if (cell1 != null) {
+    Position[ARR_BND] neighbors = adjPositions(cells1[i].position);
+    for (int j = 0; j < ARR_BND; j++) {
+      Cell cell2 = cells2[j];
+      if (cell2 != null) {
+        for (int k = 0; k < ARR_BND; k++) {
+          Position neighborPos = neighbors[k];
+          if (neighborPos != null) {
+            if (cell2.position.x == neighborPos.x && cell2.position.y == neighborPos.y) {
+              return true;
+            }
+          }
+        }
+      }
+    }
+  }
+}
+return false;
+}
+
+int distanceObjs(Object object1, Object object2) {
+return distancePositions(object1.origin, object2.origin);
+}
+
+int distancePositions(Position position1, Position position2) {
+return abs(position2.x - position1.x) + abs(position2.y - position1.y);
+}
+
+Object closest(Scene scene, Object object, char[STR_BND] type) {
+Object[ARR_BND] objects = flattenSceneObjects(scene.objects);
+int minDist = 2 * GRID_SIZE + 1;
+Object closestObj;
+for (int i = 0; i < ARR_BND; i++) {
+  Object object2 = objects[i];
+  if (object2.type == type) {
+    int dist = distanceObjs(object2, object);
+    if (dist < minDist) {
+      minDist = dist;
+      closestObj = object2;
+    }
+  }
+}
+return closestObj;
+}
+
+Object[ARR_BND] initObjectPositions(fun constructor, fun filterFun) {
+int maxGridIndex = GRID_SIZE * GRID_SIZE - 1;
+Object[ARR_BND] objects;
+int objectIndex = 0;
+for (int i = 0; i < maxGridIndex; i++) {
+  Position pos = new Position(x=i%GRID_SIZE, y=i/GRID_SIZE);
+  if (filterFun(pos)) {
+    objects[objectIndex++] = constructor(pos);
+  }
+  if (objectIndex >= ARR_BND) {
+    return objects;
+  }
+}
+return objects;
+}
+/* functions that use generated functions*/
+Object move(Object object, Position position) {
+return updateObjOrigin(object, new Position(x=object.origin.x+position.x,y=object.origin.y+position.y));
+}
+
+Object moveNoCollision(Object object, Position position, Scene scene) {
+Object movedObject = move(object, position);
+if (!intersectsScene(scene, movedObject)) {
+  return movedObject;
+} else {
+  return object;
+}
+}
+
+
+Cell[2][ARR_BND] observations = { {  }, { new Cell(position=new Position(x=1, y=2), color="yellow") } };
+Click[2] clicks = { null, new Click(position=new Position(x=1, y=2)) };
+Left[2] lefts = { null, null };
+Right[2] rights = { null, null };
+Up[2] ups = { null, null };
+Down[2] downs = { null, null };
+
+harness void observedData() {
+  state = init();
+  for (int i = 0; i < 2; i++) {
+    state = next(state, clicks[i], lefts[i], rights[i], ups[i], downs[i]);
+    assert sceneEquals(renderScene(state.scene), observations[i]);
+  }
+}
+
+  generator int genInt(Object[ARR_BND] particles, Click click) {
+    if (??) {
+      return ??;
+    } else {
+  if (??) {
+  return distanceObjs(genObject(particles, click), genObject(particles, click));
+  } else {
+  return distancePositions(genPosition(particles, click), genPosition(particles, click));
+
+}
+
+} 
+  }
+
+  generator bit genBit(Object[ARR_BND] particles, Click click) {
+    if (??) {
+      return $(bit);
+    } else {
+  if (??) {
+  return isAdjacentObject(genObject(particles, click), genObject(particles, click));
+  } else {
+  if (??) {
+  return isFreePosition(genScene(particles, click), genPosition(particles, click));
+  } else {
+  if (??) {
+  return intersectsObjObj(genObject(particles, click), genObject(particles, click));
+  } else {
+  if (??) {
+  return occurred(genClick(particles, click));
+  } else {
+  if (??) {
+  return clickedObjArray(genClick(particles, click), genObjectArray(particles, click));
+  } else {
+  if (??) {
+  return clickedPosition(genClick(particles, click), genPosition(particles, click));
+  } else {
+  if (??) {
+  return isWithinBoundsObject(genObject(particles, click));
+  } else {
+  if (??) {
+  return intersectsScene(genScene(particles, click), genObject(particles, click));
+  } else {
+  if (??) {
+  return clickedObj(genClick(particles, click), genObject(particles, click));
+  } else {
+  if (??) {
+  return isAdjacentPosition(genPosition(particles, click), genPosition(particles, click));
+  } else {
+  if (??) {
+  return isWithinBoundsPosition(genPosition(particles, click));
+  } else {
+  if (??) {
+  return isFreeClick(genScene(particles, click), genClick(particles, click));
+  } else {
+  if (??) {
+  return intersectsObjArrays(genObjectArray(particles, click), genObjectArray(particles, click));
+  } else {
+  return intersectsObjObjArray(genObject(particles, click), genObjectArray(particles, click));
+
+}
+
+}
+
+}
+
+}
+
+}
+
+}
+
+}
+
+}
+
+}
+
+}
+
+}
+
+}
+
+}
+
+} 
+  }
+
+  generator Cell genCell(Object[ARR_BND] particles, Click click) {
+    if (??) {
+      return $(Cell);
+    }  
+  }
+
+  generator Position genPosition(Object[ARR_BND] particles, Click click) {
+    if (??) {
+      return $(Position);
+    } else {
+  if (??) {
+  return uniformChoice(genInt(particles, click), genPositionArray(particles, click));
+  } else {
+  if (??) {
+  return unitVector(genPosition(particles, click), genPosition(particles, click));
+  } else {
+  return displacement(genPosition(particles, click), genPosition(particles, click));
+
+}
+
+}
+
+} 
+  }
+
+  generator Click genClick(Object[ARR_BND] particles, Click click) {
+    if (??) {
+      return (??) ? $(Click) : {| click |};
+    }  
+  }
+
+  generator Object genParticle(Object[ARR_BND] particles, Click click) {
+    if (??) {
+      return $(Particle);
+    } else {
+  if (??) {
+  return objectClicked(genClick(particles, click), genParticleArray(particles, click));
+  } else {
+  if (??) {
+  return removeObj(genParticle(particles, click));
+  } else {
+  if (??) {
+  return moveNoCollision(genParticle(particles, click), genPosition(particles, click), genScene(particles, click));
+  } else {
+  return move(genParticle(particles, click), genPosition(particles, click));
+
+}
+
+}
+
+}
+
+} 
+  }
+
+generator Cell[ARR_BND] genCellArray(Object[ARR_BND] particles, Click click) {
+  if (??) {
+    return $(Cell[ARR_BND]);
+  }  
+}
+
+generator Position[ARR_BND] genPositionArray(Object[ARR_BND] particles, Click click) {
+  if (??) {
+    return $(Position[ARR_BND]);
+  } else {
+  	return adjPositions(genPosition(particles, click));
+
+} 
+}
+
+generator Click[ARR_BND] genClickArray(Object[ARR_BND] particles, Click click) {
+  if (??) {
+    return $(Click[ARR_BND]);
+  }  
+}
+
+generator Object[ARR_BND] genParticleArray(Object[ARR_BND] particles, Click click) {
+  if (??) {
+    return (??) ? $(Particle[ARR_BND]) : {| particles |};
+  } else {
+  	if (??) {
+  return addObj(genParticleArray(particles, click), genParticle(particles, click));
+  } else {
+  if (??) {
+  return removeObjFromArray(genParticleArray(particles, click), genParticle(particles, click));
+  } else {
+  return addObjs(genParticleArray(particles, click), genParticleArray(particles, click));
+
+}
+
+}
+
+} 
+}
+
+generator Object genObject(Object[ARR_BND] particles, Click click) {
+    return {| genParticle(particles, click) |};
+} 
+
+generator Object[ARR_BND] genObjectArray(Object[ARR_BND] particles, Click click) {
+  return $(Object[ARR_BND]) ;
+}
+
+generator Scene genScene(Object[ARR_BND] particles, Click click) {
+  return state.scene;
+}
+

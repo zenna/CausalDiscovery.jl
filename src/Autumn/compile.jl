@@ -1,21 +1,23 @@
-"Compilation to Julia (and other targets, if you want)"
+"Compilation to Julia"
 module Compile
 
-using ..AExpressions, ..CompileUtils
+using ..AExpressions, ..CompileUtils, ..SExpr, ..CompileSketchUtils
 import MacroTools: striplines
 
-export compiletojulia, runprogram
+export compiletojulia, runprogram, compiletosketch
 
 "compile `aexpr` into Expr"
 function compiletojulia(aexpr::AExpr)::Expr
 
   # dictionary containing types/definitions of global variables, for use in constructing init func.,
   # next func., etcetera; the three categories of global variable are external, initnext, and lifted  
-  historydata = Dict([("external" => []), # :typedecl aexprs for all external variables
+  historydata = Dict([("external" => [au"""(external (: click Click))""".args[1], au"""(external (: left KeyPress))""".args[1], au"""(external (: right KeyPress))""".args[1], au"""(external (: up KeyPress))""".args[1], au"""(external (: down KeyPress))""".args[1]]), # :typedecl aexprs for all external variables
                ("initnext" => []), # :assign aexprs for all initnext variables
                ("lifted" => []), # :assign aexprs for all lifted variables
-               ("types" => Dict())]) # map of global variable names (symbols) to types
-
+               ("types" => Dict{Symbol, Any}([:click => :Click, :left => :KeyPress, :right => :KeyPress, :up => :KeyPress, :down => :KeyPress, :GRID_SIZE => :Int, :background => :String])), # map of global variable names (symbols) to types
+               ("on" => []),
+               ("objects" => [])]) 
+               
   if (aexpr.head == :program)
     # handle AExpression lines
     lines = filter(x -> x !== :(), map(arg -> compile(arg, historydata, aexpr), aexpr.args))
@@ -39,14 +41,66 @@ function compiletojulia(aexpr::AExpr)::Expr
         export init, next
         import Base.min
         using Distributions
-        using MLStyle: @match 
+        using MLStyle: @match
+        using Random
+        rng = Random.GLOBAL_RNG
         $(lines...)
       end
     end  
     expr.head = :toplevel
     striplines(expr) 
   else
-    throw(AutumnCompileError("AExpr Head != :program"))
+    throw(AutumnError("AExpr Head != :program"))
+  end
+end
+
+function compiletosketch(aexpr::AExpr, observations)::String
+  metadata = Dict([("initnext" => []), # :assign aexprs for all initnext variables
+               ("lifted" => []), # :assign aexprs for all lifted variables
+               ("varTypes" => Dict{Symbol, Any}([:click => :Click, :left => :KeyPress, :right => :KeyPress, :up => :KeyPress, :down => :KeyPress, :GRID_SIZE => :Int, :background => :String])), # map of global variable names (symbols) to types
+               ("on" => []),
+               ("objects" => []),
+               ("customFields" => Dict{Symbol, Any}()),
+               ("types" => ["Int", "Bool", "Cell", "Position", "Click"]),
+               ("strings" => [])]) 
+  if (aexpr.head == :program)
+    # handle AExpr lines
+    lines = map(arg -> compile_sk(arg, metadata, aexpr), aexpr.args)
+
+    # construct state struct
+    stateStruct = compilestate_sk(metadata)
+
+    # construct init and next functions
+    initFunction = compileinit_sk(metadata)
+    nextFunction = compilenext_sk(metadata)
+
+    # construct prev functions
+    prevFunctions = compileprev_sk(metadata)
+
+    # construct library
+    library = compilelibrary_sk(metadata)
+    
+
+    # construct harnesses 
+    harnesses = compileharnesses_sk(observations);
+        
+    # construct generators
+    generators = compilegenerators_sk(metadata);
+    
+    join([
+      "int ARR_BND = 10;",
+      "int STR_BND = 20;",
+      lines...,
+      stateStruct,
+      initFunction,
+      nextFunction,
+      prevFunctions, 
+      library, 
+      harnesses, 
+      generators 
+    ], "\n")
+  else
+    throw(AutumnError("AExpr Head != :program"))
   end
 end
 
