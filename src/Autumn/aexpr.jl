@@ -128,6 +128,8 @@ end
 showstring(lst::Array{}) = join(map(string, lst), " ")
 showstring(str::String) = str
 
+"""Returns the size of the Aexpr where each sub layer is
+summed and multiplied by the scale value"""
 function sizeA(a::AExpr, scale=0.1)
    siz = 1.0
    for arg in a.args

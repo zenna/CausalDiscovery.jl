@@ -5,21 +5,20 @@ using ..AExpressions
 
 export get_fitness
 
-#p is the synthesized program
-#e is the list of examples to test the model on(could be a starting frame and
-#then a number of iterations/sequence of events and then ending frame and would
-#say is correct if the ending frames match)
-#a is the aexpr representation of the program
-#the closer to 0 the value the better the program
-
+"""p is the synthesized program
+e is the list of examples to test the model on(could be a starting frame and
+then a number of iterations/sequence of events and then ending frame and would
+say is correct if the ending frames match)
+a is the aexpr representation of the program
+the closer to 0 the value the better the program"""
 function get_fitness(p, e, a, distance_coefficient=3.0, size_coefficient=1.0)
   return (distance_coefficient * get_distance(p, e) +
   size_coefficient * sizeA(a))
 end
 
-#for examples that the model gets wrong find the objects in the expected result
-#and take the euclidean distance of each object.
-#return the average of (sum of euclidean distances)/(max possible sum of euclidean distances)
+"""for examples that the model gets wrong find the objects in the expected result
+and take the euclidean distance of each object.
+return the average of (sum of euclidean distances)/(max possible sum of euclidean distances)"""
 function get_distance(p, e)
   max_distance = sqrt(15*15 + 15*15)
   overall_distance = 0
