@@ -44,7 +44,7 @@ function get_distance(p, e)
   overall_distance/max_possible_distance
 end
 
-function compare_states(expected_cells, actual_cells)
+function compare_states(expected_cells, actual_cells)::Float64
   max_distance = sqrt(15*15 + 15*15)
   for cells in [expected_cells, actual_cells]
     sort(cells, by = x -> x.position.y)
