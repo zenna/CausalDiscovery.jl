@@ -9,7 +9,8 @@ export istypesymbol,
        args,
        arg,
        wrap,
-       showstring
+       showstring,
+       sizeA
 
 const autumngrammar = """
 x           := a | b | ... | aa ...
@@ -126,6 +127,21 @@ end
 
 showstring(lst::Array{}) = join(map(string, lst), " ")
 showstring(str::String) = str
+
+"""Returns the size of the Aexpr where each sub layer is
+summed and multiplied by the scale value"""
+function sizeA(a::AExpr, scale=0.1)
+   siz = 1.0
+   for arg in a.args
+     siz += scale*sizeA(arg, scale)
+   end
+   siz
+ end
+
+ function sizeA(a, scale=0.1)
+   1.0
+ end
+
 
 function needequals(val)
   if typeof(val) == Expr && val.head == :fn
