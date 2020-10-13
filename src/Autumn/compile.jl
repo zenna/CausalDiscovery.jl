@@ -23,17 +23,17 @@ function compiletojulia(aexpr::AExpr)::Expr
     lines = filter(x -> x !== :(), map(arg -> compile(arg, historydata, aexpr), aexpr.args))
     
     # construct STATE struct and initialize state::STATE
-    stateStruct = compilestatestruct(historydata)
-    initStateStruct = compileinitstate(historydata)
+    statestruct = compilestatestruct(historydata)
+    initstatestruct = compileinitstate(historydata)
     
     # handle init, next, prev, and built-in functions
-    initnextFunctions = compileinitnext(historydata)
-    prevFunctions = compileprevfuncs(historydata)
-    builtinFunctions = compilebuiltin()
+    initnextfunctions = compileinitnext(historydata)
+    prevfunctions = compileprevfuncs(historydata)
+    builtinfunctions = compilebuiltin()
 
     # remove empty lines
     lines = filter(x -> x != :(), 
-            vcat(builtinFunctions, lines, stateStruct, initStateStruct, prevFunctions, initnextFunctions))
+            vcat(builtinfunctions, lines, statestruct, initstatestruct, prevfunctions, initnextfunctions))
 
     # construct module
     expr = quote
@@ -68,14 +68,14 @@ function compiletosketch(aexpr::AExpr, observations)::String
     lines = map(arg -> compile_sk(arg, metadata, aexpr), aexpr.args)
 
     # construct state struct
-    stateStruct = compilestate_sk(metadata)
+    statestruct = compilestate_sk(metadata)
 
     # construct init and next functions
-    initFunction = compileinit_sk(metadata)
-    nextFunction = compilenext_sk(metadata)
+    initfunction = compileinit_sk(metadata)
+    nextfunction = compilenext_sk(metadata)
 
     # construct prev functions
-    prevFunctions = compileprev_sk(metadata)
+    prevfunctions = compileprev_sk(metadata)
 
     # construct library
     library = compilelibrary_sk(metadata)
@@ -91,10 +91,10 @@ function compiletosketch(aexpr::AExpr, observations)::String
       "int ARR_BND = 10;",
       "int STR_BND = 20;",
       lines...,
-      stateStruct,
-      initFunction,
-      nextFunction,
-      prevFunctions, 
+      statestruct,
+      initfunction,
+      nextfunction,
+      prevfunctions, 
       library, 
       harnesses, 
       generators 
