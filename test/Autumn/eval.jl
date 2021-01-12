@@ -15,24 +15,24 @@ aexpr = au"""(program
 (on clicked (= particles (addObj (prev particles) (Particle (Position (.. click x) (.. click y))))))
 )"""
 #
-mod = eval(compiletojulia(aexpr))
+compiledMod = eval(compiletojulia(aexpr))
 
 # time 0
-state = mod.init(nothing, nothing, nothing, nothing, nothing, MersenneTwister(0))
-@test mod.render(state.scene) == []
+state = compiledMod.init(nothing, nothing, nothing, nothing, nothing, MersenneTwister(0))
+@test compiledMod.render(state.scene) == []
 
 # time 1
-state = mod.next(state, nothing, nothing, nothing, nothing, nothing)
-@test mod.render(state.scene) == []
+state = compiledMod.next(state, nothing, nothing, nothing, nothing, nothing)
+@test compiledMod.render(state.scene) == []
 
 # time 2
-state = mod.next(state, mod.Click(5,5), nothing, nothing, nothing, nothing)
-@test mod.render(state.scene) == [mod.Cell(mod.Position(5, 5), "blue", 0.8)]
+state = compiledMod.next(state, compiledMod.Click(5,5), nothing, nothing, nothing, nothing)
+@test compiledMod.render(state.scene) == [compiledMod.Cell(compiledMod.Position(5, 5), "blue", 0.8)]
 
 # time 3
-state = mod.next(state, nothing, nothing, nothing, nothing, nothing)
-@test mod.render(state.scene) == [mod.Cell(mod.Position(4, 5), "blue", 0.8)]
+state = compiledMod.next(state, nothing, nothing, nothing, nothing, nothing)
+@test compiledMod.render(state.scene) == [compiledMod.Cell(compiledMod.Position(4, 5), "blue", 0.8)]
 
 # time 4
-state = mod.next(state, nothing, nothing, nothing, nothing, nothing)
-@test mod.render(state.scene) == [mod.Cell(mod.Position(3, 5), "blue", 0.8)]
+state = compiledMod.next(state, nothing, nothing, nothing, nothing, nothing)
+@test compiledMod.render(state.scene) == [compiledMod.Cell(compiledMod.Position(3, 5), "blue", 0.8)]

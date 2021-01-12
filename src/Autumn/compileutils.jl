@@ -102,8 +102,6 @@ end
 
 function compiletypedecl(expr::AExpr, data::Dict{String, Any}, parent::Union{AExpr, Nothing})
   if (parent !== nothing && (parent.head == :program || parent.head == :external))
-    # println(expr.args[1])
-    # println(expr.args[2])
     data["types"][expr.args[1]] = expr.args[2]
     :()
   else
@@ -112,8 +110,6 @@ function compiletypedecl(expr::AExpr, data::Dict{String, Any}, parent::Union{AEx
 end
 
 function compileexternal(expr::AExpr, data::Dict{String, Any})
-  # println("here: ")
-  # println(expr.args[1])
   if !(expr.args[1] in data["external"])
     push!(data["external"], expr.args[1])
   end
@@ -382,7 +378,6 @@ const builtInDict = Dict([
                         end
 
                         function isWithinBounds(obj::Object)::Bool
-                          # println(filter(cell -> !isWithinBounds(cell.position),render(obj)))
                           length(filter(cell -> !isWithinBounds(cell.position), render(obj))) == 0
                         end
 
@@ -397,8 +392,6 @@ const builtInDict = Dict([
                         end
 
                         function clicked(click::Union{Click, Nothing}, objects::AbstractArray)
-                          # println("LOOK AT ME")
-                          # println(reduce(&, map(obj -> clicked(click, obj), objects)))
                           reduce(|, map(obj -> clicked(click, obj), objects))
                         end
 
