@@ -4,13 +4,99 @@ using ..AExpressions
 using Distributions: Categorical
 using MLStyle: @match
 
-export compile, compilestatestruct, compileinitstate, compileinitnext, compileprevfuncs, compilebuiltin, compileobject, compileon
+export compile, compilestatestruct, compileinitstate, compileinitnext, compileprevfuncs, compilebuiltin, compileobject, compileon, compilecausal
 
 # binary operators
 binaryOperators = map(string, [:+, :-, :/, :*, :&, :|, :>=, :<=, :>, :<, :(==), :!=, :%, :&&])
 
 abstract type Object end
 # ----- Compile Helper Functions ----- #
+
+function tostate(var)
+  return Meta.parse("state.$(var)History[step]")
+end
+
+function causalon(data)
+  on_clauses = []
+  for on_clause in data["on"]
+      mapped1 = copy(on_clause[1])
+      mapped2 = copy(on_clause[2])
+      for index in 1:length(mapped1.args)
+        if mapped1.args[index] in keys(data["types"])
+          mapped1.args[index] = tostate(mapped1.args[index])
+        end
+      end
+      for index in 1:length(mapped2.args)
+        if mapped2.args[index] in keys(data["types"])
+          mapped2.args[index] = tostate(mapped2.args[index])
+        end
+      end
+      quote_clause = Meta.quot(mapped1)
+      quote_clause2 = Meta.quot(mapped2)
+      ifstatement = quote
+        if (eval($quote_clause) && a.args[2] in $(mapped1.args))
+          return $(quote_clause2)
+        end
+      end
+      push!(on_clauses, ifstatement)
+  end
+  on_clauses
+end
+
+function causalin(data)
+  in_clauses = []
+  # for clause in data["initnext"]
+  #   mapped = tostate(clause.args[1])
+  #   mapped = Meta.quot(mapped)
+  for clause in data["initnext"]
+    mapped = tostate(clause.args[1])
+    mapped = Meta.quot(mapped)
+    next_value = clause.args[2].args[2]
+    new_expr = []
+    if next_value.args[1] == :prev
+      continue
+    else
+      for index in 1:length(next_value.args)
+        # println("HERE")
+        # println(next_value.args[index])
+        if typeof(next_value.args[index]) == AExpr
+          println(next_value.args[index].args[1])
+        end
+        if typeof(next_value.args[index]) == AExpr && next_value.args[index].args[1] == :prev
+          push!(new_expr, tostate(next_value.args[index].args[2]))
+        else
+          push!(new_expr, next_value.args[index])
+        end
+      end
+    end
+
+    new_expr = Expr(:call, :eval, Expr(:call, new_expr...))
+    ifstatement = quote
+      if $mapped == :($(a.args[2]))
+        return Expr(:call, :(==), (a.args[2]), $new_expr)
+      end
+    end
+
+    push!(in_clauses, ifstatement)
+    end
+  in_clauses
+end
+
+
+function compilecausal(data)
+  on_clauses = causalon(data)
+  in_clauses = causalin(data)
+  expr = quote
+    function a_causes(a)
+      global step
+      if a.args[1] == :(==)
+        $(on_clauses...)
+        $(in_clauses...)
+      end
+      return a
+    end
+  end
+end
 
 function compile(expr::AExpr, data::Dict{String, Any}, parent::Union{AExpr, Nothing}=nothing)::Expr
   arr = [expr.head, expr.args...]
@@ -38,7 +124,7 @@ function compile(expr::AbstractArray, data::Dict{String, Any}, parent::Union{AEx
   elseif expr[1] == :List
     :(Array{$(compile(expr[2:end], data))})
   else
-    compile(expr[1], data)      
+    compile(expr[1], data)
   end
 end
 
@@ -67,21 +153,21 @@ function compileassign(expr::AExpr, data::Dict{String, Any}, parent::Union{AExpr
       argtypes = map(x -> compile(x, data), type.args[1:(end-1)]) # function arg types
       tuples = [(args[i], argtypes[i]) for i in [1:length(args);]]
       typedargexprs = map(x -> :($(x[1])::$(x[2])), tuples)
-      quote 
+      quote
         function $(compile(expr.args[1], data))($(typedargexprs...))::$(compile(type.args[end], data))
-          $(compile(expr.args[2].args[2], data))  
+          $(compile(expr.args[2].args[2], data))
         end
-      end 
+      end
     else # handle function without typed arguments/return type
-      quote 
+      quote
         function $(compile(expr.args[1], data))($(compile(expr.args[2].args[1], data).args...))
             $(compile(expr.args[2].args[2], data))
-        end 
-      end          
+        end
+      end
     end
   else # handle non-function assignments
     # handle global assignments
-    if parent !== nothing && (parent.head == :program) 
+    if parent !== nothing && (parent.head == :program)
       if (typeof(expr.args[2]) == AExpr && expr.args[2].head == :initnext)
         push!(data["initnext"], expr)
       else
@@ -89,7 +175,7 @@ function compileassign(expr::AExpr, data::Dict{String, Any}, parent::Union{AExpr
       end
       :()
     # handle non-global assignments
-    else 
+    else
       if type !== nothing
         # :($(compile(expr.args[1], data))::$(compile(type, data)) = $(compile(expr.args[2], data)))
         :($(compile(expr.args[1], data)) = $(compile(expr.args[2], data)))
@@ -127,7 +213,7 @@ function compiletypealias(expr::AExpr, data::Dict{String, Any})
   ), expr.args[2].args)
   quote
     struct $(name)
-      $(fields...) 
+      $(fields...)
     end
   end
 end
@@ -142,7 +228,7 @@ function compilecall(expr::AExpr, data::Dict{String, Any})
     :($(fnName)($(map(x -> compile(x, data), expr.args[2:end])...)))
   elseif fnName == :prev
     :($(Symbol(string(expr.args[2]) * "Prev"))($(map(compile, expr.args[3:end])...)))
-  elseif fnName != :(==)        
+  elseif fnName != :(==)
     :($(fnName)($(compile(expr.args[2], data)), $(compile(expr.args[3], data))))
   else
     :($(compile(expr.args[2], data)) == $(compile(expr.args[3], data)))
@@ -156,7 +242,7 @@ function compilelet(expr::AExpr, data::Dict{String, Any})
 end
 
 function compilecase(expr::AExpr, data::Dict{String, Any})
-  quote 
+  quote
     @match $(compile(expr.args[1], data)) begin
       $(map(x -> :($(compile(x.args[1], data)) => $(compile(x.args[2], data))), expr.args[2:end])...)
     end
@@ -177,13 +263,13 @@ function compileobject(expr::AExpr, data::Dict{String, Any})
       origin::Position
       alive::Bool
       hidden::Bool
-      $(custom_fields...) 
+      $(custom_fields...)
       render::Array{Cell}
     end
 
     function $(name)($(vcat(custom_fields, :(origin::Position))...))::$(name)
       state.objectsCreated += 1
-      rendering = $(rendering)      
+      rendering = $(rendering)
       $(name)(state.objectsCreated, origin, true, false, $(custom_field_names...), rendering isa AbstractArray ? vcat(rendering...) : [rendering])
     end
   end
@@ -204,7 +290,7 @@ function compileinitnext(data::Dict{String, Any})
     $(map(x -> :($(compile(x.args[1], data)) = $(compile(x.args[2].args[1], data))), data["initnext"])...)
   end
 
-  onClauses = map(x -> quote 
+  onClauses = map(x -> quote
     if $(x[1])
       $(x[2])
     end
@@ -216,7 +302,7 @@ function compileinitnext(data::Dict{String, Any})
   end
 
   next = quote
-    $(map(x -> :($(compile(x.args[1], data)) = state.$(Symbol(string(x.args[1])*"History"))[state.time - 1]), 
+    $(map(x -> :($(compile(x.args[1], data)) = state.$(Symbol(string(x.args[1])*"History"))[state.time - 1]),
       vcat(data["initnext"], data["lifted"]))...)
     $(onClauses...)
     $(notOnClause)
@@ -229,11 +315,11 @@ function compileinitnext(data::Dict{String, Any})
       $(compileinitstate(data))
       $(init)
       $(map(x -> :($(compile(x.args[1], data)) = $(compile(x.args[2], data))), filter(x -> x.args[1] != :GRID_SIZE, data["lifted"]))...)
-      $(map(x -> :(state.$(Symbol(string(x.args[1])*"History"))[state.time] = $(x.args[1])), 
+      $(map(x -> :(state.$(Symbol(string(x.args[1])*"History"))[state.time] = $(x.args[1])),
             vcat(data["external"], data["initnext"], data["lifted"]))...)
-      state.scene = Scene(vcat([$(filter(x -> get(data["types"], x, :Any) in vcat(data["objects"], map(x -> [:List, x], data["objects"])), 
+      state.scene = Scene(vcat([$(filter(x -> get(data["types"], x, :Any) in vcat(data["objects"], map(x -> [:List, x], data["objects"])),
                                   map(x -> x.args[1], vcat(data["initnext"], data["lifted"])))...)]...), :backgroundHistory in fieldnames(STATE) ? state.backgroundHistory[state.time] : "#ffffff00")
-      
+
       global state = state
       state
     end
@@ -244,9 +330,9 @@ function compileinitnext(data::Dict{String, Any})
       state.time = state.time + 1
       $(map(x -> :($(compile(x.args[1], data)) = $(compile(x.args[2], data))), filter(x -> x.args[1] == :GRID_SIZE, data["lifted"]))...)
       $(next)
-      $(map(x -> :(state.$(Symbol(string(x.args[1])*"History"))[state.time] = $(x.args[1])), 
+      $(map(x -> :(state.$(Symbol(string(x.args[1])*"History"))[state.time] = $(x.args[1])),
             vcat(data["external"], data["initnext"], data["lifted"]))...)
-      state.scene = Scene(vcat([$(filter(x -> get(data["types"], x, :Any) in vcat(data["objects"], map(x -> [:List, x], data["objects"])), 
+      state.scene = Scene(vcat([$(filter(x -> get(data["types"], x, :Any) in vcat(data["objects"], map(x -> [:List, x], data["objects"])),
         map(x -> x.args[1], vcat(data["initnext"], data["lifted"])))...)]...), :backgroundHistory in fieldnames(STATE) ? state.backgroundHistory[state.time] : "#ffffff00")
       global state = state
       state
@@ -257,9 +343,9 @@ end
 
 # construct STATE struct
 function compilestatestruct(data::Dict{String, Any})
-  stateParamsInternal = map(expr -> :($(Symbol(string(expr.args[1]) * "History"))::Dict{Int64, $(haskey(data["types"], expr.args[1]) ? compile(data["types"][expr.args[1]], data) : Any)}), 
+  stateParamsInternal = map(expr -> :($(Symbol(string(expr.args[1]) * "History"))::Dict{Int64, $(haskey(data["types"], expr.args[1]) ? compile(data["types"][expr.args[1]], data) : Any)}),
                             vcat(data["initnext"], data["lifted"]))
-  stateParamsExternal = map(expr -> :($(Symbol(string(expr.args[1]) * "History"))::Dict{Int64, Union{$(compile(data["types"][expr.args[1]], data)), Nothing}}), 
+  stateParamsExternal = map(expr -> :($(Symbol(string(expr.args[1]) * "History"))::Dict{Int64, Union{$(compile(data["types"][expr.args[1]], data)), Nothing}}),
                             data["external"])
   quote
     mutable struct STATE
@@ -274,9 +360,9 @@ end
 
 # initialize state::STATE variable
 function compileinitstate(data::Dict{String, Any})
-  initStateParamsInternal = map(expr -> :(Dict{Int64, $(haskey(data["types"], expr.args[1]) ? compile(data["types"][expr.args[1]], data) : Any)}()), 
+  initStateParamsInternal = map(expr -> :(Dict{Int64, $(haskey(data["types"], expr.args[1]) ? compile(data["types"][expr.args[1]], data) : Any)}()),
                                 vcat(data["initnext"], data["lifted"]))
-  initStateParamsExternal = map(expr -> :(Dict{Int64, Union{$(compile(data["types"][expr.args[1]], data)), Nothing}}()), 
+  initStateParamsExternal = map(expr -> :(Dict{Int64, Union{$(compile(data["types"][expr.args[1]], data)), Nothing}}()),
                                 data["external"])
   initStateParams = [0, 0, :(Scene([])), initStateParamsInternal..., initStateParamsExternal...]
   initState = :(state = STATE($(initStateParams...)))
@@ -288,15 +374,15 @@ end
 function compileprevfuncs(data::Dict{String, Any})
   prevFunctions = map(x -> quote
         function $(Symbol(string(x.args[1]) * "Prev"))(n::Int=1)::$(haskey(data["types"], x.args[1]) ? compile(data["types"][x.args[1]], data) : Any)
-          state.$(Symbol(string(x.args[1]) * "History"))[state.time - n >= 0 ? state.time - n : 0] 
+          state.$(Symbol(string(x.args[1]) * "History"))[state.time - n >= 0 ? state.time - n : 0]
         end
-        end, 
+        end,
   vcat(data["initnext"], data["lifted"]))
   prevFunctions = vcat(prevFunctions, map(x -> quote
         function $(Symbol(string(x.args[1]) * "Prev"))(n::Int=1)::Union{$(compile(data["types"][x.args[1]], data)), Nothing}
-          state.$(Symbol(string(x.args[1]) * "History"))[state.time - n >= 0 ? state.time - n : 0] 
+          state.$(Symbol(string(x.args[1]) * "History"))[state.time - n >= 0 ? state.time - n : 0]
         end
-        end, 
+        end,
   data["external"]))
   prevFunctions
 end
@@ -348,15 +434,15 @@ const builtInDict = Dict([
 
                         struct Click
                           x::Int
-                          y::Int                    
-                        end     
+                          y::Int
+                        end
 
                         struct Position
                           x::Int
                           y::Int
                         end
 
-                        struct Cell 
+                        struct Cell
                           position::Position
                           color::String
                           opacity::Float64
@@ -411,7 +497,7 @@ const builtInDict = Dict([
                           if click == nothing
                             false
                           else
-                            click.x == x && click.y == y                         
+                            click.x == x && click.y == y
                           end
                         end
 
@@ -419,7 +505,7 @@ const builtInDict = Dict([
                           if click == nothing
                             false
                           else
-                            click.x == pos.x && click.y == pos.y                         
+                            click.x == pos.x && click.y == pos.y
                           end
                         end
 
@@ -436,7 +522,7 @@ const builtInDict = Dict([
                         end
 
                         function intersects(list1, list2)::Bool
-                          length(intersect(list1, list2)) != 0 
+                          length(intersect(list1, list2)) != 0
                         end
 
                         function intersects(object::Object)::Bool
@@ -480,7 +566,7 @@ const builtInDict = Dict([
                           setproperty!(new_obj, :alive, obj.alive)
                           setproperty!(new_obj, :hidden, obj.hidden)
 
-                          setproperty!(new_obj, Symbol(field), value)  
+                          setproperty!(new_obj, Symbol(field), value)
                           new_obj
                         end
 
@@ -500,7 +586,7 @@ const builtInDict = Dict([
                         end
 
                         function isWithinBounds(position::Position)::Bool
-                          (position.x >= 0) && (position.x < state.GRID_SIZEHistory[0]) && (position.y >= 0) && (position.y < state.GRID_SIZEHistory[0])                          
+                          (position.x >= 0) && (position.x < state.GRID_SIZEHistory[0]) && (position.y >= 0) && (position.y < state.GRID_SIZEHistory[0])
                         end
 
                         function isFree(position::Position)::Bool
@@ -521,7 +607,7 @@ const builtInDict = Dict([
                           if (floor(Int, abs(sign(deltaX))) == 1 && floor(Int, abs(sign(deltaY))) == 1)
                             uniformChoice([Position(sign(deltaX), 0), Position(0, sign(deltaY))])
                           else
-                            Position(sign(deltaX), sign(deltaY))  
+                            Position(sign(deltaX), sign(deltaY))
                           end
                         end
 
@@ -541,7 +627,7 @@ const builtInDict = Dict([
 
                         function unitVector(position::Position)::Position
                           unitVector(Position(0,0), position)
-                        end 
+                        end
 
                         function displacement(position1::Position, position2::Position)::Position
                           Position(floor(Int, position2.x - position1.x), floor(Int, position2.y - position1.y))
@@ -596,15 +682,15 @@ const builtInDict = Dict([
                         end
 
                         function move(object::Object, x::Int, y::Int)::Object
-                          move(object, Position(x, y))                          
+                          move(object, Position(x, y))
                         end
 
                         function moveNoCollision(object::Object, position::Position)::Object
-                          (isWithinBounds(move(object, position)) && isFree(move(object, position.x, position.y), object)) ? move(object, position.x, position.y) : object 
+                          (isWithinBounds(move(object, position)) && isFree(move(object, position.x, position.y), object)) ? move(object, position.x, position.y) : object
                         end
 
                         function moveNoCollision(object::Object, x::Int, y::Int)
-                          (isWithinBounds(move(object, x, y)) && isFree(move(object, x, y), object)) ? move(object, x, y) : object 
+                          (isWithinBounds(move(object, x, y)) && isFree(move(object, x, y), object)) ? move(object, x, y) : object
                         end
 
                         function moveWrap(object::Object, position::Position)::Object
@@ -626,7 +712,7 @@ const builtInDict = Dict([
                           new_object.position = moveWrap(object.origin, x, y)
                           new_object
                         end
-                        
+
                         function moveWrap(position1::Position, position2::Position)::Position
                           moveWrap(position1, position2.x, position2.y)
                         end
@@ -694,7 +780,7 @@ const builtInDict = Dict([
                           new_object
                         end
 
-                        function nextLiquid(object::Object)::Object 
+                        function nextLiquid(object::Object)::Object
                           # println("nextLiquid")
                           GRID_SIZE = state.GRID_SIZEHistory[0]
                           new_object = deepcopy(object)
@@ -716,7 +802,7 @@ const builtInDict = Dict([
                               elseif (length(rightHoles) == 0)
                                 closestHole = closest(object, leftHoles)
                                 if isFree(move(closestHole, Position(0, -1)), move(object.origin, Position(-1, 0)))
-                                  new_object.origin = move(object.origin, unitVector(object, move(closestHole, Position(0, -1))))                      
+                                  new_object.origin = move(object.origin, unitVector(object, move(closestHole, Position(0, -1))))
                                 end
                               else
                                 closestLeftHole = closest(object, leftHoles)
@@ -740,36 +826,36 @@ const builtInDict = Dict([
                           new_object
                         end
 
-                        function nextSolid(object::Object)::Object 
+                        function nextSolid(object::Object)::Object
                           # println("nextSolid")
-                          GRID_SIZE = state.GRID_SIZEHistory[0] 
+                          GRID_SIZE = state.GRID_SIZEHistory[0]
                           new_object = deepcopy(object)
                           if (isWithinBounds(move(object, Position(0, 1))) && reduce(&, map(x -> isFree(x, object), map(cell -> move(cell.position, Position(0, 1)), render(object)))))
                             new_object.origin = move(object.origin, Position(0, 1))
                           end
                           new_object
                         end
-                        
+
                         function closest(object::Object, positions::Array{Position})::Position
                           closestDistance = sort(map(pos -> distance(pos, object.origin), positions))[1]
                           closest = filter(pos -> distance(pos, object.origin) == closestDistance, positions)[1]
                           closest
                         end
 
-                        function isFree(start::Position, stop::Position)::Bool 
+                        function isFree(start::Position, stop::Position)::Bool
                           GRID_SIZE = state.GRID_SIZEHistory[0]
                           nums = [(GRID_SIZE * start.y + start.x):(GRID_SIZE * stop.y + stop.x);]
                           reduce(&, map(num -> isFree(Position(num % GRID_SIZE, floor(Int, num / GRID_SIZE))), nums))
                         end
 
-                        function isFree(start::Position, stop::Position, object::Object)::Bool 
+                        function isFree(start::Position, stop::Position, object::Object)::Bool
                           GRID_SIZE = state.GRID_SIZEHistory[0]
                           nums = [(GRID_SIZE * start.y + start.x):(GRID_SIZE * stop.y + stop.x);]
                           reduce(&, map(num -> isFree(Position(num % GRID_SIZE, floor(Int, num / GRID_SIZE)), object), nums))
                         end
 
                         function isFree(position::Position, object::Object)
-                          length(filter(cell -> cell.position.x == position.x && cell.position.y == position.y, 
+                          length(filter(cell -> cell.position.x == position.x && cell.position.y == position.y,
                           filter(x -> !(x in render(object)), render(state.scene)))) == 0
                         end
 
@@ -782,7 +868,7 @@ const builtInDict = Dict([
                           nums = [1:GRID_SIZE*GRID_SIZE - 1;]
                           map(num -> Position(num % GRID_SIZE, floor(Int, num / GRID_SIZE)), nums)
                         end
-                      
+
                     end
 ])
 
