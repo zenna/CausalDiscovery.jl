@@ -15,6 +15,9 @@ abstract type Object end
 function tostate(var)
   return Meta.parse("state.$(var)History[step]")
 end
+function tostate(var, field)
+  return Meta.parse("state.$(var)History[step].$field")
+end
 
 function causalon(data)
   on_clauses = []
@@ -24,18 +27,23 @@ function causalon(data)
       for index in 1:length(mapped1.args)
         if mapped1.args[index] in keys(data["types"])
           mapped1.args[index] = tostate(mapped1.args[index])
+        elseif Meta.parse(split(string(mapped1.args[index]), ".")[1]) in keys(data["types"])
+          split_ = split(string(mapped1.args[index]), ".")
+          mapped1.args[index] = tostate(split_[1], split_[2])
         end
       end
       for index in 1:length(mapped2.args)
         if mapped2.args[index] in keys(data["types"])
           mapped2.args[index] = tostate(mapped2.args[index])
+        elseif mapped1.args[index] == :(=)
+          mapped2.args[index] = :(==)
         end
       end
       quote_clause = Meta.quot(mapped1)
       quote_clause2 = Meta.quot(mapped2)
       ifstatement = quote
         if (eval($quote_clause) && a.args[2] in $(mapped1.args))
-          return $(quote_clause2)
+          push!(causes, $(quote_clause2))
         end
       end
       push!(on_clauses, ifstatement)
@@ -43,40 +51,65 @@ function causalon(data)
   on_clauses
 end
 
+convertprev(next_value) = convertprev(next_value, false)
+
+function convertprev(next_value, update)
+  new_expr = []
+  println(next_value.args)
+  for index in 1:length(next_value.args)
+    # println("HERE")
+    println(next_value.args[index])
+    if typeof(next_value.args[index]) == AExpr
+      println(next_value.args[index].args)
+    end
+    if typeof(next_value.args[index]) == AExpr && length(next_value.args) == 2 && next_value.args[index].args[1] == :prev
+      push!(new_expr, tostate(next_value.args[index].args[2], next_value.args[index+1]))
+      break
+    end
+    if typeof(next_value.args[index]) == AExpr && next_value.args[index].args[1] == :prev
+      println("prev!!")
+      push!(new_expr, tostate(next_value.args[index].args[2]))
+    elseif typeof(next_value.args[index]) == AExpr && next_value.args[index].args[1] == :updateObj
+      println("update obj")
+    elseif typeof(next_value.args[index]) == AExpr
+      push!(new_expr, convertprev(next_value.args[index])[1])
+    else
+      push!(new_expr, next_value.args[index])
+    end
+  end
+  new_expr
+end
+
 function causalin(data)
   in_clauses = []
-  # for clause in data["initnext"]
-  #   mapped = tostate(clause.args[1])
-  #   mapped = Meta.quot(mapped)
   for clause in data["initnext"]
+    println("c in")
+    println(clause.args[1])
     mapped = tostate(clause.args[1])
     mapped = Meta.quot(mapped)
     next_value = clause.args[2].args[2]
     new_expr = []
     if next_value.args[1] == :prev
       continue
+    elseif next_value.args[1] == :updateObj
+      new_expr = convertprev(next_value.args[4])
     else
-      for index in 1:length(next_value.args)
-        # println("HERE")
-        # println(next_value.args[index])
-        if typeof(next_value.args[index]) == AExpr
-          println(next_value.args[index].args[1])
-        end
-        if typeof(next_value.args[index]) == AExpr && next_value.args[index].args[1] == :prev
-          push!(new_expr, tostate(next_value.args[index].args[2]))
-        else
-          push!(new_expr, next_value.args[index])
-        end
-      end
+      new_expr = convertprev(next_value)
     end
+    println("new erxpr")
+    println(new_expr)
 
     new_expr = Expr(:call, :eval, Expr(:call, new_expr...))
     ifstatement = quote
-      if $mapped == :($(a.args[2]))
-        return Expr(:call, :(==), (a.args[2]), $new_expr)
+      println("important")
+      store = :($(a.args[2]))
+      if length(split(string(:($(a.args[2]))), ")")) > 1
+        store = Meta.parse(join([split(string(:($(a.args[2]))), ")")[1], ")"]))
+      end
+      if $mapped == store || ($mapped) == store
+        push!(causes, Expr(:call, :(==), (a.args[2]), $new_expr))
       end
     end
-
     push!(in_clauses, ifstatement)
     end
   in_clauses
@@ -88,12 +121,16 @@ function compilecausal(data)
   in_clauses = causalin(data)
   expr = quote
     function a_causes(a)
-      global step
+      causes = []
       if a.args[1] == :(==)
         $(on_clauses...)
         $(in_clauses...)
       end
-      return a
+      if length(causes) == 0
+        return [a]
+      else
+        return causes
+      end
     end
   end
 end
