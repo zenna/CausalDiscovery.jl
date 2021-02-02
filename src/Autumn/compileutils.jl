@@ -19,72 +19,83 @@ function tostate(var, field)
   return Meta.parse("state.$(var)History[step].$field")
 end
 
+function tostateshort(var)
+  return Meta.parse("state.$(var)History")
+end
+
+function convertprev(next_value, data)
+  if next_value in keys(data["types"])
+    return tostate(next_value)
+  end
+  return next_value
+end
+
+function convertprev(next_value::Union{AExpr, Expr}, data)
+  new_expr = []
+  println("next vlaue")
+  println(typeof(next_value))
+  println(next_value)
+  println(next_value.args)
+  println(next_value.head)
+  if length(next_value.args) == 2 && next_value.args[1] == :prev
+    return convertprev(next_value.args[2], data)
+  end
+  for index in 1:length(next_value.args)
+    # if typeof(next_value.args[index]) == AExpr && next_value.args[index].args[1] == :prev
+    #   push!(new_expr, tostate(next_value.args[index].args[2]))
+    # else
+      push!(new_expr, convertprev(next_value.args[index], data))
+    # end
+  end
+  if next_value.head == :field
+    return AExpr(next_value.head, new_expr...)
+  end
+  Expr(:call, :eval, Expr(:call, new_expr...))
+end
+
 function causalon(data)
   on_clauses = []
   for on_clause in data["on"]
-      mapped1 = copy(on_clause[1])
-      mapped2 = copy(on_clause[2])
-      for index in 1:length(mapped1.args)
-        if mapped1.args[index] in keys(data["types"])
-          mapped1.args[index] = tostate(mapped1.args[index])
-        elseif Meta.parse(split(string(mapped1.args[index]), ".")[1]) in keys(data["types"])
-          split_ = split(string(mapped1.args[index]), ".")
-          mapped1.args[index] = tostate(split_[1], split_[2])
-        end
-      end
-      for index in 1:length(mapped2.args)
-        if mapped2.args[index] in keys(data["types"])
-          mapped2.args[index] = tostate(mapped2.args[index])
-        elseif mapped1.args[index] == :(=)
-          mapped2.args[index] = :(==)
-        end
-      end
-      quote_clause = Meta.quot(mapped1)
-      quote_clause2 = Meta.quot(mapped2)
-      ifstatement = quote
-        if (eval($quote_clause) && a.args[2] in $(mapped1.args))
+    mapped1 = copy(on_clause[1])
+    mapped2 = copy(on_clause[2])
+    for index in 1:length(mapped1.args)
+      mapped1.args[index] = convertprev(mapped1.args[index], data)
+    end
+    for index in 1:length(mapped2.args)
+      mapped2.args[index] = convertprev(mapped2.args[index], data)
+    end
+    if mapped2.head == :(=)
+      mapped2 = Expr(:call, :(==), mapped2.args...)
+    end
+    quote_clause = Meta.quot(mapped1)
+    quote_clause2 = Meta.quot(mapped2)
+    ifstatement = quote
+      println($quote_clause)
+      if (eval($quote_clause))
+        varstore = eval(a.args[2])
+        delete!(reduce(a.args[2]), step)
+        try
+          if !(eval($quote_clause))
+            push!(reduce(a.args[2]), step =>varstore)
+            push!(causes, $(quote_clause2))
+          end
+        catch e
+          push!(reduce(a.args[2]), step =>varstore)
           push!(causes, $(quote_clause2))
         end
+        push!(reduce(a.args[2]), step =>varstore)
       end
-      push!(on_clauses, ifstatement)
+    end
+    push!(on_clauses, ifstatement)
   end
   on_clauses
-end
-
-convertprev(next_value) = convertprev(next_value, false)
-
-function convertprev(next_value, update)
-  new_expr = []
-  println(next_value.args)
-  for index in 1:length(next_value.args)
-    # println("HERE")
-    println(next_value.args[index])
-    if typeof(next_value.args[index]) == AExpr
-      println(next_value.args[index].args)
-    end
-    if typeof(next_value.args[index]) == AExpr && length(next_value.args) == 2 && next_value.args[index].args[1] == :prev
-      push!(new_expr, tostate(next_value.args[index].args[2], next_value.args[index+1]))
-      break
-    end
-    if typeof(next_value.args[index]) == AExpr && next_value.args[index].args[1] == :prev
-      println("prev!!")
-      push!(new_expr, tostate(next_value.args[index].args[2]))
-    elseif typeof(next_value.args[index]) == AExpr && next_value.args[index].args[1] == :updateObj
-      println("update obj")
-    elseif typeof(next_value.args[index]) == AExpr
-      push!(new_expr, convertprev(next_value.args[index])[1])
-    else
-      push!(new_expr, next_value.args[index])
-    end
-  end
-  new_expr
 end
 
 function causalin(data)
   in_clauses = []
   for clause in data["initnext"]
-    println("c in")
-    println(clause.args[1])
+    println("clause")
+    println(clause)
     mapped = tostate(clause.args[1])
     mapped = Meta.quot(mapped)
     next_value = clause.args[2].args[2]
@@ -92,23 +103,24 @@ function causalin(data)
     if next_value.args[1] == :prev
       continue
     elseif next_value.args[1] == :updateObj
-      new_expr = convertprev(next_value.args[4])
+      new_expr = convertprev(next_value.args[4], data)
+      println(new_expr)
     else
-      new_expr = convertprev(next_value)
+      new_expr = convertprev(next_value, data)
     end
-    println("new erxpr")
-    println(new_expr)
 
-    new_expr = Expr(:call, :eval, Expr(:call, new_expr...))
+    shortmap = tostateshort(clause.args[1])
     ifstatement = quote
-      println("important")
       store = :($(a.args[2]))
-      if length(split(string(:($(a.args[2]))), ")")) > 1
-        store = Meta.parse(join([split(string(:($(a.args[2]))), ")")[1], ")"]))
+      varstore = eval($mapped)
+      delete!($shortmap, step)
+      try
+        println(eval(store))
+      catch e
+        push!($shortmap, step =>varstore)
+        push!(causes, Expr(:call, :(==), (increment(a.args[2])), $new_expr))
       end
-      if $mapped == store || ($mapped) == store
-        push!(causes, Expr(:call, :(==), (a.args[2]), $new_expr))
-      end
+      push!($shortmap, step =>varstore)
     end
     push!(in_clauses, ifstatement)
     end
