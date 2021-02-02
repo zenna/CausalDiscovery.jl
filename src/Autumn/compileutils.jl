@@ -82,18 +82,6 @@ function causalon(data)
           end
         end
         push!(reduce(a.args[2]), step =>varstore)
-
-        # delete!(reduce(a.args[2]), step)
-        # try
-        #   if !(eval($quote_clause))
-        #     push!(reduce(a.args[2]), step =>varstore)
-        #     push!(causes, $(quote_clause2))
-        #   end
-        # catch e
-        #   push!(reduce(a.args[2]), step =>varstore)
-        #   push!(causes, $(quote_clause2))
-        # end
-        # push!(reduce(a.args[2]), step =>varstore)
       end
     end
     push!(on_clauses, ifstatement)
@@ -104,8 +92,6 @@ end
 function causalin(data)
   in_clauses = []
   for clause in data["initnext"]
-    println("clause")
-    println(clause)
     mapped = tostate(clause.args[1])
     mapped = Meta.quot(mapped)
     next_value = clause.args[2].args[2]
@@ -114,7 +100,6 @@ function causalin(data)
       continue
     elseif next_value.args[1] == :updateObj
       new_expr = convertprev(next_value.args[4], data)
-      println(new_expr)
     else
       new_expr = convertprev(next_value, data)
     end
@@ -122,15 +107,18 @@ function causalin(data)
     shortmap = tostateshort(clause.args[1])
     ifstatement = quote
       store = :($(a.args[2]))
-      varstore = eval($mapped)
-      delete!($shortmap, step)
-      try
-        println(eval(store))
-      catch e
-        push!($shortmap, step =>varstore)
-        push!(causes, Expr(:call, :(==), (increment(a.args[2])), $new_expr))
+      varstore = a.args[3]
+      if (eval(a.args[2]) == a.args[3] && reducenoeval(a.args[2]) == reducenoeval($mapped))
+        for val in possiblevalues(a.args[2], a.args[3])
+          push!(reduce(a.args[2]), step =>val)
+          if !(eval(a.args[2]) == a.args[3])
+            push!(reduce(a.args[2]), step =>varstore)
+            push!(causes, Expr(:call, :(==), (increment(a.args[2])), $new_expr))
+            break
+          end
+        end
+        push!(reduce(a.args[2]), step =>varstore)
       end
-      push!($shortmap, step =>varstore)
     end
     push!(in_clauses, ifstatement)
     end

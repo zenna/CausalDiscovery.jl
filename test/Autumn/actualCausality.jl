@@ -212,46 +212,46 @@ a = :(state.suzieHistory[step] == 1)
 b = :(state.brokenHistory[step] == true)
 @test_ac(true, aexpr, a, b)
 
-a = :(state.suzieHistory[0] == 1)
-b = :(state.brokenHistory[5] == true)
-@test_ac(true, aexpr, a, b)
-
-a = :(state.suzieHistory[2] == 1)
-b = :(state.brokenHistory[step] == true)
-@test_ac(false, aexpr, a, b)
-
-# -------------------------------Billy Test---------------------------------------
-# cause((billy == 0), (broken == true))
-a = :(state.billyHistory[step] == 0)
-b = :(state.brokenHistory[step] == true)
-@test_ac(false, aexpr, a, b)
-
-# cause((billy == 0), (broken == true))
-a = :(state.billyHistory[0] == 1)
-b = :(state.brokenHistory[step] == true)
-@test_ac(false, aexpr, a, b)
-
-# cause((billy == 0), (broken == true))
-a = :(state.billyHistory[1] == 1)
-b = :(state.brokenHistory[step] == true)
-@test_ac(false, aexpr, a, b)
+# a = :(state.suzieHistory[0] == 1)
+# b = :(state.brokenHistory[5] == true)
+# @test_ac(true, aexpr, a, b)
 #
-# ------------------------------Suzie Test---------------------------------------
-#cause((suzie == 1), (broken == true))
-a = :(state.suzieHistory[step] == 1)
-b = :(state.brokenHistory[step] == true)
-@test_ac(true, aexpr2, a, b)
-
-# -------------------------------Billy Test---------------------------------------
-# cause((billy == 0), (broken == true))
-a = :(state.billyHistory[step] == 0)
-b = :(state.brokenHistory[step] == true)
-@test_ac(false, aexpr2, a, b)
+# a = :(state.suzieHistory[2] == 1)
+# b = :(state.brokenHistory[step] == true)
+# @test_ac(false, aexpr, a, b)
+#
+# # -------------------------------Billy Test---------------------------------------
+# # cause((billy == 0), (broken == true))
+# a = :(state.billyHistory[step] == 0)
+# b = :(state.brokenHistory[step] == true)
+# @test_ac(false, aexpr, a, b)
+#
+# # cause((billy == 0), (broken == true))
+# a = :(state.billyHistory[0] == 1)
+# b = :(state.brokenHistory[step] == true)
+# @test_ac(false, aexpr, a, b)
+#
+# # cause((billy == 0), (broken == true))
+# a = :(state.billyHistory[1] == 1)
+# b = :(state.brokenHistory[step] == true)
+# @test_ac(false, aexpr, a, b)
+# #
+# # ------------------------------Suzie Test---------------------------------------
+# #cause((suzie == 1), (broken == true))
+# a = :(state.suzieHistory[step] == 1)
+# b = :(state.brokenHistory[step] == true)
+# @test_ac(true, aexpr2, a, b)
+#
+# # -------------------------------Billy Test---------------------------------------
+# # cause((billy == 0), (broken == true))
+# a = :(state.billyHistory[step] == 0)
+# b = :(state.brokenHistory[step] == true)
+# @test_ac(false, aexpr2, a, b)
 
 # # -------------------------------Advanced Suzie Test---------------------------------------
-# a = :(state.suzieHistory[step].timeTillThrow == 3)
-# b = :(state.suzieThrewHistory[step] == true)
-# @test_ac(true, aexpr3, a, b)
+a = :(state.suzieHistory[step].timeTillThrow == 3)
+b = :(state.suzieThrewHistory[step] == true)
+@test_ac(true, aexpr3, a, b)
 
 # #------------------------------Current Assumptions-------------------------------
 # # cause and event are both in the form x == y
