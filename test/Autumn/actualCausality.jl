@@ -75,18 +75,12 @@ function tostateshort(var)
 end
 
 function reducenoeval(var)
-  println("reduce")
-  println(string(var))
   split_ = split(string(var), "[")
-  println(split_)
   Meta.parse(split_[1])
 end
 
 function reduce(var)
-  println("reduce")
-  println(string(var))
   split_ = split(string(var), "[")
-  println(split_)
   eval(Meta.parse(split_[1]))
 end
 
@@ -108,14 +102,14 @@ function increment(var::Expr)
   return Meta.parse(join([split_1[1], "[", string(index + 1), "]", split_2[2]]))
 end
 
-restrictedvalues = Dict(:(state.suzieHistory) => [1, 2, 3, 4, 5])
+restrictedvalues = Dict(:(state.suzieHistory) => [0, 1, 2, 3, 4, 5, 6])
 
 function possvals(val::Bool)
   [true, false]
 end
 
 function possvals(val::Union{BigInt, Int64})
-  [-2^15:1:(2^15);]
+  [-2^4:1:(2^4);]
 end
 
 function possvals(val)
@@ -123,10 +117,12 @@ function possvals(val)
 end
 
 function possiblevalues(var::Expr, val)
+  println(reducenoeval(var))
+  println(typeof(val))
   if reducenoeval(var) in keys(restrictedvalues)
     return restrictedvalues[reducenoeval(var)]
   end
-  possvals(val)
+  possvals(eval(val))
 end
 
 function tryb(cause_b)
@@ -139,24 +135,19 @@ function tryb(cause_b)
 end
 
 function acaused(cause_a::Expr, cause_b::Expr)
-  println("A")
-  println(cause_a)
   if eval(cause_a)
-    store = eval(cause_a.args[2])
+    varstore = eval(cause_a.args[2])
     short = eval(reduce(cause_a.args[2]))
     index = getstep(cause_a.args[2])
-    delete!(short, index)
-    try
-      if !eval(cause_b)
-        push!(short, index => store)
+    for val in possiblevalues(cause_a.args[2], cause_a.args[3])
+      push!(reduce(cause_a.args[2]), step =>val)
+      if !(eval(cause_b))
+        push!(reduce(cause_a.args[2]), step =>varstore)
         return true
+        break
       end
-    catch e
-      println(e)
-      push!(short, index => store)
-      return true
     end
-    push!(short, index => store)
+    push!(reduce(cause_a.args[2]), step =>varstore)
   end
   false
 end
@@ -197,7 +188,6 @@ macro test_ac(expected_true, aexpr_,  cause_a_, cause_b_)
         global step = step + 1
       end
     for cause_a in causes
-      # if ((cause_a.args[1] == cause_b.args[2] && eval(cause_a) == cause_b.args[3]) || cause_a == cause_b)
       if acaused(cause_a, cause_b)
         println("A did cause B")
         println("a path")
