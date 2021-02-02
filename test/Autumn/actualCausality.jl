@@ -74,12 +74,25 @@ function tostateshort(var)
   return Meta.parse("state.$(var)History")
 end
 
-function reduce(var)
+function reducenoeval(var)
+  println("reduce")
+  println(string(var))
   split_ = split(string(var), "[")
+  println(split_)
+  Meta.parse(split_[1])
+end
+
+function reduce(var)
+  println("reduce")
+  println(string(var))
+  split_ = split(string(var), "[")
+  println(split_)
   eval(Meta.parse(split_[1]))
 end
 
 function getstep(var)
+  println("getstep")
+  println(var)
   split_1 = split(string(var), "[")
   split_2 = split(split_1[2], "]")
   index = eval(Meta.parse(split_2[1]))
@@ -95,20 +108,25 @@ function increment(var::Expr)
   return Meta.parse(join([split_1[1], "[", string(index + 1), "]", split_2[2]]))
 end
 
-restrictedvalues = {}
+restrictedvalues = Dict(:(state.suzieHistory) => [1, 2, 3, 4, 5])
 
-function possiblevalues(sym::Symbol, val)
-  if sym in restrictedvalues
-    return restrictedvalues[sym]
-  end
-  case typeof(val)
-    boolean => [true, false]
-    else => println("not included")
-  end
+function possvals(val::Bool)
+  [true, false]
 end
 
-function possiblevalues(sym::Symbol, val::boolean)
+function possvals(val::Union{BigInt, Int64})
+  [-2^15:1:(2^15);]
+end
 
+function possvals(val)
+  throw(AutumnError(string("Invalid variable type: ", typeof(val))))
+end
+
+function possiblevalues(var::Expr, val)
+  if reducenoeval(var) in keys(restrictedvalues)
+    return restrictedvalues[reducenoeval(var)]
+  end
+  possvals(val)
 end
 
 function tryb(cause_b)
@@ -167,7 +185,6 @@ macro test_ac(expected_true, aexpr_,  cause_a_, cause_b_)
         for cause_a in causes
           try
             if eval(cause_a)
-              println("eal")
               append!(new_causes, a_causes(cause_a))
             end
           catch e

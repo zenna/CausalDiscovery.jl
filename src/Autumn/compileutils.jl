@@ -73,17 +73,27 @@ function causalon(data)
       println($quote_clause)
       if (eval($quote_clause))
         varstore = eval(a.args[2])
-        delete!(reduce(a.args[2]), step)
-        try
+        for val in possiblevalues(a.args[2], a.args[3])
+          push!(reduce(a.args[2]), step =>val)
           if !(eval($quote_clause))
             push!(reduce(a.args[2]), step =>varstore)
             push!(causes, $(quote_clause2))
+            break
           end
-        catch e
-          push!(reduce(a.args[2]), step =>varstore)
-          push!(causes, $(quote_clause2))
         end
         push!(reduce(a.args[2]), step =>varstore)
+
+        # delete!(reduce(a.args[2]), step)
+        # try
+        #   if !(eval($quote_clause))
+        #     push!(reduce(a.args[2]), step =>varstore)
+        #     push!(causes, $(quote_clause2))
+        #   end
+        # catch e
+        #   push!(reduce(a.args[2]), step =>varstore)
+        #   push!(causes, $(quote_clause2))
+        # end
+        # push!(reduce(a.args[2]), step =>varstore)
       end
     end
     push!(on_clauses, ifstatement)
