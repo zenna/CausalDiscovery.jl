@@ -79,9 +79,6 @@ function isfield(var)
 end
 
 function reducenoeval(var)
-  # if isfield(var)
-  #   return Meta.quot(var)
-  # end
   strvar = replace(string(var), "(" => "")
   strvar = replace(strvar, ")" => "")
   split_ = split(strvar, "[")
@@ -101,11 +98,6 @@ function fakereduce(var)
 end
 
 function reduce(var)
-  println("var")
-  println(var)
-  # if isfield(var)
-  #   return var
-  # end
   strvar = replace(string(var), "(" => "")
   strvar = replace(strvar, ")" => "")
   split_ = split(strvar, "[")
@@ -113,8 +105,6 @@ function reduce(var)
 end
 
 function getstep(var)
-  println("getstep")
-  println(var)
   split_1 = split(string(var), "[")
   split_2 = split(split_1[2], "]")
   index = eval(Meta.parse(split_2[1]))
@@ -145,8 +135,6 @@ function possvals(val)
 end
 
 function possiblevalues(var::Expr, val)
-  println(reducenoeval(var))
-  println(typeof(val))
   if reducenoeval(var) in keys(restrictedvalues)
     return restrictedvalues[reducenoeval(var)]
   end
@@ -199,16 +187,15 @@ macro test_ac(expected_true, aexpr_,  cause_a_, cause_b_)
       causes = [$cause_a_]
       cause_b = $cause_b_
 
-      while !tryb(cause_b)
+      while !tryb(cause_b) && length(causes) > 0
         new_causes = []
         println(causes)
         for cause_a in causes
           try
             if eval(cause_a)
-              println("in")
               append!(new_causes, a_causes(cause_a))
-            else
-              append!(new_causes, [cause_a])
+            elseif ()
+              append!(new_causes, cause_a)
             end
           catch e
             println(e)
@@ -243,46 +230,68 @@ end
 a = :(state.suzieHistory[step] == 1)
 b = :(state.brokenHistory[step] == true)
 @test_ac(true, aexpr, a, b)
-
-a = :(state.suzieHistory[0] == 1)
-b = :(state.brokenHistory[5] == true)
-@test_ac(true, aexpr, a, b)
-
-a = :(state.suzieHistory[2] == 1)
-b = :(state.brokenHistory[step] == true)
-@test_ac(false, aexpr, a, b)
-
-# -------------------------------Billy Test---------------------------------------
-# cause((billy == 0), (broken == true))
-a = :(state.billyHistory[step] == 0)
-b = :(state.brokenHistory[step] == true)
-@test_ac(false, aexpr, a, b)
-
-# cause((billy == 0), (broken == true))
-a = :(state.billyHistory[0] == 1)
-b = :(state.brokenHistory[step] == true)
-@test_ac(false, aexpr, a, b)
-
-# cause((billy == 0), (broken == true))
-a = :(state.billyHistory[1] == 1)
-b = :(state.brokenHistory[step] == true)
-@test_ac(false, aexpr, a, b)
 #
-# ------------------------------Suzie Test---------------------------------------
-#cause((suzie == 1), (broken == true))
-a = :(state.suzieHistory[step] == 1)
-b = :(state.brokenHistory[step] == true)
-@test_ac(true, aexpr2, a, b)
-
-# -------------------------------Billy Test---------------------------------------
-# cause((billy == 0), (broken == true))
-a = :(state.billyHistory[step] == 0)
-b = :(state.brokenHistory[step] == true)
-@test_ac(false, aexpr2, a, b)
+# a = :(state.suzieHistory[0] == 1)
+# b = :(state.brokenHistory[5] == true)
+# @test_ac(true, aexpr, a, b)
+#
+# a = :(state.suzieHistory[2] == 1)
+# b = :(state.brokenHistory[step] == true)
+# @test_ac(false, aexpr, a, b)
+#
+# # -------------------------------Billy Test---------------------------------------
+# # cause((billy == 0), (broken == true))
+# a = :(state.billyHistory[step] == 0)
+# b = :(state.brokenHistory[step] == true)
+# @test_ac(false, aexpr, a, b)
+#
+# # cause((billy == 0), (broken == true))
+# a = :(state.billyHistory[0] == 1)
+# b = :(state.brokenHistory[step] == true)
+# @test_ac(false, aexpr, a, b)
+#
+# # cause((billy == 0), (broken == true))
+# a = :(state.billyHistory[1] == 1)
+# b = :(state.brokenHistory[step] == true)
+# @test_ac(false, aexpr, a, b)
+# #
+# # ------------------------------Suzie Test---------------------------------------
+# #cause((suzie == 1), (broken == true))
+# a = :(state.suzieHistory[step] == 1)
+# b = :(state.brokenHistory[step] == true)
+# @test_ac(true, aexpr2, a, b)
+#
+# # -------------------------------Billy Test---------------------------------------
+# # cause((billy == 0), (broken == true))
+# a = :(state.billyHistory[step] == 0)
+# b = :(state.brokenHistory[step] == true)
+# @test_ac(false, aexpr2, a, b)
+#
+# # # -----------------------------Advanced Suzie Test No Rock-----------------------
+# a = :(state.suzieHistory[step].timeTillThrow == 3)
+# b = :(state.suzieThrewHistory[step] == true)
+# @test_ac(true, aexpr3, a, b)
+#
+# a = :(state.suzieHistory[step].timeTillThrow == 2)
+# b = :(state.suzieThrewHistory[step] == true)
+# @test_ac(true, aexpr3, a, b)
+#
+# a = :(state.suzieHistory[2].timeTillThrow == 3)
+# b = :(state.suzieThrewHistory[step] == true)
+# @test_ac(false, aexpr3, a, b)
+#
+# # # -----------------------------Advanced Billy Test No Rock-----------------------
+# a = :(state.suzieHistory[step].timeTillThrow == 4)
+# b = :(state.suzieThrewHistory[step] == true)
+# @test_ac(false, aexpr3, a, b)
+#
+# a = :(state.suzieHistory[0].timeTillThrow == 4)
+# b = :(state.suzieThrewHistory[step] == true)
+# @test_ac(false, aexpr3, a, b)
 
 # # -------------------------------Advanced Suzie Test---------------------------------------
 a = :(state.suzieHistory[step].timeTillThrow == 3)
-b = :(state.suzieThrewHistory[step] == true)
+b = :(state.broeknHistory[step] == true)
 @test_ac(true, aexpr3, a, b)
 
 # #------------------------------Current Assumptions-------------------------------
@@ -316,6 +325,10 @@ b = :(state.suzieThrewHistory[step] == true)
     (= suzie (initnext (Suzie 3 (Position 0 0))
       (updateObj (prev suzie) "timeTillThrow" (- (.. (prev suzie) timeTillThrow) 1))))
 
+    (: billy Billy)
+    (= suzie (initnext (Billy 4 (Position 0 0))
+      (updateObj (prev billy) "timeTillThrow" (- (.. (prev billy) timeTillThrow) 1))))
+
     (: bottleSpot BottleSpot)
     (= bottleSpot (initnext (BottleSpot (Position 15 7)) (BottleSpot (Position 15 7))))
 
@@ -335,19 +348,9 @@ b = :(state.suzieThrewHistory[step] == true)
 
     (on (== (.. suzie timeTillThrow) 0) (= rocks (addObj (prev rocks) (Rock (Position 0 0)))))
     (on (intersects bottleSpot rocks) (= broken true))
-  )"""
-  # aumod = eval(compiletojulia(aexpr3))
-  # state = aumod.init(nothing, nothing, nothing, nothing, nothing, MersenneTwister(0))
-  #
-  # i = 0
-  # while i < 30
-  #   global state = aumod.next(state, nothing, nothing, nothing, nothing, nothing)
-  #   global i += 1
-  # end
-  # println(state.suzieHistory[29])
-  # println(state.rocksHistory[29])
-  # println(state.brokenHistory)
 
+    (on (intersects (prev bottleSpot) (prev rocks)) (= bottle (nextBottle (prev bottle) (prev rocks) (prev bottleSpot))))
+  )"""
 
 #syntactic pattern matching but its not necessarily syntactic thing
 #what to do if non trivial
