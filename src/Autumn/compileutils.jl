@@ -30,8 +30,27 @@ function convertprev(next_value, data)
   return next_value
 end
 
+
+function replacelambda(lambdaval, next_value)
+  println(lambdaval)
+  println(next_value)
+  if next_value == lambdaval
+    return :(state.rocksHistory[step][1])
+  end
+  return next_value
+end
+
+function replacelambda(lambdaval, next_value::Union{Expr, AExpr})
+  for index in 1:length(next_value.args)
+    next_value.args[index] = replacelambda(lambdaval, next_value.args[index])
+  end
+end
+
 function convertprev(next_value::Union{AExpr, Expr}, data)
   new_expr = []
+  if next_value.head == :lambda
+    replacelambda(next_value.args[1], next_value)
+  end
   if length(next_value.args) == 2 && next_value.args[1] == :prev
     store = convertprev(next_value.args[2], data)
     return store
@@ -55,10 +74,7 @@ end
 function causalon(data)
   on_clauses = []
   for on_clause in data["on"]
-    println("on clause")
-    println(on_clause[1])
     mapped1 = convertprev(copy(on_clause[1]), data)
-    println(mapped1)
     mapped2 = copy(on_clause[2])
 
     for index in 1:length(mapped2.args)
@@ -71,8 +87,6 @@ function causalon(data)
     quote_clause = Meta.quot(mapped1)
     quote_clause2 = Meta.quot(mapped2)
     ifstatement = quote
-      println("quote clause")
-      println($quote_clause)
       if (eval($quote_clause))
         varstore = eval(a.args[2])
         for val in possiblevalues(a.args[2], a.args[3])
@@ -112,7 +126,7 @@ function causalin(data)
     new_expr = []
     if next_value.args[1] == :prev
       continue
-    elseif next_value.args[1] == :updateObj
+    elseif next_value.args[1] == :updateObj && length(next_value.args) == 4
       new_expr = convertprev(next_value.args[4], data)
     else
       new_expr = convertprev(next_value, data)
@@ -122,9 +136,18 @@ function causalin(data)
 
     ifstatement = quote
       varstore = a.args[3]
-      if (eval(a.args[2]) == a.args[3] && reducenoeval(a.args[2]) == reducenoeval($mapped))
+      println("important")
+      println($new_expr)
+      println(a.args[2])
+      println(eval(a.args[2]))
+      println(eval(a.args[3]))
+      println(reducenoeval(a.args[2]))
+      println(reducenoeval($mapped))
+      if (eval(a.args[2]) == eval(a.args[3]) && reducenoeval(a.args[2]) == reducenoeval($mapped))
         for val in possiblevalues(a.args[2], a.args[3])
+          println(val)
           if isfield(a.args[2])
+            println(eval(a.args[2]))
             eval(Expr(:(=), a.args[2], val))
           else
             push!(reduce(a.args[2]), step =>val)
@@ -135,14 +158,13 @@ function causalin(data)
             else
               push!(reduce(a.args[2]), step =>varstore)
             end
+            println($new_expr)
             push!(causes, Expr(:call, :(==), (increment(a.args[2])), $new_expr))
             break
           end
         end
         if isfield(a.args[2])
           eval(Expr(:(=), a.args[2], varstore))
-
-          # a.args[2] = varstore
         else
           push!(reduce(a.args[2]), step =>varstore)
         end
@@ -512,7 +534,7 @@ const builtInDict = Dict([
                           y::Int
                         end
 
-                        struct Position
+                        mutable struct Position
                           x::Int
                           y::Int
                         end

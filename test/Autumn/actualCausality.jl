@@ -50,6 +50,7 @@ aexpr3 = au"""(program
   (= GRID_SIZE 16)
 
   (object Suzie (: timeTillThrow Integer) (Cell 0 0 "blue"))
+  (object Billy (: timeTillThrow Integer) (Cell 0 0 "red"))
 
   (: suzieThrew Bool)
   (= suzieThrew (initnext false (prev suzieThrew)))
@@ -58,8 +59,91 @@ aexpr3 = au"""(program
   (= suzie (initnext (Suzie 3 (Position 0 0))
     (updateObj (prev suzie) "timeTillThrow" (- (.. (prev suzie) timeTillThrow) 1))))
 
-  (on (== (.. suzie timeTillThrow) 0) (= suzieThrew true))
+  (: billy Billy)
+  (= billy (initnext (Billy 4 (Position 0 0))
+    (updateObj (prev billy) "timeTillThrow" (- (.. (prev billy) timeTillThrow) 1))))
 
+  (on (== (.. suzie timeTillThrow) 0) (= suzieThrew true))
+  (on (== (.. billy timeTillThrow) 0) (= billyThrew true))
+
+  )"""
+
+  aexpr4 = au"""(program
+    (= GRID_SIZE 16)
+
+    (: broken Bool)
+    (= broken (initnext false (prev broken)))
+
+
+    (object Bottle (: broken Bool) (list (Cell 0 0 (if broken then "yellow" else "white"))
+                                          (Cell 0 1 (if broken then "white" else "yellow"))
+                                          (Cell 0 2 (if broken then "gray" else "yellow"))
+                                          (Cell 0 3 (if broken then "white" else "yellow"))
+                                          (Cell 0 4 (if broken then "yellow" else "white"))))
+
+    (object BottleSpot (Cell 0 0 "white"))
+    (object Rock (Cell 0 0 "black"))
+
+    (: bottleSpot BottleSpot)
+    (= bottleSpot (initnext (BottleSpot (Position 15 7)) (prev bottleSpot)))
+
+    (: rocks (List Rock))
+    (= rocks
+       (initnext (list (Rock (Position 0 7)))
+                 (updateObj (prev rocks) (--> obj
+                                (move obj (unitVector obj bottleSpot))))))
+
+    (on (intersects bottleSpot rocks) (= broken true))
+  )"""
+
+
+  aexpr5 = au"""(program
+    (= GRID_SIZE 16)
+
+    (: broken Bool)
+    (= broken (initnext false (prev broken)))
+
+
+    (object Suzie (: timeTillThrow Integer) (Cell 0 0 "blue"))
+    (object Billy (: timeTillThrow Integer) (Cell 0 0 "red"))
+
+    (object Bottle (: broken Bool) (list (Cell 0 0 (if broken then "yellow" else "white"))
+                                          (Cell 0 1 (if broken then "white" else "yellow"))
+                                          (Cell 0 2 (if broken then "gray" else "yellow"))
+                                          (Cell 0 3 (if broken then "white" else "yellow"))
+                                          (Cell 0 4 (if broken then "yellow" else "white"))))
+
+    (object BottleSpot (Cell 0 0 "white"))
+    (object Rock (Cell 0 0 "black"))
+
+
+    (: suzie Suzie)
+    (= suzie (initnext (Suzie 3 (Position 0 0))
+      (updateObj (prev suzie) "timeTillThrow" (- (.. (prev suzie) timeTillThrow) 1))))
+
+    (: billy Billy)
+    (= billy (initnext (Billy 4 (Position 0 0))
+      (updateObj (prev billy) "timeTillThrow" (- (.. (prev billy) timeTillThrow) 1))))
+
+    (: bottleSpot BottleSpot)
+    (= bottleSpot (initnext (BottleSpot (Position 15 7)) (BottleSpot (Position 15 7))))
+
+    (: rocks (List Rock))
+    (= rocks
+       (initnext (list)
+                 (updateObj (prev rocks) (--> obj
+                                (move obj (unitVector obj bottleSpot))))))
+
+    (= nextBottle (fn (bot rockst bottleSpott) (if (intersects bottleSpott rockst) then (updateObj bot "broken" true) else bot)))
+
+    (: bottle Bottle)
+    (= bottle (initnext (Bottle false (Position 15 5)) (nextBottle (prev bottle) (prev rocks) (prev bottleSpot))))
+
+    (on (== (.. suzie timeTillThrow) 0) (= rocks (addObj (prev rocks) (Rock (Position 0 0)))))
+
+
+    (on (intersects (prev bottleSpot) (prev rocks)) (= broken true))
+    (on (intersects (prev bottleSpot) (prev rocks)) (= bottle (nextBottle (prev bottle) (prev rocks) (prev bottleSpot))))
   )"""
 
 function tostate(var)
@@ -93,6 +177,12 @@ function pushbyfield(var, val)
   end
 end
 
+function unitVector(obj1, obj2)
+  println("unit")
+  println(obj1)
+  println(obj2)
+end
+
 function fakereduce(var)
   Meta.parse(string(var))
 end
@@ -118,6 +208,17 @@ function increment(var::Expr)
     return eval(Meta.parse(join([split_1[1], "[step]", split_2[2]])))
   end
   return Meta.parse(join([split_1[1], "[", string(index + 1), "]", split_2[2]]))
+end
+
+intersects(obj1::Array, obj2) = intersects(obj2, obj1)
+
+function intersects(obj1, obj2::Array)
+  for obj in obj2
+    if obj1.origin == obj.origin
+      return true
+    end
+  end
+  false
 end
 
 restrictedvalues = Dict(:(state.suzieHistory) => [0, 1, 2, 3, 4, 5, 6])
@@ -182,7 +283,7 @@ macro test_ac(expected_true, aexpr_,  cause_a_, cause_b_)
       get_a_causes = getcausal($aexpr_)
       # println(get_a_causes)
       eval(get_a_causes)
-      aumod = eval(compiletojulia($aexpr_))
+      # aumod = eval(compiletojulia($aexpr_))
       state = aumod.init(nothing, nothing, nothing, nothing, nothing, MersenneTwister(0))
       causes = [$cause_a_]
       cause_b = $cause_b_
@@ -191,16 +292,19 @@ macro test_ac(expected_true, aexpr_,  cause_a_, cause_b_)
         new_causes = []
         println(causes)
         for cause_a in causes
-          try
+          # try
+          println(eval(cause_a))
+          println(eval(cause_a.args[3]))
+          println(eval(cause_a.args[2]))
             if eval(cause_a)
               append!(new_causes, a_causes(cause_a))
-            elseif ()
-              append!(new_causes, cause_a)
+            else
+              append!(new_causes, [cause_a])
             end
-          catch e
-            println(e)
-            append!(new_causes, [cause_a])
-          end
+          # catch e
+          #   println(e)
+          #   append!(new_causes, [cause_a])
+          # end
         end
         global causes = new_causes
         global state = aumod.next(state, nothing, nothing, nothing, nothing, nothing)
@@ -227,6 +331,7 @@ macro test_ac(expected_true, aexpr_,  cause_a_, cause_b_)
 end
 # ------------------------------Suzie Test---------------------------------------
 # cause((suzie == 1), (broken == true))
+aumod = eval(compiletojulia(aexpr))
 a = :(state.suzieHistory[step] == 1)
 b = :(state.brokenHistory[step] == true)
 @test_ac(true, aexpr, a, b)
@@ -289,10 +394,16 @@ b = :(state.brokenHistory[step] == true)
 # b = :(state.suzieThrewHistory[step] == true)
 # @test_ac(false, aexpr3, a, b)
 
+# # -------------------------------Advanced Rock Test---------------------------------------
+aumod = eval(compiletojulia(aexpr4))
+a = :(state.rocksHistory[step][1].origin.x == aumod.Position(0, 7).x)
+b = :(state.brokenHistory[step] == true)
+@test_ac(true, aexpr4, a, b)
+
 # # -------------------------------Advanced Suzie Test---------------------------------------
-a = :(state.suzieHistory[step].timeTillThrow == 3)
-b = :(state.broeknHistory[step] == true)
-@test_ac(true, aexpr3, a, b)
+# a = :(state.suzieHistory[step].timeTillThrow == 3)
+# b = :(state.brokenHistory[step] == true)
+# @test_ac(true, aexpr5, a, b)
 
 # #------------------------------Current Assumptions-------------------------------
 # # cause and event are both in the form x == y
@@ -308,6 +419,11 @@ b = :(state.broeknHistory[step] == true)
 
   aexpr3 = au"""(program
     (= GRID_SIZE 16)
+
+    (: broken Bool)
+    (= broken (initnext false (prev broken)))
+
+
     (object Suzie (: timeTillThrow Integer) (Cell 0 0 "blue"))
     (object Billy (: timeTillThrow Integer) (Cell 0 0 "red"))
 
@@ -326,14 +442,11 @@ b = :(state.broeknHistory[step] == true)
       (updateObj (prev suzie) "timeTillThrow" (- (.. (prev suzie) timeTillThrow) 1))))
 
     (: billy Billy)
-    (= suzie (initnext (Billy 4 (Position 0 0))
+    (= billy (initnext (Billy 4 (Position 0 0))
       (updateObj (prev billy) "timeTillThrow" (- (.. (prev billy) timeTillThrow) 1))))
 
     (: bottleSpot BottleSpot)
     (= bottleSpot (initnext (BottleSpot (Position 15 7)) (BottleSpot (Position 15 7))))
-
-    (: broken Bool)
-    (= broken (initnext false (prev broken)))
 
     (: rocks (List Rock))
     (= rocks
@@ -347,11 +460,116 @@ b = :(state.broeknHistory[step] == true)
     (= bottle (initnext (Bottle false (Position 15 5)) (nextBottle (prev bottle) (prev rocks) (prev bottleSpot))))
 
     (on (== (.. suzie timeTillThrow) 0) (= rocks (addObj (prev rocks) (Rock (Position 0 0)))))
-    (on (intersects bottleSpot rocks) (= broken true))
 
+
+    (on (intersects (prev bottleSpot) (prev rocks)) (= broken true))
     (on (intersects (prev bottleSpot) (prev rocks)) (= bottle (nextBottle (prev bottle) (prev rocks) (prev bottleSpot))))
   )"""
 
+  aexpr4 = au"""(program
+    (= GRID_SIZE 16)
+
+    (: broken Bool)
+    (= broken (initnext false (prev broken)))
+
+
+    (object Bottle (: broken Bool) (list (Cell 0 0 (if broken then "yellow" else "white"))
+                                          (Cell 0 1 (if broken then "white" else "yellow"))
+                                          (Cell 0 2 (if broken then "gray" else "yellow"))
+                                          (Cell 0 3 (if broken then "white" else "yellow"))
+                                          (Cell 0 4 (if broken then "yellow" else "white"))))
+
+    (object BottleSpot (Cell 0 0 "white"))
+    (object Rock (Cell 0 0 "black"))
+
+    (: bottleSpot BottleSpot)
+    (= bottleSpot (initnext (BottleSpot (Position 15 7)) (BottleSpot (Position 15 7))))
+
+    (: rocks (List Rock))
+    (= rocks
+       (initnext (list (Rock (Position 0 7)))
+                 (updateObj (prev rocks) (--> obj
+                                (if (intersects bottleSpot obj) then (removeObj obj)
+                                  else (move obj (unitVector obj bottleSpot)))))))
+
+    (= nextBottle (fn (bot rockst bottleSpott) (if (intersects bottleSpott rockst) then (updateObj bot "broken" true) else bot)))
+
+    (: bottle Bottle)
+    (= bottle (initnext (Bottle false (Position 15 5)) (nextBottle (prev bottle) (prev rocks) (prev bottleSpot))))
+
+    (on (intersects bottleSpot rocks) (= broken true))
+    (on (intersects (prev bottleSpot) (prev rocks)) (= bottle (nextBottle (prev bottle) (prev rocks) (prev bottleSpot))))
+  )"""
+
+  # aumod = eval(compiletojulia(aexpr4))
+  # step = 0
+  # state = aumod.init(nothing, nothing, nothing, nothing, nothing, MersenneTwister(0))
+  # println(state.brokenHistory[step])
+  # step+=1
+  # state = aumod.next(state, nothing, nothing, nothing, nothing, nothing)
+  # println(state.brokenHistory[step])
+  # state.rocksHistory[step][1].origin = Position(4, 7)
+  # println(state.rocksHistory[step][1].origin)
+  # step+=1
+
+  # state = aumod.next(state, nothing, nothing, nothing, nothing, nothing)
+  # println(state.brokenHistory[step])
+  # step+=1
+  # state = aumod.next(state, nothing, nothing, nothing, nothing, nothing)
+  # println(state.brokenHistory[step])
+  # step+=1
+  # state = aumod.next(state, nothing, nothing, nothing, nothing, nothing)
+  # println(state.brokenHistory[step])
+  # step+=1
+  # state = aumod.next(state, nothing, nothing, nothing, nothing, nothing)
+  # println(state.brokenHistory[step])
+  # step+=1
+  # state = aumod.next(state, nothing, nothing, nothing, nothing, nothing)
+  # println(state.brokenHistory[step])
+  # step+=1
+  # state = aumod.next(state, nothing, nothing, nothing, nothing, nothing)
+  # println(state.brokenHistory[step])
+  # step+=1
+  # state = aumod.next(state, nothing, nothing, nothing, nothing, nothing)
+  # println(state.brokenHistory[step])
+  # step+=1
+  # state = aumod.next(state, nothing, nothing, nothing, nothing, nothing)
+  # println(state.brokenHistory[step])
+  # step+=1
+  # state = aumod.next(state, nothing, nothing, nothing, nothing, nothing)
+  # println(state.brokenHistory[step])
+  # step+=1
+  # state = aumod.next(state, nothing, nothing, nothing, nothing, nothing)
+  # println(state.brokenHistory[step])
+  # step+=1
+  # state = aumod.next(state, nothing, nothing, nothing, nothing, nothing)
+  # println(state.brokenHistory[step])
+  # step+=1
+  # state = aumod.next(state, nothing, nothing, nothing, nothing, nothing)
+  # println(state.brokenHistory[step])
+  # step+=1
+  # state = aumod.next(state, nothing, nothing, nothing, nothing, nothing)
+  # println(state.brokenHistory[step])
+  # step+=1
+  # state = aumod.next(state, nothing, nothing, nothing, nothing, nothing)
+  # println(state.brokenHistory[step])
+  # step+=1
+  # state = aumod.next(state, nothing, nothing, nothing, nothing, nothing)
+  # println(state.brokenHistory[step])
+  # step+=1
+  # state = aumod.next(state, nothing, nothing, nothing, nothing, nothing)
+  # println(state.brokenHistory[step])
+  # step+=1
+  # state = aumod.next(state, nothing, nothing, nothing, nothing, nothing)
+  # println(state.brokenHistory[step])
+  # step+=1
+  # state = aumod.next(state, nothing, nothing, nothing, nothing, nothing)
+  # println(state.brokenHistory[step])
+  # step+=1
+  # state = aumod.next(state, nothing, nothing, nothing, nothing, nothing)
+  # println(state.rocksHistory[step][1])
+  # println(state.rocksHistory[step][1].origin.x)
+  # println(state.rocksHistory[step][1].origin.y)
 #syntactic pattern matching but its not necessarily syntactic thing
 #what to do if non trivial
 #in my set of causes
@@ -377,3 +595,5 @@ b = :(state.broeknHistory[step] == true)
 #except for some tiny location think about it and solve it
 #add to the question
 #prove that there are no counter examples
+
+#tracking objects within the list is hard

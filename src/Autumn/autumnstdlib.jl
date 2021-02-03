@@ -37,7 +37,7 @@ struct Object {
   Position origin;
   bit alive;
   char[STR_BND] type;
-  Cell[ARR_BND] render;	
+  Cell[ARR_BND] render;
 }
 
 struct Position {
@@ -56,7 +56,7 @@ struct Down extends KeyPress {}
 
 struct Cell {
   Position position;
-  char[STR_BND] color; 
+  char[STR_BND] color;
 }
 
 struct Scene {
@@ -120,7 +120,7 @@ bit isWithinBoundsObject(Object object) {
     if (!isWithinBoundsPosition(cell.position)) {
       return false;
     }
-  }  
+  }
   return true;
 }
 
@@ -159,7 +159,7 @@ bit clickedObjArray(Click click, Object[ARR_BND] objects) {
 
     if (clickedObj(click, object)) {
       return true;
-    } 
+    }
   }
   return false;
 }
@@ -196,7 +196,7 @@ bit intersectsObjObjArray(Object object, Object[ARR_BND] objects) {
       return true;
     }
   }
-  return false;   
+  return false;
 }
 
 
@@ -215,7 +215,7 @@ bit intersectsScene(Scene scene, Object object) {
   return intersectsObjObjArray(object, objects);
 }
 
-// add/remove/update objects 
+// add/remove/update objects
 Object[ARR_BND] addObj(Object[ARR_BND] objects, Object object) {
   Object[ARR_BND] newObjects = objects;
   for (int i = 0; i < ARR_BND; i++) {
@@ -300,7 +300,7 @@ Position[ARR_BND] adjPositions(Position position) {
 
   Position[4] retVal;
   int retIndex = 0;
-  
+
   for (int i = 0; i < 4; i++) {
     if (isWithinBoundsPosition(positions[i])) {
       retVal[retIndex++] = positions[i];
@@ -391,7 +391,7 @@ for (int i = 0; i < ARR_BND; i++) {
     if (obj.origin.x == click.position.x && obj.origin.y == click.position.y) {
       return obj;
     }
-  } 
+  }
 }
 return null;
 }
@@ -399,7 +399,7 @@ return null;
 bit isAdjacentObject(Object object1, Object object2) {
 if (intersectsObjObj(object1, object2)) {
   return false;
-} 
+}
 Cell[ARR_BND] cells1 = renderObj(object1);
 Cell[ARR_BND] cells2 = renderObj(object2);
 for (int i = 0; i < ARR_BND; i++) {
