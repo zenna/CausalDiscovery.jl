@@ -74,13 +74,41 @@ function tostateshort(var)
   return Meta.parse("state.$(var)History")
 end
 
+function isfield(var)
+  (length(split(string(var), "].")) > 1 || length(split(string(var), ").")) > 1)
+end
+
 function reducenoeval(var)
-  split_ = split(string(var), "[")
+  # if isfield(var)
+  #   return Meta.quot(var)
+  # end
+  strvar = replace(string(var), "(" => "")
+  strvar = replace(strvar, ")" => "")
+  split_ = split(strvar, "[")
   Meta.parse(split_[1])
 end
 
+function pushbyfield(var, val)
+  if isfield(a.args[2])
+    eval(Expr(:(=), a.args[2], val))
+  else
+    push!(reduce(a.args[2]), step =>val)
+  end
+end
+
+function fakereduce(var)
+  Meta.parse(string(var))
+end
+
 function reduce(var)
-  split_ = split(string(var), "[")
+  println("var")
+  println(var)
+  # if isfield(var)
+  #   return var
+  # end
+  strvar = replace(string(var), "(" => "")
+  strvar = replace(strvar, ")" => "")
+  split_ = split(strvar, "[")
   eval(Meta.parse(split_[1]))
 end
 
@@ -164,6 +192,7 @@ macro test_ac(expected_true, aexpr_,  cause_a_, cause_b_)
     return quote
       global step = 0
       get_a_causes = getcausal($aexpr_)
+      # println(get_a_causes)
       eval(get_a_causes)
       aumod = eval(compiletojulia($aexpr_))
       state = aumod.init(nothing, nothing, nothing, nothing, nothing, MersenneTwister(0))
@@ -176,7 +205,10 @@ macro test_ac(expected_true, aexpr_,  cause_a_, cause_b_)
         for cause_a in causes
           try
             if eval(cause_a)
+              println("in")
               append!(new_causes, a_causes(cause_a))
+            else
+              append!(new_causes, [cause_a])
             end
           catch e
             println(e)
@@ -212,41 +244,41 @@ a = :(state.suzieHistory[step] == 1)
 b = :(state.brokenHistory[step] == true)
 @test_ac(true, aexpr, a, b)
 
-# a = :(state.suzieHistory[0] == 1)
-# b = :(state.brokenHistory[5] == true)
-# @test_ac(true, aexpr, a, b)
+a = :(state.suzieHistory[0] == 1)
+b = :(state.brokenHistory[5] == true)
+@test_ac(true, aexpr, a, b)
+
+a = :(state.suzieHistory[2] == 1)
+b = :(state.brokenHistory[step] == true)
+@test_ac(false, aexpr, a, b)
+
+# -------------------------------Billy Test---------------------------------------
+# cause((billy == 0), (broken == true))
+a = :(state.billyHistory[step] == 0)
+b = :(state.brokenHistory[step] == true)
+@test_ac(false, aexpr, a, b)
+
+# cause((billy == 0), (broken == true))
+a = :(state.billyHistory[0] == 1)
+b = :(state.brokenHistory[step] == true)
+@test_ac(false, aexpr, a, b)
+
+# cause((billy == 0), (broken == true))
+a = :(state.billyHistory[1] == 1)
+b = :(state.brokenHistory[step] == true)
+@test_ac(false, aexpr, a, b)
 #
-# a = :(state.suzieHistory[2] == 1)
-# b = :(state.brokenHistory[step] == true)
-# @test_ac(false, aexpr, a, b)
-#
-# # -------------------------------Billy Test---------------------------------------
-# # cause((billy == 0), (broken == true))
-# a = :(state.billyHistory[step] == 0)
-# b = :(state.brokenHistory[step] == true)
-# @test_ac(false, aexpr, a, b)
-#
-# # cause((billy == 0), (broken == true))
-# a = :(state.billyHistory[0] == 1)
-# b = :(state.brokenHistory[step] == true)
-# @test_ac(false, aexpr, a, b)
-#
-# # cause((billy == 0), (broken == true))
-# a = :(state.billyHistory[1] == 1)
-# b = :(state.brokenHistory[step] == true)
-# @test_ac(false, aexpr, a, b)
-# #
-# # ------------------------------Suzie Test---------------------------------------
-# #cause((suzie == 1), (broken == true))
-# a = :(state.suzieHistory[step] == 1)
-# b = :(state.brokenHistory[step] == true)
-# @test_ac(true, aexpr2, a, b)
-#
-# # -------------------------------Billy Test---------------------------------------
-# # cause((billy == 0), (broken == true))
-# a = :(state.billyHistory[step] == 0)
-# b = :(state.brokenHistory[step] == true)
-# @test_ac(false, aexpr2, a, b)
+# ------------------------------Suzie Test---------------------------------------
+#cause((suzie == 1), (broken == true))
+a = :(state.suzieHistory[step] == 1)
+b = :(state.brokenHistory[step] == true)
+@test_ac(true, aexpr2, a, b)
+
+# -------------------------------Billy Test---------------------------------------
+# cause((billy == 0), (broken == true))
+a = :(state.billyHistory[step] == 0)
+b = :(state.brokenHistory[step] == true)
+@test_ac(false, aexpr2, a, b)
 
 # # -------------------------------Advanced Suzie Test---------------------------------------
 a = :(state.suzieHistory[step].timeTillThrow == 3)

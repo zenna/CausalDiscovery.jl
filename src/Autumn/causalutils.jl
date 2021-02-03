@@ -10,6 +10,9 @@ function tostateshort(var)
 end
 
 function reducenoeval(var)
+  if "." in string(var)
+    return var
+  end
   println("reduce")
   println(string(var))
   split_ = split(string(var), "[")

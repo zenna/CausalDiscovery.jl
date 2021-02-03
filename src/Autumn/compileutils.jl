@@ -38,7 +38,10 @@ function convertprev(next_value::Union{AExpr, Expr}, data)
   println(next_value.args)
   println(next_value.head)
   if length(next_value.args) == 2 && next_value.args[1] == :prev
-    return convertprev(next_value.args[2], data)
+    store = convertprev(next_value.args[2], data)
+    println(1)
+    println(store)
+    return store
   end
   for index in 1:length(next_value.args)
     # if typeof(next_value.args[index]) == AExpr && next_value.args[index].args[1] == :prev
@@ -47,41 +50,80 @@ function convertprev(next_value::Union{AExpr, Expr}, data)
       push!(new_expr, convertprev(next_value.args[index], data))
     # end
   end
-  if next_value.head == :field
-    return AExpr(next_value.head, new_expr...)
+  if next_value.head == :(.)
+    for index in 1:length(next_value.args)
+      next_value.args[index] = new_expr[index]
+    end
+    println(2)
+    println(next_value.head)
+    println(next_value)
+    println(new_expr)
+    return next_value
   end
+  if next_value.head == :field
+    println(3)
+    println(next_value.head)
+    println(next_value)
+    println(new_expr)
+    join(new_expr, ".")
+    println(Meta.parse(join(new_expr, ".")))
+    return Meta.parse(join(new_expr, "."))
+  end
+  # if length(new_expr) == 1
+  #   store = new_expr[1]
+  #   println(3)
+  #   println(store)
+  #   return store
+  # end
+  println(4)
+  println(Expr(:call, :eval, Expr(:call, new_expr...)))
   Expr(:call, :eval, Expr(:call, new_expr...))
 end
 
 function causalon(data)
   on_clauses = []
   for on_clause in data["on"]
-    mapped1 = copy(on_clause[1])
+    println("on clause")
+    println(on_clause[1])
+    mapped1 = convertprev(copy(on_clause[1]), data)
+    println(mapped1)
     mapped2 = copy(on_clause[2])
-    for index in 1:length(mapped1.args)
-      mapped1.args[index] = convertprev(mapped1.args[index], data)
-    end
+
     for index in 1:length(mapped2.args)
       mapped2.args[index] = convertprev(mapped2.args[index], data)
     end
+
     if mapped2.head == :(=)
       mapped2 = Expr(:call, :(==), mapped2.args...)
     end
     quote_clause = Meta.quot(mapped1)
     quote_clause2 = Meta.quot(mapped2)
     ifstatement = quote
+      println("quote clause")
       println($quote_clause)
       if (eval($quote_clause))
         varstore = eval(a.args[2])
         for val in possiblevalues(a.args[2], a.args[3])
-          push!(reduce(a.args[2]), step =>val)
+          if isfield(a.args[2])
+            eval(Expr(:(=), a.args[2], val))
+          else
+            push!(reduce(a.args[2]), step =>val)
+          end
           if !(eval($quote_clause))
-            push!(reduce(a.args[2]), step =>varstore)
+            if isfield(a.args[2])
+              eval(Expr(:(=), a.args[2], varstore))
+            else
+              push!(reduce(a.args[2]), step =>varstore)
+            end
             push!(causes, $(quote_clause2))
             break
           end
         end
-        push!(reduce(a.args[2]), step =>varstore)
+        if isfield(a.args[2])
+          eval(Expr(:(=), a.args[2], varstore))
+        else
+          push!(reduce(a.args[2]), step =>varstore)
+        end
       end
     end
     push!(on_clauses, ifstatement)
@@ -105,19 +147,43 @@ function causalin(data)
     end
 
     shortmap = tostateshort(clause.args[1])
+
     ifstatement = quote
-      store = :($(a.args[2]))
       varstore = a.args[3]
+      println("important")
+      println(eval(a.args[2]))
+      println(a.args[3])
+      println(a.args[2])
+      println(reducenoeval(a.args[2]))
+      println(reducenoeval($mapped))
       if (eval(a.args[2]) == a.args[3] && reducenoeval(a.args[2]) == reducenoeval($mapped))
         for val in possiblevalues(a.args[2], a.args[3])
-          push!(reduce(a.args[2]), step =>val)
+          println(val)
+          println("eval")
+          println(eval(a.args[2]))
+          if isfield(a.args[2])
+            eval(Expr(:(=), a.args[2], val))
+          else
+            push!(reduce(a.args[2]), step =>val)
+          end
           if !(eval(a.args[2]) == a.args[3])
-            push!(reduce(a.args[2]), step =>varstore)
+            println(a.args[2])
+            if isfield(a.args[2])
+              eval(Expr(:(=), a.args[2], varstore))
+            else
+              push!(reduce(a.args[2]), step =>varstore)
+            end
             push!(causes, Expr(:call, :(==), (increment(a.args[2])), $new_expr))
             break
           end
         end
-        push!(reduce(a.args[2]), step =>varstore)
+        if isfield(a.args[2])
+          eval(Expr(:(=), a.args[2], varstore))
+
+          # a.args[2] = varstore
+        else
+          push!(reduce(a.args[2]), step =>varstore)
+        end
       end
     end
     push!(in_clauses, ifstatement)
@@ -128,7 +194,9 @@ end
 
 function compilecausal(data)
   on_clauses = causalon(data)
+  println("finish on")
   in_clauses = causalin(data)
+  println("finish in")
   expr = quote
     function a_causes(a)
       causes = []
