@@ -4,6 +4,477 @@ using Random
 using MLStyle
 import Base.Cartesian.lreplace
 
+abstract type Object end
+abstract type KeyPress end
+
+struct Left <: KeyPress end
+struct Right <: KeyPress end
+struct Up <: KeyPress end
+struct Down <: KeyPress end
+
+struct Click
+  x::Int
+  y::Int
+end
+
+mutable struct Position
+  x::Int
+  y::Int
+end
+
+struct Cell
+  position::Position
+  color::String
+  opacity::Float64
+end
+
+Cell(position::Position, color::String) = Cell(position, color, 0.8)
+Cell(x::Int, y::Int, color::String) = Cell(Position(floor(Int, x), floor(Int, y)), color, 0.8)
+Cell(x::Int, y::Int, color::String, opacity::Float64) = Cell(Position(floor(Int, x), floor(Int, y)), color, opacity)
+
+struct Scene
+  objects::Array{Object}
+  background::String
+end
+
+Scene(objects::AbstractArray) = Scene(objects, "#ffffff00")
+
+function render(scene::Scene)::Array{Cell}
+  vcat(map(obj -> render(obj), filter(obj -> obj.alive && !obj.hidden, scene.objects))...)
+end
+
+function render(obj::Object)::Array{Cell}
+  map(cell -> Cell(move(cell.position, obj.origin), cell.color), obj.render)
+end
+
+function isWithinBounds(obj::Object)::Bool
+  # println(filter(cell -> !isWithinBounds(cell.position),render(obj)))
+  length(filter(cell -> !isWithinBounds(cell.position), render(obj))) == 0
+end
+
+function clicked(click::Union{Click, Nothing}, object::Object)::Bool
+  if click == nothing
+    false
+  else
+    GRID_SIZE = state.GRID_SIZEHistory[0]
+    nums = map(cell -> GRID_SIZE*cell.position.y + cell.position.x, render(object))
+    (GRID_SIZE * click.y + click.x) in nums
+  end
+end
+
+function clicked(click::Union{Click, Nothing}, objects::AbstractArray)
+  # println("LOOK AT ME")
+  # println(reduce(&, map(obj -> clicked(click, obj), objects)))
+  reduce(|, map(obj -> clicked(click, obj), objects))
+end
+
+function objClicked(click::Union{Click, Nothing}, objects::AbstractArray)::Object
+  println(click)
+  filter(obj -> clicked(click, obj), objects)[1]
+end
+
+function clicked(click::Union{Click, Nothing}, x::Int, y::Int)::Bool
+  if click == nothing
+    false
+  else
+    click.x == x && click.y == y
+  end
+end
+
+function clicked(click::Union{Click, Nothing}, pos::Position)::Bool
+  if click == nothing
+    false
+  else
+    click.x == pos.x && click.y == pos.y
+  end
+end
+
+function intersects(obj1::Object, obj2::Object)::Bool
+  nums1 = map(cell -> state.GRID_SIZEHistory[0]*cell.position.y + cell.position.x, render(obj1))
+  nums2 = map(cell -> state.GRID_SIZEHistory[0]*cell.position.y + cell.position.x, render(obj2))
+  length(intersect(nums1, nums2)) != 0
+end
+
+function intersects(obj1::Object, obj2::Array{<:Object})::Bool
+  nums1 = map(cell -> state.GRID_SIZEHistory[0]*cell.position.y + cell.position.x, render(obj1))
+  nums2 = map(cell -> state.GRID_SIZEHistory[0]*cell.position.y + cell.position.x, vcat(map(render, obj2)...))
+  length(intersect(nums1, nums2)) != 0
+end
+
+function intersects(list1, list2)::Bool
+  length(intersect(list1, list2)) != 0
+end
+
+function intersects(object::Object)::Bool
+  objects = state.scene.objects
+  intersects(object, objects)
+end
+
+function addObj(list::Array{<:Object}, obj::Object)
+  new_list = vcat(list, obj)
+  new_list
+end
+
+function addObj(list::Array{<:Object}, objs::Array{<:Object})
+  new_list = vcat(list, objs)
+  new_list
+end
+
+function removeObj(list::Array{<:Object}, obj::Object)
+  filter(x -> x.id != obj.id, list)
+end
+
+function removeObj(list::Array{<:Object}, fn)
+  orig_list = filter(obj -> !fn(obj), list)
+end
+
+function removeObj(obj::Object)
+  obj.alive = false
+  deepcopy(obj)
+end
+
+function updateObj(obj, field::String, value)
+  println(updateObj)
+  fields = fieldnames(typeof(obj))
+  custom_fields = fields[5:end-1]
+  origin_field = (fields[2],)
+
+  constructor_fields = (custom_fields..., origin_field...)
+  constructor_values = map(x -> x == Symbol(field) ? value : getproperty(obj, x), constructor_fields)
+
+  new_obj = typeof(obj)(constructor_values...)
+  setproperty!(new_obj, :id, obj.id)
+  setproperty!(new_obj, :alive, obj.alive)
+  setproperty!(new_obj, :hidden, obj.hidden)
+
+  setproperty!(new_obj, Symbol(field), value)
+  new_obj
+end
+
+function filter_fallback(obj::Object)
+  true
+end
+
+Base.:(==)(a::Position, b::Position) = equalPosition(a, b)
+
+function equalPosition(a, b)
+  return a.x == b.x && a.y == b.y
+end
+
+function updateObj(list::Array{<:Object}, map_fn, filter_fn=filter_fallback)
+  orig_list = filter(obj -> !filter_fn(obj), list)
+  filtered_list = filter(filter_fn, list)
+  new_filtered_list = map(map_fn, filtered_list)
+  vcat(orig_list, new_filtered_list)
+end
+
+function adjPositions(position::Position)::Array{Position}
+  filter(isWithinBounds, [Position(position.x, position.y + 1), Position(position.x, position.y - 1), Position(position.x + 1, position.y), Position(position.x - 1, position.y)])
+end
+
+function isWithinBounds(position::Position)::Bool
+  (position.x >= 0) && (position.x < state.GRID_SIZEHistory[0]) && (position.y >= 0) && (position.y < state.GRID_SIZEHistory[0])
+end
+
+function isFree(position::Position)::Bool
+  length(filter(cell -> cell.position.x == position.x && cell.position.y == position.y, render(state.scene))) == 0
+end
+
+function isFree(click::Union{Click, Nothing})::Bool
+  if click == nothing
+    false
+  else
+    isFree(Position(click.x, click.y))
+  end
+end
+
+function unitVector(position1::Position, position2::Position)::Position
+  deltaX = position2.x - position1.x
+  deltaY = position2.y - position1.y
+  if (floor(Int, abs(sign(deltaX))) == 1 && floor(Int, abs(sign(deltaY))) == 1)
+    uniformChoice([Position(sign(deltaX), 0), Position(0, sign(deltaY))])
+  else
+    Position(sign(deltaX), sign(deltaY))
+  end
+end
+
+function unitVector(object1::Object, object2::Object)::Position
+  position1 = object1.origin
+  position2 = object2.origin
+  unitVector(position1, position2)
+end
+function unitVector(object1, object2)::Position
+  position1 = object1.origin
+  position2 = object2.origin
+  deltaX = position2.x - position1.x
+  deltaY = position2.y - position1.y
+  if (floor(Int, abs(sign(deltaX))) == 1 && floor(Int, abs(sign(deltaY))) == 1)
+    uniformChoice([Position(sign(deltaX), 0), Position(0, sign(deltaY))])
+  else
+    Position(sign(deltaX), sign(deltaY))
+  end
+end
+
+function unitVector(object::Object, position::Position)::Position
+  unitVector(object.origin, position)
+end
+
+function unitVector(position::Position, object::Object)::Position
+  unitVector(position, object.origin)
+end
+
+function unitVector(position::Position)::Position
+  unitVector(Position(0,0), position)
+end
+
+function displacement(position1::Position, position2::Position)::Position
+  Position(floor(Int, position2.x - position1.x), floor(Int, position2.y - position1.y))
+end
+
+function displacement(cell1::Cell, cell2::Cell)::Position
+  displacement(cell1.position, cell2.position)
+end
+
+function adjacent(position1::Position, position2::Position):Bool
+  displacement(position1, position2) in [Position(0,1), Position(1, 0), Position(0, -1), Position(-1, 0)]
+end
+
+function adjacent(cell1::Cell, cell2::Cell)::Bool
+  adjacent(cell1.position, cell2.position)
+end
+
+function adjacent(cell::Cell, cells::Array{Cell})
+  length(filter(x -> adjacent(cell, x), cells)) != 0
+end
+
+function rotate(object::Object)::Object
+  new_object = deepcopy(object)
+  new_object.render = map(x -> Cell(rotate(x.position), x.color), new_object.render)
+  new_object
+end
+
+function rotate(position::Position)::Position
+  Position(-position.y, position.x)
+ end
+
+function rotateNoCollision(object::Object)::Object
+  (isWithinBounds(rotate(object)) && isFree(rotate(object), object)) ? rotate(object) : object
+end
+
+function move(position1::Position, position2::Position)
+  Position(position1.x + position2.x, position1.y + position2.y)
+end
+
+function move(position::Position, cell::Cell)
+  Position(position.x + cell.position.x, position.y + cell.position.y)
+end
+
+function move(cell::Cell, position::Position)
+  Position(position.x + cell.position.x, position.y + cell.position.y)
+end
+
+function move(object::Object, position::Position)
+  new_object = deepcopy(object)
+  new_object.origin = move(object.origin, position)
+  new_object
+end
+
+function move(object, position::Position)
+  new_object = deepcopy(object)
+  new_origin = move(Position(object.origin.x, object.origin.y), position)
+  new_object.origin.x = new_origin.x
+  new_object.origin.y = new_origin.y
+    new_object
+end
+
+function move(object::Object, x::Int, y::Int)::Object
+  move(object, Position(x, y))
+end
+
+function moveNoCollision(object::Object, position::Position)::Object
+  (isWithinBounds(move(object, position)) && isFree(move(object, position.x, position.y), object)) ? move(object, position.x, position.y) : object
+end
+
+function moveNoCollision(object::Object, x::Int, y::Int)
+  (isWithinBounds(move(object, x, y)) && isFree(move(object, x, y), object)) ? move(object, x, y) : object
+end
+
+function moveWrap(object::Object, position::Position)::Object
+  new_object = deepcopy(object)
+  new_object.position = moveWrap(object.origin, position.x, position.y)
+  new_object
+end
+
+function moveWrap(cell::Cell, position::Position)
+  moveWrap(cell.position, position.x, position.y)
+end
+
+function moveWrap(position::Position, cell::Cell)
+  moveWrap(cell.position, position)
+end
+
+function moveWrap(object::Object, x::Int, y::Int)::Object
+  new_object = deepcopy(object)
+  new_object.position = moveWrap(object.origin, x, y)
+  new_object
+end
+
+function moveWrap(position1::Position, position2::Position)::Position
+  moveWrap(position1, position2.x, position2.y)
+end
+
+function moveWrap(position::Position, x::Int, y::Int)::Position
+  GRID_SIZE = state.GRID_SIZEHistory[0]
+  # println("hello")
+  # println(Position((position.x + x + GRID_SIZE) % GRID_SIZE, (position.y + y + GRID_SIZE) % GRID_SIZE))
+  Position((position.x + x + GRID_SIZE) % GRID_SIZE, (position.y + y + GRID_SIZE) % GRID_SIZE)
+end
+
+function randomPositions(GRID_SIZE::Int, n::Int)::Array{Position}
+  nums = uniformChoice([0:(GRID_SIZE * GRID_SIZE - 1);], n)
+  # println(nums)
+  # println(map(num -> Position(num % GRID_SIZE, floor(Int, num / GRID_SIZE)), nums))
+  map(num -> Position(num % GRID_SIZE, floor(Int, num / GRID_SIZE)), nums)
+end
+
+function distance(position1::Position, position2::Position)::Int
+  abs(position1.x - position2.x) + abs(position1.y - position2.y)
+end
+
+function distance(object1::Object, object2::Object)::Int
+  position1 = object1.origin
+  position2 = object2.origin
+  distance(position1, position2)
+end
+
+function distance(object::Object, position::Position)::Int
+  distance(object.origin, position)
+end
+
+function distance(position::Position, object::Object)::Int
+  distance(object.origin, position)
+end
+
+function closest(object::Object, type::DataType)::Position
+  objects_of_type = filter(obj -> (obj isa type) && (obj.alive), state.scene.objects)
+  if length(objects_of_type) == 0
+    object.origin
+  else
+    min_distance = min(map(obj -> distance(object, obj), objects_of_type))
+    filter(obj -> distance(object, obj) == min_distance, objects_of_type)[1].origin
+  end
+end
+
+function mapPositions(constructor, GRID_SIZE::Int, filterFunction, args...)::Union{Object, Array{<:Object}}
+  map(pos -> constructor(args..., pos), filter(filterFunction, allPositions(GRID_SIZE)))
+end
+
+function allPositions(GRID_SIZE::Int)
+  nums = [0:(GRID_SIZE * GRID_SIZE - 1);]
+  map(num -> Position(num % GRID_SIZE, floor(Int, num / GRID_SIZE)), nums)
+end
+
+function updateOrigin(object::Object, new_origin::Position)::Object
+  new_object = deepcopy(object)
+  new_object.origin = new_origin
+  new_object
+end
+
+function updateAlive(object::Object, new_alive::Bool)::Object
+  new_object = deepcopy(object)
+  new_object.alive = new_alive
+  new_object
+end
+
+function nextLiquid(object::Object)::Object
+  # println("nextLiquid")
+  GRID_SIZE = state.GRID_SIZEHistory[0]
+  new_object = deepcopy(object)
+  if object.origin.y != GRID_SIZE - 1 && isFree(move(object.origin, Position(0, 1)))
+    new_object.origin = move(object.origin, Position(0, 1))
+  else
+    leftHoles = filter(pos -> (pos.y == object.origin.y + 1)
+                               && (pos.x < object.origin.x)
+                               && isFree(pos), allPositions())
+    rightHoles = filter(pos -> (pos.y == object.origin.y + 1)
+                               && (pos.x > object.origin.x)
+                               && isFree(pos), allPositions())
+    if (length(leftHoles) != 0) || (length(rightHoles) != 0)
+      if (length(leftHoles) == 0)
+        closestHole = closest(object, rightHoles)
+        if isFree(move(closestHole, Position(0, -1)), move(object.origin, Position(1, 0)))
+          new_object.origin = move(object.origin, unitVector(object, move(closestHole, Position(0, -1))))
+        end
+      elseif (length(rightHoles) == 0)
+        closestHole = closest(object, leftHoles)
+        if isFree(move(closestHole, Position(0, -1)), move(object.origin, Position(-1, 0)))
+          new_object.origin = move(object.origin, unitVector(object, move(closestHole, Position(0, -1))))
+        end
+      else
+        closestLeftHole = closest(object, leftHoles)
+        closestRightHole = closest(object, rightHoles)
+        if distance(object.origin, closestLeftHole) > distance(object.origin, closestRightHole)
+          if isFree(move(object.origin, Position(1, 0)), move(closestRightHole, Position(0, -1)))
+            new_object.origin = move(object.origin, unitVector(new_object, move(closestRightHole, Position(0, -1))))
+          elseif isFree(move(closestLeftHole, Position(0, -1)), move(object.origin, Position(-1, 0)))
+            new_object.origin = move(object.origin, unitVector(new_object, move(closestLeftHole, Position(0, -1))))
+          end
+        else
+          if isFree(move(closestLeftHole, Position(0, -1)), move(object.origin, Position(-1, 0)))
+            new_object.origin = move(object.origin, unitVector(new_object, move(closestLeftHole, Position(0, -1))))
+          elseif isFree(move(object.origin, Position(1, 0)), move(closestRightHole, Position(0, -1)))
+            new_object.origin = move(object.origin, unitVector(new_object, move(closestRightHole, Position(0, -1))))
+          end
+        end
+      end
+    end
+  end
+  new_object
+end
+
+function nextSolid(object::Object)::Object
+  # println("nextSolid")
+  GRID_SIZE = state.GRID_SIZEHistory[0]
+  new_object = deepcopy(object)
+  if (isWithinBounds(move(object, Position(0, 1))) && reduce(&, map(x -> isFree(x, object), map(cell -> move(cell.position, Position(0, 1)), render(object)))))
+    new_object.origin = move(object.origin, Position(0, 1))
+  end
+  new_object
+end
+
+function closest(object::Object, positions::Array{Position})::Position
+  closestDistance = sort(map(pos -> distance(pos, object.origin), positions))[1]
+  closest = filter(pos -> distance(pos, object.origin) == closestDistance, positions)[1]
+  closest
+end
+
+function isFree(start::Position, stop::Position)::Bool
+  GRID_SIZE = state.GRID_SIZEHistory[0]
+  nums = [(GRID_SIZE * start.y + start.x):(GRID_SIZE * stop.y + stop.x);]
+  reduce(&, map(num -> isFree(Position(num % GRID_SIZE, floor(Int, num / GRID_SIZE))), nums))
+end
+
+function isFree(start::Position, stop::Position, object::Object)::Bool
+  GRID_SIZE = state.GRID_SIZEHistory[0]
+  nums = [(GRID_SIZE * start.y + start.x):(GRID_SIZE * stop.y + stop.x);]
+  reduce(&, map(num -> isFree(Position(num % GRID_SIZE, floor(Int, num / GRID_SIZE)), object), nums))
+end
+
+function isFree(position::Position, object::Object)
+  length(filter(cell -> cell.position.x == position.x && cell.position.y == position.y,
+  filter(x -> !(x in render(object)), render(state.scene)))) == 0
+end
+
+function isFree(object::Object, orig_object::Object)::Bool
+  reduce(&, map(x -> isFree(x, orig_object), map(cell -> cell.position, render(object))))
+end
+
+function allPositions()
+  GRID_SIZE = state.GRID_SIZEHistory[0]
+  nums = [1:GRID_SIZE*GRID_SIZE - 1;]
+  map(num -> Position(num % GRID_SIZE, floor(Int, num / GRID_SIZE)), nums)
+end
+
 aexpr = au"""(program
   (= GRID_SIZE 16)
 
@@ -74,6 +545,8 @@ aexpr3 = au"""(program
     (: broken Bool)
     (= broken (initnext false (prev broken)))
 
+    (object Rock (: moving Bool) (Cell 0 0 "blue"))
+
 
     (object Bottle (: broken Bool) (list (Cell 0 0 (if broken then "yellow" else "white"))
                                           (Cell 0 1 (if broken then "white" else "yellow"))
@@ -82,20 +555,18 @@ aexpr3 = au"""(program
                                           (Cell 0 4 (if broken then "yellow" else "white"))))
 
     (object BottleSpot (Cell 0 0 "white"))
-    (object Rock (Cell 0 0 "black"))
+
+    (: suzieRock Rock)
+    (= suzieRock (initnext (Rock true (Position 0 7))
+      (if (.. suzieRock moving) then (move (prev suzieRock) (unitVector (prev suzieRock) bottleSpot)) else (prev suzieRock))))
+
 
     (: bottleSpot BottleSpot)
     (= bottleSpot (initnext (BottleSpot (Position 15 7)) (prev bottleSpot)))
 
-    (: rocks (List Rock))
-    (= rocks
-       (initnext (list (Rock (Position 0 7)))
-                 (updateObj (prev rocks) (--> obj
-                                (move obj (unitVector obj bottleSpot))))))
+    (on (intersects bottleSpot suzieRock) (= broken true))
 
-    (on (intersects bottleSpot rocks) (= broken true))
   )"""
-
 
   aexpr5 = au"""(program
     (= GRID_SIZE 16)
@@ -103,19 +574,11 @@ aexpr3 = au"""(program
     (: broken Bool)
     (= broken (initnext false (prev broken)))
 
-
     (object Suzie (: timeTillThrow Integer) (Cell 0 0 "blue"))
     (object Billy (: timeTillThrow Integer) (Cell 0 0 "red"))
 
-    (object Bottle (: broken Bool) (list (Cell 0 0 (if broken then "yellow" else "white"))
-                                          (Cell 0 1 (if broken then "white" else "yellow"))
-                                          (Cell 0 2 (if broken then "gray" else "yellow"))
-                                          (Cell 0 3 (if broken then "white" else "yellow"))
-                                          (Cell 0 4 (if broken then "yellow" else "white"))))
-
     (object BottleSpot (Cell 0 0 "white"))
-    (object Rock (Cell 0 0 "black"))
-
+    (object Rock (: moving Bool) (Cell 0 0 "blue"))
 
     (: suzie Suzie)
     (= suzie (initnext (Suzie 3 (Position 0 0))
@@ -128,22 +591,13 @@ aexpr3 = au"""(program
     (: bottleSpot BottleSpot)
     (= bottleSpot (initnext (BottleSpot (Position 15 7)) (BottleSpot (Position 15 7))))
 
-    (: rocks (List Rock))
-    (= rocks
-       (initnext (list)
-                 (updateObj (prev rocks) (--> obj
-                                (move obj (unitVector obj bottleSpot))))))
 
-    (= nextBottle (fn (bot rockst bottleSpott) (if (intersects bottleSpott rockst) then (updateObj bot "broken" true) else bot)))
+    (: suzieRock Rock)
+    (= suzieRock (initnext (Rock false (Position 0 7))
+      (if (.. suzieRock moving) then (move (prev suzieRock) (unitVector (prev suzieRock) bottleSpot)) else (prev suzieRock))))
 
-    (: bottle Bottle)
-    (= bottle (initnext (Bottle false (Position 15 5)) (nextBottle (prev bottle) (prev rocks) (prev bottleSpot))))
-
-    (on (== (.. suzie timeTillThrow) 0) (= rocks (addObj (prev rocks) (Rock (Position 0 0)))))
-
-
-    (on (intersects (prev bottleSpot) (prev rocks)) (= broken true))
-    (on (intersects (prev bottleSpot) (prev rocks)) (= bottle (nextBottle (prev bottle) (prev rocks) (prev bottleSpot))))
+    (on (== (.. suzie timeTillThrow) 0) (updateObj suzieRock "moving" true))
+    (on (intersects (prev bottleSpot) (prev suzieRock)) (= broken true))
   )"""
 
 function tostate(var)
@@ -162,6 +616,14 @@ function isfield(var)
   (length(split(string(var), "].")) > 1 || length(split(string(var), ").")) > 1)
 end
 
+function getfieldnames(var)
+  split_ = split(string(var), "].")
+  if length(split_) > 1
+    return split(split_[2], ".")
+  end
+  split(split(string(var), ").")[2], ".")
+end
+
 function reducenoeval(var)
   strvar = replace(string(var), "(" => "")
   strvar = replace(strvar, ")" => "")
@@ -175,12 +637,6 @@ function pushbyfield(var, val)
   else
     push!(reduce(a.args[2]), step =>val)
   end
-end
-
-function unitVector(obj1, obj2)
-  println("unit")
-  println(obj1)
-  println(obj2)
 end
 
 function fakereduce(var)
@@ -208,6 +664,10 @@ function increment(var::Expr)
     return eval(Meta.parse(join([split_1[1], "[step]", split_2[2]])))
   end
   return Meta.parse(join([split_1[1], "[", string(index + 1), "]", split_2[2]]))
+end
+
+function intersects(obj1, obj2)
+  obj1.origin.x == obj2.origin.x && obj1.origin.y == obj2.origin.y
 end
 
 intersects(obj1::Array, obj2) = intersects(obj2, obj1)
@@ -242,6 +702,8 @@ function possiblevalues(var::Expr, val)
   possvals(eval(val))
 end
 
+# Base.:(==)(a::Foo, b::Bar) =
+
 function tryb(cause_b)
   try
     return eval(cause_b)
@@ -257,14 +719,28 @@ function acaused(cause_a::Expr, cause_b::Expr)
     short = eval(reduce(cause_a.args[2]))
     index = getstep(cause_a.args[2])
     for val in possiblevalues(cause_a.args[2], cause_a.args[3])
-      push!(reduce(cause_a.args[2]), step =>val)
+      println(val)
+      if isfield(cause_a.args[2])
+        eval(Expr(:(=), cause_a.args[2], val))
+      else
+        push!(reduce(cause_a.args[2]), step =>val)
+      end
+      println(eval(cause_b))
       if !(eval(cause_b))
-        push!(reduce(cause_a.args[2]), step =>varstore)
+        if isfield(cause_a.args[2])
+          eval(Expr(:(=), cause_a.args[2], varstore))
+        else
+          push!(reduce(cause_a.args[2]), step =>varstore)
+        end
         return true
         break
       end
     end
-    push!(reduce(cause_a.args[2]), step =>varstore)
+    if isfield(cause_a.args[2])
+      eval(Expr(:(=), cause_a.args[2], varstore))
+    else
+      push!(reduce(cause_a.args[2]), step =>varstore)
+    end
   end
   false
 end
@@ -283,7 +759,7 @@ macro test_ac(expected_true, aexpr_,  cause_a_, cause_b_)
       get_a_causes = getcausal($aexpr_)
       # println(get_a_causes)
       eval(get_a_causes)
-      # aumod = eval(compiletojulia($aexpr_))
+      aumod = eval(compiletojulia($aexpr_))
       state = aumod.init(nothing, nothing, nothing, nothing, nothing, MersenneTwister(0))
       causes = [$cause_a_]
       cause_b = $cause_b_
@@ -292,19 +768,16 @@ macro test_ac(expected_true, aexpr_,  cause_a_, cause_b_)
         new_causes = []
         println(causes)
         for cause_a in causes
-          # try
-          println(eval(cause_a))
-          println(eval(cause_a.args[3]))
-          println(eval(cause_a.args[2]))
+          try
             if eval(cause_a)
               append!(new_causes, a_causes(cause_a))
             else
               append!(new_causes, [cause_a])
             end
-          # catch e
-          #   println(e)
-          #   append!(new_causes, [cause_a])
-          # end
+          catch e
+            println(e)
+            append!(new_causes, [cause_a])
+          end
         end
         global causes = new_causes
         global state = aumod.next(state, nothing, nothing, nothing, nothing, nothing)
@@ -331,76 +804,76 @@ macro test_ac(expected_true, aexpr_,  cause_a_, cause_b_)
 end
 # ------------------------------Suzie Test---------------------------------------
 # cause((suzie == 1), (broken == true))
-aumod = eval(compiletojulia(aexpr))
 a = :(state.suzieHistory[step] == 1)
 b = :(state.brokenHistory[step] == true)
 @test_ac(true, aexpr, a, b)
-#
-# a = :(state.suzieHistory[0] == 1)
-# b = :(state.brokenHistory[5] == true)
-# @test_ac(true, aexpr, a, b)
-#
-# a = :(state.suzieHistory[2] == 1)
-# b = :(state.brokenHistory[step] == true)
-# @test_ac(false, aexpr, a, b)
-#
-# # -------------------------------Billy Test---------------------------------------
-# # cause((billy == 0), (broken == true))
-# a = :(state.billyHistory[step] == 0)
-# b = :(state.brokenHistory[step] == true)
-# @test_ac(false, aexpr, a, b)
-#
-# # cause((billy == 0), (broken == true))
-# a = :(state.billyHistory[0] == 1)
-# b = :(state.brokenHistory[step] == true)
-# @test_ac(false, aexpr, a, b)
-#
-# # cause((billy == 0), (broken == true))
-# a = :(state.billyHistory[1] == 1)
-# b = :(state.brokenHistory[step] == true)
-# @test_ac(false, aexpr, a, b)
-# #
-# # ------------------------------Suzie Test---------------------------------------
-# #cause((suzie == 1), (broken == true))
-# a = :(state.suzieHistory[step] == 1)
-# b = :(state.brokenHistory[step] == true)
-# @test_ac(true, aexpr2, a, b)
-#
-# # -------------------------------Billy Test---------------------------------------
-# # cause((billy == 0), (broken == true))
-# a = :(state.billyHistory[step] == 0)
-# b = :(state.brokenHistory[step] == true)
-# @test_ac(false, aexpr2, a, b)
+
+a = :(state.suzieHistory[0] == 1)
+b = :(state.brokenHistory[5] == true)
+@test_ac(true, aexpr, a, b)
+
+a = :(state.suzieHistory[2] == 1)
+b = :(state.brokenHistory[step] == true)
+@test_ac(false, aexpr, a, b)
+
+# -------------------------------Billy Test---------------------------------------
+# cause((billy == 0), (broken == true))
+a = :(state.billyHistory[step] == 0)
+b = :(state.brokenHistory[step] == true)
+@test_ac(false, aexpr, a, b)
+
+# cause((billy == 0), (broken == true))
+a = :(state.billyHistory[0] == 1)
+b = :(state.brokenHistory[step] == true)
+@test_ac(false, aexpr, a, b)
+
+# cause((billy == 0), (broken == true))
+a = :(state.billyHistory[1] == 1)
+b = :(state.brokenHistory[step] == true)
+@test_ac(false, aexpr, a, b)
+
+# ------------------------------Suzie Test---------------------------------------
+#cause((suzie == 1), (broken == true))
+a = :(state.suzieHistory[step] == 1)
+b = :(state.brokenHistory[step] == true)
+@test_ac(true, aexpr2, a, b)
+
+# -------------------------------Billy Test---------------------------------------
+# cause((billy == 0), (broken == true))
+a = :(state.billyHistory[step] == 0)
+b = :(state.brokenHistory[step] == true)
+@test_ac(false, aexpr2, a, b)
 #
 # # # -----------------------------Advanced Suzie Test No Rock-----------------------
-# a = :(state.suzieHistory[step].timeTillThrow == 3)
-# b = :(state.suzieThrewHistory[step] == true)
-# @test_ac(true, aexpr3, a, b)
-#
-# a = :(state.suzieHistory[step].timeTillThrow == 2)
-# b = :(state.suzieThrewHistory[step] == true)
-# @test_ac(true, aexpr3, a, b)
-#
-# a = :(state.suzieHistory[2].timeTillThrow == 3)
-# b = :(state.suzieThrewHistory[step] == true)
-# @test_ac(false, aexpr3, a, b)
-#
-# # # -----------------------------Advanced Billy Test No Rock-----------------------
-# a = :(state.suzieHistory[step].timeTillThrow == 4)
-# b = :(state.suzieThrewHistory[step] == true)
-# @test_ac(false, aexpr3, a, b)
-#
-# a = :(state.suzieHistory[0].timeTillThrow == 4)
-# b = :(state.suzieThrewHistory[step] == true)
-# @test_ac(false, aexpr3, a, b)
+a = :(state.suzieHistory[step].timeTillThrow == 3)
+b = :(state.suzieThrewHistory[step] == true)
+@test_ac(true, aexpr3, a, b)
 
-# # -------------------------------Advanced Rock Test---------------------------------------
-aumod = eval(compiletojulia(aexpr4))
-a = :(state.rocksHistory[step][1].origin.x == aumod.Position(0, 7).x)
+a = :(state.suzieHistory[step].timeTillThrow == 2)
+b = :(state.suzieThrewHistory[step] == true)
+@test_ac(true, aexpr3, a, b)
+
+a = :(state.suzieHistory[2].timeTillThrow == 3)
+b = :(state.suzieThrewHistory[step] == true)
+@test_ac(false, aexpr3, a, b)
+
+# # -----------------------------Advanced Billy Test No Rock-----------------------
+a = :(state.suzieHistory[step].timeTillThrow == 4)
+b = :(state.suzieThrewHistory[step] == true)
+@test_ac(false, aexpr3, a, b)
+
+a = :(state.suzieHistory[0].timeTillThrow == 4)
+b = :(state.suzieThrewHistory[step] == true)
+@test_ac(false, aexpr3, a, b)
+
+# -------------------------------Advanced Rock Test---------------------------------------
+
+a = :(state.suzieRockHistory[step].origin.x == 0)
 b = :(state.brokenHistory[step] == true)
 @test_ac(true, aexpr4, a, b)
 
 # # -------------------------------Advanced Suzie Test---------------------------------------
+# Autumn program has a bug.  After the first on clause the program stops updating.
 # a = :(state.suzieHistory[step].timeTillThrow == 3)
 # b = :(state.brokenHistory[step] == true)
 # @test_ac(true, aexpr5, a, b)
@@ -415,112 +888,27 @@ b = :(state.brokenHistory[step] == true)
 # # What should occur if the variable isnt actually related
 #   #on (suzie < infinity or suzie > infinity) something
 
+# When the transition works will need to take the change from the assignment
+# Loop through the fields and any that are different given the assignment should be traced?
 
-
-  aexpr3 = au"""(program
-    (= GRID_SIZE 16)
-
-    (: broken Bool)
-    (= broken (initnext false (prev broken)))
-
-
-    (object Suzie (: timeTillThrow Integer) (Cell 0 0 "blue"))
-    (object Billy (: timeTillThrow Integer) (Cell 0 0 "red"))
-
-    (object Bottle (: broken Bool) (list (Cell 0 0 (if broken then "yellow" else "white"))
-                                          (Cell 0 1 (if broken then "white" else "yellow"))
-                                          (Cell 0 2 (if broken then "gray" else "yellow"))
-                                          (Cell 0 3 (if broken then "white" else "yellow"))
-                                          (Cell 0 4 (if broken then "yellow" else "white"))))
-
-    (object BottleSpot (Cell 0 0 "white"))
-    (object Rock (Cell 0 0 "black"))
-
-
-    (: suzie Suzie)
-    (= suzie (initnext (Suzie 3 (Position 0 0))
-      (updateObj (prev suzie) "timeTillThrow" (- (.. (prev suzie) timeTillThrow) 1))))
-
-    (: billy Billy)
-    (= billy (initnext (Billy 4 (Position 0 0))
-      (updateObj (prev billy) "timeTillThrow" (- (.. (prev billy) timeTillThrow) 1))))
-
-    (: bottleSpot BottleSpot)
-    (= bottleSpot (initnext (BottleSpot (Position 15 7)) (BottleSpot (Position 15 7))))
-
-    (: rocks (List Rock))
-    (= rocks
-       (initnext (list)
-                 (updateObj (prev rocks) (--> obj
-                                (if (intersects bottleSpot obj) then (removeObj obj)
-                                  else (move obj (unitVector obj bottleSpot)))))))
-    (= nextBottle (fn (bot rockst bottleSpott) (if (intersects bottleSpott rockst) then (updateObj bot "broken" true) else bot)))
-
-    (: bottle Bottle)
-    (= bottle (initnext (Bottle false (Position 15 5)) (nextBottle (prev bottle) (prev rocks) (prev bottleSpot))))
-
-    (on (== (.. suzie timeTillThrow) 0) (= rocks (addObj (prev rocks) (Rock (Position 0 0)))))
-
-
-    (on (intersects (prev bottleSpot) (prev rocks)) (= broken true))
-    (on (intersects (prev bottleSpot) (prev rocks)) (= bottle (nextBottle (prev bottle) (prev rocks) (prev bottleSpot))))
-  )"""
-
-  aexpr4 = au"""(program
-    (= GRID_SIZE 16)
-
-    (: broken Bool)
-    (= broken (initnext false (prev broken)))
-
-
-    (object Bottle (: broken Bool) (list (Cell 0 0 (if broken then "yellow" else "white"))
-                                          (Cell 0 1 (if broken then "white" else "yellow"))
-                                          (Cell 0 2 (if broken then "gray" else "yellow"))
-                                          (Cell 0 3 (if broken then "white" else "yellow"))
-                                          (Cell 0 4 (if broken then "yellow" else "white"))))
-
-    (object BottleSpot (Cell 0 0 "white"))
-    (object Rock (Cell 0 0 "black"))
-
-    (: bottleSpot BottleSpot)
-    (= bottleSpot (initnext (BottleSpot (Position 15 7)) (BottleSpot (Position 15 7))))
-
-    (: rocks (List Rock))
-    (= rocks
-       (initnext (list (Rock (Position 0 7)))
-                 (updateObj (prev rocks) (--> obj
-                                (if (intersects bottleSpot obj) then (removeObj obj)
-                                  else (move obj (unitVector obj bottleSpot)))))))
-
-    (= nextBottle (fn (bot rockst bottleSpott) (if (intersects bottleSpott rockst) then (updateObj bot "broken" true) else bot)))
-
-    (: bottle Bottle)
-    (= bottle (initnext (Bottle false (Position 15 5)) (nextBottle (prev bottle) (prev rocks) (prev bottleSpot))))
-
-    (on (intersects bottleSpot rocks) (= broken true))
-    (on (intersects (prev bottleSpot) (prev rocks)) (= bottle (nextBottle (prev bottle) (prev rocks) (prev bottleSpot))))
-  )"""
-
-  # aumod = eval(compiletojulia(aexpr4))
+  #
+  # aumod = eval(compiletojulia(aexpr5))
   # step = 0
   # state = aumod.init(nothing, nothing, nothing, nothing, nothing, MersenneTwister(0))
   # println(state.brokenHistory[step])
+  # println(typeof(state.suzieRockHistory[step].origin))
   # step+=1
+  #
   # state = aumod.next(state, nothing, nothing, nothing, nothing, nothing)
   # println(state.brokenHistory[step])
-  # state.rocksHistory[step][1].origin = Position(4, 7)
-  # println(state.rocksHistory[step][1].origin)
+  # println(fieldnames(typeof(state.suzieRockHistory[step])))
+  # println(state.suzieRockHistory[step].id)
+  # println(state.suzieRockHistory[step].alive)
+  # println(state.suzieRockHistory[step].render)
+  # # state.rocksHistory[step][1].origin = Position(4, 7)
+  # # println(state.rocksHistory[step][1].origin)
   # step+=1
-
-  # state = aumod.next(state, nothing, nothing, nothing, nothing, nothing)
-  # println(state.brokenHistory[step])
-  # step+=1
-  # state = aumod.next(state, nothing, nothing, nothing, nothing, nothing)
-  # println(state.brokenHistory[step])
-  # step+=1
-  # state = aumod.next(state, nothing, nothing, nothing, nothing, nothing)
-  # println(state.brokenHistory[step])
-  # step+=1
+  #
   # state = aumod.next(state, nothing, nothing, nothing, nothing, nothing)
   # println(state.brokenHistory[step])
   # step+=1
@@ -567,9 +955,25 @@ b = :(state.brokenHistory[step] == true)
   # println(state.brokenHistory[step])
   # step+=1
   # state = aumod.next(state, nothing, nothing, nothing, nothing, nothing)
-  # println(state.rocksHistory[step][1])
-  # println(state.rocksHistory[step][1].origin.x)
-  # println(state.rocksHistory[step][1].origin.y)
+  # println(state.brokenHistory[step])
+  # step+=1
+  # state = aumod.next(state, nothing, nothing, nothing, nothing, nothing)
+  # println(state.brokenHistory[step])
+  # step+=1
+  # state = aumod.next(state, nothing, nothing, nothing, nothing, nothing)
+  # println(state.brokenHistory[step])
+  # step+=1
+  # state = aumod.next(state, nothing, nothing, nothing, nothing, nothing)
+  # println(state.suzieRockHistory[step])
+  # println(state.suzieRockHistory[step].origin.x)
+  # println(state.suzieRockHistory[step].origin.y)
+  #
+  # println(state.brokenHistory[step])
+  # step+=1
+  # state = aumod.next(state, nothing, nothing, nothing, nothing, nothing)
+  # println(state.suzieRockHistory[step])
+  # println(state.suzieRockHistory[step].origin.x)
+  # println(state.suzieRockHistory[step].origin.y)
 #syntactic pattern matching but its not necessarily syntactic thing
 #what to do if non trivial
 #in my set of causes

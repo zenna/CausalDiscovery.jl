@@ -32,8 +32,6 @@ end
 
 
 function replacelambda(lambdaval, next_value)
-  println(lambdaval)
-  println(next_value)
   if next_value == lambdaval
     return :(state.rocksHistory[step][1])
   end
@@ -58,7 +56,11 @@ function convertprev(next_value::Union{AExpr, Expr}, data)
   for index in 1:length(next_value.args)
       push!(new_expr, convertprev(next_value.args[index], data))
   end
+  if next_value.head == :if
+    return Expr(:if, new_expr...)
+  end
   if next_value.head == :(.)
+    println(typeof(next_value))
     for index in 1:length(next_value.args)
       next_value.args[index] = new_expr[index]
     end
@@ -126,28 +128,17 @@ function causalin(data)
     new_expr = []
     if next_value.args[1] == :prev
       continue
-    elseif next_value.args[1] == :updateObj && length(next_value.args) == 4
-      new_expr = convertprev(next_value.args[4], data)
+    # elseif next_value.args[1] == :updateObj && length(next_value.args) == 4
+    #   new_expr = convertprev(next_value.args[4], data)
     else
       new_expr = convertprev(next_value, data)
     end
-
     shortmap = tostateshort(clause.args[1])
-
     ifstatement = quote
       varstore = a.args[3]
-      println("important")
-      println($new_expr)
-      println(a.args[2])
-      println(eval(a.args[2]))
-      println(eval(a.args[3]))
-      println(reducenoeval(a.args[2]))
-      println(reducenoeval($mapped))
       if (eval(a.args[2]) == eval(a.args[3]) && reducenoeval(a.args[2]) == reducenoeval($mapped))
         for val in possiblevalues(a.args[2], a.args[3])
-          println(val)
           if isfield(a.args[2])
-            println(eval(a.args[2]))
             eval(Expr(:(=), a.args[2], val))
           else
             push!(reduce(a.args[2]), step =>val)
@@ -158,8 +149,15 @@ function causalin(data)
             else
               push!(reduce(a.args[2]), step =>varstore)
             end
-            println($new_expr)
-            push!(causes, Expr(:call, :(==), (increment(a.args[2])), $new_expr))
+            if isfield(a.args[2])
+              fieldvalue = $new_expr
+              for field in getfieldnames(a.args[2])
+                fieldvalue = getfield(fieldvalue, Symbol(field))
+              end
+              push!(causes, Expr(:call, :(==), (increment(a.args[2])), fieldvalue))
+            else
+              push!(causes, Expr(:call, :(==), (increment(a.args[2])), $new_expr))
+            end
             break
           end
         end
