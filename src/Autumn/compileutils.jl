@@ -14,6 +14,8 @@ abstract type Object end
 
 function compile(expr::AExpr, data::Dict{String, Any}, parent::Union{AExpr, Nothing}=nothing)::Expr
   arr = [expr.head, expr.args...]
+  print(arr)
+  print("\n")
   res = @match arr begin
     [:if, args...] => :($(compile(args[1], data)) ? $(compile(args[2], data)) : $(compile(args[3], data)))
     [:assign, args...] => compileassign(expr, data, parent)
@@ -61,7 +63,7 @@ end
 function compileassign(expr::AExpr, data::Dict{String, Any}, parent::Union{AExpr, Nothing})
   # get type, if declared
   type = haskey(data["types"], expr.args[1]) ? data["types"][expr.args[1]] : nothing
-  if (typeof(expr.args[2]) == AExpr && expr.args[2].head == :fn)
+  if (typeof(expr.args[2]) == AExpr && expr.args[2].head == :fn) # handle function assignments
     if type !== nothing # handle function with typed arguments/return type
       args = compile(expr.args[2].args[1], data).args # function args
       argtypes = map(x -> compile(x, data), type.args[1:(end-1)]) # function arg types
@@ -94,7 +96,7 @@ function compileassign(expr::AExpr, data::Dict{String, Any}, parent::Union{AExpr
         # :($(compile(expr.args[1], data))::$(compile(type, data)) = $(compile(expr.args[2], data)))
         :($(compile(expr.args[1], data)) = $(compile(expr.args[2], data)))
       else
-          :($(compile(expr.args[1], data)) = $(compile(expr.args[2], data)))
+        :($(compile(expr.args[1], data)) = $(compile(expr.args[2], data)))
       end
     end
   end
@@ -102,6 +104,8 @@ end
 
 function compiletypedecl(expr::AExpr, data::Dict{String, Any}, parent::Union{AExpr, Nothing})
   if (parent !== nothing && (parent.head == :program || parent.head == :external))
+    # println(expr.args[1])
+    # println(expr.args[2])
     data["types"][expr.args[1]] = expr.args[2]
     :()
   else
@@ -110,6 +114,8 @@ function compiletypedecl(expr::AExpr, data::Dict{String, Any}, parent::Union{AEx
 end
 
 function compileexternal(expr::AExpr, data::Dict{String, Any})
+  # println("here: ")
+  # println(expr.args[1])
   if !(expr.args[1] in data["external"])
     push!(data["external"], expr.args[1])
   end
@@ -161,6 +167,10 @@ end
 
 function compileobject(expr::AExpr, data::Dict{String, Any})
   name = expr.args[1]
+  println("NAME")
+  println(name)
+  println(expr)
+  println(expr.args)
   push!(data["objects"], name)
   custom_fields = map(field -> (
     :($(field.args[1])::$(compile(field.args[2], data)))
@@ -206,7 +216,7 @@ function compileinitnext(data::Dict{String, Any})
     end
   end, data["on"])
   notOnClause = quote
-    if !(reduce(|, [$(map(x -> x[1], data["on"])...)]))
+    if !(foldl(|, [$(map(x -> x[1], data["on"])...)]; init=false))
       $(map(x -> :($(compile(x.args[1], data)) = $(compile(x.args[2].args[2], data))), data["initnext"])...)
     end
   end
@@ -378,6 +388,7 @@ const builtInDict = Dict([
                         end
 
                         function isWithinBounds(obj::Object)::Bool
+                          # println(filter(cell -> !isWithinBounds(cell.position),render(obj)))
                           length(filter(cell -> !isWithinBounds(cell.position), render(obj))) == 0
                         end
 
@@ -392,6 +403,8 @@ const builtInDict = Dict([
                         end
 
                         function clicked(click::Union{Click, Nothing}, objects::AbstractArray)
+                          # println("LOOK AT ME")
+                          # println(reduce(&, map(obj -> clicked(click, obj), objects)))
                           reduce(|, map(obj -> clicked(click, obj), objects))
                         end
 
@@ -512,7 +525,7 @@ const builtInDict = Dict([
                           deltaX = position2.x - position1.x
                           deltaY = position2.y - position1.y
                           if (floor(Int, abs(sign(deltaX))) == 1 && floor(Int, abs(sign(deltaY))) == 1)
-                            uniformChoice([Position(sign(deltaX), 0), Position(0, sign(deltaY))])
+                            uniformChoice(rng, [Position(sign(deltaX), 0), Position(0, sign(deltaY))])
                           else
                             Position(sign(deltaX), sign(deltaY))  
                           end
