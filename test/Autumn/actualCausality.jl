@@ -3,7 +3,7 @@ using CausalDiscovery
 using Random
 using MLStyle
 import Base.Cartesian.lreplace
-
+using Distributions: Categorical
 abstract type Object end
 abstract type KeyPress end
 
@@ -52,7 +52,7 @@ function isWithinBounds(obj::Object)::Bool
   length(filter(cell -> !isWithinBounds(cell.position), render(obj))) == 0
 end
 
-function clicked(click::Union{Click, Nothing}, object::Object)::Bool
+function clicked(click::Union{Click, Nothing}, object)::Bool
   if click == nothing
     false
   else
@@ -69,7 +69,6 @@ function clicked(click::Union{Click, Nothing}, objects::AbstractArray)
 end
 
 function objClicked(click::Union{Click, Nothing}, objects::AbstractArray)::Object
-  println(click)
   filter(obj -> clicked(click, obj), objects)[1]
 end
 
@@ -134,7 +133,6 @@ function removeObj(obj::Object)
 end
 
 function updateObj(obj, field::String, value)
-  println(updateObj)
   fields = fieldnames(typeof(obj))
   custom_fields = fields[5:end-1]
   origin_field = (fields[2],)
@@ -432,6 +430,10 @@ function nextLiquid(object::Object)::Object
   new_object
 end
 
+function range(start::Int, stop::Int)
+  [start:stop;]
+end
+
 function nextSolid(object::Object)::Object
   # println("nextSolid")
   GRID_SIZE = state.GRID_SIZEHistory[0]
@@ -473,6 +475,15 @@ function allPositions()
   GRID_SIZE = state.GRID_SIZEHistory[0]
   nums = [1:GRID_SIZE*GRID_SIZE - 1;]
   map(num -> Position(num % GRID_SIZE, floor(Int, num / GRID_SIZE)), nums)
+end
+# uniformChoice(freePositions) = uniformChoice(1, freePositions)
+
+function uniformChoice(rng, freePositions)
+  freePositions[rand(rng, Categorical(ones(length(freePositions))/length(freePositions)))]
+end
+
+function uniformChoice(rng, freePositions, n)
+  map(idx -> freePositions[idx], rand(rng, Categorical(ones(length(freePositions))/length(freePositions)), n))
 end
 
 aexpr = au"""(program
@@ -688,21 +699,98 @@ function possvals(val::Bool)
 end
 
 function possvals(val::Union{BigInt, Int64})
-  [-2^4:1:(2^4);]
+  [-2^9:1:(2^9);]
 end
 
-function possvals(val)
-  throw(AutumnError(string("Invalid variable type: ", typeof(val))))
+function possvals(val::Expr)
+  println("its an expr")
+end
+
+function possvalspos(val)
+  vals = []
+  for x in 0:16
+    for y in 0:16
+      push!(vals, typeof(val)(x, y))
+    end
+  end
+  vals
 end
 
 function possiblevalues(var::Expr, val)
   if reducenoeval(var) in keys(restrictedvalues)
     return restrictedvalues[reducenoeval(var)]
   end
+  if :x in (fieldnames(typeof(val))) && :y in (fieldnames(typeof(val)))
+    return possvalspos(val)
+  end
   possvals(eval(val))
 end
 
-# Base.:(==)(a::Foo, b::Bar) =
+function wallintersect(ball)
+  direction = ball.direction
+  if ball.origin.y == 15
+    if (direction < 180)
+      return 180 - direction
+    elseif (direction == 180)
+      return 0
+    elseif (direction > 180)
+      return 90 + direction
+    end
+  elseif ball.origin.x == 0
+    if (direction < 270) && (direction > 180)
+      return 360 - direction
+    elseif direction == 270
+      return 90
+    elseif direction > 270
+      return 360 - direction
+    end
+  elseif ball.origin.x == 15
+    if direction < 90
+      return 270 + direction
+    elseif direction == 90
+      return 270
+    elseif direction > 90
+      return 90 + direction
+    end
+  elseif ball.origin.y == 0
+    if direction > 180
+      return 520 - direction
+    elseif direction == 0
+      return 180
+    elseif direction < 180
+      return 180 - direction
+    end
+  end
+  return direction
+end
+
+function ballcollision(ball1, ball2)
+  return ball2.direction
+end
+
+function nextBall(ball)
+  direction = ball.direction
+  origin = ball.origin
+  if direction < 45
+    return updateObj(ball, "origin", typeof(ball.origin)(origin.x, origin.y-1))
+  elseif direction < 90
+    return updateObj(ball, "origin", typeof(ball.origin)(origin.x+1, origin.y-1))
+  elseif direction < 135
+    return updateObj(ball, "origin", typeof(ball.origin)(origin.x+1, origin.y))
+  elseif direction < 180
+    return updateObj(ball, "origin", typeof(ball.origin)(origin.x+1, origin.y+1))
+  elseif direction < 225
+    return updateObj(ball, "origin", typeof(ball.origin)(origin.x, origin.y+1))
+  elseif direction < 270
+    return updateObj(ball, "origin", typeof(ball.origin)(origin.x+1, origin.y+1))
+  elseif direction < 315
+    return updateObj(ball, "origin", typeof(ball.origin)(origin.x-1, origin.y))
+  elseif direction < 360
+    return updateObj(ball, "origin", typeof(ball.origin)(origin.x-1, origin.y-1))
+
+  end
+  return ball
+end
 
 function tryb(cause_b)
   try
@@ -719,13 +807,11 @@ function acaused(cause_a::Expr, cause_b::Expr)
     short = eval(reduce(cause_a.args[2]))
     index = getstep(cause_a.args[2])
     for val in possiblevalues(cause_a.args[2], cause_a.args[3])
-      println(val)
       if isfield(cause_a.args[2])
         eval(Expr(:(=), cause_a.args[2], val))
       else
         push!(reduce(cause_a.args[2]), step =>val)
       end
-      println(eval(cause_b))
       if !(eval(cause_b))
         if isfield(cause_a.args[2])
           eval(Expr(:(=), cause_a.args[2], varstore))
@@ -804,75 +890,75 @@ macro test_ac(expected_true, aexpr_,  cause_a_, cause_b_)
 end
 # ------------------------------Suzie Test---------------------------------------
 # # cause((suzie == 1), (broken == true))
-# a = :(state.suzieHistory[step] == 1)
-# b = :(state.brokenHistory[step] == true)
-# @test_ac(true, aexpr, a, b)
+a = :(state.suzieHistory[step] == 1)
+b = :(state.brokenHistory[step] == true)
+@test_ac(true, aexpr, a, b)
 #
-# a = :(state.suzieHistory[0] == 1)
-# b = :(state.brokenHistory[5] == true)
-# @test_ac(true, aexpr, a, b)
-#
-# a = :(state.suzieHistory[2] == 1)
-# b = :(state.brokenHistory[step] == true)
-# @test_ac(false, aexpr, a, b)
+a = :(state.suzieHistory[0] == 1)
+b = :(state.brokenHistory[5] == true)
+@test_ac(true, aexpr, a, b)
+
+a = :(state.suzieHistory[2] == 1)
+b = :(state.brokenHistory[step] == true)
+@test_ac(false, aexpr, a, b)
 #
 # # -------------------------------Billy Test---------------------------------------
-# # cause((billy == 0), (broken == true))
-# a = :(state.billyHistory[step] == 0)
-# b = :(state.brokenHistory[step] == true)
-# @test_ac(false, aexpr, a, b)
-#
-# # cause((billy == 0), (broken == true))
-# a = :(state.billyHistory[0] == 1)
-# b = :(state.brokenHistory[step] == true)
-# @test_ac(false, aexpr, a, b)
-#
-# # cause((billy == 0), (broken == true))
-# a = :(state.billyHistory[1] == 1)
-# b = :(state.brokenHistory[step] == true)
-# @test_ac(false, aexpr, a, b)
-#
+# cause((billy == 0), (broken == true))
+a = :(state.billyHistory[step] == 0)
+b = :(state.brokenHistory[step] == true)
+@test_ac(false, aexpr, a, b)
+
+# cause((billy == 0), (broken == true))
+a = :(state.billyHistory[0] == 1)
+b = :(state.brokenHistory[step] == true)
+@test_ac(false, aexpr, a, b)
+
+# cause((billy == 0), (broken == true))
+a = :(state.billyHistory[1] == 1)
+b = :(state.brokenHistory[step] == true)
+@test_ac(false, aexpr, a, b)
+
 # # ------------------------------Suzie Test---------------------------------------
-# #cause((suzie == 1), (broken == true))
-# a = :(state.suzieHistory[step] == 1)
-# b = :(state.brokenHistory[step] == true)
-# @test_ac(true, aexpr2, a, b)
+#cause((suzie == 1), (broken == true))
+a = :(state.suzieHistory[step] == 1)
+b = :(state.brokenHistory[step] == true)
+@test_ac(true, aexpr2, a, b)
+
+# -------------------------------Billy Test---------------------------------------
+# cause((billy == 0), (broken == true))
+a = :(state.billyHistory[step] == 0)
+b = :(state.brokenHistory[step] == true)
+@test_ac(false, aexpr2, a, b)
 #
-# # -------------------------------Billy Test---------------------------------------
-# # cause((billy == 0), (broken == true))
-# a = :(state.billyHistory[step] == 0)
-# b = :(state.brokenHistory[step] == true)
-# @test_ac(false, aexpr2, a, b)
-# #
-# # # # -----------------------------Advanced Suzie Test No Rock-----------------------
-# a = :(state.suzieHistory[step].timeTillThrow == 3)
-# b = :(state.suzieThrewHistory[step] == true)
-# @test_ac(true, aexpr3, a, b)
-#
-# a = :(state.suzieHistory[step].timeTillThrow == 2)
-# b = :(state.suzieThrewHistory[step] == true)
-# @test_ac(true, aexpr3, a, b)
-#
-# a = :(state.suzieHistory[2].timeTillThrow == 3)
-# b = :(state.suzieThrewHistory[step] == true)
-# @test_ac(false, aexpr3, a, b)
-#
-# # # -----------------------------Advanced Billy Test No Rock-----------------------
-# a = :(state.suzieHistory[step].timeTillThrow == 4)
-# b = :(state.suzieThrewHistory[step] == true)
-# @test_ac(false, aexpr3, a, b)
-#
-# a = :(state.suzieHistory[0].timeTillThrow == 4)
-# b = :(state.suzieThrewHistory[step] == true)
-# @test_ac(false, aexpr3, a, b)
-#
-# # -------------------------------Advanced Rock Test---------------------------------------
-#
-# a = :(state.suzieRockHistory[step].origin.x == 0)
+# # # -----------------------------Advanced Suzie Test No Rock-----------------------
+a = :(state.suzieHistory[step].timeTillThrow == 3)
+b = :(state.suzieThrewHistory[step] == true)
+@test_ac(true, aexpr3, a, b)
+
+a = :(state.suzieHistory[step].timeTillThrow == 2)
+b = :(state.suzieThrewHistory[step] == true)
+@test_ac(true, aexpr3, a, b)
+
+a = :(state.suzieHistory[2].timeTillThrow == 3)
+b = :(state.suzieThrewHistory[step] == true)
+@test_ac(false, aexpr3, a, b)
+
+# -----------------------------Advanced Billy Test No Rock-----------------------
+a = :(state.suzieHistory[step].timeTillThrow == 4)
+b = :(state.suzieThrewHistory[step] == true)
+@test_ac(false, aexpr3, a, b)
+
+a = :(state.suzieHistory[0].timeTillThrow == 4)
+b = :(state.suzieThrewHistory[step] == true)
+@test_ac(false, aexpr3, a, b)
+
+# -------------------------------Advanced Rock Test---------------------------------------
+
+# a = :(state.suzieRockHistory[step].origin == state.suzieRockHistory[step].origin)
 # b = :(state.brokenHistory[step] == true)
 # @test_ac(true, aexpr4, a, b)
 
-# # -------------------------------Advanced Suzie Test---------------------------------------
+# -------------------------------Advanced Suzie Test---------------------------------------
 # Autumn program has a bug.  After the first on clause the program stops updating.
 # a = :(state.suzieHistory[step].timeTillThrow == 3)
 # b = :(state.brokenHistory[step] == true)
@@ -893,16 +979,14 @@ end
 barrier = au"""(program
   (= GRID_SIZE 16)
 
+  (: reachgoal Bool)
+  (= reachgoal (initnext false (prev reachgoal)))
+
   (object Goal (Cell 0 0 "green"))
   (: goal Goal)
   (= goal (initnext (Goal (Position 0 10)) (prev goal)))
 
-  (object Ball (: direction Float64) (: color String) (Cell 0 0 color))
-
-  (object Wall (: visible Bool)(list (Cell 0 0 (if visible then "black" else "white")) (Cell 0 1 (if visible then "black" else "white")) (Cell 0 2 (if visible then "black" else "white"))))
-
-  (: wall Wall)
-  (= wall (initnext (Wall true (Position 4 9)) (prev wall)))
+  (object Ball (: direction Integer) (: color String) (Cell 0 0 color))
 
   (= nextBall (fn (ball)
     (if (< (.. ball direction) 45)
@@ -939,7 +1023,8 @@ barrier = au"""(program
       else ball))))))))))
 
 
-  (on (clicked wall) (= wall (updateObj wall "visible" (! (.. wall visible)))))
+  (on (clicked goal) (= goal (prev goal)))
+  (on (intersects ball_a goal) (= reachgoal true))
 
   (= wallintersect (fn (ball)
     (if (& (< (.. ball direction) 180) (== (.. (.. ball origin) y) 15)) then (- 180 (.. ball direction)) else
@@ -950,203 +1035,30 @@ barrier = au"""(program
     (if (& (> (.. ball direction) 270) (== (.. (.. ball origin) x) 0)) then (- 360 (.. ball direction)) else
     (if (& (< (.. ball direction) 90) (== (.. (.. ball origin) x) 15)) then (+ 270 (.. ball direction)) else
     (if (& (== (.. ball direction) 90) (== (.. (.. ball origin) x) 15)) then 270 else
-    (if (& (& (> (.. ball direction) 90) (< (.. ball direction) 180)) (== (.. (.. ball origin) x) 15)) then (+ 90 (.. ball direction)) else
+    (if (& (> (.. ball direction) 90) (== (.. (.. ball origin) x) 15)) then (+ 90 (.. ball direction)) else
     (if (& (> (.. ball direction) 180) (== (.. (.. ball origin) y) 0)) then (- 520 (.. ball direction)) else
     (if (& (== (.. ball direction) 45) (== (.. (.. ball origin) y) 0)) then 180 else
     (if (& (< (.. ball direction) 180) (== (.. (.. ball origin) y) 0)) then (- 180 (.. ball direction)) else
-
   (.. ball direction)))))))))))))))
 
   (= ballcollision (fn (ball1 ball2)
-    (/ (+ (.. ball1 direction) (.. ball2 direction)) 2)
+    (.. ball2 direction)
   ))
 
   (: ball_a Ball)
-  (= ball_a (initnext (Ball 271.0 "blue" (Position 15 10)) (if (intersects ball_a ball_b) then (nextBall (updateObj (prev ball_a) "direction" (ballcollision (prev ball_a) (prev ball_b)))) else (nextBall (updateObj (prev ball_a) "direction" (wallintersect (prev ball_a)))))))
+  (= ball_a (initnext (Ball 361 "blue" (Position 6 10)) (if (intersects ball_a ball_b) then (nextBall (updateObj (prev ball_a) "direction" (ballcollision (prev ball_a) (prev ball_b)))) else (nextBall (updateObj (prev ball_a) "direction" (wallintersect (prev ball_a)))))))
 
   (: ball_b Ball)
-  (= ball_b (initnext (Ball 225.0 "red" (Position 15 5)) (if (intersects (prev ball_a) ball_b) then (nextBall (updateObj (prev ball_b) "direction" 361)) else (nextBall (updateObj (prev ball_b) "direction" (wallintersect (prev ball_b)))))))
-)"""
-  #
-  aumod = eval(compiletojulia(barrier))
-  step = 0
-  state = aumod.init(nothing, nothing, nothing, nothing, nothing, MersenneTwister(0))
-  println(state.ball_aHistory[step])
-  step+=1
-  #
-  state = aumod.next(state, aumod.Click(0, 0), nothing, nothing, nothing, nothing)
-  println(state.ball_aHistory[step])
-  step+=1
-  state = aumod.next(state, aumod.Click(0, 0), nothing, nothing, nothing, nothing)
-  println(state.ball_aHistory[step])
-  step+=1
-  state = aumod.next(state, aumod.Click(0, 0), nothing, nothing, nothing, nothing)
-  println(state.ball_aHistory[step])
-  step+=1
-  state = aumod.next(state, aumod.Click(0, 0), nothing, nothing, nothing, nothing)
-  println(state.ball_aHistory[step])
-  step+=1
-  state = aumod.next(state, aumod.Click(0, 0), nothing, nothing, nothing, nothing)
-  println(state.ball_aHistory[step])
-  step+=1
-  state = aumod.next(state, aumod.Click(0, 0), nothing, nothing, nothing, nothing)
-  println(state.ball_aHistory[step])
-  step+=1
-  state = aumod.next(state, aumod.Click(0, 0), nothing, nothing, nothing, nothing)
-  println(state.ball_aHistory[step])
-  step+=1
-  state = aumod.next(state, aumod.Click(0, 0), nothing, nothing, nothing, nothing)
-  println(state.ball_aHistory[step])
-  step+=1
-  state = aumod.next(state, aumod.Click(0, 0), nothing, nothing, nothing, nothing)
-  println(state.ball_aHistory[step])
-  step+=1
-  state = aumod.next(state, aumod.Click(0, 0), nothing, nothing, nothing, nothing)
-  println(state.ball_aHistory[step])
-  step+=1
-  state = aumod.next(state, aumod.Click(0, 0), nothing, nothing, nothing, nothing)
-  println(state.ball_aHistory[step])
-  step+=1
-  state = aumod.next(state, aumod.Click(0, 0), nothing, nothing, nothing, nothing)
-  println(state.ball_aHistory[step])
-  step+=1
-  state = aumod.next(state, aumod.Click(0, 0), nothing, nothing, nothing, nothing)
-  println(state.ball_aHistory[step])
-  step+=1
-  state = aumod.next(state, aumod.Click(0, 0), nothing, nothing, nothing, nothing)
-  println(state.ball_aHistory[step])
-  step+=1
-  state = aumod.next(state, aumod.Click(0, 0), nothing, nothing, nothing, nothing)
-  println(state.ball_aHistory[step])
-  step+=1
-  state = aumod.next(state, aumod.Click(0, 0), nothing, nothing, nothing, nothing)
-  println(state.ball_aHistory[step])
-  step+=1
-  state = aumod.next(state, aumod.Click(0, 0), nothing, nothing, nothing, nothing)
-  println(state.ball_aHistory[step])
-  step+=1
-  state = aumod.next(state, aumod.Click(0, 0), nothing, nothing, nothing, nothing)
-  println(state.ball_aHistory[step])
-  step+=1
-  state = aumod.next(state, aumod.Click(0, 0), nothing, nothing, nothing, nothing)
-  println(state.ball_aHistory[step])
-  step+=1
-  state = aumod.next(state, aumod.Click(0, 0), nothing, nothing, nothing, nothing)
-  println(state.ball_aHistory[step])
-  step+=1
-  state = aumod.next(state, aumod.Click(0, 0), nothing, nothing, nothing, nothing)
-  println(state.ball_aHistory[step])
-  step+=1
-  state = aumod.next(state, aumod.Click(0, 0), nothing, nothing, nothing, nothing)
-  println(state.ball_aHistory[step])
-  step+=1
-  state = aumod.next(state, aumod.Click(0, 0), nothing, nothing, nothing, nothing)
-  println(state.ball_aHistory[step])
-  step+=1
-  state = aumod.next(state, aumod.Click(0, 0), nothing, nothing, nothing, nothing)
-  println(state.ball_aHistory[step])
-  step+=1
-  state = aumod.next(state, aumod.Click(0, 0), nothing, nothing, nothing, nothing)
-  println(state.ball_aHistory[step])
-  step+=1
-  state = aumod.next(state, aumod.Click(0, 0), nothing, nothing, nothing, nothing)
-  println(state.ball_aHistory[step])
-  step+=1
-  state = aumod.next(state, aumod.Click(0, 0), nothing, nothing, nothing, nothing)
-  println(state.ball_aHistory[step])
-  step+=1
-  state = aumod.next(state, aumod.Click(0, 0), nothing, nothing, nothing, nothing)
-  println(state.ball_aHistory[step])
-  step+=1
-  state = aumod.next(state, aumod.Click(0, 0), nothing, nothing, nothing, nothing)
-  println(state.ball_aHistory[step])
-  step+=1
-  state = aumod.next(state, aumod.Click(0, 0), nothing, nothing, nothing, nothing)
-  println(state.ball_aHistory[step])
-  step+=1
-  state = aumod.next(state, aumod.Click(0, 0), nothing, nothing, nothing, nothing)
-  println(state.ball_aHistory[step])
-  step+=1
-  state = aumod.next(state, aumod.Click(0, 0), nothing, nothing, nothing, nothing)
-  println(state.ball_aHistory[step])
-  step+=1
+  (= ball_b (initnext (Ball 270 "purple" (Position 14 10)) (if (intersects (prev ball_a) ball_b) then (nextBall (updateObj (prev ball_b) "direction" 361)) else (nextBall (updateObj (prev ball_b) "direction" (wallintersect (prev ball_b)))))))
+)
+
+"""
+a = :(state.ball_bHistory[step].direction == 270)
+b = :(state.reachgoalHistory[step] == true)
+@test_ac(true, barrier, a, b)
 
 
 
-  # println(state.brokenHistory[step])
-  # println(fieldnames(typeof(state.suzieRockHistory[step])))
-  # println(state.suzieRockHistory[step].id)
-  # println(state.suzieRockHistory[step].alive)
-  # println(state.suzieRockHistory[step].render)
-  # # state.rocksHistory[step][1].origin = Position(4, 7)
-  # # println(state.rocksHistory[step][1].origin)
-  # step+=1
-  #
-  # state = aumod.next(state, nothing, nothing, nothing, nothing, nothing)
-  # println(state.brokenHistory[step])
-  # step+=1
-  # state = aumod.next(state, nothing, nothing, nothing, nothing, nothing)
-  # println(state.brokenHistory[step])
-  # step+=1
-  # state = aumod.next(state, nothing, nothing, nothing, nothing, nothing)
-  # println(state.brokenHistory[step])
-  # step+=1
-  # state = aumod.next(state, nothing, nothing, nothing, nothing, nothing)
-  # println(state.brokenHistory[step])
-  # step+=1
-  # state = aumod.next(state, nothing, nothing, nothing, nothing, nothing)
-  # println(state.brokenHistory[step])
-  # step+=1
-  # state = aumod.next(state, nothing, nothing, nothing, nothing, nothing)
-  # println(state.brokenHistory[step])
-  # step+=1
-  # state = aumod.next(state, nothing, nothing, nothing, nothing, nothing)
-  # println(state.brokenHistory[step])
-  # step+=1
-  # state = aumod.next(state, nothing, nothing, nothing, nothing, nothing)
-  # println(state.brokenHistory[step])
-  # step+=1
-  # state = aumod.next(state, nothing, nothing, nothing, nothing, nothing)
-  # println(state.brokenHistory[step])
-  # step+=1
-  # state = aumod.next(state, nothing, nothing, nothing, nothing, nothing)
-  # println(state.brokenHistory[step])
-  # step+=1
-  # state = aumod.next(state, nothing, nothing, nothing, nothing, nothing)
-  # println(state.brokenHistory[step])
-  # step+=1
-  # state = aumod.next(state, nothing, nothing, nothing, nothing, nothing)
-  # println(state.brokenHistory[step])
-  # step+=1
-  # state = aumod.next(state, nothing, nothing, nothing, nothing, nothing)
-  # println(state.brokenHistory[step])
-  # step+=1
-  # state = aumod.next(state, nothing, nothing, nothing, nothing, nothing)
-  # println(state.brokenHistory[step])
-  # step+=1
-  # state = aumod.next(state, nothing, nothing, nothing, nothing, nothing)
-  # println(state.brokenHistory[step])
-  # step+=1
-  # state = aumod.next(state, nothing, nothing, nothing, nothing, nothing)
-  # println(state.brokenHistory[step])
-  # step+=1
-  # state = aumod.next(state, nothing, nothing, nothing, nothing, nothing)
-  # println(state.brokenHistory[step])
-  # step+=1
-  # state = aumod.next(state, nothing, nothing, nothing, nothing, nothing)
-  # println(state.brokenHistory[step])
-  # step+=1
-  # state = aumod.next(state, nothing, nothing, nothing, nothing, nothing)
-  # println(state.suzieRockHistory[step])
-  # println(state.suzieRockHistory[step].origin.x)
-  # println(state.suzieRockHistory[step].origin.y)
-  #
-  # println(state.brokenHistory[step])
-  # step+=1
-  # state = aumod.next(state, nothing, nothing, nothing, nothing, nothing)
-  # println(state.suzieRockHistory[step])
-  # println(state.suzieRockHistory[step].origin.x)
-  # println(state.suzieRockHistory[step].origin.y)
 #syntactic pattern matching but its not necessarily syntactic thing
 #what to do if non trivial
 #in my set of causes

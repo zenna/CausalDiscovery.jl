@@ -60,7 +60,6 @@ function convertprev(next_value::Union{AExpr, Expr}, data)
     return Expr(:if, new_expr...)
   end
   if next_value.head == :(.)
-    println(typeof(next_value))
     for index in 1:length(next_value.args)
       next_value.args[index] = new_expr[index]
     end
@@ -91,7 +90,7 @@ function causalon(data)
     ifstatement = quote
       if (eval($quote_clause))
         varstore = eval(a.args[2])
-        for val in possiblevalues(a.args[2], a.args[3])
+        for val in possiblevalues(a.args[2], eval(a.args[3]))
           if isfield(a.args[2])
             eval(Expr(:(=), a.args[2], val))
           else
@@ -136,31 +135,47 @@ function causalin(data)
     shortmap = tostateshort(clause.args[1])
     ifstatement = quote
       varstore = a.args[3]
-      if (eval(a.args[2]) == eval(a.args[3]) && reducenoeval(a.args[2]) == reducenoeval($mapped))
-        for val in possiblevalues(a.args[2], a.args[3])
-          if isfield(a.args[2])
-            eval(Expr(:(=), a.args[2], val))
-          else
-            push!(reduce(a.args[2]), step =>val)
+      println("if")
+      println(eval($mapped))
+      # if (eval(a.args[2]) == eval(a.args[3]) && reducenoeval(a.args[2]) == reducenoeval($mapped))
+      if length(fieldnames(typeof(eval($mapped)))) == 0
+        push!(causes, Expr(:call, :(==), (increment(a.args[2])), $new_expr))
+      end
+        for field in fieldnames(typeof(eval($mapped)))
+          if field == :render
+            continue
           end
-          if !(eval(a.args[2]) == a.args[3])
+          prevval = getfield(eval($new_expr), field)
+          println("prev 1")
+          println(prevval)
+          for val in possiblevalues(a.args[2], eval(a.args[3]))
             if isfield(a.args[2])
-              eval(Expr(:(=), a.args[2], varstore))
+              eval(Expr(:(=), a.args[2], val))
             else
-              push!(reduce(a.args[2]), step =>varstore)
+              push!(reduce(a.args[2]), step =>val)
             end
-            if isfield(a.args[2])
-              fieldvalue = $new_expr
-              for field in getfieldnames(a.args[2])
-                fieldvalue = getfield(fieldvalue, Symbol(field))
+            if prevval != getfield(eval($new_expr), field)
+              if isfield(a.args[2])
+                eval(Expr(:(=), a.args[2], varstore))
+              else
+                push!(reduce(a.args[2]), step =>varstore)
               end
-              push!(causes, Expr(:call, :(==), (increment(a.args[2])), fieldvalue))
-            else
-              push!(causes, Expr(:call, :(==), (increment(a.args[2])), $new_expr))
+              println(Meta.parse(join([increment($mapped), field], ".")))
+              println("prev")
+              println(prevval)
+              push!(causes, Expr(:call, :(==), Meta.parse(join([increment($mapped), field], ".")), prevval))
+              println(val)
+              println($mapped)
+              println("break")
+              println(field)
+              if isfield(a.args[2])
+                eval(Expr(:(=), a.args[2], varstore))
+              else
+                push!(reduce(a.args[2]), step =>varstore)
+              end
+              break
             end
-            break
           end
-        end
         if isfield(a.args[2])
           eval(Expr(:(=), a.args[2], varstore))
         else
@@ -584,7 +599,6 @@ const builtInDict = Dict([
                         end
 
                         function objClicked(click::Union{Click, Nothing}, objects::AbstractArray)::Object
-                          println(click)
                           filter(obj -> clicked(click, obj), objects)[1]
                         end
 
