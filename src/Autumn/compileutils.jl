@@ -127,17 +127,12 @@ function causalin(data)
     new_expr = []
     if next_value.args[1] == :prev
       continue
-    # elseif next_value.args[1] == :updateObj && length(next_value.args) == 4
-    #   new_expr = convertprev(next_value.args[4], data)
     else
       new_expr = convertprev(next_value, data)
     end
     shortmap = tostateshort(clause.args[1])
     ifstatement = quote
       varstore = a.args[3]
-      println("if")
-      println(eval($mapped))
-      # if (eval(a.args[2]) == eval(a.args[3]) && reducenoeval(a.args[2]) == reducenoeval($mapped))
       if length(fieldnames(typeof(eval($mapped)))) == 0
         push!(causes, Expr(:call, :(==), (increment(a.args[2])), $new_expr))
       end
@@ -146,8 +141,6 @@ function causalin(data)
             continue
           end
           prevval = getfield(eval($new_expr), field)
-          println("prev 1")
-          println(prevval)
           for val in possiblevalues(a.args[2], eval(a.args[3]))
             if isfield(a.args[2])
               eval(Expr(:(=), a.args[2], val))
@@ -160,14 +153,7 @@ function causalin(data)
               else
                 push!(reduce(a.args[2]), step =>varstore)
               end
-              println(Meta.parse(join([increment($mapped), field], ".")))
-              println("prev")
-              println(prevval)
               push!(causes, Expr(:call, :(==), Meta.parse(join([increment($mapped), field], ".")), prevval))
-              println(val)
-              println($mapped)
-              println("break")
-              println(field)
               if isfield(a.args[2])
                 eval(Expr(:(=), a.args[2], varstore))
               else
@@ -187,7 +173,6 @@ function causalin(data)
     end
   in_clauses
 end
-
 
 function compilecausal(data)
   on_clauses = causalon(data)
@@ -978,6 +963,83 @@ const builtInDict = Dict([
                           map(num -> Position(num % GRID_SIZE, floor(Int, num / GRID_SIZE)), nums)
                         end
 
+                        function wallintersect(ball)
+                          direction = ball.direction
+                          if ball.origin.y == 15
+                            if (direction < 180 && direction > 90)
+                              return 180 - direction
+                            elseif (direction == 180)
+                              return 0
+                            elseif (direction > 180 && direction <270)
+                              return 90 + direction
+                            end
+                          elseif ball.origin.x == 0
+                            if (direction < 270) && (direction > 180)
+                              return 360 - direction
+                            elseif direction == 270
+                              return 90
+                            elseif direction > 270
+                              return 360 - direction
+                            end
+                          elseif ball.origin.x == 15
+                            if direction < 90
+                              return 270 + direction
+                            elseif direction == 90
+                              return 270
+                            elseif direction > 90 && direction < 180
+                              return 90 + direction
+                            end
+                          elseif ball.origin.y == 0
+                            if direction > 270
+                              return 540 - direction
+                            elseif direction == 0
+                              return 180
+                            elseif direction < 90
+                              return 180 - direction
+                            end
+                          end
+                          return direction
+                        end
+
+                        function nextBall(ball)
+                          direction = ball.direction
+                          origin = ball.origin
+                          if direction < 45
+                            return updateObj(ball, "origin", typeof(ball.origin)(origin.x, origin.y-1))
+                          elseif direction < 90
+                            return updateObj(ball, "origin", typeof(ball.origin)(origin.x+1, origin.y-1))
+                          elseif direction < 135
+                            return updateObj(ball, "origin", typeof(ball.origin)(origin.x+1, origin.y))
+                          elseif direction < 180
+                            return updateObj(ball, "origin", typeof(ball.origin)(origin.x+1, origin.y+1))
+                          elseif direction < 225
+                            return updateObj(ball, "origin", typeof(ball.origin)(origin.x, origin.y+1))
+                          elseif direction < 270
+                            return updateObj(ball, "origin", typeof(ball.origin)(origin.x-1, origin.y+1))
+                          elseif direction < 315
+                            return updateObj(ball, "origin", typeof(ball.origin)(origin.x-1, origin.y))
+                          elseif direction < 360
+                            return updateObj(ball, "origin", typeof(ball.origin)(origin.x-1, origin.y-1))
+                          end
+                          return ball
+                        end
+
+                        function ballcollision(ball1, ball2)
+                          difference = abs(ball1.direction - ball2.direction)
+                          if ball1.direction > 360
+                            return ball2.direction
+                          elseif ball2.direction >= 360
+                            return (ball1.direction + 180) % 360
+                          elseif (ball1.direction + 180) ÷ 45 == ball2.direction ÷ 45
+                            return (ball1.direction + 180) % 360
+                          elseif difference > 45
+                            if ball1.direction < 90 || (ball1.direction >= 180 && ball1.direction <270)
+                              return ball1.direction + 90
+                            else return ball1.direction - 90
+                            end
+                          end
+                          return ball2.direction
+                        end
                     end
 ])
 

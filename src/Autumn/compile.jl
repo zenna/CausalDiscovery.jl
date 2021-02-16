@@ -34,7 +34,7 @@ end
 
 "compile `aexpr` into Expr"
 function compiletojulia(aexpr::AExpr)::Expr
-  println("compile to julia")
+  # println("compile to julia")
   # dictionary containing types/definitions of global variables, for use in constructing init func.,
   # next func., etcetera; the three categories of global variable are external, initnext, and lifted
   historydata = Dict([("external" => [au"""(external (: click Click))""".args[1], au"""(external (: left KeyPress))""".args[1], au"""(external (: right KeyPress))""".args[1], au"""(external (: up KeyPress))""".args[1], au"""(external (: down KeyPress))""".args[1]]), # :typedecl aexprs for all external variables

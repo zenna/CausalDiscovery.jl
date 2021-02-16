@@ -580,36 +580,35 @@ aexpr3 = au"""(program
   )"""
 
   aexpr5 = au"""(program
-    (= GRID_SIZE 16)
+  (= GRID_SIZE 16)
 
-    (: broken Bool)
-    (= broken (initnext false (prev broken)))
+  (: broken Bool)
+  (= broken (initnext false (prev broken)))
 
-    (object Suzie (: timeTillThrow Integer) (Cell 0 0 "blue"))
-    (object Billy (: timeTillThrow Integer) (Cell 0 0 "red"))
+  (object Suzie (: timeTillThrow Integer) (Cell 0 0 "blue"))
 
-    (object BottleSpot (Cell 0 0 "white"))
-    (object Rock (: moving Bool) (Cell 0 0 "black"))
+  (object BottleSpot (Cell 0 0 "white"))
+  (object Rock (: moving Bool) (Cell 0 0 "black"))
 
-    (: suzie Suzie)
-    (= suzie (initnext (Suzie 3 (Position 0 0))
-      (updateObj (prev suzie) "timeTillThrow" (- (.. (prev suzie) timeTillThrow) 1))))
+  (: suzie Suzie)
+  (= suzie (initnext (Suzie 3 (Position 0 0))
+    (updateObj (prev suzie) "timeTillThrow" (- (.. (prev suzie) timeTillThrow) 1))))
 
-    (: billy Billy)
-    (= billy (initnext (Billy 4 (Position 0 15))
-      (updateObj (prev billy) "timeTillThrow" (- (.. (prev billy) timeTillThrow) 1))))
+  (: bottleSpot BottleSpot)
+  (= bottleSpot (initnext (BottleSpot (Position 15 7)) (prev bottleSpot)))
 
-    (: bottleSpot BottleSpot)
-    (= bottleSpot (initnext (BottleSpot (Position 15 7)) (BottleSpot (Position 15 7))))
+  (: suzieRock Rock)
+  (= suzieRock (initnext (Rock false (Position 0 7))
+    (if (.. (prev suzieRock) moving)
+     then (move suzieRock (unitVector (prev suzieRock) bottleSpot))
+     else (prev suzieRock))))
 
-
-    (: suzieRock Rock)
-    (= suzieRock (initnext (Rock false (Position 0 7))
-      (if (.. suzieRock moving) then (move (prev suzieRock) (unitVector (prev suzieRock) bottleSpot)) else (prev suzieRock))))
-
-    (on (== (.. suzie timeTillThrow) 0) (updateObj suzieRock "moving" true))
-    (on (intersects (prev bottleSpot) (prev suzieRock)) (= broken true))
-  )"""
+  (on (== (.. (prev suzie) timeTillThrow) 0)
+      (let ((= suzieRock (updateObj (prev suzieRock) "moving" true))
+            (= suzie (updateObj (prev suzie) "timeTillThrow" (- (.. (prev suzie) timeTillThrow) 1)))
+           )))
+  (on (intersects (prev bottleSpot) (prev suzieRock)) (= broken true))
+)"""
 
 function tostate(var)
   return Meta.parse("state.$(var)History[step]")
@@ -729,11 +728,11 @@ end
 function wallintersect(ball)
   direction = ball.direction
   if ball.origin.y == 15
-    if (direction < 180)
+    if (direction < 180 && direction > 90)
       return 180 - direction
     elseif (direction == 180)
       return 0
-    elseif (direction > 180)
+    elseif (direction > 180 && direction <270)
       return 90 + direction
     end
   elseif ball.origin.x == 0
@@ -749,23 +748,19 @@ function wallintersect(ball)
       return 270 + direction
     elseif direction == 90
       return 270
-    elseif direction > 90
+    elseif direction > 90 && direction < 180
       return 90 + direction
     end
   elseif ball.origin.y == 0
-    if direction > 180
-      return 520 - direction
+    if direction > 270
+      return 540 - direction
     elseif direction == 0
       return 180
-    elseif direction < 180
+    elseif direction < 90
       return 180 - direction
     end
   end
   return direction
-end
-
-function ballcollision(ball1, ball2)
-  return ball2.direction
 end
 
 function nextBall(ball)
@@ -782,7 +777,7 @@ function nextBall(ball)
   elseif direction < 225
     return updateObj(ball, "origin", typeof(ball.origin)(origin.x, origin.y+1))
   elseif direction < 270
-    return updateObj(ball, "origin", typeof(ball.origin)(origin.x+1, origin.y+1))
+    return updateObj(ball, "origin", typeof(ball.origin)(origin.x-1, origin.y+1))
   elseif direction < 315
     return updateObj(ball, "origin", typeof(ball.origin)(origin.x-1, origin.y))
   elseif direction < 360
@@ -792,17 +787,45 @@ function nextBall(ball)
   return ball
 end
 
+function ballcollision(ball1, ball2)
+  difference = abs(ball1.direction - ball2.direction)
+  if ball1.direction > 360
+    return ball2.direction
+  elseif ball2.direction >= 360
+    return (ball1.direction + 180) % 360
+  elseif (ball1.direction + 180) ÷ 45 == ball2.direction ÷ 45
+    return (ball1.direction + 180) % 360
+  elseif difference > 45
+    if ball1.direction < 90 || (ball1.direction >= 180 && ball1.direction <270)
+      return ball1.direction + 90
+    else return ball1.direction - 90
+    end
+  end
+  return ball2.direction
+end
+
+
 function tryb(cause_b)
   try
     return eval(cause_b)
   catch e
-    println(e)
+    # println(e)
     return false
   end
 end
 
+function equalPos(val1, val2)
+  try
+    return eval(val1).x == eval(val2).x && eval(val1).y == eval(val2).y
+  catch e
+    return false
+  end
+  false
+end
+
+
 function acaused(cause_a::Expr, cause_b::Expr)
-  if eval(cause_a)
+  if eval(cause_a) || equalPos(cause_a.args[2], cause_a.args[3])
     varstore = eval(cause_a.args[2])
     short = eval(reduce(cause_a.args[2]))
     index = getstep(cause_a.args[2])
@@ -843,7 +866,7 @@ macro test_ac(expected_true, aexpr_,  cause_a_, cause_b_)
     return quote
       global step = 0
       get_a_causes = getcausal($aexpr_)
-      # println(get_a_causes)
+
       eval(get_a_causes)
       aumod = eval(compiletojulia($aexpr_))
       state = aumod.init(nothing, nothing, nothing, nothing, nothing, MersenneTwister(0))
@@ -852,16 +875,18 @@ macro test_ac(expected_true, aexpr_,  cause_a_, cause_b_)
 
       while !tryb(cause_b) && length(causes) > 0
         new_causes = []
-        println(causes)
         for cause_a in causes
           try
             if eval(cause_a)
-              append!(new_causes, a_causes(cause_a))
+              result = a_causes(cause_a)
+              append!(new_causes, result)
             else
-              append!(new_causes, [cause_a])
+              if getstep(cause_a) > step - 1
+                append!(new_causes, [cause_a])
+              end
             end
           catch e
-            println(e)
+            # println(e)
             append!(new_causes, [cause_a])
           end
         end
@@ -876,6 +901,7 @@ macro test_ac(expected_true, aexpr_,  cause_a_, cause_b_)
         println(cause_a)
         println("b path")
         println(cause_b)
+        println("---------------------------------------------")
         $cause
         return
       end
@@ -885,11 +911,12 @@ macro test_ac(expected_true, aexpr_,  cause_a_, cause_b_)
     println(causes)
     println("cause b")
     println(cause_b)
+    println("---------------------------------------------")
     $not_cause
   end
 end
 # ------------------------------Suzie Test---------------------------------------
-# # cause((suzie == 1), (broken == true))
+# cause((suzie == 1), (broken == true))
 a = :(state.suzieHistory[step] == 1)
 b = :(state.brokenHistory[step] == true)
 @test_ac(true, aexpr, a, b)
@@ -929,8 +956,8 @@ b = :(state.brokenHistory[step] == true)
 a = :(state.billyHistory[step] == 0)
 b = :(state.brokenHistory[step] == true)
 @test_ac(false, aexpr2, a, b)
-#
-# # # -----------------------------Advanced Suzie Test No Rock-----------------------
+
+# # -----------------------------Advanced Suzie Test No Rock-----------------------
 a = :(state.suzieHistory[step].timeTillThrow == 3)
 b = :(state.suzieThrewHistory[step] == true)
 @test_ac(true, aexpr3, a, b)
@@ -976,7 +1003,7 @@ b = :(state.suzieThrewHistory[step] == true)
 
 # When the transition works will need to take the change from the assignment
 # Loop through the fields and any that are different given the assignment should be traced?
-barrier = au"""(program
+chain = au"""(program
   (= GRID_SIZE 16)
 
   (: reachgoal Bool)
@@ -988,74 +1015,186 @@ barrier = au"""(program
 
   (object Ball (: direction Integer) (: color String) (Cell 0 0 color))
 
-  (= nextBall (fn (ball)
-    (if (< (.. ball direction) 45)
-      then (updateObj ball "origin"
-             (Position (.. (.. ball origin) x) (- (.. (.. ball origin) y) 1)))
-   else
-    (if (< (.. ball direction) 90)
-      then (updateObj ball "origin"
-             (Position (+ (.. (.. ball origin) x) 1) (- (.. (.. ball origin) y) 1)))
-   else
-    (if (< (.. ball direction) 135)
-      then (updateObj ball "origin"
-             (Position (+ (.. (.. ball origin) x) 1) (.. (.. ball origin) y)))
-   else
-    (if (< (.. ball direction) 180)
-      then (updateObj ball "origin"
-             (Position (+ (.. (.. ball origin) x) 1) (+ (.. (.. ball origin) y) 1)))
-   else
-    (if (< (.. ball direction) 225)
-      then (updateObj ball "origin"
-             (Position (.. (.. ball origin) x) (+ (.. (.. ball origin) y) 1)))
-    else
-      (if (< (.. ball direction) 270)
-        then (updateObj ball "origin"
-               (Position (- (.. (.. ball origin) x) 1) (+ (.. (.. ball origin) y) 1)))
-    else
-      (if (< (.. ball direction) 315)
-            then (updateObj ball "origin"
-                   (Position (- (.. (.. ball origin) x) 1) (.. (.. ball origin) y)))
-    else
-      (if (< (.. ball direction) 360)
-          then (updateObj ball "origin"
-                 (Position (- (.. (.. ball origin) x) 1) (- (.. (.. ball origin) y) 1)))
-      else ball))))))))))
-
-
-  (on (clicked goal) (= goal (prev goal)))
-  (on (intersects ball_a goal) (= reachgoal true))
-
-  (= wallintersect (fn (ball)
-    (if (& (< (.. ball direction) 180) (== (.. (.. ball origin) y) 15)) then (- 180 (.. ball direction)) else
-    (if (& (== (.. ball direction) 180) (== (.. (.. ball origin) y) 15)) then 0 else
-    (if (& (> (.. ball direction) 180) (== (.. (.. ball origin) y) 15)) then (+ 90 (.. ball direction)) else
-    (if (& (& (< (.. ball direction) 270) (> (.. ball direction) 180)) (== (.. (.. ball origin) x) 0)) then (- 360 (.. ball direction)) else
-    (if (& (== (.. ball direction) 270) (== (.. (.. ball origin) x) 0)) then 90 else
-    (if (& (> (.. ball direction) 270) (== (.. (.. ball origin) x) 0)) then (- 360 (.. ball direction)) else
-    (if (& (< (.. ball direction) 90) (== (.. (.. ball origin) x) 15)) then (+ 270 (.. ball direction)) else
-    (if (& (== (.. ball direction) 90) (== (.. (.. ball origin) x) 15)) then 270 else
-    (if (& (> (.. ball direction) 90) (== (.. (.. ball origin) x) 15)) then (+ 90 (.. ball direction)) else
-    (if (& (> (.. ball direction) 180) (== (.. (.. ball origin) y) 0)) then (- 520 (.. ball direction)) else
-    (if (& (== (.. ball direction) 45) (== (.. (.. ball origin) y) 0)) then 180 else
-    (if (& (< (.. ball direction) 180) (== (.. (.. ball origin) y) 0)) then (- 180 (.. ball direction)) else
-  (.. ball direction)))))))))))))))
-
-  (= ballcollision (fn (ball1 ball2)
-    (.. ball2 direction)
-  ))
-
   (: ball_a Ball)
   (= ball_a (initnext (Ball 361 "blue" (Position 6 10)) (if (intersects ball_a ball_b) then (nextBall (updateObj (prev ball_a) "direction" (ballcollision (prev ball_a) (prev ball_b)))) else (nextBall (updateObj (prev ball_a) "direction" (wallintersect (prev ball_a)))))))
 
   (: ball_b Ball)
   (= ball_b (initnext (Ball 270 "purple" (Position 14 10)) (if (intersects (prev ball_a) ball_b) then (nextBall (updateObj (prev ball_b) "direction" 361)) else (nextBall (updateObj (prev ball_b) "direction" (wallintersect (prev ball_b)))))))
+
+  (on (intersects goal ball_a) (= reachgoal true))
+  (on (clicked goal) (= goal (prev goal)))
 )
 
 """
 a = :(state.ball_bHistory[step].direction == 270)
-b = :(state.reachgoalHistory[step] == true)
+b = :(intersects(state.ball_aHistory[step], state.goalHistory[step]))
+@test_ac(true, chain, a, b)
+
+chain3 = au"""(program
+  (= GRID_SIZE 16)
+
+  (object Goal (Cell 0 0 "green"))
+  (: goal Goal)
+  (= goal (initnext (Goal (Position 0 10)) (prev goal)))
+
+  (object Ball (: direction Integer) (: color String) (Cell 0 0 color))
+
+  (on (clicked goal) (= goal (prev goal)))
+
+  (: ball_a Ball)
+  (= ball_a (initnext (Ball 361 "blue" (Position 6 10)) (if (intersects ball_a ball_b) then (nextBall (updateObj (prev ball_a) "direction" (ballcollision (prev ball_a) (prev ball_b)))) else (nextBall (updateObj (prev ball_a) "direction" (wallintersect (prev ball_a)))))))
+
+  (: ball_b Ball)
+  (= ball_b (initnext (Ball 361 "red" (Position 10 10)) (if (intersects ball_b ball_c) then (nextBall (updateObj (prev ball_b) "direction" (ballcollision (prev ball_b) (prev ball_c)))) else (if (intersects (prev ball_a) ball_b) then (nextBall (updateObj (prev ball_b) "direction" 361)) else (nextBall (updateObj (prev ball_b) "direction" (wallintersect (prev ball_b))))))))
+
+  (: ball_c Ball)
+  (= ball_c (initnext (Ball 270 "purple" (Position 14 10)) (if (intersects (prev ball_b) ball_c) then (nextBall (updateObj (prev ball_c) "direction" 361)) else (nextBall (updateObj (prev ball_c) "direction" (wallintersect (prev ball_c)))))))
+
+  (on (intersects ball_a goal) (= ball_a (updateObj ball_a "direction" 361)))
+)"""
+
+a = :(state.ball_bHistory[step].direction == 270)
+b = :(intersects(state.ball_aHistory[step], state.goalHistory[step]))
+@test_ac(true, chain3, a, b)
+
+a = :(state.ball_cHistory[step].direction == 270)
+b = :(intersects(state.ball_aHistory[step], state.goalHistory[step]))
+@test_ac(true, chain3, a, b)
+
+barrier = au"""(program
+  (= GRID_SIZE 16)
+
+  (object Goal (Cell 0 0 "green"))
+  (: goal Goal)
+  (= goal (initnext (Goal (Position 0 10)) (prev goal)))
+
+  (object Ball (: direction Integer) (: color String) (Cell 0 0 color))
+  (object Wall (: visible Bool)(list (Cell 0 0 (if visible then "black" else "white")) (Cell 0 1 (if visible then "black" else "white")) (Cell 0 2 (if visible then "black" else "white"))))
+
+  (: wall Wall)
+  (= wall (initnext (Wall true (Position 4 9)) (prev wall)))
+
+  (on (clicked wall) (= wall (updateObj wall "visible" (! (.. wall visible)))))
+
+  (: ball_a Ball)
+  (= ball_a (initnext (Ball 270 "blue" (Position 15 10)) (if (intersects ball_a ball_b) then (nextBall (updateObj (prev ball_a) "direction" (ballcollision (prev ball_a) (prev ball_b)))) else (nextBall (updateObj (prev ball_a) "direction" (wallintersect (prev ball_a)))))))
+
+  (: ball_b Ball)
+  (= ball_b (initnext (Ball 225 "red" (Position 15 5)) (if (intersects (prev ball_a) ball_b) then (nextBall (updateObj (prev ball_b) "direction" 361)) else (nextBall (updateObj (prev ball_b) "direction" (wallintersect (prev ball_b)))))))
+)"""
+
+a = :(state.ball_bHistory[step].direction == 225)
+b = :(intersects(state.ball_aHistory[step], state.goalHistory[step]))
 @test_ac(true, barrier, a, b)
+
+#counterfactual close actual hit
+ccah = au"""(program
+  (= GRID_SIZE 16)
+
+  (object Goal (Cell 0 0 "green"))
+  (: goal Goal)
+  (= goal (initnext (Goal (Position 0 7)) (prev goal)))
+  (: goal2 Goal)
+  (= goal2 (initnext (Goal (Position 0 8)) (prev goal2)))
+
+  (object Ball (: direction Integer) (: color String) (Cell 0 0 color))
+  (object Wall (: visible Bool)(list (Cell 0 0 (if visible then "black" else "white")) (Cell 0 1 (if visible then "black" else "white")) (Cell 0 2 (if visible then "black" else "white"))))
+
+  (on (== 0 (.. (.. ball_a origin) x)) (= ball_a (updateObj ball_a "direction" 361)))
+
+  (: ball_a Ball)
+  (= ball_a (initnext (Ball 225 "blue" (Position 8 1)) (if (intersects ball_a ball_b) then (nextBall (updateObj (prev ball_a) "direction" (ballcollision (prev ball_a) (prev ball_b)))) else (nextBall (updateObj (prev ball_a) "direction" (wallintersect (prev ball_a)))))))
+
+  (: ball_b Ball)
+  (= ball_b (initnext (Ball 315 "red" (Position 8 15)) (if (intersects (prev ball_a) ball_b) then (nextBall (updateObj (prev ball_b) "direction" (ballcollision (prev ball_b) (prev ball_a)))) else (nextBall (updateObj (prev ball_b) "direction" (wallintersect (prev ball_b)))))))
+)"""
+
+a = :(state.ball_bHistory[step].direction == 315)
+b = :(intersects(state.ball_aHistory[step], state.goalHistory[step]))
+@test_ac(true, ccah, a, b)
+
+chah = au"""(program
+  (= GRID_SIZE 16)
+
+  (object Goal (Cell 0 0 "green"))
+  (: goal Goal)
+  (= goal (initnext (Goal (Position 0 7)) (prev goal)))
+  (: goal2 Goal)
+  (= goal2 (initnext (Goal (Position 0 8)) (prev goal2)))
+
+  (object Ball (: direction Integer) (: color String) (Cell 0 0 color))
+  (object Wall (: visible Bool)(list (Cell 0 0 (if visible then "black" else "white")) (Cell 0 1 (if visible then "black" else "white")) (Cell 0 2 (if visible then "black" else "white"))))
+
+  (on (== 0 (.. (.. ball_a origin) x)) (= ball_a (updateObj ball_a "direction" 361)))
+
+  (: ball_a Ball)
+  (= ball_a (initnext (Ball 361 "blue" (Position 12 7)) (if (intersects ball_a ball_b) then (nextBall (updateObj (prev ball_a) "direction" (ballcollision (prev ball_a) (prev ball_b)))) else (nextBall (updateObj (prev ball_a) "direction" (wallintersect (prev ball_a)))))))
+
+  (: ball_b Ball)
+  (= ball_b (initnext (Ball 270 "red" (Position 15 7)) (if (intersects (prev ball_a) ball_b) then (nextBall (updateObj (prev ball_b) "direction" (ballcollision (prev ball_b) (prev ball_a)))) else (nextBall (updateObj (prev ball_b) "direction" (wallintersect (prev ball_b)))))))
+)"""
+
+a = :(state.ball_bHistory[step].direction == 270)
+b = :(intersects(state.ball_aHistory[step], state.goalHistory[step]))
+@test_ac(true, chah, a, b)
+
+#counterfactual miss actual hit
+cmah = au"""(program
+  (= GRID_SIZE 16)
+
+  (object Goal (Cell 0 0 "green"))
+  (: goal Goal)
+  (= goal (initnext (Goal (Position 0 7)) (prev goal)))
+  (: goal2 Goal)
+  (= goal2 (initnext (Goal (Position 0 8)) (prev goal2)))
+
+  (object Ball (: direction Integer) (: color String) (Cell 0 0 color))
+  (object Wall (: visible Bool)(list (Cell 0 0 (if visible then "black" else "white")) (Cell 0 1 (if visible then "black" else "white")) (Cell 0 2 (if visible then "black" else "white"))))
+
+  (on (intersects goal ball_a) (= ball_a (updateObj ball_a "direction" 361)))
+
+  (: ball_a Ball)
+  (= ball_a (initnext (Ball 270 "blue" (Position 15 5)) (if (intersects ball_a ball_b) then (nextBall (updateObj (prev ball_a) "direction" (ballcollision (prev ball_a) (prev ball_b)))) else (nextBall (updateObj (prev ball_a) "direction" (wallintersect (prev ball_a)))))))
+
+  (: ball_b Ball)
+  (= ball_b (initnext (Ball 315 "red" (Position 15 8)) (if (intersects (prev ball_a) ball_b) then (nextBall (updateObj (prev ball_b) "direction" 361)) else (nextBall (updateObj (prev ball_b) "direction" (wallintersect (prev ball_b)))))))
+)"""
+
+a = :(state.ball_bHistory[step].direction == 315)
+b = :(intersects(state.ball_aHistory[step], state.goalHistory[step]))
+@test_ac(true, cmah, a, b)
+
+#counterfactual hit actual miss
+cham_nored = au"""(program
+  (= GRID_SIZE 16)
+
+  (object Goal (Cell 0 0 "green"))
+  (: goal Goal)
+  (= goal (initnext (Goal (Position 0 7)) (prev goal)))
+  (: goal2 Goal)
+  (= goal2 (initnext (Goal (Position 0 8)) (prev goal2)))
+
+  (object Ball (: direction Integer) (: color String) (Cell 0 0 color))
+  (object Wall (: visible Bool)(list (Cell 0 0 (if visible then "black" else "white")) (Cell 0 1 (if visible then "black" else "white")) (Cell 0 2 (if visible then "black" else "white"))))
+
+  (on (== 0 (.. (.. ball_a origin) x)) (= ball_a (updateObj ball_a "direction" 361)))
+
+  (: ball_a Ball)
+  (= ball_a (initnext (Ball 270 "blue" (Position 15 7)) (if (intersects ball_a ball_b) then (nextBall (updateObj (prev ball_a) "direction" (ballcollision (prev ball_a) (prev ball_b)))) else (nextBall (updateObj (prev ball_a) "direction" (wallintersect (prev ball_a)))))))
+
+  (: ball_b Ball)
+  (= ball_b (initnext (Ball 361 "red" (Position 15 0)) (if (intersects (prev ball_a) ball_b) then (nextBall (updateObj (prev ball_b) "direction" 361)) else (nextBall (updateObj (prev ball_b) "direction" (wallintersect (prev ball_b)))))))
+)
+"""
+
+a = :(state.ball_aHistory[step].direction == 270)
+b = :(intersects(state.ball_aHistory[step], state.goalHistory[step]))
+@test_ac(true, cham_nored, a, b)
+
+a = :(state.ball_aHistory[step].direction == 270)
+b = :(intersects(state.ball_aHistory[15], state.goalHistory[15]))
+@test_ac(true, cham_nored, a, b)
+
 
 
 
@@ -1086,3 +1225,5 @@ b = :(state.reachgoalHistory[step] == true)
 #prove that there are no counter examples
 
 #tracking objects within the list is hard
+#something wrong with position tracking
+#i think involved with the equality
