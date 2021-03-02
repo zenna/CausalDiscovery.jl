@@ -1,4 +1,6 @@
 using Random
+using DataStructures
+using Statistics
 using Colors
 using Images
 
@@ -7,11 +9,26 @@ Example Use:
 > save("scene.png", colorview(RGBA, render(rng, generatescene_objects)))
 """
 
+# ----- define colors and color-related functions ----- # 
+
 colors = ["red", "yellow", "green", "blue"]
 backgroundcolors = ["white", "black"]
 
-function colorname(rgb)
-  rgb_to_colorname[rgb]
+function colordist(color1, color2)
+  (color1.r - color2.r)^2 + (color1.g - color2.g)^2 + (color1.b - color2.b)^2 
+end
+
+function colorname(r::RGB)
+  rgbs = vcat(keys(rgb_to_colorname)...)
+  colordists = map(x -> colordist(r, x), rgbs)
+  minidx = findall(x -> x == minimum(colordists), colordists)[1]
+  rgb_key = rgbs[minidx]
+  rgb_to_colorname[rgb_key]
+end
+
+function colorname(rgba::RGBA)
+  rgb = RGB(rgba.r, rgba.g, rgba.b)
+  colorname(rgb)
 end
 
 function rgb(colorname)
@@ -35,6 +52,23 @@ colorname_to_rgb = Dict([
   ("white", colorant"white"),
   ("black", colorant"black")
 ])
+
+# ----- end define colors and color-related functions ----- # 
+
+# ----- define general utils ----- #
+
+function neighbors(shape::AbstractArray)
+  neighborPositions = vcat(map(pos -> neighbors(pos), shape)...)
+  unique(filter(pos -> !(pos in shape), neighborPositions))
+end
+
+function neighbors(position)
+  x = position[1]
+  y = position[2]
+  [(x + 1, y), (x - 1, y), (x, y + 1), (x, y - 1)]
+end
+
+# ----- end define general utils ----- #
 
 # ----- define functions related to generative model over scenes ----- #
 function render(types_and_objects)
@@ -127,13 +161,148 @@ function generatescene_objects(rng=Random.GLOBAL_RNG; gridsize::Int=16)
   (types, objects, background, gridsize)
 end
 
-function neighbors(shape::AbstractArray)
-  neighborPositions = vcat(map(pos -> neighbors(pos), shape)...)
-  unique(filter(pos -> !(pos in shape), neighborPositions))
+# ----- end functions related to generative model over scenes ----- # 
+
+# ----- define functions related to scene parsing -----
+
+function parsescene(image)
+  parses = [parsescene_singlecell(image), parsescene_spatial(image), parsescene_spatial_color(image)]
+  parses
 end
 
-function neighbors(position)
-  x = position[1]
-  y = position[2]
-  [(x + 1, y), (x - 1, y), (x, y + 1), (x, y - 1)]
+function parsescene_singlecell(image)
+  dimImage = size(image)[1]
+  colors = []
+  objects = []
+  for y in 1:dimImage
+    for x in 1:dimImage
+      color = colorname(image[y, x])
+      if color != "white"
+        if !(color in colors)
+          push!(colors, color)
+        end
+
+        push!(objects, (x - 1, y - 1, (color, findall(x -> x == color, colors)[1]), length(objects) + 1))
+      end
+    end
+  end
+
+  """
+  (program
+    (= GRID_SIZE $(dimImage))
+    (= background "white")
+
+    $(join(map(color -> """(object ObjType$(findall(x -> x == color, colors)[1]) (Cell 0 0 "$(color)"))""", colors), "\n  "))
+
+    $(join(map(obj -> """(: obj$(obj[4]) ObjType$(obj[3][2]))""", objects), "\n  "))
+
+    $(join(map(obj -> """(= obj$(obj[4]) (initnext (ObjType$(obj[3][2]) (Position $(obj[1]) $(obj[2]))) (prev obj$(obj[4]))))""", objects), "\n  "))
+  )
+  """
 end
+
+function parsescene_spatial(image)
+  dimImage = size(image)[1]
+  objectshapes = []
+  colored_positions = map(ci -> (ci.I[2], ci.I[1]), findall(color -> color != "white", map(colorname, image)))
+  visited = []
+  for position in colored_positions
+    if !(position in visited)
+      objectshape = []
+      q = Queue{Any}()
+      enqueue!(q, position)
+      while !isempty(q)
+        pos = dequeue!(q)
+        push!(objectshape, pos)
+        push!(visited, pos)
+        pos_neighbors = neighbors(pos)
+        for n in pos_neighbors
+          if (n in colored_positions) && !(n in visited) 
+            enqueue!(q, n)
+          end
+        end
+      end
+      push!(objectshapes, objectshape)
+    end
+  end
+
+  types = []
+  objects = []
+  for objectshape in objectshapes
+    objectcolors = map(pos -> colorname(image[pos[2], pos[1]]), objectshape)
+    
+    translated = map(pos -> dimImage * (pos[2] - 1) + (pos[1] - 1), objectshape)
+    translated = length(translated) % 2 == 0 ? translated[1:end-1] : translated
+    centerPos = objectshape[findall(x -> x == median(translated), translated)[1]]
+    translatedShape = map(pos -> (pos[1] - centerPos[1], pos[2] - centerPos[2]), objectshape)
+    translatedShapeWithColors = [(translatedShape[i], objectcolors[i]) for i in 1:length(translatedShape)]
+
+    push!(types, (translatedShapeWithColors, length(types) + 1))
+    push!(objects, (centerPos, length(types) + 1, length(objects) + 1))
+  end
+
+  """
+  (program
+
+    $(join(map(t -> """(object ObjType$(t[2]) (list $(join(map(cell -> """(Cell $(cell[1][1]) $(cell[1][2]) "$(cell[2])")""", t[1]), " ")))""", types), "\n  "))
+
+    $(join(map(obj -> """(: obj$(obj[3]) ObjType$(obj[2]))""", objects), "\n  "))
+ 
+    $(join(map(obj -> """(= obj$(obj[3]) (initnext (ObjType$(obj[2]) (Position $(obj[1][1] - 1) $(obj[1][2] - 1))) (prev obj$(obj[3]))))""", objects), "\n  "))
+  )
+  """
+end
+
+function parsescene_spatial_color(image)
+  dimImage = size(image)[1]
+  objectshapes = []
+  colored_positions = map(ci -> (ci.I[2], ci.I[1]), findall(color -> color != "white", map(colorname, image)))
+  visited = []
+  for position in colored_positions
+    if !(position in visited)
+      objectshape = []
+      q = Queue{Any}()
+      enqueue!(q, position)
+      while !isempty(q)
+        pos = dequeue!(q)
+        push!(objectshape, pos)
+        push!(visited, pos)
+        pos_neighbors = neighbors(pos)
+        for n in pos_neighbors
+          if (n in colored_positions) && !(n in visited) && (image[n[1], n[2]] == image[pos[1], pos[2]]) 
+            enqueue!(q, n)
+          end
+        end
+      end
+      push!(objectshapes, objectshape)
+    end
+  end
+
+  types = []
+  objects = []
+  for objectshape in objectshapes
+    objectcolors = map(pos -> colorname(image[pos[2], pos[1]]), objectshape)
+    
+    translated = map(pos -> dimImage * (pos[2] - 1)+ (pos[1] - 1), objectshape)
+    translated = length(translated) % 2 == 0 ? translated[1:end-1] : translated
+    centerPos = objectshape[findall(x -> x == median(translated), translated)[1]]
+    translatedShape = map(pos -> (pos[1] - centerPos[1], pos[2] - centerPos[2]), objectshape)
+    translatedShapeWithColors = [(translatedShape[i], objectcolors[i]) for i in 1:length(translatedShape)]
+
+    push!(types, (translatedShapeWithColors, length(types) + 1))
+    push!(objects, (centerPos, length(types) + 1, length(objects) + 1))
+  end
+
+  """
+  (program
+
+    $(join(map(t -> """(object ObjType$(t[2]) (list $(join(map(cell -> """(Cell $(cell[1][1]) $(cell[1][2]) "$(cell[2])")""", t[1]), " ")))""", types), "\n  "))
+
+    $(join(map(obj -> """(: obj$(obj[3]) ObjType$(obj[2]))""", objects), "\n  "))
+ 
+    $(join(map(obj -> """(= obj$(obj[3]) (initnext (ObjType$(obj[2]) (Position $(obj[1][1] - 1) $(obj[1][2] - 1))) (prev obj$(obj[3]))))""", objects), "\n  "))
+  )
+  """
+end
+
+# ----- end functions related to scene parsing -----
