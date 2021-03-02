@@ -4,7 +4,7 @@ using Images
 
 """
 Example Use:
-> save("scene.png", colorview(RGBA, render(generatescene_objects)))
+> save("scene.png", colorview(RGBA, render(rng, generatescene_objects)))
 """
 
 colors = ["red", "yellow", "green", "blue"]
@@ -71,8 +71,8 @@ function render(types_and_objects)
   image
 end
 
-function generatescene_program(; gridsize::Int=16)
-  types, objects, background, _ = generatescene_objects(gridsize=gridsize)
+function generatescene_program(rng=GLOBAL_RNG; gridsize::Int=16)
+  types, objects, background, _ = generatescene_objects(rng, gridsize=gridsize)
   """
   (program
     (= GRID_SIZE $(gridsize))
@@ -86,29 +86,29 @@ function generatescene_program(; gridsize::Int=16)
   """
 end
 
-function generatescene_objects(; gridsize::Int=16)
+function generatescene_objects(rng=GLOBAL_RNG; gridsize::Int=16)
   background = backgroundcolors[rand(1:length(backgroundcolors))]
-  numObjects = rand(1:20)
-  numTypes = rand(1:min(numObjects, 5))
+  numObjects = rand(rng, 1:20)
+  numTypes = rand(rng, 1:min(numObjects, 5))
   types = [] # each type has form (list of position tuples, index in types list)::Tuple{Array{Tuple{Int, Int}}, Int}
 
-  objectPositions = [(rand(1:gridsize), rand(1:gridsize)) for x in 1:numObjects]
+  objectPositions = [(rand(rng, 1:gridsize), rand(rng, 1:gridsize)) for x in 1:numObjects]
   objects = [] # each object has form (type, position tuple, color, index in objects list)
 
   for type in 1:numTypes
-    renderSize = rand(1:5)
+    renderSize = rand(rng, 1:5)
     shape = [(0,0)]
     while length(shape) != renderSize
       boundaryPositions = neighbors(shape)
-      push!(shape, boundaryPositions[rand(1:length(boundaryPositions))])
+      push!(shape, boundaryPositions[rand(rng, 1:length(boundaryPositions))])
     end
     push!(types, (shape, length(types) + 1))
   end
 
   for i in 1:numObjects
     objPosition = objectPositions[i]
-    objColor = colors[rand(1:length(colors))]
-    objType = types[rand(1:length(types))]
+    objColor = colors[rand(rng, 1:length(colors))]
+    objType = types[rand(rng, 1:length(types))]
 
     push!(objects, (objType, objPosition, objColor, length(objects) + 1))    
   end
