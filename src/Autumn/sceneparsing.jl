@@ -36,9 +36,21 @@ colorname_to_rgb = Dict([
   ("black", colorant"black")
 ])
 
+# ----- define functions related to generative model over scenes ----- #
 function render(types_and_objects)
   types, objects, background, gridsize = types_and_objects
   image = [RGBA(1.0, 0.0, 0.0, 1.0) for x in 1:gridsize, y in 1:gridsize]
+  println(  """
+  (program
+    (= GRID_SIZE $(gridsize))
+    (= background "$(background)")
+    $(join(map(t -> "(object ObjType$(t[2]) (: color String) (list $(join(map(cell -> "(Cell $(cell[1]) $(cell[2]) color)", t[1]), " "))))", types), "\n  "))
+
+    $((join(map(obj -> """(: obj$(obj[4]) ObjType$(obj[1][2]))""", objects), "\n  "))...)
+
+    $((join(map(obj -> """(= obj$(obj[4]) (initnext (ObjType$(obj[1][2]) "$(obj[3])" (Position $(obj[2][1] - 1) $(obj[2][2] - 1))) (prev obj$(obj[4]))))""", objects), "\n  ")))
+  )
+  """)
   for object in objects
     center_x = object[2][1]
     center_y = object[2][2]
@@ -49,29 +61,29 @@ function render(types_and_objects)
       x = center_x + shape_x
       y = center_y + shape_y
       if (x > 0) && (x <= gridsize) && (y > 0) && (y <= gridsize) # only render in-bound pixel positions
-        if image[x, y] == RGBA(1.0, 0.0, 0.0, 1.0)
-          image[x, y] = RGBA(color.r, color.b, color.g, 0.6)
+        if image[y, x] == RGBA(1.0, 0.0, 0.0, 1.0)
+          image[y, x] = RGBA(color.r, color.g, color.b, 0.6)
         else
-          image[x, y] = RGBA(0.5 * (image[x,y].r + color.r),
-                            0.5 * (image[x,y].g + color.g),
-                            0.5 * (image[x,y].b + color.b),
-                            0.6)
+          new_alpha = image[x,y].alpha + 0.6 - image[x,y].alpha * 0.6
+          image[y, x] = RGBA((image[y,x].alpha * image[y,x].r + 0.6*(1 - image[y,x].alpha)*color.r)/new_alpha,
+                             (image[y,x].alpha * image[y,x].g + 0.6*(1 - image[y,x].alpha)*color.g)/new_alpha,
+                             (image[y,x].alpha * image[y,x].b + 0.6*(1 - image[y,x].alpha)*color.b)/new_alpha,
+                            new_alpha)
         end  
       end
     end
-
-    for x in 1:gridsize
-      for y in 1:gridsize
-        if image[x, y] == RGBA(1.0, 0.0, 0.0, 1.0)
-          image[x, y] = rgb(background)
-        end
+  end
+  for x in 1:gridsize
+    for y in 1:gridsize
+      if image[x, y] == RGBA(1.0, 0.0, 0.0, 1.0)
+        image[x, y] = rgb(background)
       end
     end
   end
   image
 end
 
-function generatescene_program(rng=GLOBAL_RNG; gridsize::Int=16)
+function generatescene_program(rng=Random.GLOBAL_RNG; gridsize::Int=16)
   types, objects, background, _ = generatescene_objects(rng, gridsize=gridsize)
   """
   (program
@@ -86,7 +98,7 @@ function generatescene_program(rng=GLOBAL_RNG; gridsize::Int=16)
   """
 end
 
-function generatescene_objects(rng=GLOBAL_RNG; gridsize::Int=16)
+function generatescene_objects(rng=Random.GLOBAL_RNG; gridsize::Int=16)
   background = backgroundcolors[rand(1:length(backgroundcolors))]
   numObjects = rand(rng, 1:20)
   numTypes = rand(rng, 1:min(numObjects, 5))
