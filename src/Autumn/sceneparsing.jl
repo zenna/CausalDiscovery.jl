@@ -6,7 +6,10 @@ using Images
 
 """
 Example Use:
-> save("scene.png", colorview(RGBA, render(rng, generatescene_objects)))
+> rng = MersenneTwister(0)
+> image = render(generatescene_objects(rng))
+> save("scene.png", colorview(RGBA, image))
+> println(parsescene(image))
 """
 
 # ----- define colors and color-related functions ----- # 
@@ -165,11 +168,6 @@ end
 
 # ----- define functions related to scene parsing -----
 
-function parsescene(image)
-  parses = [parsescene_singlecell(image), parsescene_spatial(image), parsescene_spatial_color(image)]
-  parses
-end
-
 function parsescene_singlecell(image)
   dimImage = size(image)[1]
   colors = []
@@ -201,59 +199,11 @@ function parsescene_singlecell(image)
   """
 end
 
-function parsescene_spatial(image)
-  dimImage = size(image)[1]
-  objectshapes = []
-  colored_positions = map(ci -> (ci.I[2], ci.I[1]), findall(color -> color != "white", map(colorname, image)))
-  visited = []
-  for position in colored_positions
-    if !(position in visited)
-      objectshape = []
-      q = Queue{Any}()
-      enqueue!(q, position)
-      while !isempty(q)
-        pos = dequeue!(q)
-        push!(objectshape, pos)
-        push!(visited, pos)
-        pos_neighbors = neighbors(pos)
-        for n in pos_neighbors
-          if (n in colored_positions) && !(n in visited) 
-            enqueue!(q, n)
-          end
-        end
-      end
-      push!(objectshapes, objectshape)
-    end
-  end
-
-  types = []
-  objects = []
-  for objectshape in objectshapes
-    objectcolors = map(pos -> colorname(image[pos[2], pos[1]]), objectshape)
-    
-    translated = map(pos -> dimImage * (pos[2] - 1) + (pos[1] - 1), objectshape)
-    translated = length(translated) % 2 == 0 ? translated[1:end-1] : translated
-    centerPos = objectshape[findall(x -> x == median(translated), translated)[1]]
-    translatedShape = map(pos -> (pos[1] - centerPos[1], pos[2] - centerPos[2]), objectshape)
-    translatedShapeWithColors = [(translatedShape[i], objectcolors[i]) for i in 1:length(translatedShape)]
-
-    push!(types, (translatedShapeWithColors, length(types) + 1))
-    push!(objects, (centerPos, length(types) + 1, length(objects) + 1))
-  end
-
-  """
-  (program
-
-    $(join(map(t -> """(object ObjType$(t[2]) (list $(join(map(cell -> """(Cell $(cell[1][1]) $(cell[1][2]) "$(cell[2])")""", t[1]), " ")))""", types), "\n  "))
-
-    $(join(map(obj -> """(: obj$(obj[3]) ObjType$(obj[2]))""", objects), "\n  "))
- 
-    $(join(map(obj -> """(= obj$(obj[3]) (initnext (ObjType$(obj[2]) (Position $(obj[1][1] - 1) $(obj[1][2] - 1))) (prev obj$(obj[3]))))""", objects), "\n  "))
-  )
-  """
+function color_contiguity(image, pos1, pos2)
+  image[pos1[1], pos1[2]] == image[pos2[1], pos2[2]]
 end
 
-function parsescene_spatial_color(image)
+function parsescene(image; color=true)
   dimImage = size(image)[1]
   objectshapes = []
   colored_positions = map(ci -> (ci.I[2], ci.I[1]), findall(color -> color != "white", map(colorname, image)))
@@ -269,7 +219,7 @@ function parsescene_spatial_color(image)
         push!(visited, pos)
         pos_neighbors = neighbors(pos)
         for n in pos_neighbors
-          if (n in colored_positions) && !(n in visited) && (image[n[1], n[2]] == image[pos[1], pos[2]]) 
+          if (n in colored_positions) && !(n in visited) && (color ? color_contiguity(image, n, pos) : true) 
             enqueue!(q, n)
           end
         end
@@ -290,7 +240,7 @@ function parsescene_spatial_color(image)
     translatedShapeWithColors = [(translatedShape[i], objectcolors[i]) for i in 1:length(translatedShape)]
 
     push!(types, (translatedShapeWithColors, length(types) + 1))
-    push!(objects, (centerPos, length(types) + 1, length(objects) + 1))
+    push!(objects, (centerPos, length(types), length(objects) + 1))
   end
 
   """
