@@ -17,10 +17,12 @@ Example Use:
 colors = ["red", "yellow", "green", "blue"]
 backgroundcolors = ["white", "black"]
 
+"""Euclidean distance between two RGB/RGBA colors"""
 function colordist(color1, color2)
   (color1.r - color2.r)^2 + (color1.g - color2.g)^2 + (color1.b - color2.b)^2 
 end
 
+"""CSS string color name from *RGB* color"""
 function colorname(r::RGB)
   rgbs = vcat(keys(rgb_to_colorname)...)
   colordists = map(x -> colordist(r, x), rgbs)
@@ -29,11 +31,13 @@ function colorname(r::RGB)
   rgb_to_colorname[rgb_key]
 end
 
+"""CSS string color name from *RGBA* color"""
 function colorname(rgba::RGBA)
   rgb = RGB(rgba.r, rgba.g, rgba.b)
   colorname(rgb)
 end
 
+"""RGB value from CSS string color name"""
 function rgb(colorname)
   colorname_to_rgb[colorname]
 end
@@ -60,11 +64,13 @@ colorname_to_rgb = Dict([
 
 # ----- define general utils ----- #
 
+"""Compute neighbor positions of given shape"""
 function neighbors(shape::AbstractArray)
   neighborPositions = vcat(map(pos -> neighbors(pos), shape)...)
   unique(filter(pos -> !(pos in shape), neighborPositions))
 end
 
+"""Compute neighbor positions of given position"""
 function neighbors(position)
   x = position[1]
   y = position[2]
@@ -74,6 +80,7 @@ end
 # ----- end define general utils ----- #
 
 # ----- define functions related to generative model over scenes ----- #
+"""Produce image from types_and_objects scene representation"""
 function render(types_and_objects)
   types, objects, background, gridsize = types_and_objects
   image = [RGBA(1.0, 0.0, 0.0, 1.0) for x in 1:gridsize, y in 1:gridsize]
