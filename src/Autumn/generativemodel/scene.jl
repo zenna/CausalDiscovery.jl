@@ -22,7 +22,7 @@ function colordist(color1, color2)
   (color1.r - color2.r)^2 + (color1.g - color2.g)^2 + (color1.b - color2.b)^2 
 end
 
-"""CSS string color name from *RGB* color"""
+"""CSS string color name from RGB color"""
 function colorname(r::RGB)
   rgbs = vcat(keys(rgb_to_colorname)...)
   colordists = map(x -> colordist(r, x), rgbs)
@@ -31,7 +31,7 @@ function colorname(r::RGB)
   rgb_to_colorname[rgb_key]
 end
 
-"""CSS string color name from *RGBA* color"""
+"""CSS string color name from RGBA color"""
 function colorname(rgba::RGBA)
   rgb = RGB(rgba.r, rgba.g, rgba.b)
   colorname(rgb)
