@@ -80,27 +80,39 @@ end
 # ----- end define general utils ----- #
 
 # ----- define functions related to generative model over scenes ----- #
+struct ObjType
+  shape::AbstractArray
+  color::String
+  id::Int
+end
+
+struct Obj
+  type::ObjType
+  position::Tuple{Int, Int}
+  id::Int
+end
+
 """Produce image from types_and_objects scene representation"""
 function render(types_and_objects)
   types, objects, background, gridsize = types_and_objects
   image = [RGBA(1.0, 0.0, 0.0, 1.0) for x in 1:gridsize, y in 1:gridsize]
-  println(  """
+  println("""
   (program
     (= GRID_SIZE $(gridsize))
     (= background "$(background)")
-    $(join(map(t -> "(object ObjType$(t[2]) (: color String) (list $(join(map(cell -> "(Cell $(cell[1]) $(cell[2]) color)", t[1]), " "))))", types), "\n  "))
+    $(join(map(t -> "(object ObjType$(t.id) (list $(join(map(cell -> """(Cell $(cell[1]) $(cell[2]) "$(t.color)")""", t.shape), " "))))", types), "\n  "))
 
-    $((join(map(obj -> """(: obj$(obj[4]) ObjType$(obj[1][2]))""", objects), "\n  "))...)
+    $((join(map(obj -> """(: obj$(obj.id) ObjType$(obj.type.id))""", objects), "\n  "))...)
 
-    $((join(map(obj -> """(= obj$(obj[4]) (initnext (ObjType$(obj[1][2]) "$(obj[3])" (Position $(obj[2][1] - 1) $(obj[2][2] - 1))) (prev obj$(obj[4]))))""", objects), "\n  ")))
+    $((join(map(obj -> """(= obj$(obj.id) (initnext (ObjType$(obj.type.id) (Position $(obj.position[1] - 1) $(obj.position[2] - 1))) (prev obj$(obj.id))))""", objects), "\n  ")))
   )
   """)
   for object in objects
-    center_x = object[2][1]
-    center_y = object[2][2]
-    type = object[1]
-    color = rgb(object[3])
-    for shape_position in type[1]
+    center_x = object.position[1]
+    center_y = object.position[2]
+    type = object.type
+    color = rgb(object.type.color)
+    for shape_position in type.shape
       shape_x, shape_y = shape_position
       x = center_x + shape_x
       y = center_y + shape_y
@@ -129,15 +141,15 @@ end
 
 function generatescene_program(rng=Random.GLOBAL_RNG; gridsize::Int=16)
   types, objects, background, _ = generatescene_objects(rng, gridsize=gridsize)
-  """
+  """ 
   (program
     (= GRID_SIZE $(gridsize))
     (= background "$(background)")
-    $(join(map(t -> "(object ObjType$(t[2]) (: color String) (list $(join(map(cell -> "(Cell $(cell[1]) $(cell[2]) color)", t[1]), " "))))", types), "\n  "))
+    $(join(map(t -> "(object ObjType$(t.id) (list $(join(map(cell -> """(Cell $(cell[1]) $(cell[2]) "$(t.color)")""", t.shape), " "))))", types), "\n  "))
 
-    $((join(map(obj -> """(: obj$(obj[4]) ObjType$(obj[1][2]))""", objects), "\n  "))...)
+    $((join(map(obj -> """(: obj$(obj.id) ObjType$(obj.type.id))""", objects), "\n  "))...)
 
-    $((join(map(obj -> """(= obj$(obj[4]) (initnext (ObjType$(obj[1][2]) "$(obj[3])" (Position $(obj[2][1] - 1) $(obj[2][2] - 1))) (prev obj$(obj[4]))))""", objects), "\n  ")))
+    $((join(map(obj -> """(= obj$(obj.id) (initnext (ObjType$(obj.type.id) (Position $(obj.position[1] - 1) $(obj.position[2] - 1))) (prev obj$(obj.id))))""", objects), "\n  ")))
   )
   """
 end
@@ -147,7 +159,7 @@ function generatescene_objects(rng=Random.GLOBAL_RNG; gridsize::Int=16)
   numObjects = rand(rng, 1:20)
   numTypes = rand(rng, 1:min(numObjects, 5))
   types = [] # each type has form (list of position tuples, index in types list)::Tuple{Array{Tuple{Int, Int}}, Int}
-
+  
   objectPositions = [(rand(rng, 1:gridsize), rand(rng, 1:gridsize)) for x in 1:numObjects]
   objects = [] # each object has form (type, position tuple, color, index in objects list)
 
@@ -158,15 +170,15 @@ function generatescene_objects(rng=Random.GLOBAL_RNG; gridsize::Int=16)
       boundaryPositions = neighbors(shape)
       push!(shape, boundaryPositions[rand(rng, 1:length(boundaryPositions))])
     end
-    push!(types, (shape, length(types) + 1))
+    color = colors[rand(rng, 1:length(colors))]
+    push!(types, ObjType(shape, color, length(types) + 1))
   end
 
   for i in 1:numObjects
     objPosition = objectPositions[i]
-    objColor = colors[rand(rng, 1:length(colors))]
     objType = types[rand(rng, 1:length(types))]
 
-    push!(objects, (objType, objPosition, objColor, length(objects) + 1))    
+    push!(objects, Obj(objType, objPosition, length(objects) + 1))    
   end
   (types, objects, background, gridsize)
 end
@@ -177,6 +189,7 @@ end
 
 function parsescene_singlecell(image)
   dimImage = size(image)[1]
+  background = count(x -> x == "white", map(colorname, image)) > count(x -> x == "black", map(colorname, image)) ? "white" : "black"
   colors = []
   objects = []
   for y in 1:dimImage
@@ -195,7 +208,7 @@ function parsescene_singlecell(image)
   """
   (program
     (= GRID_SIZE $(dimImage))
-    (= background "white")
+    (= background "$(background)")
 
     $(join(map(color -> """(object ObjType$(findall(x -> x == color, colors)[1]) (Cell 0 0 "$(color)"))""", colors), "\n  "))
 
@@ -212,6 +225,7 @@ end
 
 function parsescene(image; color=true)
   dimImage = size(image)[1]
+  background = count(x -> x == "white", map(colorname, image)) > count(x -> x == "black", map(colorname, image)) ? "white" : "black"
   objectshapes = []
   colored_positions = map(ci -> (ci.I[2], ci.I[1]), findall(color -> color != "white", map(colorname, image)))
   visited = []
@@ -252,6 +266,8 @@ function parsescene(image; color=true)
 
   """
   (program
+    (= GRID_SIZE $(dimImage))
+    (= background "$(background)")
 
     $(join(map(t -> """(object ObjType$(t[2]) (list $(join(map(cell -> """(Cell $(cell[1][1]) $(cell[1][2]) "$(cell[2])")""", t[1]), " ")))""", types), "\n  "))
 

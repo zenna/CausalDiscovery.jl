@@ -2,13 +2,13 @@ using Random
 
 """
 Example Use:
-> genObject("object1", [])
+> genObject("object1", env)
 """
 
 env = Dict(["custom_types" => Dict([
-            "Object1" => [("color", "String")],
-            "Object2" => [("color", "String")],
-            "Object3" => [("color", "String")],              
+            "Object1" => [],
+            "Object2" => [],
+            "Object3" => [],              
             ]),
             "variables" => Dict([
               "object1" => "Object_Object2",
@@ -17,9 +17,9 @@ env = Dict(["custom_types" => Dict([
             ])])
 
 # -----begin object generator + helper functions ----- #
-function genObject(environment)
+function genObject(environment; p=0.9)
   object = genObjectName(environment)
-  genObjectUpdateRule(object, environment, p=0.9)
+  genObjectUpdateRule(object, environment, p=p)
 end
 
 function genObjectName(environment)
@@ -60,12 +60,13 @@ function genBool(environment)
   choices = [
     ("clicked", []),
     ("clicked", [:(genPosition($(environment)))]),
-    ("clicked", [:(genObject($(environment)))]),
+    ("clicked", [:(genObject($(environment), p=1.0))]),
     ("left", []),
     ("right", []),
     ("up", []),
     ("down", []),
-    ("intersects", [:(genObject($(environment))), :(genObject($(environment)))])
+    ("intersects", [:(genObject($(environment), p=1.0)), :(genObject($(environment), p=1.0))]),
+    ("isWithinBounds", [:(genObject($(environment)))])
   ]
   choice = choices[rand(1:length(choices))]
   if (length(choice[2]) == 0)
@@ -76,24 +77,14 @@ function genBool(environment)
 
 end
 
-# ----- Cell generator ----- #
-function genCell(environment)
-  options = [
-    "",
-    "",
-    "",
-    ""
-  ]
-  options[rand(1:length(options))]
-end
-
 # ----- Position generator ----- #
 function genPosition(environment)
   choices = [
     ("Position", [:(genInt($(environment))), :(genInt($(environment)))]),
-    ("..", [:(genObject($(environment))), "origin"]),
+    ("..", [:(genObject($(environment), p=1.0)), "origin"]),
     ("displacement", [:(genPosition($(environment))), :(genPosition($(environment)))]),
-    ("unitVector", [:(genPosition($(environment)))])
+    ("unitVector", [:(genPosition($(environment)))]),
+    ("uniformChoice", [:(genPositionList($(environment)))])
   ]
   choice = choices[rand(1:length(choices))]
   "($(choice[1]) $(join(map(eval, choice[2]), " ")))"
@@ -110,8 +101,13 @@ end
 
 
 # ----- Position List generator ----- #
-function genPositionList()
-
+function genPositionList(environment)
+  choices = [
+    ("adjPositions", [:(genObject($(environment)))]),
+    ("randomPositions", ["GRID_SIZE", :(genInt($(environment)))])
+  ]
+  choice = choices[rand(1:length(choices))]
+  "($(choice[1]) $(join(map(eval, choice[2]), " ")))"
 end
 
 # ----- begin object list generator + helper functions ----- #
