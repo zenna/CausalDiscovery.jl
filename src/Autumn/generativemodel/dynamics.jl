@@ -30,7 +30,11 @@ end
 function genObjectUpdateRule(object, environment; p=0.7)
   prob = rand()
   if prob < p
-    "(prev $(object))"
+    if object == "obj"
+      "(prev $(object))"
+    else
+      "$(object)"
+    end
   else
     choices = [
       ("moveLeftNoCollision", [:(genObjectUpdateRule($(object), $(environment)))]),
@@ -60,14 +64,17 @@ function genBool(environment)
   choices = [
     ("clicked", []),
     ("clicked", [:(genPosition($(environment)))]),
-    ("clicked", [:(genObject($(environment), p=1.0))]),
     ("left", []),
     ("right", []),
     ("up", []),
     ("down", []),
-    ("intersects", [:(genObject($(environment), p=1.0)), :(genObject($(environment), p=1.0))]),
-    ("isWithinBounds", [:(genObject($(environment)))])
   ]
+  if length(filter(var -> occursin("Object_", environment["variables"][var]), collect(keys(environment["variables"])))) > 0
+    push!(choices, [("clicked", [:(genObject($(environment), p=1.0))]),
+                    ("intersects", [:(genObject($(environment), p=1.0)), :(genObject($(environment), p=1.0))]),
+                    ("isWithinBounds", [:(genObject($(environment)))])
+                   ]...)
+  end
   choice = choices[rand(1:length(choices))]
   if (length(choice[2]) == 0)
     "$(choice[1])"
@@ -81,11 +88,14 @@ end
 function genPosition(environment)
   choices = [
     ("Position", [:(genInt($(environment))), :(genInt($(environment)))]),
-    ("..", [:(genObject($(environment), p=1.0)), "origin"]),
     ("displacement", [:(genPosition($(environment))), :(genPosition($(environment)))]),
     ("unitVector", [:(genPosition($(environment)))]),
     ("uniformChoice", [:(genPositionList($(environment)))])
   ]
+  if length(filter(var -> occursin("Object_", environment["variables"][var]), collect(keys(environment["variables"])))) > 0
+    push!(choices, ("..", [:(genObject($(environment), p=1.0)), :(String("origin"))]))
+  end
+
   choice = choices[rand(1:length(choices))]
   "($(choice[1]) $(join(map(eval, choice[2]), " ")))"
 end
@@ -99,13 +109,14 @@ function genClick(environment)
   "($(choice[1]) $(join(map(eval, choice[2]), " ")))"
 end
 
-
 # ----- Position List generator ----- #
 function genPositionList(environment)
   choices = [
-    ("adjPositions", [:(genObject($(environment)))]),
     ("randomPositions", ["GRID_SIZE", :(genInt($(environment)))])
   ]
+  if length(filter(var -> occursin("Object_", environment["variables"][var]), collect(keys(environment["variables"])))) > 0
+    push!(choices, ("adjPositions", [:(genObject($(environment)))]))
+  end
   choice = choices[rand(1:length(choices))]
   "($(choice[1]) $(join(map(eval, choice[2]), " ")))"
 end
@@ -122,12 +133,12 @@ function genObjectListName(environment)
 end
 
 function genObjectConstructor(type, environment)
-  constructor = map(tuple -> Meta.parse("gen$(tuple[2])($(environment))"), environment["custom_types"][type])
+  constructor = map(tuple -> Meta.parse("gen$(tuple[2])($(environment))"), environment["custom_types"][string("Object_",type)])
   push!(constructor, :(genPosition($(environment))))
   "($(type) $(join(map(eval, constructor), " ")))"
 end
 
-function genObjectListUpdateRule(object_list, environment; p=0.9)
+function genObjectListUpdateRule(object_list, environment; p=0.7)
   prob = rand()
   if prob < p
     "(prev $(object_list))"
@@ -138,10 +149,19 @@ function genObjectListUpdateRule(object_list, environment; p=0.9)
          :(genObjectConstructor($(String(split(environment["variables"][object_list], "_")[2])), $(environment))),
         ]
       ),
+      ("updateObj", 
+        [:(genObjectListUpdateRule($(object_list), $(environment))),
+         :(genLambda($(environment)))
+        ]),
     ]
     choice = choices[rand(1:length(choices))]
     "($(choice[1]) $(join(map(eval, choice[2]), " ")))"
   end
+end
+
+function genLambda(environment)
+  choice = ("-->", [:(String("obj")), :(genObjectUpdateRule("obj", $(environment)))])
+  "($(choice[1]) $(join(map(eval, choice[2]), " ")))"
 end
 # ----- end object list generator + helper functions ----- #
 
