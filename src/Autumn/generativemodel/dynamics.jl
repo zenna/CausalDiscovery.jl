@@ -31,9 +31,9 @@ function genObjectUpdateRule(object, environment; p=0.7)
   prob = rand()
   if prob < p
     if object == "obj"
-      "(prev $(object))"
-    else
       "$(object)"
+    else
+      "(prev $(object))"
     end
   else
     choices = [
