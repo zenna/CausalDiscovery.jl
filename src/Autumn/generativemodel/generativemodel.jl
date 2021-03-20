@@ -5,14 +5,29 @@ function generateprogram(rng=Random.GLOBAL_RNG; gridsize::Int=16, group::Bool=fa
   # generate objects and types 
   types, objects, background, _ = generatescene_objects(rng, gridsize=gridsize)
 
+  non_object_global_vars = []
+  num_non_object_global_vars = rand(0:2)
+
+  for i in 1:num_non_object_global_vars
+    type = rand(["Bool", "Int"])
+    if type == "Bool"
+      push!(non_object_global_vars, (type, rand(["true", "false"]), i))
+    else
+      push!(non_object_global_vars, (type, rand(1:3), i))
+    end
+  end
+
   if (!group)
     # construct environment object
     environment = Dict(["custom_types" => Dict(
-                                              map(t -> "Object_ObjType$(t.id)" => [], types) 
+                                              map(t -> "Object_ObjType$(t.id)" => t.custom_fields, types) 
                                               ),
                         "variables" => Dict(
-                                            map(obj -> "obj$(obj.id)" => "Object_ObjType$(obj.type.id)", objects)                    
-                                          )])
+                                            vcat(
+                                            map(obj -> "obj$(obj.id)" => "Object_ObjType$(obj.type.id)", objects)...,                    
+                                            map(tuple -> "globalVar$(tuple[3])" => tuple[1], non_object_global_vars)...
+                                            )
+                                           )])
     
     # generate next values for each object
     next_vals = map(obj -> genObjectUpdateRule("obj$(obj.id)", environment), objects)
@@ -26,12 +41,16 @@ function generateprogram(rng=Random.GLOBAL_RNG; gridsize::Int=16, group::Bool=fa
     (program
       (= GRID_SIZE $(gridsize))
       (= background "$(background)")
-      $(join(map(t -> "(object ObjType$(t.id) (list $(join(map(cell -> """(Cell $(cell[1]) $(cell[2]) "$(t.color)")""", t.shape), " "))))", types), "\n  "))
+      $(join(map(t -> "(object ObjType$(t.id) $(join(map(field -> "(: $(field[1]) $(field[2]))", t.custom_fields), " ")) (list $(join(map(cell -> """(Cell $(cell[1]) $(cell[2]) "$(t.color)")""", t.shape), " "))))", types), "\n  "))
+
+      $(join(map(tuple -> "(: globalVar$(tuple[3]) $(tuple[1]))", non_object_global_vars), "\n  "))
+
+      $(join(map(tuple -> "(= globalVar$(tuple[3]) (initnext $(tuple[2]) (prev globalVar$(tuple[3]))))", non_object_global_vars), "\n  "))
 
       $((join(map(obj -> """(: obj$(obj[1].id) ObjType$(obj[1].type.id))""", objects), "\n  "))...)
 
       $((join(map(obj -> 
-      """(= obj$(obj[1].id) (initnext (ObjType$(obj[1].type.id) (Position $(obj[1].position[1] - 1) $(obj[1].position[2] - 1))) $(obj[2])))""", objects), "\n  ")))
+      """(= obj$(obj[1].id) (initnext (ObjType$(obj[1].type.id) $(join(obj[1].custom_field_values, " ")) (Position $(obj[1].position[1] - 1) $(obj[1].position[2] - 1))) $(obj[2])))""", objects), "\n  ")))
 
       $((join(map(tuple -> 
       """(on $(tuple[1]) (= obj$(tuple[3]) $(tuple[2])))""", on_clauses), "\n  "))...)
@@ -47,12 +66,13 @@ function generateprogram(rng=Random.GLOBAL_RNG; gridsize::Int=16, group::Bool=fa
     println(length(objects))
 
     environment = Dict(["custom_types" => Dict(
-                                map(t -> "Object_ObjType$(t.id)" => [], types) 
+                                map(t -> "Object_ObjType$(t.id)" => t.custom_fields, types) 
                                 ),
                         "variables" => Dict(
                               vcat(
                                 map(id -> "objList$(findall(x -> x == id, list_type_ids)[1])" => "ObjectList_ObjType$(id)", list_type_ids)...,
-                                map(id -> "obj$(findall(x -> x == id, constant_type_ids)[1])" => "Object_ObjType$(id)", constant_type_ids)       
+                                map(id -> "obj$(findall(x -> x == id, constant_type_ids)[1])" => "Object_ObjType$(id)", constant_type_ids)...,
+                                map(tuple -> "globalVar$(tuple[3])" => tuple[1], non_object_global_vars)...       
                               )             
                             )])
 
@@ -83,16 +103,20 @@ function generateprogram(rng=Random.GLOBAL_RNG; gridsize::Int=16, group::Bool=fa
     (program
       (= GRID_SIZE $(gridsize))
       (= background "$(background)")
-      $(join(map(t -> "(object ObjType$(t.id) (list $(join(map(cell -> """(Cell $(cell[1]) $(cell[2]) "$(t.color)")""", t.shape), " "))))", types), "\n  "))
+      $(join(map(t -> "(object ObjType$(t.id) $(join(map(field -> "(: $(field[1]) $(field[2]))", t.custom_fields), " ")) (list $(join(map(cell -> """(Cell $(cell[1]) $(cell[2]) "$(t.color)")""", t.shape), " "))))", types), "\n  "))
+
+      $(join(map(tuple -> "(: globalVar$(tuple[3]) $(tuple[1]))", non_object_global_vars), "\n  "))
+
+      $(join(map(tuple -> "(= globalVar$(tuple[3]) (initnext $(tuple[2]) (prev globalVar$(tuple[3]))))", non_object_global_vars), "\n  "))
 
       $((join(map(id -> """(: objList$(findall(x -> x == id, list_type_ids)[1]) (List ObjType$(id)))""", list_type_ids), "\n  "))...)
       $((join(map(id -> """(: obj$(findall(x -> x == id, constant_type_ids)[1]) ObjType$(id))""", constant_type_ids), "\n  "))...)
 
       $((join(map(id -> 
-      """(= objList$(findall(x -> x == id, list_type_ids)[1]) (initnext (list $(join(map(obj -> "(ObjType$(obj.type.id) (Position $(obj.position[1] - 1) $(obj.position[2] - 1)))", filter(o -> o.type.id == id, objects)), " "))) $(next_list_vals[findall(y -> y == id, list_type_ids)[1]])))""", list_type_ids), "\n  ")))
+      """(= objList$(findall(x -> x == id, list_type_ids)[1]) (initnext (list $(join(map(obj -> "(ObjType$(obj.type.id) $(join(obj.custom_field_values, " ")) (Position $(obj.position[1] - 1) $(obj.position[2] - 1)))", filter(o -> o.type.id == id, objects)), " "))) $(next_list_vals[findall(y -> y == id, list_type_ids)[1]])))""", list_type_ids), "\n  ")))
 
       $((join(map(id -> 
-      """(= obj$(findall(x -> x == id, constant_type_ids)[1]) (initnext $(join(map(obj -> "(ObjType$(obj.type.id) (Position $(obj.position[1] - 1) $(obj.position[2] - 1)))", filter(o -> o.type.id == id, objects)))) $(next_constant_vals[findall(y -> y == id, constant_type_ids)[1]])))""", constant_type_ids), "\n  ")))
+      """(= obj$(findall(x -> x == id, constant_type_ids)[1]) (initnext $(join(map(obj -> "(ObjType$(obj.type.id) $(join(obj.custom_field_values, " ")) (Position $(obj.position[1] - 1) $(obj.position[2] - 1)))", filter(o -> o.type.id == id, objects)))) $(next_constant_vals[findall(y -> y == id, constant_type_ids)[1]])))""", constant_type_ids), "\n  ")))
 
       $((join(map(tuple -> 
       """(on $(tuple[1]) (= objList$(tuple[3]) $(tuple[2])))""", on_clauses_list), "\n  "))...)

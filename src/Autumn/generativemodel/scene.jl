@@ -83,12 +83,14 @@ end
 struct ObjType
   shape::AbstractArray
   color::String
+  custom_fields::AbstractArray
   id::Int
 end
 
 struct Obj
   type::ObjType
   position::Tuple{Int, Int}
+  custom_field_values::AbstractArray
   id::Int
 end
 
@@ -171,14 +173,29 @@ function generatescene_objects(rng=Random.GLOBAL_RNG; gridsize::Int=16)
       push!(shape, boundaryPositions[rand(rng, 1:length(boundaryPositions))])
     end
     color = colors[rand(rng, 1:length(colors))]
-    push!(types, ObjType(shape, color, length(types) + 1))
+    
+    # generate custom fields
+    custom_fields = []
+    num_fields = rand(0:2)
+    for i in 1:num_fields
+      push!(custom_fields, ("field$(i)", rand(["Int", "Bool"])))
+    end
+
+    push!(types, ObjType(shape, color, custom_fields, length(types) + 1))
   end
 
   for i in 1:numObjects
     objPosition = objectPositions[i]
     objType = types[rand(rng, 1:length(types))]
 
-    push!(objects, Obj(objType, objPosition, length(objects) + 1))    
+    # generate custom field values
+    custom_fields = objType.custom_fields
+    custom_field_values = map(field -> field[2] == "Int" ? rand(1:3) : rand(["true", "false"]), custom_fields)
+
+    @show custom_fields
+    @show custom_field_values
+
+    push!(objects, Obj(objType, objPosition, custom_field_values, length(objects) + 1))    
   end
   (types, objects, background, gridsize)
 end

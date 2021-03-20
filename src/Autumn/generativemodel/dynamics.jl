@@ -56,7 +56,9 @@ end
 
 # ----- Int generator ----- # 
 function genInt(environment)
-  rand(1:5)
+  int_vars = filter(var -> environment["variables"][var] == "Int", collect(keys(environment["variables"])))
+  choices = [collect(1:5)..., int_vars...]
+  rand(choices)
 end
 
 # ----- Bool generator ----- #
@@ -75,6 +77,12 @@ function genBool(environment)
                     ("isWithinBounds", [:(genObject($(environment)))])
                    ]...)
   end
+
+  bool_vars = filter(var -> environment["variables"][var] == "Bool", collect(keys(environment["variables"])))
+  foreach(var -> push!(choices, (var, [])), bool_vars)
+
+  addBranchesFromCustomTypes(choices, "Bool", environment)
+
   choice = choices[rand(1:length(choices))]
   if (length(choice[2]) == 0)
     "$(choice[1])"
@@ -92,8 +100,11 @@ function genPosition(environment)
     ("unitVector", [:(genPosition($(environment)))]),
     ("uniformChoice", [:(genPositionList($(environment)))])
   ]
+  # if object constants exist, add support for (.. obj origin)
   if length(filter(var -> occursin("Object_", environment["variables"][var]), collect(keys(environment["variables"])))) > 0
     push!(choices, ("..", [:(genObject($(environment), p=1.0)), :(String("origin"))]))
+    
+    addBranchesFromCustomTypes(choices, "Position", environment)
   end
 
   choice = choices[rand(1:length(choices))]
@@ -170,4 +181,16 @@ function genString(environment)
   colors = ["red", "yellow", "green", "blue"]
   color = colors[rand(1:length(colors))]
   """ "$(color)" """
+end
+
+# ----- helper functions ----- #
+
+function addBranchesFromCustomTypes(arr::AbstractArray, fieldtype::String, environment)
+  types_with_field = filter(type -> fieldtype in map(tuple -> tuple[2], environment["custom_types"][type]), collect(keys(environment["custom_types"])))
+  for type in types_with_field
+    fieldnames = map(t -> t[1], filter(tuple -> tuple[2] == fieldtype, environment["custom_types"][type]))
+    if length(filter(var -> var == type, collect(keys(environment["variables"])))) > 0  
+      foreach(fieldname -> push!(arr, ("..", [Meta.parse("gen$(type)($(environment))"), :(String(fieldname))]), environment["custom_types"][type]), fieldnames)
+    end
+  end
 end
