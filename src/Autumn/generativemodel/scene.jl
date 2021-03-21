@@ -192,9 +192,6 @@ function generatescene_objects(rng=Random.GLOBAL_RNG; gridsize::Int=16)
     custom_fields = objType.custom_fields
     custom_field_values = map(field -> field[2] == "Int" ? rand(1:3) : rand(["true", "false"]), custom_fields)
 
-    @show custom_fields
-    @show custom_field_values
-
     push!(objects, Obj(objType, objPosition, custom_field_values, length(objects) + 1))    
   end
   (types, objects, background, gridsize)

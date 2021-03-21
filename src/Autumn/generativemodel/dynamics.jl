@@ -57,8 +57,14 @@ end
 # ----- Int generator ----- # 
 function genInt(environment)
   int_vars = filter(var -> environment["variables"][var] == "Int", collect(keys(environment["variables"])))
-  choices = [collect(1:5)..., int_vars...]
-  rand(choices)
+  choices = [ #=branchesFromCustomTypes("Int", environment)..., =# collect(1:5)..., int_vars...]
+  choice = rand(choices)
+  if (choice isa String) || (choice isa Int)
+    choice
+  else
+    @show "($(choice[1]) $(join(map(eval, choice[2]), " ")))"  
+    "($(choice[1]) $(join(map(eval, choice[2]), " ")))"      
+  end
 end
 
 # ----- Bool generator ----- #
@@ -81,7 +87,7 @@ function genBool(environment)
   bool_vars = filter(var -> environment["variables"][var] == "Bool", collect(keys(environment["variables"])))
   foreach(var -> push!(choices, (var, [])), bool_vars)
 
-  addBranchesFromCustomTypes(choices, "Bool", environment)
+  push!(choices, branchesFromCustomTypes("Bool", environment)...)
 
   choice = choices[rand(1:length(choices))]
   if (length(choice[2]) == 0)
@@ -102,9 +108,7 @@ function genPosition(environment)
   ]
   # if object constants exist, add support for (.. obj origin)
   if length(filter(var -> occursin("Object_", environment["variables"][var]), collect(keys(environment["variables"])))) > 0
-    push!(choices, ("..", [:(genObject($(environment), p=1.0)), :(String("origin"))]))
-    
-    addBranchesFromCustomTypes(choices, "Position", environment)
+    push!(choices, ("..", [:(genObject($(environment), p=1.0)), :(String("origin"))]))    
   end
 
   choice = choices[rand(1:length(choices))]
@@ -144,9 +148,21 @@ function genObjectListName(environment)
 end
 
 function genObjectConstructor(type, environment)
-  constructor = map(tuple -> Meta.parse("gen$(tuple[2])($(environment))"), environment["custom_types"][string("Object_",type)])
+  new_type = occursin("_", type) ? type : string("Object_", type)
+  constructor = map(tuple -> Meta.parse("gen$(tuple[2])($(environment))"), environment["custom_types"][new_type])
   push!(constructor, :(genPosition($(environment))))
   "($(type) $(join(map(eval, constructor), " ")))"
+end
+
+function genObject(type, environment, p=0.9)
+  objects_with_type = filter(var -> environment["variables"][var] == type, collect(keys(environment["variables"])))
+  prob = rand()
+  if (prob > p) && length(objects_with_type) != 0
+    rand(objects_with_type)
+  else
+    constructor = genObjectConstructor(type, environment)
+    constructor 
+  end
 end
 
 function genObjectListUpdateRule(object_list, environment; p=0.7)
@@ -185,12 +201,14 @@ end
 
 # ----- helper functions ----- #
 
-function addBranchesFromCustomTypes(arr::AbstractArray, fieldtype::String, environment)
+function branchesFromCustomTypes(fieldtype::String, environment)
+  branches = []
   types_with_field = filter(type -> fieldtype in map(tuple -> tuple[2], environment["custom_types"][type]), collect(keys(environment["custom_types"])))
   for type in types_with_field
     fieldnames = map(t -> t[1], filter(tuple -> tuple[2] == fieldtype, environment["custom_types"][type]))
-    if length(filter(var -> var == type, collect(keys(environment["variables"])))) > 0  
-      foreach(fieldname -> push!(arr, ("..", [Meta.parse("gen$(type)($(environment))"), :(String(fieldname))]), environment["custom_types"][type]), fieldnames)
+    if length(filter(var -> environment["variables"][var] == type, collect(keys(environment["variables"])))) > 0  
+      foreach(fieldname -> push!(branches, ("..", [Meta.parse("genObject(\"$(split(type, "_")[end])\", $(environment))"), :(String($(fieldname)))])), fieldnames)
     end
   end
+  branches
 end
