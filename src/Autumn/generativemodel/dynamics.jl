@@ -16,6 +16,18 @@ env = Dict(["custom_types" => Dict([
               "objectlist1" => "ObjectList_Object3",
             ])])
 
+function genUpdateRule(var, environment)
+  if environment["variables"][var] == "Int"
+    genInt(environment)
+  elseif environment["variables"][var] == "Bool"
+    genBoolUpdateRule(var, environment)
+  elseif occursin("Object_", environment["variables"][var])
+    genObjectUpdateRule(var, environment)
+  else
+    genObjectListUpdateRule(var, environment)
+  end
+end
+
 # -----begin object generator + helper functions ----- #
 function genObject(environment; p=0.9)
   object = genObjectName(environment)
@@ -56,8 +68,8 @@ end
 
 # ----- Int generator ----- # 
 function genInt(environment)
-  int_vars = filter(var -> environment["variables"][var] == "Int", collect(keys(environment["variables"])))
-  choices = [ #=branchesFromCustomTypes("Int", environment)..., =# collect(1:5)..., int_vars...]
+  int_vars = map(v -> "(prev $(v))", filter(var -> environment["variables"][var] == "Int", collect(keys(environment["variables"]))))
+  choices = [ #= fieldsFromCustomTypes("Int", environment)..., =# collect(1:5)..., int_vars...]
   choice = rand(choices)
   if (choice isa String) || (choice isa Int)
     choice
@@ -76,6 +88,7 @@ function genBool(environment)
     ("right", []),
     ("up", []),
     ("down", []),
+    ("true", []), # TODO: add not, or, and -- need to be able to specify prior probabilities 
   ]
   if length(filter(var -> occursin("Object_", environment["variables"][var]), collect(keys(environment["variables"])))) > 0
     push!(choices, [("clicked", [:(genObject($(environment), p=1.0))]),
@@ -84,10 +97,10 @@ function genBool(environment)
                    ]...)
   end
 
-  bool_vars = filter(var -> environment["variables"][var] == "Bool", collect(keys(environment["variables"])))
+  bool_vars = map(v -> "(prev $(v))", filter(var -> environment["variables"][var] == "Bool", collect(keys(environment["variables"]))))
   foreach(var -> push!(choices, (var, [])), bool_vars)
 
-  push!(choices, branchesFromCustomTypes("Bool", environment)...)
+  push!(choices, fieldsFromCustomTypes("Bool", environment)...)
 
   choice = choices[rand(1:length(choices))]
   if (length(choice[2]) == 0)
@@ -96,6 +109,11 @@ function genBool(environment)
     "($(choice[1]) $(join(map(eval, choice[2]), " ")))"
   end 
 
+end
+
+function genBoolUpdateRule(bool, environment)
+  bool_val = "(prev $(bool))"
+  rand(["(! $(bool_val))", bool_val])
 end
 
 # ----- Position generator ----- #
@@ -157,7 +175,7 @@ end
 function genObject(type, environment, p=0.9)
   objects_with_type = filter(var -> environment["variables"][var] == type, collect(keys(environment["variables"])))
   prob = rand()
-  if (prob > p) && length(objects_with_type) != 0
+  if (prob < p) && length(objects_with_type) != 0
     rand(objects_with_type)
   else
     constructor = genObjectConstructor(type, environment)
@@ -173,7 +191,7 @@ function genObjectListUpdateRule(object_list, environment; p=0.7)
     choices = [
       ("addObj", 
         [:(genObjectListUpdateRule($(object_list), $(environment))), 
-         :(genObjectConstructor($(String(split(environment["variables"][object_list], "_")[2])), $(environment))),
+         :(genObjectConstructor($(String(split(environment["variables"][object_list], "_")[end])), $(environment))),
         ]
       ),
       ("updateObj", 
@@ -201,7 +219,7 @@ end
 
 # ----- helper functions ----- #
 
-function branchesFromCustomTypes(fieldtype::String, environment)
+function fieldsFromCustomTypes(fieldtype::String, environment)
   branches = []
   types_with_field = filter(type -> fieldtype in map(tuple -> tuple[2], environment["custom_types"][type]), collect(keys(environment["custom_types"])))
   for type in types_with_field

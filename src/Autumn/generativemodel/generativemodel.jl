@@ -33,9 +33,16 @@ function generateprogram(rng=Random.GLOBAL_RNG; gridsize::Int=16, group::Bool=fa
     next_vals = map(obj -> genObjectUpdateRule("obj$(obj.id)", environment), objects)
     objects = [(objects[i], next_vals[i]) for i in 1:length(objects)]
 
-    # generate on-clauses
+    # generate next values for each non-object global variable
+    non_object_nexts = map(tuple -> genUpdateRule("globalVar$(tuple[3])", environment), non_object_global_vars)
+
+    # generate on-clauses for each object
     on_clause_object_ids = rand(1:length(objects), rand(1:length(objects)))
-    on_clauses = map(i -> (genBool(environment), genObjectUpdateRule("obj$(i)", environment), i), on_clause_object_ids)
+    on_clauses = map(i -> (genBool(environment), genUpdateRule("obj$(i)", environment), i), on_clause_object_ids)
+
+    # generate on-clauses for each non-object global variable
+    non_object_on_clause_ids = rand(1:length(non_object_global_vars), rand(0:length(non_object_global_vars)))
+    non_object_on_clauses = map(i -> (genBool(environment), genUpdateRule("globalVar$(i)", environment), i), non_object_on_clause_ids)
 
     """
     (program
@@ -45,7 +52,7 @@ function generateprogram(rng=Random.GLOBAL_RNG; gridsize::Int=16, group::Bool=fa
 
       $(join(map(tuple -> "(: globalVar$(tuple[3]) $(tuple[1]))", non_object_global_vars), "\n  "))
 
-      $(join(map(tuple -> "(= globalVar$(tuple[3]) (initnext $(tuple[2]) (prev globalVar$(tuple[3]))))", non_object_global_vars), "\n  "))
+      $(join(map(tuple -> "(= globalVar$(tuple[3]) (initnext $(tuple[2]) $(non_object_nexts[tuple[3]])))", non_object_global_vars), "\n  "))
 
       $((join(map(obj -> """(: obj$(obj[1].id) ObjType$(obj[1].type.id))""", objects), "\n  "))...)
 
@@ -54,6 +61,9 @@ function generateprogram(rng=Random.GLOBAL_RNG; gridsize::Int=16, group::Bool=fa
 
       $((join(map(tuple -> 
       """(on $(tuple[1]) (= obj$(tuple[3]) $(tuple[2])))""", on_clauses), "\n  "))...)
+
+      $((join(map(tuple -> 
+      """(on $(tuple[1]) (= globalVar$(tuple[3]) $(tuple[2])))""", non_object_on_clauses), "\n  "))...)
     )
     """
   else
@@ -79,10 +89,10 @@ function generateprogram(rng=Random.GLOBAL_RNG; gridsize::Int=16, group::Bool=fa
     # generate next values and on-clauses for each object
     # lists
     if length(list_type_ids) != 0
-      next_list_vals = map(id -> genObjectListUpdateRule("objList$(findall(x -> x == id, list_type_ids)[1])", environment), list_type_ids)
+      next_list_vals = map(id -> genUpdateRule("objList$(findall(x -> x == id, list_type_ids)[1])", environment), list_type_ids)
 
       on_clause_list_ids = rand(list_type_ids, rand(1:length(list_type_ids)))
-      on_clauses_list = map(id -> (genBool(environment), genObjectListUpdateRule("objList$(findall(x -> x == id, list_type_ids)[1])", environment), findall(x -> x == id, list_type_ids)[1]), on_clause_list_ids)
+      on_clauses_list = map(id -> (genBool(environment), genUpdateRule("objList$(findall(x -> x == id, list_type_ids)[1])", environment), findall(x -> x == id, list_type_ids)[1]), on_clause_list_ids)
     else
       next_list_vals = []
       on_clauses_list = []
@@ -90,15 +100,24 @@ function generateprogram(rng=Random.GLOBAL_RNG; gridsize::Int=16, group::Bool=fa
 
     # constants
     if length(constant_type_ids) != 0
-      next_constant_vals = map(id -> genObjectUpdateRule("obj$(findall(x -> x == id, constant_type_ids)[1])", environment), constant_type_ids)
+      next_constant_vals = map(id -> genUpdateRule("obj$(findall(x -> x == id, constant_type_ids)[1])", environment), constant_type_ids)
       
       on_clauses_constant_ids = rand(constant_type_ids, rand(1:length(constant_type_ids)))
-      on_clauses_constant = map(id -> (genBool(environment), genObjectUpdateRule("obj$(findall(x -> x == id, constant_type_ids)[1])", environment), findall(x -> x == id, constant_type_ids)[1]), on_clauses_constant_ids)
+      on_clauses_constant = map(id -> (genBool(environment), genUpdateRule("obj$(findall(x -> x == id, constant_type_ids)[1])", environment), findall(x -> x == id, constant_type_ids)[1]), on_clauses_constant_ids)
     else
       next_constant_vals = []
       on_clauses_constant = []
     end
 
+    # generate next values and on-clauses for each non-object variable
+    if length(non_object_global_vars) != 0
+      non_object_nexts = map(tuple -> genUpdateRule("globalVar$(tuple[3])", environment), non_object_global_vars)
+      non_object_on_clause_ids = rand(1:length(non_object_global_vars), rand(0:length(non_object_global_vars)))
+      non_object_on_clauses = map(i -> (genBool(environment), genUpdateRule("globalVar$(i)", environment), i), non_object_on_clause_ids)
+    else
+      non_object_nexts = []
+      non_object_on_clauses = []
+    end
     """
     (program
       (= GRID_SIZE $(gridsize))
@@ -107,7 +126,7 @@ function generateprogram(rng=Random.GLOBAL_RNG; gridsize::Int=16, group::Bool=fa
 
       $(join(map(tuple -> "(: globalVar$(tuple[3]) $(tuple[1]))", non_object_global_vars), "\n  "))
 
-      $(join(map(tuple -> "(= globalVar$(tuple[3]) (initnext $(tuple[2]) (prev globalVar$(tuple[3]))))", non_object_global_vars), "\n  "))
+      $(join(map(tuple -> "(= globalVar$(tuple[3]) (initnext $(tuple[2]) $(non_object_nexts[tuple[3]])))", non_object_global_vars), "\n  "))
 
       $((join(map(id -> """(: objList$(findall(x -> x == id, list_type_ids)[1]) (List ObjType$(id)))""", list_type_ids), "\n  "))...)
       $((join(map(id -> """(: obj$(findall(x -> x == id, constant_type_ids)[1]) ObjType$(id))""", constant_type_ids), "\n  "))...)
@@ -123,6 +142,9 @@ function generateprogram(rng=Random.GLOBAL_RNG; gridsize::Int=16, group::Bool=fa
 
       $((join(map(tuple -> 
       """(on $(tuple[1]) (= obj$(tuple[3]) $(tuple[2])))""", on_clauses_constant), "\n  "))...)
+
+      $((join(map(tuple -> 
+      """(on $(tuple[1]) (= globalVar$(tuple[3]) $(tuple[2])))""", non_object_on_clauses), "\n  "))...)
     )
     """
   end
