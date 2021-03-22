@@ -9,7 +9,7 @@ Example Use:
 > rng = MersenneTwister(0)
 > image = render(generatescene_objects(rng))
 > save("scene.png", colorview(RGBA, image))
-> println(parsescene(image))
+> println(parsescene_image(image))
 """
 
 # ----- define colors and color-related functions ----- # 
@@ -141,8 +141,8 @@ function render(types_and_objects)
   image
 end
 
-function generatescene_program(rng=Random.GLOBAL_RNG; gridsize::Int=16)
-  types, objects, background, _ = generatescene_objects(rng, gridsize=gridsize)
+function program_string(types_and_objects)
+  types, objects, background, gridsize = types_and_objects 
   """ 
   (program
     (= GRID_SIZE $(gridsize))
@@ -154,6 +154,11 @@ function generatescene_program(rng=Random.GLOBAL_RNG; gridsize::Int=16)
     $((join(map(obj -> """(= obj$(obj.id) (initnext (ObjType$(obj.type.id) (Position $(obj.position[1] - 1) $(obj.position[2] - 1))) (prev obj$(obj.id))))""", objects), "\n  ")))
   )
   """
+end
+
+function generatescene_program(rng=Random.GLOBAL_RNG; gridsize::Int=16)
+  types_and_objects = generatescene_objects(rng, gridsize=gridsize)
+  program_string(types_and_objects)
 end
 
 function generatescene_objects(rng=Random.GLOBAL_RNG; gridsize::Int=16)
@@ -201,7 +206,7 @@ end
 
 # ----- define functions related to scene parsing -----
 
-function parsescene_singlecell(image)
+function parsescene_image_singlecell(image)
   dimImage = size(image)[1]
   background = count(x -> x == "white", map(colorname, image)) > count(x -> x == "black", map(colorname, image)) ? "white" : "black"
   colors = []
@@ -237,7 +242,7 @@ function color_contiguity(image, pos1, pos2)
   image[pos1[1], pos1[2]] == image[pos2[1], pos2[2]]
 end
 
-function parsescene(image; color=true)
+function parsescene_image(image; color=true)
   dimImage = size(image)[1]
   background = count(x -> x == "white", map(colorname, image)) > count(x -> x == "black", map(colorname, image)) ? "white" : "black"
   objectshapes = []
@@ -292,4 +297,51 @@ function parsescene(image; color=true)
   """
 end
 
-# ----- end functions related to scene parsing -----
+function color_contiguity_autumn(position_to_color, pos1, pos2)
+  length(intersect(position_to_color[pos1], position_to_color[pos2])) > 0
+end
+
+function parsescene_autumn(render_output::AbstractArray, background::String, dim::Int; color=true)
+  
+  position_to_color = Dict()
+  foreach(tuple -> tuple[1] in position_to_color ? 
+                   push!(position_to_color[tuple[1]], tuple[2]) : 
+                   position_to_color[tuple[1]] = [tuple[2]], 
+          render_output)
+
+  colored_positions = map(p -> (p.position.x, p.position.y),collect(keys(position_to_color)))
+  objectshapes = []
+  visited = []
+  for position in colored_positions
+    if !(position in visited)
+      objectshape = []
+      q = Queue{Any}()
+      enqueue!(q, position)
+      while !isempty(q)
+        pos = dequeue!(q)
+        push!(objectshape, pos)
+        push!(visited, pos)
+        pos_neighbors = neighbors(pos)
+        for n in pos_neighbors
+          if (n in colored_positions) && !(n in visited) && (color ? color_contiguity_autumn(position_to_color, n, pos) : true) 
+            enqueue!(q, n)
+          end
+        end
+      end
+      push!(objectshapes, objectshape)
+    end
+  end  
+end
+
+function parsescene_autumn_singlecell(render_output::AbstractArray, background::String="white", dim::Int=16)
+  colors = unique(map(cell -> cell.color, render_output))
+  types = map(color -> ObjType([(0,0)], color, [], findall(c -> c == color, colors)[1]), colors)
+  
+  for i in 1:length(render_output)
+    cell = render_output[i]
+    push!(objects, Obj(types[findall(type -> type.color == cell.color, types)[1]], (cell.position.x, cell.position.y), [], i))
+  end
+  (types, objects, background, dim)
+end
+
+# ----- end functions related to scene parsing ----- #
