@@ -16,15 +16,15 @@ env = Dict(["custom_types" => Dict([
               "objectlist1" => "ObjectList_Object3",
             ])])
 
-function genUpdateRule(var, environment)
+function genUpdateRule(var, environment; p=0.7)
   if environment["variables"][var] == "Int"
     genInt(environment)
   elseif environment["variables"][var] == "Bool"
     genBoolUpdateRule(var, environment)
   elseif occursin("Object_", environment["variables"][var])
-    genObjectUpdateRule(var, environment)
+    genObjectUpdateRule(var, environment, p=p)
   else
-    genObjectListUpdateRule(var, environment)
+    genObjectListUpdateRule(var, environment, p=p)
   end
 end
 

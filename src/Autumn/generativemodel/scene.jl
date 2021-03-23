@@ -336,7 +336,7 @@ end
 function parsescene_autumn_singlecell(render_output::AbstractArray, background::String="white", dim::Int=16)
   colors = unique(map(cell -> cell.color, render_output))
   types = map(color -> ObjType([(0,0)], color, [], findall(c -> c == color, colors)[1]), colors)
-  
+  objects = []
   for i in 1:length(render_output)
     cell = render_output[i]
     push!(objects, Obj(types[findall(type -> type.color == cell.color, types)[1]], (cell.position.x, cell.position.y), [], i))
