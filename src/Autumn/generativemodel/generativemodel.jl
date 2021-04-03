@@ -161,3 +161,16 @@ function generateprogram_given_objects(types_and_objects, rng=Random.GLOBAL_RNG;
     """
   end
 end
+
+function generate_hypothesis_update_rule(object, object_decomposition)
+  types, objects, background, gridsize = object_decomposition
+
+  # construct environment 
+  environment = Dict(["custom_types" => Dict(map(t -> "Object_ObjType$(t.id)" => t.custom_fields, types) 
+                          ),
+                      "variables" => Dict(map(obj -> "obj$(obj.id)" => "Object_ObjType$(obj.type.id)", objects)
+                      )])
+ 
+  # generate update rule 
+  """(on true (= obj$(object.id) $(genObjectUpdateRule("obj$(object.id)", environment))))"""
+end

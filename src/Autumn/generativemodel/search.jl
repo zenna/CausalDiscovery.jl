@@ -1,3 +1,4 @@
+using Random
 using Autumn
 include("generativemodel.jl")
 
@@ -16,16 +17,17 @@ a = au"""(program
 
 mod = eval(compiletojulia(a))
 
-state = mod.init(nothing, nothing, nothing, nothing, nothing);
+rng = MersenneTwister(0)
+state = mod.init(nothing, nothing, nothing, nothing, nothing, rng);
 
 # add particles
 for i in 1:3
-  state = mod.next(state, mod.Click(rand(0:15),rand(0:15)), nothing, nothing, nothing, nothing); mod.render(state.scene)
+  global state = mod.next(state, mod.Click(rand(0:15),rand(0:15)), nothing, nothing, nothing, nothing); mod.render(state.scene)
 end
 
 # let particles move
 for i in 1:5
-  state = mod.next(state, mod.Click(rand(0:15),rand(0:15)), nothing, nothing, nothing, nothing); mod.render(state.scene)
+  global state = mod.next(state, mod.Click(rand(0:15),rand(0:15)), nothing, nothing, nothing, nothing); mod.render(state.scene)
 end
 
 # render
@@ -34,5 +36,5 @@ rendering = mod.render(state.scene)
 # parse scene rendering into types and objects
 types_and_objects = parsescene_autumn_singlecell(rendering)
 
-# generate random dynamics on object decomposition (types and objects)
-println(generateprogram(types_and_objects, group=true))
+# # generate random dynamics on object decomposition (types and objects)
+# println(generateprogram_given_objects(types_and_objects, group=true))

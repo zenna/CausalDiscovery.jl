@@ -80,14 +80,14 @@ end
 # ----- end define general utils ----- #
 
 # ----- define functions related to generative model over scenes ----- #
-struct ObjType
+mutable struct ObjType
   shape::AbstractArray
   color::String
   custom_fields::AbstractArray
   id::Int
 end
 
-struct Obj
+mutable struct Obj
   type::ObjType
   position::Tuple{Int, Int}
   custom_field_values::AbstractArray
@@ -152,6 +152,21 @@ function program_string(types_and_objects)
     $((join(map(obj -> """(: obj$(obj.id) ObjType$(obj.type.id))""", objects), "\n  "))...)
 
     $((join(map(obj -> """(= obj$(obj.id) (initnext (ObjType$(obj.type.id) (Position $(obj.position[1] - 1) $(obj.position[2] - 1))) (prev obj$(obj.id))))""", objects), "\n  ")))
+  )
+  """
+end
+
+function program_string_synth(types_and_objects)
+  types, objects, background, gridsize = types_and_objects 
+  """ 
+  (program
+    (= GRID_SIZE $(gridsize))
+    (= background "$(background)")
+    $(join(map(t -> "(object ObjType$(t.id) (list $(join(map(cell -> """(Cell $(cell[1]) $(cell[2]) "$(t.color)")""", t.shape), " "))))", types), "\n  "))
+
+    $((join(map(obj -> """(: obj$(obj.id) ObjType$(obj.type.id))""", objects), "\n  "))...)
+
+    $((join(map(obj -> """(= obj$(obj.id) (initnext (ObjType$(obj.type.id) (Position $(obj.position[1]) $(obj.position[2]))) (prev obj$(obj.id))))""", objects), "\n  ")))
   )
   """
 end

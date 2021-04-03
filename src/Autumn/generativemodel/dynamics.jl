@@ -53,11 +53,11 @@ function genObjectUpdateRule(object, environment; p=0.7)
       ("moveRightNoCollision", [:(genObjectUpdateRule($(object), $(environment)))]),
       ("moveUpNoCollision", [:(genObjectUpdateRule($(object), $(environment)))]),
       ("moveDownNoCollision", [:(genObjectUpdateRule($(object), $(environment)))]),
-      ("moveNoCollision", [:(genObjectUpdateRule($(object), $(environment))), :(genPosition($(environment)))]),
-      ("nextLiquid", [:(genObjectUpdateRule($(object), $(environment)))]),
-      ("nextSolid", [:(genObjectUpdateRule($(object), $(environment)))]),
-      ("rotate", [:(genObjectUpdateRule($(object), $(environment)))]),
-      ("rotateNoCollision", [:(genObjectUpdateRule($(object), $(environment)))]),
+      # ("moveNoCollision", [:(genObjectUpdateRule($(object), $(environment))), :(genPosition($(environment)))]),
+      # ("nextLiquid", [:(genObjectUpdateRule($(object), $(environment)))]),
+      # ("nextSolid", [:(genObjectUpdateRule($(object), $(environment)))]),
+      # ("rotate", [:(genObjectUpdateRule($(object), $(environment)))]),
+      # ("rotateNoCollision", [:(genObjectUpdateRule($(object), $(environment)))]),
     ]
     choice = choices[rand(1:length(choices))]
     "($(choice[1]) $(join(map(eval, choice[2]), " ")))"
