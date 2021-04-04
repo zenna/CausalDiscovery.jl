@@ -27,6 +27,8 @@ function singletimestepsolution_matrix(observations)
   matrix
 end
 
+expr = nothing
+mod = nothing
 """Synthesize a set of update functions that """
 function synthesize_update_functions(object_id, time, object_decomposition, max_iters=100)::AbstractArray
   object_types, object_mapping, background, dim = object_decomposition
@@ -58,19 +60,25 @@ function synthesize_update_functions(object_id, time, object_decomposition, max_
       println(hypothesis_program)
 
       # add new process
-      procs = addprocs(1)
+      # procs = addprocs(1)
 
-      expr = compiletojulia(parseautumn(hypothesis_program))
-      @show expr
+      global expr = compiletojulia(parseautumn(hypothesis_program))
+      module_name = Symbol("CompiledProgram$(iters)")
+      global expr.args[1].args[2] = module_name
+      @show expr.args[1].args[2]
+      global mod = @eval $(expr)
+      @show repr(mod)
+      hypothesis_frame_state = @eval mod.next(mod.init(nothing, nothing, nothing, nothing, nothing, nothing), nothing, nothing, nothing, nothing, nothing)
 
-      Distributed.remotecall_eval(Main, procs, expr)
+      # Distributed.remotecall_eval(Main, procs, expr.args[1])
       # @eval @everywhere using Main.CompiledProgram
-      callexpr = :(CompiledProgram.next(CompiledProgram.init(nothing, nothing, nothing, nothing, nothing), nothing, nothing, nothing, nothing, nothing))
-      hypothesis_frame_state = Distributed.remotecall_eval(Main, procs..., callexpr)
-      @show hypothesis_frame_state.scene.objects
+      # callexpr = :(Main.CompiledProgram)
+      # @show callexpr
+      # hypothesis_frame_state = Distributed.remotecall_eval(Main, procs..., callexpr)
+      # @show hypothesis_frame_state.scene.objects
       
       # delete process
-      rmprocs(procs...)
+      # rmprocs(procs...)
       
       hypothesis_object = filter(o -> o.id == object_id, hypothesis_frame_state.scene.objects)[1]
       @show hypothesis_object
@@ -78,6 +86,7 @@ function synthesize_update_functions(object_id, time, object_decomposition, max_
       if render_equals(hypothesis_object, next_object)
         push!(solutions, update_rule)
       end
+      iters += 1
     end
     solutions
   end
