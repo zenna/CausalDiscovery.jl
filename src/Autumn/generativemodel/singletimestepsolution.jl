@@ -1,6 +1,6 @@
 using Autumn
 using Revise
-# using FunctionWrappers: FunctionWrapper
+using Distributed
 include("generativemodel.jl")
 
 """Construct matrix of single timestep solutions"""
@@ -11,14 +11,17 @@ function singletimestepsolution_matrix(observations)
   # number of rows = number of objects, number of cols = number of time steps  
   num_objects = length(collect(keys(object_mapping)))
   matrix = [[] for object_id in 1:num_objects, time in 1:(length(observations) - 1)]
-
+  @show size(matrix)
   # for each subsequent frame, map objects  
   for time in 2:length(observations)
     # for each object in previous time step, determine a set of update functions  
     # that takes the previous object to the next object
     for object_id in keys(object_mapping)
       update_functions = synthesize_update_functions(object_id, time, object_decomposition)
-      matrix[object_id][time] = update_functions
+      @show update_functions 
+      @show object_id 
+      @show time
+      matrix[object_id, time - 1] = update_functions
     end
   end
   matrix
@@ -32,57 +35,52 @@ function synthesize_update_functions(object_id, time, object_decomposition, max_
 
   @show prev_object 
   @show next_object
-
-  if prev_object == nothing && next_object == nothing
+  @show isnothing(prev_object) && isnothing(next_object)
+  if isnothing(prev_object) && isnothing(next_object)
     [""]
-  elseif prev_object == nothing
+  elseif isnothing(prev_object)
     ["(= addedObjType$(next_object.type.id)List (addObj addedObjType$(next_object.type.id)List (ObjType$(next_object.type.id) (Position $(next_object.position[1]) $(next_object.position[2])))))"]
-  elseif next_object == nothing
+  elseif isnothing(next_object)
     if object_mapping[object_id][1] == nothing # object was added later; contained in addedList
       ["(= addedObjType$(prev_object.type.id)List (removeObj addedObjType$(prev_object.type.id)List (--> obj (== (.. obj id) $(object_id)))))"]
     else # object was present at the start of the program
       ["(= obj$(object_id) (removeObj obj$(object_id)))"]
     end
   else # actual synthesis problem
-    prev_objects = filter(obj -> obj.id != prev_object.id, [object_mapping[id][time - 1] for id in 1:length(collect(keys(object_mapping)))])
+    prev_objects = filter(obj -> !isnothing(obj) && (obj.id != prev_object.id), [object_mapping[id][time - 1] for id in 1:length(collect(keys(object_mapping)))])
     @show prev_objects
     solutions = []
     iters = 0
     while length(solutions) != 1 && iters < max_iters
       hypothesis_program = program_string_synth((object_types, [prev_objects..., prev_object], background, dim))
-      update_rule = "(on true (= obj1 (moveDownNoCollision (moveDownNoCollision (prev obj1)))))" # generate_hypothesis_update_rule(prev_object, (object_types, prev_objects, background, dim))
+      update_rule = generate_hypothesis_update_rule(prev_object, (object_types, prev_objects, background, dim)) # "(on true (= obj1 (moveDownNoCollision (moveDownNoCollision (prev obj1)))))"
       hypothesis_program = string(hypothesis_program[1:end-2], "\n\t", update_rule, "\n)")
-    #   hypothesis_program = """(program
-    #   (= GRID_SIZE 16)
-    #   (= background \"white\")
-    #   (object ObjType1 (list (Cell 0 0 \"blue\")))
+      println(hypothesis_program)
 
-    #   (: obj1 ObjType1)
+      # add new process
+      procs = addprocs(1)
 
-    #   (= obj1 (initnext (ObjType1 (Position 1 1)) (prev obj1)))
-
-    #         (on true (= obj1 (moveDownNoCollision (moveDownNoCollision (prev obj1)))))
-    # )"""
-      @show println(hypothesis_program)
       expr = compiletojulia(parseautumn(hypothesis_program))
-      eval(expr)
-      
-      @show update_rule
-      hypothesis_frame_state_init = CompiledProgram.init(nothing, nothing, nothing, nothing, nothing)
-      hypothesis_frame_state_next = CompiledProgram.next(hypothesis_frame_state_init, nothing, nothing, nothing, nothing, nothing)
-      hypothesis_frame_state_next_next = CompiledProgram.next(hypothesis_frame_state_next, nothing, nothing, nothing, nothing, nothing)
+      @show expr
 
-      @show CompiledProgram.render(hypothesis_frame_state_init.scene)
-      @show CompiledProgram.render(hypothesis_frame_state_next.scene)
-      @show CompiledProgram.render(hypothesis_frame_state_next_next.scene)
-      hypothesis_object = filter(o -> o.id == object_id, hypothesis_frame_state_next.scene.objects)[1]
+      Distributed.remotecall_eval(Main, procs, expr)
+      # @eval @everywhere using Main.CompiledProgram
+      callexpr = :(CompiledProgram.next(CompiledProgram.init(nothing, nothing, nothing, nothing, nothing), nothing, nothing, nothing, nothing, nothing))
+      hypothesis_frame_state = Distributed.remotecall_eval(Main, procs..., callexpr)
+      @show hypothesis_frame_state.scene.objects
+      
+      # delete process
+      rmprocs(procs...)
+      
+      hypothesis_object = filter(o -> o.id == object_id, hypothesis_frame_state.scene.objects)[1]
+      @show hypothesis_object
 
       if render_equals(hypothesis_object, next_object)
         push!(solutions, update_rule)
       end
     end
+    solutions
   end
-  solutions
 end
 
 """Parse observations into object types and objects, and assign 

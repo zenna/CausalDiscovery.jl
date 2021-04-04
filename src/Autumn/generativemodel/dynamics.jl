@@ -39,7 +39,7 @@ function genObjectName(environment)
   objects[rand(1:length(objects))]
 end
 
-function genObjectUpdateRule(object, environment; p=0.7)
+function genObjectUpdateRule(object, environment; p=0.3)
   prob = rand()
   if prob < p
     if object == "obj"
@@ -49,10 +49,10 @@ function genObjectUpdateRule(object, environment; p=0.7)
     end
   else
     choices = [
-      ("moveLeftNoCollision", [:(genObjectUpdateRule($(object), $(environment)))]),
-      ("moveRightNoCollision", [:(genObjectUpdateRule($(object), $(environment)))]),
-      ("moveUpNoCollision", [:(genObjectUpdateRule($(object), $(environment)))]),
-      ("moveDownNoCollision", [:(genObjectUpdateRule($(object), $(environment)))]),
+      ("moveLeftNoCollision", [:(genObjectUpdateRule($(object), $(environment), p=0.9))]),
+      ("moveRightNoCollision", [:(genObjectUpdateRule($(object), $(environment), p=0.9))]),
+      ("moveUpNoCollision", [:(genObjectUpdateRule($(object), $(environment), p=0.9))]),
+      ("moveDownNoCollision", [:(genObjectUpdateRule($(object), $(environment), p=0.9))]),
       # ("moveNoCollision", [:(genObjectUpdateRule($(object), $(environment))), :(genPosition($(environment)))]),
       # ("nextLiquid", [:(genObjectUpdateRule($(object), $(environment)))]),
       # ("nextSolid", [:(genObjectUpdateRule($(object), $(environment)))]),
