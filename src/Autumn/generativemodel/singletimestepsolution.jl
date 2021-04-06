@@ -1,5 +1,4 @@
 using Autumn
-using Revise
 using Distributed
 include("generativemodel.jl")
 
@@ -19,8 +18,6 @@ function singletimestepsolution_matrix(observations)
     for object_id in keys(object_mapping)
       update_functions = synthesize_update_functions(object_id, time, object_decomposition)
       @show update_functions 
-      @show object_id 
-      @show time
       matrix[object_id, time - 1] = update_functions
     end
   end
@@ -29,12 +26,14 @@ end
 
 expr = nothing
 mod = nothing
+global_iters = 0
 """Synthesize a set of update functions that """
-function synthesize_update_functions(object_id, time, object_decomposition, max_iters=100)::AbstractArray
+function synthesize_update_functions(object_id, time, object_decomposition, max_iters=50)::AbstractArray
   object_types, object_mapping, background, dim = object_decomposition
   prev_object = object_mapping[object_id][time - 1]
   next_object = object_mapping[object_id][time]
-
+  @show object_id 
+  @show time
   @show prev_object 
   @show next_object
   @show isnothing(prev_object) && isnothing(next_object)
@@ -54,39 +53,38 @@ function synthesize_update_functions(object_id, time, object_decomposition, max_
     solutions = []
     iters = 0
     while length(solutions) != 1 && iters < max_iters
-      hypothesis_program = program_string_synth((object_types, [prev_objects..., prev_object], background, dim))
-      update_rule = generate_hypothesis_update_rule(prev_object, (object_types, prev_objects, background, dim)) # "(on true (= obj1 (moveDownNoCollision (moveDownNoCollision (prev obj1)))))"
-      hypothesis_program = string(hypothesis_program[1:end-2], "\n\t", update_rule, "\n)")
-      println(hypothesis_program)
-
-      # add new process
-      # procs = addprocs(1)
+      hypothesis_program = program_string_synth((object_types, sort([prev_objects..., prev_object], by=(x -> x.id)), background, dim))
+      update_rule = generate_hypothesis_update_rule(prev_object, (object_types, prev_objects, background, dim), p=0.2) # "(= obj1 (moveDownNoCollision (moveDownNoCollision (prev obj1))))"
+      hypothesis_program = string(hypothesis_program[1:end-2], "\n\t (on true ", update_rule, ")\n)")
+      # println(hypothesis_program)
+      # @show global_iters
+      @show update_rule
 
       global expr = compiletojulia(parseautumn(hypothesis_program))
-      module_name = Symbol("CompiledProgram$(iters)")
+      module_name = Symbol("CompiledProgram$(global_iters)")
       global expr.args[1].args[2] = module_name
-      @show expr.args[1].args[2]
+      # @show expr.args[1].args[2]
       global mod = @eval $(expr)
-      @show repr(mod)
+      # @show repr(mod)
       hypothesis_frame_state = @eval mod.next(mod.init(nothing, nothing, nothing, nothing, nothing, nothing), nothing, nothing, nothing, nothing, nothing)
-
-      # Distributed.remotecall_eval(Main, procs, expr.args[1])
-      # @eval @everywhere using Main.CompiledProgram
-      # callexpr = :(Main.CompiledProgram)
-      # @show callexpr
-      # hypothesis_frame_state = Distributed.remotecall_eval(Main, procs..., callexpr)
-      # @show hypothesis_frame_state.scene.objects
-      
-      # delete process
-      # rmprocs(procs...)
       
       hypothesis_object = filter(o -> o.id == object_id, hypothesis_frame_state.scene.objects)[1]
+      @show hypothesis_frame_state.scene.objects
       @show hypothesis_object
 
       if render_equals(hypothesis_object, next_object)
-        push!(solutions, update_rule)
+        if object_mapping[object_id][1] == nothing # object was added later; contained in addedList
+          map_lambda_func = string("(-->", replace(update_rule, "obj$(object_id)" => "obj")[3:end])
+          push!(solutions, "(= addedObjType$(prev_object.type.id)List (updateObj addedObjType$(prev_object.type.id)List $(map_lambda_func) (--> obj (== (.. obj id) $(object_id)))))")
+        else # object was present at the start of the program
+          push!(solutions, update_rule)
+        end
       end
       iters += 1
+      global global_iters += 1
+    end
+    if (iters == max_iters)
+      println("FAILURE")
     end
     solutions
   end
@@ -204,4 +202,18 @@ function render_equals(hypothesis_object, actual_object)
   translated_hypothesis_object = map(cell -> (cell.position.x + hypothesis_object.origin.x, cell.position.y + hypothesis_object.origin.y), hypothesis_object.render)
   translated_actual_object = map(pos -> (pos[1] + actual_object.position[1], pos[2] + actual_object.position[2]), actual_object.type.shape)
   translated_hypothesis_object == translated_actual_object
+end
+
+function generate_observations(m::Module)
+  state = m.init(nothing, nothing, nothing, nothing, nothing)
+  observations = []
+  for i in 0:3
+    if i % 2 == 0
+      state = m.next(state, m.Click(rand(5:10), rand(5:10)), nothing, nothing, nothing, nothing)
+    else
+      state = m.next(state, nothing, nothing, nothing, nothing, nothing)
+    end
+    push!(observations, m.render(state.scene))
+  end
+  observations
 end
