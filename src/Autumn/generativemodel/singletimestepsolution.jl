@@ -1,11 +1,10 @@
 using Autumn
-using Distributed
 include("generativemodel.jl")
 
 """Construct matrix of single timestep solutions"""
-function singletimestepsolution_matrix(observations)
+function singletimestepsolution_matrix(observations, grid_size)
   object_decomposition = parse_and_map_objects(observations)
-  object_types, object_mapping, background, dim = object_decomposition
+  object_types, object_mapping, background, _ = object_decomposition
   # matrix of update function sets for each object/time pair
   # number of rows = number of objects, number of cols = number of time steps  
   num_objects = length(collect(keys(object_mapping)))
@@ -17,27 +16,27 @@ function singletimestepsolution_matrix(observations)
     # for each object in previous time step, determine a set of update functions  
     # that takes the previous object to the next object
     for object_id in 1:num_objects
-      update_functions, prev_used_rules = synthesize_update_functions(object_id, time, object_decomposition, prev_used_rules)
+      update_functions, prev_used_rules = synthesize_update_functions(object_id, time, object_decomposition, prev_used_rules, grid_size)
       @show update_functions 
       matrix[object_id, time - 1] = update_functions
     end
   end
-  matrix, prev_used_rules
+  matrix, object_decomposition, prev_used_rules
 end
 
 expr = nothing
 mod = nothing
 global_iters = 0
 """Synthesize a set of update functions that """
-function synthesize_update_functions(object_id, time, object_decomposition, prev_used_rules, max_iters=50)
-  object_types, object_mapping, background, dim = object_decomposition
+function synthesize_update_functions(object_id, time, object_decomposition, prev_used_rules, grid_size=16, max_iters=50)
+  object_types, object_mapping, background, _ = object_decomposition
   prev_object = object_mapping[object_id][time - 1]
   next_object = object_mapping[object_id][time]
   @show object_id 
   @show time
-  @show prev_object 
-  @show next_object
-  @show isnothing(prev_object) && isnothing(next_object)
+  #@show prev_object 
+  #@show next_object
+  # @show isnothing(prev_object) && isnothing(next_object)
   if isnothing(prev_object) && isnothing(next_object)
     [""], prev_used_rules
   elseif isnothing(prev_object)
@@ -50,13 +49,13 @@ function synthesize_update_functions(object_id, time, object_decomposition, prev
     end
   else # actual synthesis problem
     prev_objects = filter(obj -> !isnothing(obj) && (obj.id != prev_object.id), [object_mapping[id][time - 1] for id in 1:length(collect(keys(object_mapping)))])
-    @show prev_objects
+    #@show prev_objects
     solutions = []
     iters = 0
     prev_used_rules_index = 1
     using_prev = false
     while length(solutions) != 1 && iters < max_iters
-      hypothesis_program = program_string_synth((object_types, sort([prev_objects..., prev_object], by=(x -> x.id)), background, dim))
+      hypothesis_program = program_string_synth((object_types, sort([prev_objects..., prev_object], by=(x -> x.id)), background, grid_size))
       
       if prev_used_rules_index <= length(prev_used_rules)
         update_rule = replace(prev_used_rules[prev_used_rules_index], "objX" => "obj$(object_id)")
@@ -78,11 +77,11 @@ function synthesize_update_functions(object_id, time, object_decomposition, prev
       # @show expr.args[1].args[2]
       global mod = @eval $(expr)
       # @show repr(mod)
-      hypothesis_frame_state = @eval mod.next(mod.init(nothing, nothing, nothing, nothing, nothing, nothing), nothing, nothing, nothing, nothing, nothing)
+      hypothesis_frame_state = @eval mod.next(mod.init(nothing, nothing, nothing, nothing, nothing), nothing, nothing, nothing, nothing, nothing)
       
       hypothesis_object = filter(o -> o.id == object_id, hypothesis_frame_state.scene.objects)[1]
-      @show hypothesis_frame_state.scene.objects
-      @show hypothesis_object
+      #@show hypothesis_frame_state.scene.objects
+      #@show hypothesis_object
 
       if render_equals(hypothesis_object, next_object)
         if using_prev
@@ -94,7 +93,7 @@ function synthesize_update_functions(object_id, time, object_decomposition, prev
         end
 
         if object_mapping[object_id][1] == nothing # object was added later; contained in addedList
-          map_lambda_func = string("(-->", replace(update_rule, "obj$(object_id)" => "obj")[3:end])
+          map_lambda_func = replace(string("(-->", replace(update_rule, "obj$(object_id)" => "obj")[3:end]), "(prev obj)" => "obj")
           push!(solutions, "(= addedObjType$(prev_object.type.id)List (updateObj addedObjType$(prev_object.type.id)List $(map_lambda_func) (--> obj (== (.. obj id) $(object_id)))))")
         else # object was present at the start of the program
           push!(solutions, update_rule)
@@ -231,9 +230,9 @@ function generate_observations(m::Module)
   state = m.init(nothing, nothing, nothing, nothing, nothing)
   observations = []
   for i in 0:9
-    if i % 2 == 1
-      state = m.next(state, nothing, nothing, nothing, nothing, nothing)
-      # state = m.next(state, m.Click(rand(5:10), rand(5:10)), nothing, nothing, nothing, nothing)
+    if i % 3 == 2
+      # state = m.next(state, nothing, nothing, nothing, nothing, nothing)
+      state = m.next(state, m.Click(rand(5:10), rand(5:10)), nothing, nothing, nothing, nothing)
     else
       state = m.next(state, nothing, nothing, nothing, nothing, nothing)
     end
@@ -242,6 +241,31 @@ function generate_observations(m::Module)
   observations
 end
 
-function singletimestepsolution_program(observations)
+function singletimestepsolution_program(observations, grid_size=16)
+  
+  matrix, object_decomposition, _ = singletimestepsolution_matrix(observations, grid_size)
+  singletimestepsolution_program_given_matrix(matrix, object_decomposition, grid_size)
+end
 
+function singletimestepsolution_program_given_matrix(matrix, object_decomposition, grid_size=16)
+  object_types, object_mapping, background, _ = object_decomposition
+  
+  objects = sort(filter(obj -> obj != nothing, [object_mapping[i][1] for i in 1:length(collect(keys(object_mapping)))]), by=(x -> x.id))
+  
+  program_no_update_rules = program_string_synth((object_types, objects, background, grid_size))
+  
+  list_variables = join(map(type -> 
+  """(: addedObjType$(type.id)List (List ObjType$(type.id)))\n  (= addedObjType$(type.id)List (initnext (list) (prev addedObjType$(type.id)List)))\n""", 
+  object_types),"\n  ")
+  
+  time = """(: time Int)\n  (= time (initnext 0 (+ time 1)))"""
+
+  update_rule_times = filter(time -> join(map(l -> l[1], matrix[:, time]), "") != "", [1:size(matrix)[2]...])
+  update_rules = join(map(time -> """(on (== time $(time))\n  (let\n    ($(join(map(l -> l[1], matrix[:, time]), "\n    "))))\n  )""", update_rule_times), "\n  ")
+  
+  string(program_no_update_rules[1:end-2], 
+        "\n\n  $(list_variables)",
+        "\n\n  $(time)", 
+        "\n\n  $(update_rules)", 
+        ")")
 end

@@ -49,10 +49,10 @@ function genObjectUpdateRule(object, environment; p=0.3)
     end
   else
     choices = [
-      ("moveLeftNoCollision", [:(genObjectUpdateRule($(object), $(environment), p=0.9))]),
-      ("moveRightNoCollision", [:(genObjectUpdateRule($(object), $(environment), p=0.9))]),
-      ("moveUpNoCollision", [:(genObjectUpdateRule($(object), $(environment), p=0.9))]),
-      ("moveDownNoCollision", [:(genObjectUpdateRule($(object), $(environment), p=0.9))]),
+      ("moveLeft", [:(genObjectUpdateRule($(object), $(environment), p=0.9))]),
+      ("moveRight", [:(genObjectUpdateRule($(object), $(environment), p=0.9))]),
+      ("moveUp", [:(genObjectUpdateRule($(object), $(environment), p=0.9))]),
+      ("moveDown", [:(genObjectUpdateRule($(object), $(environment), p=0.9))]),
       # ("moveNoCollision", [:(genObjectUpdateRule($(object), $(environment))), :(genPosition($(environment)))]),
       # ("nextLiquid", [:(genObjectUpdateRule($(object), $(environment)))]),
       # ("nextSolid", [:(genObjectUpdateRule($(object), $(environment)))]),
