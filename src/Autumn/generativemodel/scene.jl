@@ -346,6 +346,22 @@ function parsescene_autumn(render_output::AbstractArray, background::String, dim
       push!(objectshapes, objectshape)
     end
   end  
+
+  types = []
+  objects = []
+  for objectshape in objectshapes
+    objectcolors = map(pos -> colorname(image[pos[2], pos[1]]), objectshape)
+    
+    translated = map(pos -> dimImage * (pos[2] - 1)+ (pos[1] - 1), objectshape)
+    translated = length(translated) % 2 == 0 ? translated[1:end-1] : translated
+    centerPos = objectshape[findall(x -> x == median(translated), translated)[1]]
+    translatedShape = map(pos -> (pos[1] - centerPos[1], pos[2] - centerPos[2]), objectshape)
+    translatedShapeWithColors = [(translatedShape[i], objectcolors[i]) for i in 1:length(translatedShape)]
+
+    push!(types, (translatedShapeWithColors, length(types) + 1))
+    push!(objects, (centerPos, length(types), length(objects) + 1))
+  end
+  (types, objects, background, dim)
 end
 
 function parsescene_autumn_singlecell(render_output::AbstractArray, background::String="white", dim::Int=16)

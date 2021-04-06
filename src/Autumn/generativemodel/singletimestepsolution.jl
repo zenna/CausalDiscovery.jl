@@ -10,25 +10,26 @@ function singletimestepsolution_matrix(observations)
   # number of rows = number of objects, number of cols = number of time steps  
   num_objects = length(collect(keys(object_mapping)))
   matrix = [[] for object_id in 1:num_objects, time in 1:(length(observations) - 1)]
+  prev_used_rules = []
   @show size(matrix)
   # for each subsequent frame, map objects  
   for time in 2:length(observations)
     # for each object in previous time step, determine a set of update functions  
     # that takes the previous object to the next object
-    for object_id in keys(object_mapping)
-      update_functions = synthesize_update_functions(object_id, time, object_decomposition)
+    for object_id in 1:num_objects
+      update_functions, prev_used_rules = synthesize_update_functions(object_id, time, object_decomposition, prev_used_rules)
       @show update_functions 
       matrix[object_id, time - 1] = update_functions
     end
   end
-  matrix
+  matrix, prev_used_rules
 end
 
 expr = nothing
 mod = nothing
 global_iters = 0
 """Synthesize a set of update functions that """
-function synthesize_update_functions(object_id, time, object_decomposition, max_iters=50)::AbstractArray
+function synthesize_update_functions(object_id, time, object_decomposition, prev_used_rules, max_iters=50)
   object_types, object_mapping, background, dim = object_decomposition
   prev_object = object_mapping[object_id][time - 1]
   next_object = object_mapping[object_id][time]
@@ -38,23 +39,34 @@ function synthesize_update_functions(object_id, time, object_decomposition, max_
   @show next_object
   @show isnothing(prev_object) && isnothing(next_object)
   if isnothing(prev_object) && isnothing(next_object)
-    [""]
+    [""], prev_used_rules
   elseif isnothing(prev_object)
-    ["(= addedObjType$(next_object.type.id)List (addObj addedObjType$(next_object.type.id)List (ObjType$(next_object.type.id) (Position $(next_object.position[1]) $(next_object.position[2])))))"]
+    ["(= addedObjType$(next_object.type.id)List (addObj addedObjType$(next_object.type.id)List (ObjType$(next_object.type.id) (Position $(next_object.position[1]) $(next_object.position[2])))))"], prev_used_rules
   elseif isnothing(next_object)
     if object_mapping[object_id][1] == nothing # object was added later; contained in addedList
-      ["(= addedObjType$(prev_object.type.id)List (removeObj addedObjType$(prev_object.type.id)List (--> obj (== (.. obj id) $(object_id)))))"]
+      ["(= addedObjType$(prev_object.type.id)List (removeObj addedObjType$(prev_object.type.id)List (--> obj (== (.. obj id) $(object_id)))))"], prev_used_rules
     else # object was present at the start of the program
-      ["(= obj$(object_id) (removeObj obj$(object_id)))"]
+      ["(= obj$(object_id) (removeObj obj$(object_id)))"], prev_used_rules
     end
   else # actual synthesis problem
     prev_objects = filter(obj -> !isnothing(obj) && (obj.id != prev_object.id), [object_mapping[id][time - 1] for id in 1:length(collect(keys(object_mapping)))])
     @show prev_objects
     solutions = []
     iters = 0
+    prev_used_rules_index = 1
+    using_prev = false
     while length(solutions) != 1 && iters < max_iters
       hypothesis_program = program_string_synth((object_types, sort([prev_objects..., prev_object], by=(x -> x.id)), background, dim))
-      update_rule = generate_hypothesis_update_rule(prev_object, (object_types, prev_objects, background, dim), p=0.2) # "(= obj1 (moveDownNoCollision (moveDownNoCollision (prev obj1))))"
+      
+      if prev_used_rules_index <= length(prev_used_rules)
+        update_rule = replace(prev_used_rules[prev_used_rules_index], "objX" => "obj$(object_id)")
+        using_prev = true
+        prev_used_rules_index += 1
+      else
+        using_prev = false
+        update_rule = generate_hypothesis_update_rule(prev_object, (object_types, prev_objects, background, dim), p=0.2) # "(= obj1 (moveDownNoCollision (moveDownNoCollision (prev obj1))))"
+      end      
+
       hypothesis_program = string(hypothesis_program[1:end-2], "\n\t (on true ", update_rule, ")\n)")
       # println(hypothesis_program)
       # @show global_iters
@@ -73,6 +85,14 @@ function synthesize_update_functions(object_id, time, object_decomposition, max_
       @show hypothesis_object
 
       if render_equals(hypothesis_object, next_object)
+        if using_prev
+          println("HOORAY")
+        end
+        generic_update_rule = replace(update_rule, "obj$(object_id)" => "objX")
+        if !(generic_update_rule in prev_used_rules)
+          push!(prev_used_rules, generic_update_rule)
+        end
+
         if object_mapping[object_id][1] == nothing # object was added later; contained in addedList
           map_lambda_func = string("(-->", replace(update_rule, "obj$(object_id)" => "obj")[3:end])
           push!(solutions, "(= addedObjType$(prev_object.type.id)List (updateObj addedObjType$(prev_object.type.id)List $(map_lambda_func) (--> obj (== (.. obj id) $(object_id)))))")
@@ -80,13 +100,15 @@ function synthesize_update_functions(object_id, time, object_decomposition, max_
           push!(solutions, update_rule)
         end
       end
+      
       iters += 1
       global global_iters += 1
+      
     end
     if (iters == max_iters)
       println("FAILURE")
     end
-    solutions
+    solutions, prev_used_rules
   end
 end
 
@@ -148,9 +170,10 @@ function parse_and_map_objects(observations)
               # do something
               object = curr_objects_with_type[1]
               next_object = next_objects_with_type[1]
-              
-              filter!(o -> o.id == object.id, curr_objects_with_type)
-              filter!(o -> o.id == next_object.id, next_objects_with_type)
+              @show curr_objects_with_type
+              @show next_objects_with_type
+              curr_objects_with_type = filter(o -> o.id != object.id, curr_objects_with_type)
+              next_objects_with_type = filter(o -> o.id != next_object.id, next_objects_with_type)
               
               next_object.id = object.id
               push!(object_mapping[object.id], next_object)
@@ -207,13 +230,18 @@ end
 function generate_observations(m::Module)
   state = m.init(nothing, nothing, nothing, nothing, nothing)
   observations = []
-  for i in 0:3
-    if i % 2 == 0
-      state = m.next(state, m.Click(rand(5:10), rand(5:10)), nothing, nothing, nothing, nothing)
+  for i in 0:9
+    if i % 2 == 1
+      state = m.next(state, nothing, nothing, nothing, nothing, nothing)
+      # state = m.next(state, m.Click(rand(5:10), rand(5:10)), nothing, nothing, nothing, nothing)
     else
       state = m.next(state, nothing, nothing, nothing, nothing, nothing)
     end
     push!(observations, m.render(state.scene))
   end
   observations
+end
+
+function singletimestepsolution_program(observations)
+
 end
