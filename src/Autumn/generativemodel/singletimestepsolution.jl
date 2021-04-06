@@ -30,10 +30,13 @@ global_iters = 0
 """Synthesize a set of update functions that """
 function synthesize_update_functions(object_id, time, object_decomposition, prev_used_rules, grid_size=16, max_iters=50)
   object_types, object_mapping, background, _ = object_decomposition
-  prev_object = object_mapping[object_id][time - 1]
-  next_object = object_mapping[object_id][time]
   @show object_id 
   @show time
+  prev_object = object_mapping[object_id][time - 1]
+  
+  next_object = object_mapping[object_id][time]
+  #@show object_id 
+  #@show time
   #@show prev_object 
   #@show next_object
   # @show isnothing(prev_object) && isnothing(next_object)
@@ -63,15 +66,16 @@ function synthesize_update_functions(object_id, time, object_decomposition, prev
         prev_used_rules_index += 1
       else
         using_prev = false
-        update_rule = generate_hypothesis_update_rule(prev_object, (object_types, prev_objects, background, dim), p=0.2) # "(= obj1 (moveDownNoCollision (moveDownNoCollision (prev obj1))))"
+        update_rule = generate_hypothesis_update_rule(prev_object, (object_types, prev_objects, background, grid_size), p=0.2) # "(= obj1 (moveDownNoCollision (moveDownNoCollision (prev obj1))))"
       end      
 
       hypothesis_program = string(hypothesis_program[1:end-2], "\n\t (on true ", update_rule, ")\n)")
       # println(hypothesis_program)
       # @show global_iters
-      @show update_rule
+      # @show update_rule
 
-      global expr = compiletojulia(parseautumn(hypothesis_program))
+      global expr = striplines(compiletojulia(parseautumn(hypothesis_program)))
+      @show expr
       module_name = Symbol("CompiledProgram$(global_iters)")
       global expr.args[1].args[2] = module_name
       # @show expr.args[1].args[2]
@@ -114,19 +118,21 @@ end
 """Parse observations into object types and objects, and assign 
    objects in current observed frame to objects in next frame"""
 function parse_and_map_objects(observations)
-  object_mapping = Dict{Int, AbstractArray}()
+  object_mapping = Dict{Int, Array{Union{Nothing, Obj}}}()
 
   # initialize object mapping with object_decomposition from first observation
-  object_types, objects, background, dim = parsescene_autumn_singlecell(observations[1])
+  object_types, objects, background, dim = parsescene_autumn_singlecell(observations[1]) # parsescene_autumn_singlecell
   for object in objects
     object_mapping[object.id] = [object]
   end
 
   for time in 2:length(observations)
-    next_object_types, next_objects, _, _ = parsescene_autumn_singlecell(observations[time])  
+    next_object_types, next_objects, _, _ = parsescene_autumn_singlecell(observations[time]) # parsescene_autumn_singlecell
 
     # update object_types with new elements in next_object_types 
-    new_object_types = filter(type -> !(type.color in map(t -> t.color, object_types)), next_object_types)
+    new_object_types = filter(type -> !((repr(sort(type.shape)), type.color) in map(t -> (repr(sort(t.shape)), t.color), object_types)), next_object_types)
+    @show object_types 
+    @show new_object_types
     if length(new_object_types) != 0
       for i in 1:length(new_object_types)
         new_type = new_object_types[i]
@@ -137,7 +143,7 @@ function parse_and_map_objects(observations)
 
     # reassign type ids in next_objects according to global type set (object_types)
     for object in next_objects
-      object.type = filter(type -> type.color == object.type.color, object_types)[1]
+      object.type = filter(type -> (type.shape, type.color) == (object.type.shape, object.type.color), object_types)[1]
     end
 
     # construct mapping between objects and next_objects
@@ -193,7 +199,7 @@ function parse_and_map_objects(observations)
       elseif !(isempty(curr_objects_with_type)) && isempty(next_objects_with_type)
         # handle removal of objects
         for object in curr_objects_with_type
-          push!(object_mapping[object.id], nothing)
+          push!(object_mapping[object.id], [nothing for i in time:length(observations)]...)
         end
       end
     end
@@ -229,7 +235,7 @@ end
 function generate_observations(m::Module)
   state = m.init(nothing, nothing, nothing, nothing, nothing)
   observations = []
-  for i in 0:9
+  for i in 0:10
     if i % 3 == 2
       # state = m.next(state, nothing, nothing, nothing, nothing, nothing)
       state = m.next(state, m.Click(rand(5:10), rand(5:10)), nothing, nothing, nothing, nothing)

@@ -316,15 +316,18 @@ function color_contiguity_autumn(position_to_color, pos1, pos2)
   length(intersect(position_to_color[pos1], position_to_color[pos2])) > 0
 end
 
-function parsescene_autumn(render_output::AbstractArray, background::String, dim::Int; color=true)
+function parsescene_autumn(render_output::AbstractArray, dim::Int=16, background::String="white"; color=true)
   
   position_to_color = Dict()
-  foreach(tuple -> tuple[1] in position_to_color ? 
-                   push!(position_to_color[tuple[1]], tuple[2]) : 
-                   position_to_color[tuple[1]] = [tuple[2]], 
-          render_output)
+  for cell in render_output
+    if (cell.position.x, cell.position.y) in keys(position_to_color)
+      push!(position_to_color[(cell.position.x, cell.position.y)], cell.color)
+    else
+      position_to_color[(cell.position.x, cell.position.y)] = [cell.color] 
+    end
+  end
 
-  colored_positions = map(p -> (p.position.x, p.position.y),collect(keys(position_to_color)))
+  colored_positions = sort(collect(keys(position_to_color)))
   objectshapes = []
   visited = []
   for position in colored_positions
@@ -349,20 +352,42 @@ function parsescene_autumn(render_output::AbstractArray, background::String, dim
 
   types = []
   objects = []
+  # @show length(objectshapes)
   for objectshape in objectshapes
-    objectcolors = map(pos -> colorname(image[pos[2], pos[1]]), objectshape)
-    
-    translated = map(pos -> dimImage * (pos[2] - 1)+ (pos[1] - 1), objectshape)
-    translated = length(translated) % 2 == 0 ? translated[1:end-1] : translated
+    objectcolor = position_to_color[objectshape[1]][1]
+    # @show objectcolor 
+    # @show objectshape
+    translated = map(pos -> dim * pos[2] + pos[1], objectshape)
+    translated = length(translated) % 2 == 0 ? translated[1:end-1] : translated # to produce a single median
     centerPos = objectshape[findall(x -> x == median(translated), translated)[1]]
-    translatedShape = map(pos -> (pos[1] - centerPos[1], pos[2] - centerPos[2]), objectshape)
-    translatedShapeWithColors = [(translatedShape[i], objectcolors[i]) for i in 1:length(translatedShape)]
+    translatedShape = unique(map(pos -> (pos[1] - centerPos[1], pos[2] - centerPos[2]), objectshape))
 
-    push!(types, (translatedShapeWithColors, length(types) + 1))
-    push!(objects, (centerPos, length(types), length(objects) + 1))
+    if !((translatedShape, objectcolor) in map(type -> (type.shape, type.color) , types))
+      push!(types, ObjType(translatedShape, objectcolor, [], length(types) + 1))
+      push!(objects, Obj(types[length(types)], centerPos, [], length(objects) + 1))
+    else
+      type_id = findall(type -> (type.shape, type.color) == (translatedShape, objectcolor), types)[1]
+      push!(objects, Obj(types[type_id], centerPos, [], length(objects) + 1))
+    end
   end
   (types, objects, background, dim)
 end
+
+"""
+mutable struct ObjType
+  shape::AbstractArray
+  color::String
+  custom_fields::AbstractArray
+  id::Int
+end
+
+mutable struct Obj
+  type::ObjType
+  position::Tuple{Int, Int}
+  custom_field_values::AbstractArray
+  id::Int
+end
+"""
 
 function parsescene_autumn_singlecell(render_output::AbstractArray, background::String="white", dim::Int=16)
   colors = unique(map(cell -> cell.color, render_output))
