@@ -1,4 +1,5 @@
 using Autumn
+using MacroTools: striplines
 include("generativemodel.jl")
 
 """Construct matrix of single timestep solutions"""
@@ -120,19 +121,30 @@ end
 function parse_and_map_objects(observations)
   object_mapping = Dict{Int, Array{Union{Nothing, Obj}}}()
 
+  # check if observations contains frames with overlapping cells
+  overlapping_cells = foldl(|, map(frame -> has_dups(map(cell -> (cell.position.x, cell.position.y), frame)), observations), init=false)
+
   # initialize object mapping with object_decomposition from first observation
-  object_types, objects, background, dim = parsescene_autumn_singlecell(observations[1]) # parsescene_autumn_singlecell
+  if overlapping_cells
+    object_types, objects, background, dim = parsescene_autumn_singlecell(observations[1])
+  else
+    object_types, objects, background, dim = parsescene_autumn(observations[1])
+  end
+
   for object in objects
     object_mapping[object.id] = [object]
   end
 
   for time in 2:length(observations)
-    next_object_types, next_objects, _, _ = parsescene_autumn_singlecell(observations[time]) # parsescene_autumn_singlecell
-
+    if overlapping_cells
+      next_object_types, next_objects, _, _ = parsescene_autumn_singlecell(observations[time]) # parsescene_autumn_singlecell
+    else
+      next_object_types, next_objects, _, _ = parsescene_autumn_given_types(observations[time], object_types) # parsescene_autumn_singlecell
+    end
     # update object_types with new elements in next_object_types 
     new_object_types = filter(type -> !((repr(sort(type.shape)), type.color) in map(t -> (repr(sort(t.shape)), t.color), object_types)), next_object_types)
-    @show object_types 
-    @show new_object_types
+    # @show object_types 
+    # @show new_object_types
     if length(new_object_types) != 0
       for i in 1:length(new_object_types)
         new_type = new_object_types[i]
@@ -238,7 +250,7 @@ function generate_observations(m::Module)
   for i in 0:10
     if i % 3 == 2
       # state = m.next(state, nothing, nothing, nothing, nothing, nothing)
-      state = m.next(state, m.Click(rand(5:10), rand(5:10)), nothing, nothing, nothing, nothing)
+      state = m.next(state, mod.Click(rand(1:10), rand(1:10)), nothing, nothing, nothing, nothing)
     else
       state = m.next(state, nothing, nothing, nothing, nothing, nothing)
     end
@@ -274,4 +286,8 @@ function singletimestepsolution_program_given_matrix(matrix, object_decompositio
         "\n\n  $(time)", 
         "\n\n  $(update_rules)", 
         ")")
+end
+
+function has_dups(list::AbstractArray)
+  length(unique(list)) != length(list) 
 end

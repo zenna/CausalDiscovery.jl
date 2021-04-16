@@ -373,6 +373,72 @@ function parsescene_autumn(render_output::AbstractArray, dim::Int=16, background
   (types, objects, background, dim)
 end
 
+function parsescene_autumn_given_types(render_output::AbstractArray, override_types::AbstractArray, dim::Int=16, background::String="white"; color=true)
+  (standard_types, objects, _, _) = parsescene_autumn(render_output, dim, background, color=color)
+  
+  # extract multi-cellular types that do not appear in override_types
+  types_to_ungroup = filter(s_type -> (length(s_type.shape) > 1) && !((s_type.shape, s_type.color) in map(o_type -> (o_type.shape, o_type.color), override_types)), standard_types)
+
+  # extract single-cell types with same color as grouped types
+  composition_types = map(grouped_type -> (filter(type -> (type.color == grouped_type.color) && (length(type.shape) == 1), standard_types), 
+                                           filter(type -> (type.color == grouped_type.color) && (length(type.shape) == 1), override_types)), 
+                          types_to_ungroup)
+  
+  if (length(types_to_ungroup) == 0) || (([], []) in composition_types) # no types to try ungrouping
+    (standard_types, objects, background, dim)
+  else # exist types to ungroup
+    @show types_to_ungroup
+    new_objects = filter(obj -> !(obj.type.id in map(type -> type.id, types_to_ungroup)), objects)
+    new_types = standard_types
+    # println("HELLO 1")
+    # @show new_types
+    for grouped_type_id in 1:length(types_to_ungroup)
+      grouped_type = types_to_ungroup[grouped_type_id]
+      composition_types = composition_types[grouped_type_id]
+      filter!(type -> type.id != grouped_type.id, new_types) # remove grouped type from new_types
+      # println("HELLO 2")
+      # @show new_types
+      # determine composition type
+      if length(composition_types[1]) > 0 # composition type present in standard types
+        composition_type = composition_types[1][1]
+      else # composition type present in override types only 
+        composition_type = composition_types[2][1]
+        composition_type.type_id = grouped_type.id # switch the composition type's id to the grouped type's id, since we're eliminating the grouped type
+        push!(new_types, composition_type)
+      end
+      
+      objects_to_ungroup = filter(obj -> obj.type.id == grouped_type.id, objects)
+      # @show objects_to_ungroup
+      for object in objects_to_ungroup
+        for pos in object.type.shape
+          push!(new_objects, Obj(composition_type, (pos[1] + object.position[1], pos[2] + object.position[2]), [], length(new_objects) + length(objects)))
+        end
+      end
+    end
+    # println("HELLO 3")
+    # @show new_types
+    # @show new_objects 
+    # re-number type id's 
+    sort!(new_types, by = x -> x.id)
+    for i in 1:length(new_types)
+      type = new_types[i]
+      if type.id != i
+        foreach(o -> o.type.id = i, filter(obj -> obj.type.id == type.id, new_objects))
+        type.id = i
+      end
+    end
+
+    # re-number object id's
+    sort!(new_objects, by = x -> x.id)
+    for i in 1:length(new_objects)
+      object = new_objects[i]
+      object.id = i
+    end
+
+    (new_types, new_objects, background, dim)
+  end
+end
+
 """
 mutable struct ObjType
   shape::AbstractArray
