@@ -12,7 +12,7 @@ To Do:
 - mapping/parsing fixes:
   - DONE bias later frame decompositions with object types from earlier, to avoid issues like the Ice-parsing problem
   - DONE switch between singlecell and non-singlecell parsing versions when observation trace has overlaps
-  - support object types having a color field, at least in the multi-cellular case
+  - DONE support object types having a color field, at least in the multi-cellular case
   - POSTPONE supporting rotations for object types, i.e. not defining new object types for shapes that have just been rotated
 - dynamics matrix parsing 
   - generating event predicates via genBool

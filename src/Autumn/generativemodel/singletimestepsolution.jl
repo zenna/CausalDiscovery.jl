@@ -10,16 +10,25 @@ function singletimestepsolution_matrix(observations, grid_size)
   # number of rows = number of objects, number of cols = number of time steps  
   num_objects = length(collect(keys(object_mapping)))
   matrix = [[] for object_id in 1:num_objects, time in 1:(length(observations) - 1)]
-  prev_used_rules = []
+  
+  # SEED PREV USED RULES FOR EFFIENCY AT THE MOMENT
+  prev_used_rules = ["(= objX (prev objX))",
+                     "(= objX (moveLeftNoCollision (prev objX)))",
+                     "(= objX (moveRightNoCollision (prev objX)))",
+                     "(= objX (moveUpNoCollision (prev objX)))",
+                     "(= objX (moveDownNoCollision (prev objX)))",
+                     "(= objX (nextLiquid (prev objX)))",
+                     "(= objX (nextSolid (prev objX)))",] # prev_used_rules = []
+  
   @show size(matrix)
-  # for each subsequent frame, map objects  
+  # for each subsequent frame, map objects
   for time in 2:length(observations)
     # for each object in previous time step, determine a set of update functions  
     # that takes the previous object to the next object
     for object_id in 1:num_objects
       update_functions, prev_used_rules = synthesize_update_functions(object_id, time, object_decomposition, prev_used_rules, grid_size)
       @show update_functions 
-      matrix[object_id, time - 1] = update_functions
+      matrix[object_id, time - 1] = update_functions 
     end
   end
   matrix, object_decomposition, prev_used_rules
@@ -29,7 +38,7 @@ expr = nothing
 mod = nothing
 global_iters = 0
 """Synthesize a set of update functions that """
-function synthesize_update_functions(object_id, time, object_decomposition, prev_used_rules, grid_size=16, max_iters=50)
+function synthesize_update_functions(object_id, time, object_decomposition, prev_used_rules, grid_size=16, max_iters=10)
   object_types, object_mapping, background, _ = object_decomposition
   @show object_id 
   @show time
@@ -44,7 +53,7 @@ function synthesize_update_functions(object_id, time, object_decomposition, prev
   if isnothing(prev_object) && isnothing(next_object)
     [""], prev_used_rules
   elseif isnothing(prev_object)
-    ["(= addedObjType$(next_object.type.id)List (addObj addedObjType$(next_object.type.id)List (ObjType$(next_object.type.id) (Position $(next_object.position[1]) $(next_object.position[2])))))"], prev_used_rules
+    ["(= addedObjType$(next_object.type.id)List (addObj addedObjType$(next_object.type.id)List (ObjType$(next_object.type.id) $(join(map(v -> """ "$(v)" """, next_object.custom_field_values), " ")) (Position $(next_object.position[1]) $(next_object.position[2])))))"], prev_used_rules
   elseif isnothing(next_object)
     if object_mapping[object_id][1] == nothing # object was added later; contained in addedList
       ["(= addedObjType$(prev_object.type.id)List (removeObj addedObjType$(prev_object.type.id)List (--> obj (== (.. obj id) $(object_id)))))"], prev_used_rules
@@ -60,8 +69,9 @@ function synthesize_update_functions(object_id, time, object_decomposition, prev
     using_prev = false
     while length(solutions) != 1 && iters < max_iters
       hypothesis_program = program_string_synth((object_types, sort([prev_objects..., prev_object], by=(x -> x.id)), background, grid_size))
-      
-      if prev_used_rules_index <= length(prev_used_rules)
+      if (prev_object.custom_field_values != []) && (next_object.custom_field_values != []) && (prev_object.custom_field_values[1] != next_object.custom_field_values[1])
+        update_rule = """(= obj$(object_id) (updateObj obj$(object_id) "color" "$(next_object.custom_field_values[1])"))"""
+      elseif prev_used_rules_index <= length(prev_used_rules)
         update_rule = replace(prev_used_rules[prev_used_rules_index], "objX" => "obj$(object_id)")
         using_prev = true
         prev_used_rules_index += 1
@@ -69,14 +79,16 @@ function synthesize_update_functions(object_id, time, object_decomposition, prev
         using_prev = false
         update_rule = generate_hypothesis_update_rule(prev_object, (object_types, prev_objects, background, grid_size), p=0.2) # "(= obj1 (moveDownNoCollision (moveDownNoCollision (prev obj1))))"
       end      
-
+      
       hypothesis_program = string(hypothesis_program[1:end-2], "\n\t (on true ", update_rule, ")\n)")
-      # println(hypothesis_program)
+      println("HYPOTHESIS_PROGRAM")
+      println(prev_object)
+      println(hypothesis_program)
       # @show global_iters
       # @show update_rule
 
       global expr = striplines(compiletojulia(parseautumn(hypothesis_program)))
-      @show expr
+      #@show expr
       module_name = Symbol("CompiledProgram$(global_iters)")
       global expr.args[1].args[2] = module_name
       # @show expr.args[1].args[2]
@@ -93,7 +105,7 @@ function synthesize_update_functions(object_id, time, object_decomposition, prev
           println("HOORAY")
         end
         generic_update_rule = replace(update_rule, "obj$(object_id)" => "objX")
-        if !(generic_update_rule in prev_used_rules)
+        if !(generic_update_rule in prev_used_rules) && !(occursin("color", generic_update_rule))
           push!(prev_used_rules, generic_update_rule)
         end
 
@@ -123,12 +135,29 @@ function parse_and_map_objects(observations)
 
   # check if observations contains frames with overlapping cells
   overlapping_cells = foldl(|, map(frame -> has_dups(map(cell -> (cell.position.x, cell.position.y), frame)), observations), init=false)
-
-  # initialize object mapping with object_decomposition from first observation
+  println("OVERLAPPING_CELLS")
+  println(overlapping_cells)
+  # construct object_types
+  ## initialize object_types based on first observation frame
   if overlapping_cells
-    object_types, objects, background, dim = parsescene_autumn_singlecell(observations[1])
+    object_types, _, background, dim = parsescene_autumn_singlecell(observations[1])
   else
-    object_types, objects, background, dim = parsescene_autumn(observations[1])
+    object_types, _, background, dim = parsescene_autumn(observations[1])
+  end
+
+  ## iteratively build object_types through each subsequent observation frame
+  for time in 2:length(observations)
+    if overlapping_cells
+      object_types, _, _, _ = parsescene_autumn_singlecell_given_types(observations[time], object_types)
+    else
+      object_types, _, _, _ = parsescene_autumn_given_types(observations[time], object_types)
+    end
+  end
+
+  if overlapping_cells
+    _, objects, _, _ = parsescene_autumn_singlecell_given_types(observations[1], object_types)
+  else
+    _, objects, _, _ = parsescene_autumn_given_types(observations[1], object_types)
   end
 
   for object in objects
@@ -137,27 +166,10 @@ function parse_and_map_objects(observations)
 
   for time in 2:length(observations)
     if overlapping_cells
-      next_object_types, next_objects, _, _ = parsescene_autumn_singlecell(observations[time]) # parsescene_autumn_singlecell
+      _, next_objects, _, _ = parsescene_autumn_singlecell_given_types(observations[time], object_types) # parsescene_autumn_singlecell
     else
-      next_object_types, next_objects, _, _ = parsescene_autumn_given_types(observations[time], object_types) # parsescene_autumn_singlecell
+      _, next_objects, _, _ = parsescene_autumn_given_types(observations[time], object_types) # parsescene_autumn_singlecell
     end
-    # update object_types with new elements in next_object_types 
-    new_object_types = filter(type -> !((repr(sort(type.shape)), type.color) in map(t -> (repr(sort(t.shape)), t.color), object_types)), next_object_types)
-    # @show object_types 
-    # @show new_object_types
-    if length(new_object_types) != 0
-      for i in 1:length(new_object_types)
-        new_type = new_object_types[i]
-        new_type.id = length(object_types) + i
-        push!(object_types, new_type)
-      end
-    end
-
-    # reassign type ids in next_objects according to global type set (object_types)
-    for object in next_objects
-      object.type = filter(type -> (type.shape, type.color) == (object.type.shape, object.type.color), object_types)[1]
-    end
-
     # construct mapping between objects and next_objects
     for type in object_types
       curr_objects_with_type = filter(o -> o.type.id == type.id, objects)
@@ -248,9 +260,11 @@ function generate_observations(m::Module)
   state = m.init(nothing, nothing, nothing, nothing, nothing)
   observations = []
   for i in 0:10
-    if i % 3 == 2
+    if i % 5 == 2
       # state = m.next(state, nothing, nothing, nothing, nothing, nothing)
-      state = m.next(state, mod.Click(rand(1:10), rand(1:10)), nothing, nothing, nothing, nothing)
+      state = m.next(state, nothing, nothing, nothing, nothing, mod.Down())
+    elseif i == 5
+      state = m.next(state, mod.Click(rand(1:10),rand(1:10)), nothing, nothing, nothing, nothing)
     else
       state = m.next(state, nothing, nothing, nothing, nothing, nothing)
     end
