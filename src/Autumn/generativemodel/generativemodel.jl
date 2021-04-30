@@ -174,3 +174,63 @@ function generate_hypothesis_update_rule(object, object_decomposition; p=0.3)
   # generate update rule 
   """(= obj$(object.id) $(genObjectUpdateRule("obj$(object.id)", environment, p=p)))"""
 end
+
+function generate_hypothesis_position(position, environment_vars)
+  objects = map(obj -> "obj$(obj.id)", filter(x -> x isa Obj, environment_vars))
+  user_events = filter(x -> !(x isa Obj), environment_vars)
+  choices = ["(.. $(rand(objects)) origin)",
+             "(move (.. $(rand(objects)) origin) (Position $(rand(0:1)) $(rand(0:1))))"]
+  if (length(user_events) > 0) 
+    push!(choices, "(Position (.. click x) (.. click y))")
+  end
+  choices[rand(1:length(choices))]
+end
+
+function generate_hypothesis_position_program(hypothesis_position, actual_position, object_decomposition)
+  program_no_update_rules = program_string_synth(object_decomposition)
+
+  program = string(program_no_update_rules[1:end-2], "\n",
+                    """
+                    (: matches Bool)
+                    (= matches (initnext false (prev matches)))
+                
+                    (on (== $(hypothesis_position) (Position $(actual_position[1]) $(actual_position[2]))) (= matches true)) 
+                    """, "\n",
+                   ")")
+
+end
+
+function generate_hypothesis_string(string, environment_vars, object_types)
+  objects = filter(x -> (x isa Obj) && length(x.type.custom_fields) > 0, environment_vars)
+  object = rand(objects)
+  @show string
+  @show objects
+  x = filter(type -> length(type.custom_fields) > 0 && string in type.custom_fields[1][3], object_types)
+  @show x
+  pair_string = filter(s -> s != string, map(type -> type.custom_fields[1][3], filter(type -> length(type.custom_fields) > 0 && string in type.custom_fields[1][3], object_types))[1])[1]
+
+  first_string, second_string = rand() > 0.5 ? (string, pair_string) : (pair_string, string)
+  """(if (== (.. (prev obj$(object.id)) color) "$(object.type.custom_fields[1][3][1])") then "$(first_string)" else "$(second_string)")"""
+end
+
+function generate_hypothesis_string_program(hypothesis_string, actual_string, object_decomposition)
+  program_no_update_rules = program_string_synth(object_decomposition)
+
+  program = string(program_no_update_rules[1:end-2], "\n",
+                    """
+                    (: matches Bool)
+                    (= matches (initnext false (prev matches)))
+                
+                    (on (== $(hypothesis_string) "$(actual_string)") (= matches true)) 
+                    """, "\n",
+                   ")")
+end
+
+function gen_event_bool(object_decomposition)
+  object_types, object_mapping, _, _ = object_decomposition
+  environment_vars = map(k -> object_mapping[k][1], filter(key -> !isnothing(object_mapping[key][1]), collect(keys(object_mapping))))
+  objects = filter(x -> (x isa Obj) && length(x.type.custom_fields) > 0, environment_vars)
+  object = rand(objects)
+  color = object.type.custom_fields[1][3][rand(1:2)]
+  """(== (.. obj$(object.id) color) "$(color)")"""
+end

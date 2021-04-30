@@ -431,7 +431,7 @@ function parsescene_autumn_given_types(render_output::AbstractArray, override_ty
 
       if length(grouped_type.custom_fields) == 0
         filter!(type -> type.id != grouped_type.id, new_types) # remove grouped type from new_types
-        # println("HELLO 2")
+        println("-------------------> LOOK AT ME")
         # @show new_types
         # determine composition type
         if length(composition_types[1]) > 0 # composition type present in standard types
