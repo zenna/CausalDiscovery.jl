@@ -1,5 +1,6 @@
 using Autumn
 using MacroTools: striplines
+using StatsBase
 include("generativemodel.jl")
 
 """Construct matrix of single timestep solutions"""
