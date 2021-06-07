@@ -303,7 +303,7 @@ function generate_observations(m::Module)
   push!(observations, m.render(state.scene))
 
   for i in 0:20
-    if i in [2, 7, 12, 17]
+    if i in [2, 7, 12] # 17
       # state = m.next(state, nothing, nothing, nothing, nothing, nothing)
       state = m.next(state, nothing, nothing, nothing, nothing, mod.Down())
       push!(user_events, "down")
@@ -595,19 +595,15 @@ end
 function full_program(observations, user_events, grid_size=16)
   matrix, object_decomposition, _ = singletimestepsolution_matrix(observations, user_events, grid_size)
 
-  # ----- FIX THIS LATER -- HACK TO GET EXAMPLE TO WORK
   object_types, object_mapping, background, _ = object_decomposition
   
-  new_matrix = [[] for i in 1:5, j in 1:size(matrix)[2]]
+  new_matrix = [[] for i in 1:size(matrix)[1], j in 1:size(matrix)[2]]
   for i in 1:size(new_matrix)[1]
     for j in 1:size(new_matrix)[2]
       new_matrix[i, j] = unique(matrix[i, j]) 
     end 
   end
   matrix = new_matrix
-  delete!(object_mapping, 6)
-  # object_decomposition = (object_types, object_mapping, background, grid_size)
-  # -----
 
   on_clauses = generate_on_clauses(matrix, object_decomposition, user_events, grid_size)
   user_event_on_clauses = filter(on_clause -> foldl(|, map(event -> occursin(event, on_clause) , ["clicked", "left", "right", "down", "up"])), on_clauses)

@@ -372,6 +372,9 @@ function parsescene_autumn(render_output::AbstractArray, dim::Int=16, background
   end
 
   # combine types with the same shape but different colors
+  println("INSIDE REGULAR PARSER")
+  @show types 
+  @show objects
   (types, objects) = combine_types_with_same_shape(types, objects)
 
   (types, objects, background, dim)
@@ -390,8 +393,10 @@ function parsescene_autumn_given_types(render_output::AbstractArray, override_ty
 
   # extract single-cell types 
   grouped_type_colors = map(grouped_type -> length(grouped_type.custom_fields) == 0 ? [grouped_type.color] : grouped_type.custom_fields[1][3], types_to_ungroup)
-  composition_types = map(colors -> (filter(type -> (length(type.shape) == 1) && ((length(type.custom_fields) == 0) && (length(intersect(colors, [type.color])) > 0)), standard_types), 
-                                     filter(type -> (length(type.shape) == 1) && ((length(type.custom_fields) == 0) && (length(intersect(colors, [type.color])) > 0)), override_types)), 
+  composition_types = map(colors -> (filter(type -> (length(type.shape) == 1) && (( (length(type.custom_fields) == 0) && (length(intersect(colors, [type.color])) > 0)) 
+                                                                                 || (length(type.custom_fields) > 0) && (length(intersect(colors, type.custom_fields[1][3])) > 0)), standard_types), 
+                                     filter(type -> (length(type.shape) == 1) && (( (length(type.custom_fields) == 0) && (length(intersect(colors, [type.color])) > 0)) 
+                                                                                 || (length(type.custom_fields) > 0) && (length(intersect(colors, type.custom_fields[1][3])) > 0)), override_types)), 
                           grouped_type_colors)
 
   # only consider types to ungroup that have single-celled types of the same color
