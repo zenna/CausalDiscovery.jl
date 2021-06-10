@@ -177,13 +177,23 @@ end
 
 function generate_hypothesis_position(position, environment_vars)
   objects = map(obj -> "obj$(obj.id)", filter(x -> x isa Obj, environment_vars))
-  user_events = filter(x -> !(x isa Obj), environment_vars)
-  choices = ["(.. $(rand(objects)) origin)",
-             "(move (.. $(rand(objects)) origin) (Position $(rand(0:1)) $(rand(0:1))))"]
-  if (length(user_events) > 0) 
+  user_event = filter(x -> !(x isa Obj), environment_vars)[1]
+  @show environment_vars
+  choices = []
+  if length(objects) != 0
+    push!(choices, ["(.. $(rand(objects)) origin)",
+                    "(move (.. $(rand(objects)) origin) (Position $(rand(0:1)) $(rand(0:1))))"]...)
+  end
+
+  if !isnothing(user_event) && (split(user_event, " ")[1] == "clicked") 
     push!(choices, "(Position (.. click x) (.. click y))")
   end
-  choices[rand(1:length(choices))]
+
+  if choices == []
+    ""
+  else
+    choices[rand(1:length(choices))]
+  end
 end
 
 function generate_hypothesis_position_program(hypothesis_position, actual_position, object_decomposition)
@@ -226,11 +236,30 @@ function generate_hypothesis_string_program(hypothesis_string, actual_string, ob
                    ")")
 end
 
-function gen_event_bool(object_decomposition)
+function gen_event_bool(object_decomposition, object_id)
+  choices = ["true", "false"]
   object_types, object_mapping, _, _ = object_decomposition
   environment_vars = map(k -> object_mapping[k][1], filter(key -> !isnothing(object_mapping[key][1]), collect(keys(object_mapping))))
-  objects = filter(x -> (x isa Obj) && length(x.type.custom_fields) > 0, environment_vars)
-  object = rand(objects)
-  color = object.type.custom_fields[1][3][rand(1:2)]
-  """(== (.. obj$(object.id) color) "$(color)")"""
+  non_list_objects = filter(x -> (x isa Obj), environment_vars)
+  
+  if length(non_list_objects) > 0
+    object = rand(non_list_objects)
+    if length(object.type.custom_fields) > 0
+      color = object.type.custom_fields[1][3][rand(1:2)]
+      push!(choices, """(== (.. obj$(object.id) color) "$(color)")""")    
+    end
+  end
+
+  type_id = filter(x -> !isnothing(x), object_mapping[object_id])[1].type.id
+  other_object_types = filter(type -> type.id != type_id, object_types)  
+  if length(other_object_types) > 0
+    push!(choices, "(intersects (filter (--> obj (== (.. obj id) $(object_id))) (prev addedObjType$(type_id)List)) (list $(join(map(x -> "(prev obj$(x.id))", non_list_objects), " "))))")
+  end
+
+  choice = rand(choices)
+  println("XYZ")
+  println(object_id)
+  print(choices)
+  println(choice)
+  choice
 end

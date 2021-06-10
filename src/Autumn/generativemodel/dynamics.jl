@@ -48,19 +48,26 @@ function genObjectUpdateRule(object, environment; p=0.3)
       "(prev $(object))"
     end
   else
+    
     choices = [
-      ("moveLeft", [:(genObjectUpdateRule($(object), $(environment), p=0.9))]),
-      ("moveRight", [:(genObjectUpdateRule($(object), $(environment), p=0.9))]),
-      ("moveUp", [:(genObjectUpdateRule($(object), $(environment), p=0.9))]),
-      ("moveDown", [:(genObjectUpdateRule($(object), $(environment), p=0.9))]),
+      # "(moveLeft $(object))",
+      # ("moveLeft", [:(genObjectUpdateRule($(object), $(environment), p=0.9))]),
+      # ("moveRight", [:(genObjectUpdateRule($(object), $(environment), p=0.9))]),
+      # ("moveUp", [:(genObjectUpdateRule($(object), $(environment), p=0.9))]),
+      # ("moveDown", [:(genObjectUpdateRule($(object), $(environment), p=0.9))]),
       # ("moveNoCollision", [:(genObjectUpdateRule($(object), $(environment))), :(genPosition($(environment)))]),
       # ("nextLiquid", [:(genObjectUpdateRule($(object), $(environment)))]),
       # ("nextSolid", [:(genObjectUpdateRule($(object), $(environment)))]),
       # ("rotate", [:(genObjectUpdateRule($(object), $(environment)))]),
       # ("rotateNoCollision", [:(genObjectUpdateRule($(object), $(environment)))]),
     ]
+    other_types = filter(type -> type != environment["variables"][object], collect(keys(environment["custom_types"])))
+    if length(other_types) > 0
+      push!(choices, "(move $(object) (unitVector $(object) (closest $(object) $(split(rand(other_types), "_")[2]))))")
+    end
     choice = choices[rand(1:length(choices))]
-    "($(choice[1]) $(join(map(eval, choice[2]), " ")))"
+    # "($(choice[1]) $(join(map(eval, choice[2]), " ")))"
+    choice
   end
 end
 

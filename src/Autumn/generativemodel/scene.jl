@@ -514,7 +514,7 @@ function parsescene_autumn_given_types(render_output::AbstractArray, override_ty
                 if composition_type.custom_fields == []
                   push!(new_objects, Obj(composition_type, (pos[1] + object.position[1], pos[2] + object.position[2]), [], length(new_objects) + length(objects)))
                 else
-                  push!(new_objects, Obj(composition_type, (pos[1] + object.position[1], pos[2] + object.position[2]), [object.type.color], length(new_objects) + length(objects)))
+                  push!(new_objects, Obj(composition_type, (pos[1] + object.position[1], pos[2] + object.position[2]), object.custom_field_values != [] ? object.custom_field_values : [object.type.color], length(new_objects) + length(objects)))
                 end
               end
             end
