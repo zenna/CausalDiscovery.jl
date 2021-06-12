@@ -236,7 +236,7 @@ function generate_hypothesis_string_program(hypothesis_string, actual_string, ob
                    ")")
 end
 
-function gen_event_bool(object_decomposition, object_id)
+function gen_event_bool(object_decomposition, object_id, user_events)
   choices = ["true", "false"]
   object_types, object_mapping, _, _ = object_decomposition
   environment_vars = map(k -> object_mapping[k][1], filter(key -> !isnothing(object_mapping[key][1]), collect(keys(object_mapping))))
@@ -254,6 +254,11 @@ function gen_event_bool(object_decomposition, object_id)
   other_object_types = filter(type -> type.id != type_id, object_types)  
   if length(other_object_types) > 0
     push!(choices, "(intersects (filter (--> obj (== (.. obj id) $(object_id))) (prev addedObjType$(type_id)List)) (list $(join(map(x -> "(prev obj$(x.id))", non_list_objects), " "))))")
+  end
+
+  if "clicked" in user_events
+    push!(choices, "(& clicked (== (prev addedObjType$(type_id)List) (list)))")
+    push!(choices, "(& clicked (!= (prev addedObjType$(type_id)List) (list)))")
   end
 
   choice = rand(choices)

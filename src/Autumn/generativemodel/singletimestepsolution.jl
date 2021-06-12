@@ -384,13 +384,10 @@ function generate_observations_lights(m::Module)
   for i in 0:20
     if i == 2
       state = m.next(state, m.Click(3, 2), nothing, nothing, nothing, nothing)
-      push!(user_events, "clicked")
+      push!(user_events, "clicked 3 2")
     elseif i == 5 
-      state = m.next(state, m.Click(4, 4), nothing, nothing, nothing, nothing)
-      push!(user_events, "clicked")
-    elseif i == 8
-      state = m.next(state, m.Click(6, 6), nothing, nothing, nothing, nothing)
-      push!(user_events, "clicked")
+      state = m.next(state, m.Click(4, 5), nothing, nothing, nothing, nothing)
+      push!(user_events, "clicked 4 5")
     else
       state = m.next(state, nothing, nothing, nothing, nothing, nothing)
       push!(user_events, nothing)
@@ -433,7 +430,7 @@ function has_dups(list::AbstractArray)
   length(unique(list)) != length(list) 
 end
 
-function abstract_position(position, prev_abstract_positions, user_event, object_decomposition, max_iters=100)
+function abstract_position(position, prev_abstract_positions, user_event, object_decomposition, max_iters=5)
   object_types, prev_objects, _, _ = object_decomposition
   solutions = []
   iters = 0
@@ -524,6 +521,8 @@ function generate_on_clauses(matrix, object_decomposition, user_events, grid_siz
   for object_type in object_types
     object_ids = sort(filter(id -> filter(obj -> !isnothing(obj), object_mapping[id])[1].type.id == object_type.id, collect(keys(object_mapping))))
 
+    addObj_rules = unique(filter(rule -> occursin("addObj", rule), vcat(map(id -> vcat(filtered_matrix[id, :]...), object_ids)...)))
+
     if length(object_ids) == 1
       object_trajectory = filtered_matrix[object_ids[1], :]
       object_id = object_ids[1]
@@ -554,8 +553,14 @@ function generate_on_clauses(matrix, object_decomposition, user_events, grid_siz
         # collect all objects of type object_type
         reformatted_update_rules = []
         if occursin("addObj", update_rule)
-          reformatted_rule = replace(update_rule, " id) x" => " id) $(object_id)")
-          on_clause = "(on $(event) $(reformatted_rule))"
+
+          if (length(object_ids) > 1) && (length(addObj_rules) > 1)
+            on_clause = "(on $(event) (let ($(join(addObj_rules, "\n")))))"
+          else
+            reformatted_rule = replace(update_rule, " id) x" => " id) $(object_id)")
+            on_clause = "(on $(event) $(reformatted_rule))"
+          end
+
         else 
           if occursin("filter", event) && isnothing(object_mapping[object_id][1])
             # obj involved in event is in a list, so it cannot be accessed directly 
@@ -565,7 +570,7 @@ function generate_on_clauses(matrix, object_decomposition, user_events, grid_siz
             on_clause = "(on true $(reformatted_rule))"
           else
             if unique(map(id -> object_mapping[id][1], object_ids)) == [nothing]
-              reformatted_rule = replace(update_rule, "(--> obj (== (.. obj id) $(object_id)))" => "")
+              reformatted_rule = replace(update_rule, "(--> obj (== (.. obj id) $(object_id)))" => "(--> obj true)")
               on_clause = "(on $(event) $(reformatted_rule))"
             else
               reformatted_rules = map(id -> replace(update_rule, "obj$(object_id)" => "obj$(id)"), object_ids)
@@ -692,6 +697,7 @@ function generate_event(update_rule, distinct_update_rules, object_id, object_tr
   true_times = findall(rule -> rule == update_rule, vcat(object_trajectory...))
   # @show true_times 
   true_time_events = map(time -> isnothing(user_events[time]) ? user_events[time] : split(user_events[time], " ")[1], true_times)
+  false_time_events = map(time -> isnothing(user_events[time]) ? user_events[time] : split(user_events[time], " ")[1], findall(rule -> rule != update_rule, vcat(object_trajectory...)))
   #@show true_time_events
   #println("WHAT 2")
   observation_data = map(time -> time in true_times ? 1 : 0, collect(1:length(user_events)))
@@ -709,14 +715,14 @@ function generate_event(update_rule, distinct_update_rules, object_id, object_tr
 
   end
 
-  if length(unique(true_time_events)) == 1 && !isnothing(true_time_events[1]) && true_time_events[1] != "nothing"
+  if length(unique(true_time_events)) == 1 && !isnothing(true_time_events[1]) && true_time_events[1] != "nothing" && !(true_time_events[1] in false_time_events)
     println("ABC")
     true_time_events[1]
   else
     iters = 0
     event = "false"
     while iters < max_iters 
-      event = gen_event_bool(object_decomposition, object_id)
+      event = gen_event_bool(object_decomposition, object_id, unique(true_time_events))
       println(event)
       program_str = singletimestepsolution_program_given_matrix(matrix, object_decomposition, dim) # CHANGE BACK TO DIM LATER
       program_tokens = split(program_str, """(: time Int)\n  (= time (initnext 0 (+ time 1)))""")
