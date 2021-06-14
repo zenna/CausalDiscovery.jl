@@ -72,7 +72,7 @@ function synthesize_update_functions(object_id, time, object_decomposition, user
       abstracted_string = abstracted_strings[1]
       update_rules = [
         """(= addedObjType$(next_object.type.id)List (addObj addedObjType$(next_object.type.id)List (ObjType$(next_object.type.id) $(join(map(v -> """ "$(v)" """, next_object.custom_field_values), " ")) (Position $(next_object.position[1]) $(next_object.position[2])))))""",
-        """(= addedObjType$(next_object.type.id)List (addObj addedObjType$(next_object.type.id)List (ObjType$(next_object.type.id) $(abstracted_string) $(next_object.position[1]) $(next_object.position[2])))))""",
+        """(= addedObjType$(next_object.type.id)List (addObj addedObjType$(next_object.type.id)List (ObjType$(next_object.type.id) $(abstracted_string) (Position $(next_object.position[1]) $(next_object.position[2])))))""",
       ]
       if length(abstracted_positions) != 0
         abstracted_position = abstracted_positions[1]
@@ -397,6 +397,31 @@ function generate_observations_lights(m::Module)
   observations, user_events
 end
 
+function generate_observations_space_invaders(m::Module)
+  state = m.init(nothing, nothing, nothing, nothing, nothing)
+  observations = []
+  user_events = []
+  push!(observations, m.render(state.scene))
+
+  for i in 0:20
+    if i in [4, 10, 16]
+      state = m.next(state, nothing, nothing, nothing, m.Up(), nothing)
+      push!(user_events, "up")
+    elseif i in [6] 
+      state = m.next(state, nothing, m.Left(), nothing, nothing, nothing)
+      push!(user_events, "left")
+    elseif i in [12]
+      state = m.next(state, nothing, nothing, m.Right(), nothing, nothing)
+      push!(user_events, "right")
+    else
+      state = m.next(state, nothing, nothing, nothing, nothing, nothing)
+      push!(user_events, nothing)
+    end
+    push!(observations, m.render(state.scene))
+  end
+  observations, user_events
+end
+
 function singletimestepsolution_program(observations, user_events, grid_size=16)
   
   matrix, object_decomposition, _ = singletimestepsolution_matrix(observations, user_events, grid_size)
@@ -430,7 +455,7 @@ function has_dups(list::AbstractArray)
   length(unique(list)) != length(list) 
 end
 
-function abstract_position(position, prev_abstract_positions, user_event, object_decomposition, max_iters=5)
+function abstract_position(position, prev_abstract_positions, user_event, object_decomposition, max_iters=30)
   object_types, prev_objects, _, _ = object_decomposition
   solutions = []
   iters = 0
@@ -715,9 +740,10 @@ function generate_event(update_rule, distinct_update_rules, object_id, object_tr
 
   end
 
-  if length(unique(true_time_events)) == 1 && !isnothing(true_time_events[1]) && true_time_events[1] != "nothing" && !(true_time_events[1] in false_time_events)
+  unique_true_events = unique(true_time_events)
+  if (length(unique_true_events) == 1) && !isnothing(unique_true_events[1]) && unique_true_events[1] != "nothing" && !(unique_true_events[1] in false_time_events) && split(unique_true_events[1], " ")[1] != "clicked"
     println("ABC")
-    true_time_events[1]
+    unique_true_events[1]
   else
     iters = 0
     event = "false"

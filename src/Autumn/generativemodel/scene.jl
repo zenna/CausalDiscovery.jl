@@ -171,6 +171,42 @@ function program_string_synth(types_and_objects)
   """
 end
 
+function program_string_synth_grouped(object_decomposition)
+  object_types, object_mapping, background, gridsize = object_decomposition
+
+  start_objects = sort(filter(obj -> obj != nothing, [object_mapping[i][1] for i in 1:length(collect(keys(object_mapping)))]), by=(x -> x.id))
+
+  start_type_mapping = Dict()
+
+  for type in object_types
+    start_type_mapping[type.id] = sort(filter(obj -> obj.type.id == type.id, start_objects), by=(x -> x.id))
+  end
+
+  start_constants_and_lists = vcat(filter(l -> length(l) == 1, map(k -> start_type_mapping[k], collect(keys(start_type_mapping))))..., 
+                                   filter(l -> length(l) > 1, map(k -> start_type_mapping[k], collect(keys(start_type_mapping)))))
+  start_constants_and_lists = sort(start_constants_and_lists, by=x -> x isa Array ? x[1].id : x.id)
+
+  other_list_types = filter(k -> length(start_type_mapping[k]) == 0, sort(collect(keys(start_type_mapping))))
+
+  """ 
+  (program
+    (= GRID_SIZE $(gridsize))
+    (= background "$(background)")
+    $(join(map(t -> "(object ObjType$(t.id) $(join(map(tuple -> "(: $(tuple[1]) $(tuple[2]))", t.custom_fields), " ")) (list $(join(map(cell -> """(Cell $(cell[1]) $(cell[2]) $(t.custom_fields == [] ? """ "$(t.color)" """ : "color"))""", t.shape), " "))))", object_types), "\n  "))
+
+    $((join(map(obj -> obj isa Array ? """(: addedObjType$(obj[1].type.id)List (List ObjType$(obj[1].type.id)))""" 
+                                     : """(: obj$(obj.id) ObjType$(obj.type.id))""", start_constants_and_lists), "\n  "))...)
+
+    $((join(map(k -> """(: addedObjType$(k)List (List ObjType$(k)))""", other_list_types), "\n  "))...)
+
+    $((join(map(obj -> obj isa Array ? """(= addedObjType$(obj[1].type.id)List (initnext (list $(join(map(x -> "(ObjType$(x.type.id) $(join(map(v -> """ "$(v)" """, x.custom_field_values), " ")) (Position $(x.position[1]) $(x.position[2])))", obj), " "))) (prev addedObjType$(obj[1].type.id)List)))"""
+                                     : """(= obj$(obj.id) (initnext (ObjType$(obj.type.id) $(join(map(v -> """ "$(v)" """, obj.custom_field_values), " ")) (Position $(obj.position[1]) $(obj.position[2]))) (prev obj$(obj.id))))""", start_constants_and_lists), "\n  ")))
+    
+    $(join(map(k -> """(= addedObjType$(k)List (initnext (list) (prev addedObjType$(k)List)))""", other_list_types), "\n  ")...)
+  )
+  """
+end
+
 function generatescene_program(rng=Random.GLOBAL_RNG; gridsize::Int=16)
   types_and_objects = generatescene_objects(rng, gridsize=gridsize)
   program_string(types_and_objects)

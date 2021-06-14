@@ -237,10 +237,10 @@ function generate_hypothesis_string_program(hypothesis_string, actual_string, ob
 end
 
 function gen_event_bool(object_decomposition, object_id, user_events)
-  choices = ["true", "false"]
+  choices = ["true", "clicked"]
   object_types, object_mapping, _, _ = object_decomposition
   environment_vars = map(k -> object_mapping[k][1], filter(key -> !isnothing(object_mapping[key][1]), collect(keys(object_mapping))))
-  non_list_objects = filter(x -> (x isa Obj), environment_vars)
+  non_list_objects = filter(x -> count(y -> y.type.id == x.type.id, environment_vars) == 1, environment_vars)
   
   if length(non_list_objects) > 0
     object = rand(non_list_objects)
