@@ -171,6 +171,22 @@ function program_string_synth(types_and_objects)
   """
 end
 
+function program_string_synth_update_rule(types_and_objects)
+  types, objects, background, gridsize = types_and_objects 
+  """ 
+  (program
+    (= GRID_SIZE $(gridsize))
+    (= background "$(background)")
+    $(join(map(t -> "(object ObjType$(t.id) $(join(map(tuple -> "(: $(tuple[1]) $(tuple[2]))", t.custom_fields), " ")) (list $(join(map(cell -> """(Cell $(cell[1]) $(cell[2]) $(t.custom_fields == [] ? """ "$(t.color)" """ : "color"))""", t.shape), " "))))", types), "\n  "))
+
+    $((join(map(obj -> """(: obj$(obj.id) ObjType$(obj.type.id))""", objects), "\n  "))...)
+
+    $((join(map(obj -> obj.position != (-1, -1) ? """(= obj$(obj.id) (initnext (ObjType$(obj.type.id) $(join(map(v -> """ "$(v)" """, obj.custom_field_values), " ")) (Position $(obj.position[1]) $(obj.position[2]))) (prev obj$(obj.id))))"""
+                                                : """(= obj$(obj.id) (initnext (removeObj (ObjType$(obj.type.id) $(join(map(v -> """ "$(v)" """, obj.custom_field_values), " ")) (Position $(obj.position[1]) $(obj.position[2])))) (prev obj$(obj.id))))""", objects), "\n  ")))
+  )
+  """
+end
+
 function program_string_synth_grouped(object_decomposition)
   object_types, object_mapping, background, gridsize = object_decomposition
 
@@ -186,7 +202,7 @@ function program_string_synth_grouped(object_decomposition)
                                    filter(l -> length(l) > 1, map(k -> start_type_mapping[k], collect(keys(start_type_mapping)))))
   start_constants_and_lists = sort(start_constants_and_lists, by=x -> x isa Array ? x[1].id : x.id)
 
-  other_list_types = filter(k -> length(start_type_mapping[k]) == 0, sort(collect(keys(start_type_mapping))))
+  other_list_types = filter(k -> length(start_type_mapping[k]) <= 1, sort(collect(keys(start_type_mapping))))
 
   """ 
   (program
@@ -749,15 +765,23 @@ function parsescene_autumn_singlecell_given_types(render_output::AbstractArray, 
   standard_types, objects, _, _ = parsescene_autumn_singlecell(render_output, background, dim)
   println("STANDARD TYPES ")
   println(standard_types)
+  standard_types = deepcopy(standard_types)
+  override_types = deepcopy(override_types)
   # compute union of standard types and override_types 
-  new_types = filter(type -> !(type.color in map(t -> t.color, standard_types)), override_types)
+  new_types = filter(type -> !(type.color in map(t -> t.color, override_types)), standard_types)
   for i in 1:length(new_types) 
     type = new_types[i]
-    type.id = length(standard_types) + i
+    type.id = length(override_types) + i
   end
   println("RETURN VAL")
-  println(vcat(standard_types..., new_types...))
-  (vcat(standard_types..., new_types...), objects, background, dim)
+  println(vcat(override_types..., new_types...))
+  final_types = vcat(override_types..., new_types...)
+  # ensure objects have correct types 
+  for object in objects
+    object.type = final_types[findall(t -> t.color == object.type.color, final_types)[1]]
+  end
+
+  (final_types, objects, background, dim)
 end
 
 # ----- end functions related to scene parsing ----- #

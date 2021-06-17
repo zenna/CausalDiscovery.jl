@@ -164,7 +164,7 @@ end
 
 function generate_hypothesis_update_rule(object, object_decomposition; p=0.3)
   types, objects, background, gridsize = object_decomposition
-  objects = [object, objects...]
+  objects = [object, filter(o -> o.position != (-1, -1), objects)...]
   # construct environment 
   environment = Dict(["custom_types" => Dict(map(t -> "Object_ObjType$(t.id)" => t.custom_fields, types) 
                           ),
@@ -241,25 +241,32 @@ function gen_event_bool(object_decomposition, object_id, user_events)
   object_types, object_mapping, _, _ = object_decomposition
   environment_vars = map(k -> object_mapping[k][1], filter(key -> !isnothing(object_mapping[key][1]), collect(keys(object_mapping))))
   non_list_objects = filter(x -> count(y -> y.type.id == x.type.id, environment_vars) == 1, environment_vars)
-  
+
+  type_id = filter(x -> !isnothing(x), object_mapping[object_id])[1].type.id
+  other_object_types = filter(type -> type.id != type_id, object_types)  
+
   if length(non_list_objects) > 0
     object = rand(non_list_objects)
     if length(object.type.custom_fields) > 0
       color = object.type.custom_fields[1][3][rand(1:2)]
       push!(choices, """(== (.. obj$(object.id) color) "$(color)")""")    
     end
+    push!(choices, """(intersects (prev obj$(object.id)) (prev addedObjType$(rand(other_object_types).id)List))""")
   end
 
-  type_id = filter(x -> !isnothing(x), object_mapping[object_id])[1].type.id
-  other_object_types = filter(type -> type.id != type_id, object_types)  
-  if length(other_object_types) > 0
+  if length(other_object_types) > 0 && !(object_id in map(x -> x.id, non_list_objects))
     push!(choices, "(intersects (filter (--> obj (== (.. obj id) $(object_id))) (prev addedObjType$(type_id)List)) (list $(join(map(x -> "(prev obj$(x.id))", non_list_objects), " "))))")
+    push!(choices, "(intersects (filter (--> obj (== (.. obj id) $(object_id))) (prev addedObjType$(type_id)List)) (prev addedObjType$(rand(other_object_types).id)List))")  
   end
 
-  if "clicked" in user_events
-    push!(choices, "(& clicked (== (prev addedObjType$(type_id)List) (list)))")
-    push!(choices, "(& clicked (!= (prev addedObjType$(type_id)List) (list)))")
-  end
+  push!(choices, "(== (% (prev time) 10) 5)")
+  push!(choices, "(== (% (prev time) 10) 0)")  
+  push!(choices, "(== (% (prev time) 5) 2)")
+
+  # if "clicked" in user_events
+  push!(choices, "(& clicked (== (prev addedObjType$(type_id)List) (list)))")
+  push!(choices, "(& clicked (!= (prev addedObjType$(type_id)List) (list)))")
+  # end
 
   choice = rand(choices)
   println("XYZ")

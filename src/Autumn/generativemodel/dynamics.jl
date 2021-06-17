@@ -39,7 +39,7 @@ function genObjectName(environment)
   objects[rand(1:length(objects))]
 end
 
-function genObjectUpdateRule(object, environment; p=0.3)
+function genObjectUpdateRule(object, environment; p=0.0)
   prob = rand()
   if prob < p
     if object == "obj"
@@ -50,7 +50,7 @@ function genObjectUpdateRule(object, environment; p=0.3)
   else
     
     choices = [
-      "(moveLeft $(object))",
+      # "(moveLeft $(object))",
       # ("moveLeft", [:(genObjectUpdateRule($(object), $(environment), p=0.9))]),
       # ("moveRight", [:(genObjectUpdateRule($(object), $(environment), p=0.9))]),
       # ("moveUp", [:(genObjectUpdateRule($(object), $(environment), p=0.9))]),
