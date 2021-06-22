@@ -237,10 +237,12 @@ function generate_hypothesis_string_program(hypothesis_string, actual_string, ob
 end
 
 function gen_event_bool(object_decomposition, object_id, user_events)
-  choices = ["true", "clicked"]
+  choices = ["true", "clicked"] # "left", "right", "up", "down"
   object_types, object_mapping, _, _ = object_decomposition
   environment_vars = map(k -> object_mapping[k][1], filter(key -> !isnothing(object_mapping[key][1]), collect(keys(object_mapping))))
   non_list_objects = filter(x -> count(y -> y.type.id == x.type.id, environment_vars) == 1, environment_vars)
+
+  user_event = filter(x -> !isnothing(x), user_events) == [] ? nothing : filter(x -> !isnothing(x), user_events)[1]
 
   type_id = filter(x -> !isnothing(x), object_mapping[object_id])[1].type.id
   other_object_types = filter(type -> type.id != type_id, object_types)  
@@ -267,6 +269,23 @@ function gen_event_bool(object_decomposition, object_id, user_events)
   push!(choices, "(& clicked (== (prev addedObjType$(type_id)List) (list)))")
   push!(choices, "(& clicked (!= (prev addedObjType$(type_id)List) (list)))")
   # end
+
+  color_fields = filter(tuple -> tuple[1] == "color", filter(t -> t.id == type_id, object_types)[1].custom_fields)
+  if color_fields != []
+    push!(choices, "(adjacent () (prev addedObjType$(type_id)List))")
+  end
+
+
+  non_color_fields = filter(tuple -> tuple[1] != "color", filter(t -> t.id == type_id, object_types)[1].custom_fields)
+  if (non_color_fields != [])
+    tuple = non_color_fields[1]
+    field_name = tuple[1]
+    field_values = tuple[3]
+    if user_event != nothing 
+      push!(choices, "(& $(user_event) (== (.. (first (filter (--> obj (== (.. obj id) $(object_id))) (prev addedObjType$(type_id)List))) $(field_name)) $(rand(field_values))))")
+    end
+  end
+
 
   choice = rand(choices)
   println("XYZ")

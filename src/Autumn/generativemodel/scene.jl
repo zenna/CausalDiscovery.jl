@@ -187,7 +187,7 @@ function program_string_synth_update_rule(types_and_objects)
   """
 end
 
-function program_string_synth_grouped(object_decomposition)
+function program_string_synth_standard_groups(object_decomposition)
   object_types, object_mapping, background, gridsize = object_decomposition
 
   start_objects = sort(filter(obj -> obj != nothing, [object_mapping[i][1] for i in 1:length(collect(keys(object_mapping)))]), by=(x -> x.id))
@@ -215,11 +215,31 @@ function program_string_synth_grouped(object_decomposition)
 
     $((join(map(k -> """(: addedObjType$(k)List (List ObjType$(k)))""", other_list_types), "\n  "))...)
 
-    $((join(map(obj -> obj isa Array ? """(= addedObjType$(obj[1].type.id)List (initnext (list $(join(map(x -> "(ObjType$(x.type.id) $(join(map(v -> """ "$(v)" """, x.custom_field_values), " ")) (Position $(x.position[1]) $(x.position[2])))", obj), " "))) (prev addedObjType$(obj[1].type.id)List)))"""
-                                     : """(= obj$(obj.id) (initnext (ObjType$(obj.type.id) $(join(map(v -> """ "$(v)" """, obj.custom_field_values), " ")) (Position $(obj.position[1]) $(obj.position[2]))) (prev obj$(obj.id))))""", start_constants_and_lists), "\n  ")))
+    $((join(map(obj -> obj isa Array ? """(= addedObjType$(obj[1].type.id)List (initnext (list $(join(map(x -> "(ObjType$(x.type.id) $(join(map(v -> v isa String ? """ "$(v)" """ : "$(v)", x.custom_field_values), " ")) (Position $(x.position[1]) $(x.position[2])))", obj), " "))) (prev addedObjType$(obj[1].type.id)List)))"""
+                                     : """(= obj$(obj.id) (initnext (ObjType$(obj.type.id) $(join(map(v -> v isa String ? """ "$(v)" """ : "$(v)", obj.custom_field_values), " ")) (Position $(obj.position[1]) $(obj.position[2]))) (prev obj$(obj.id))))""", start_constants_and_lists), "\n  ")))
     
     $(join(map(k -> """(= addedObjType$(k)List (initnext (list) (prev addedObjType$(k)List)))""", other_list_types), "\n  ")...)
   )
+  """
+end
+
+function program_string_synth_custom_groups(object_decomposition, group_structure)
+  object_types, object_mapping, background, gridsize = object_decomposition
+
+  objects = group_structure["objects"] # list of single-variable objects (ordered by id)
+  group_dict = group_structure["groups"] # dictionary from group ids to list of ordered object ids 
+  group_ids = sort(collect(keys(group_dict)))
+
+  """ 
+  (= GRID_SIZE $(gridsize))
+  (= background "$(background)")
+  $(join(map(t -> "(object ObjType$(t.id) $(join(map(tuple -> "(: $(tuple[1]) $(tuple[2]))", t.custom_fields), " ")) (list $(join(map(cell -> """(Cell $(cell[1]) $(cell[2]) $(t.custom_fields == [] ? """ "$(t.color)" """ : "color"))""", t.shape), " "))))", object_types), "\n  "))
+
+  $(join(map(obj -> """(: obj$(obj.id) ObjType$(obj.type.id))""", objects), "\n  "))
+  $(join(map(group_id -> """(: group$(group_id) (List ObjType$(filter(x -> !isnothing(x), object_mapping[group_dict[group_id][1]])[1].type.id)))""", group_ids), "\n  "))
+
+  $(join(map(obj -> """(= obj$(obj.id) (initnext (ObjType$(obj.type.id) $(join(map(v -> """ "$(v)" """, obj.custom_field_values), " ")) (Position $(obj.position[1]) $(obj.position[2]))) (prev obj$(obj.id))))""", objects), "\n  "))
+  $(join(map(group_id -> """(= group$(group_id) (initnext (list $(join(map(obj -> """(ObjType$(obj.type.id) $(join(map(v -> """ "$(v)" """, obj.custom_field_values), " ")) (Position $(obj.position[1]) $(obj.position[2])))""" , filter(x -> !isnothing(x), map(obj_id -> object_mapping[obj_id][1], group_dict[group_id]))), " "))) (prev group$(group_id))))""", group_ids), "\n  "))
   """
 end
 
@@ -484,18 +504,20 @@ function parsescene_autumn_given_types(render_output::AbstractArray, override_ty
     # @show new_types
     for grouped_type_id in 1:length(types_to_ungroup)
       grouped_type = types_to_ungroup[grouped_type_id]
-      composition_types = composition_types[grouped_type_id]
+      composition_types_group = composition_types[grouped_type_id]
 
       if length(grouped_type.custom_fields) == 0
         filter!(type -> type.id != grouped_type.id, new_types) # remove grouped type from new_types
         println("-------------------> LOOK AT ME")
         # @show new_types
         # determine composition type
-        if length(composition_types[1]) > 0 # composition type present in standard types
-          composition_type = composition_types[1][1]
+        @show grouped_type_id
+        @show composition_types_group
+        if length(composition_types_group[1]) > 0 # composition type present in standard types
+          composition_type = composition_types_group[1][1]
         else # composition type present in override types only 
-          composition_type = composition_types[2][1]
-          composition_type.type_id = grouped_type.id # switch the composition type's id to the grouped type's id, since we're eliminating the grouped type
+          composition_type = composition_types_group[2][1]
+          composition_type.id = grouped_type.id # switch the composition type's id to the grouped type's id, since we're eliminating the grouped type
           push!(new_types, composition_type)
         end
         
@@ -516,20 +538,21 @@ function parsescene_autumn_given_types(render_output::AbstractArray, override_ty
         println(colors)
         for color in colors 
           println("HERE I AM 3")
-          println(vcat(vcat(map(types_list -> map(type -> vcat(type.color, (length(type.custom_fields) == 0 ? [] : type.custom_fields[1][3])...), types_list), composition_types)...)...))
-          if color in vcat(vcat(map(types_list -> map(type -> vcat(type.color, (length(type.custom_fields) == 0 ? [] : type.custom_fields[1][3])...), types_list), composition_types)...)...)
+          @show composition_types_group
+          println(vcat(vcat(map(types_list -> map(type -> vcat(type.color, (length(type.custom_fields) == 0 ? [] : type.custom_fields[1][3])...), types_list), composition_types_group)...)...))
+          if color in vcat(vcat(map(types_list -> map(type -> vcat(type.color, (length(type.custom_fields) == 0 ? [] : type.custom_fields[1][3])...), types_list), composition_types_group)...)...)
             println("HERE I AM")
             @show grouped_type
             @show color
-            if length(composition_types[1]) > 0 # composition type present in standard types
+            if length(composition_types_group[1]) > 0 # composition type present in standard types
               in_standard_bool = true
-              type = composition_types[1][1]
+              type = composition_types_group[1][1]
               if color in vcat(type.color, (type.custom_fields == [] ? [] : type.custom_fields[1][3])...)
                 composition_type = type
               end
             else # composition type present in override types only
               in_standard_bool = false
-              type = composition_types[2][1]
+              type = composition_types_group[2][1]
               if color in vcat(type.color, (type.custom_fields == [] ? [] : type.custom_fields[1][3])...)
                 composition_type = type
               end
@@ -698,13 +721,16 @@ function combine_types_with_same_shape(object_types, objects)
         else
           push!(type_i.custom_fields, ("color", "String", [type_i.color, type_j.color]))
           unique!(type_i.custom_fields)
+
+          objects_to_update_type_i = filter(obj -> obj.type.id == type_i.id, objects)
+          foreach(o -> push!(o.custom_field_values, o.type.color) , objects_to_update_type_i)
         end
-        objects_to_update_type_i = filter(obj -> obj.type.id == type_i.id, objects)
-        foreach(o -> push!(o.custom_field_values, o.type.color) , objects_to_update_type_i)
+        # objects_to_update_type_i = filter(obj -> obj.type.id == type_i.id, objects)
+        # foreach(o -> push!(o.custom_field_values, o.type.color) , objects_to_update_type_i)
 
         objects_to_update_type_j = filter(obj -> obj.type.id == type_j.id, objects)
         foreach(o -> o.type = type_i, objects_to_update_type_j)
-        foreach(o -> o.custom_field_values = [type_j.color], objects_to_update_type_j)
+        foreach(o -> o.custom_field_values = o.custom_field_values == [] ? [type_j.color] : o.custom_field_values, objects_to_update_type_j)
       end
     end
   end
