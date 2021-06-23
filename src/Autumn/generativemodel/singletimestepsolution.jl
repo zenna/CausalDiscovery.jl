@@ -644,6 +644,14 @@ function generate_on_clauses(matrix, object_decomposition, user_events, grid_siz
 
   pre_filtered_matrix = pre_filter_with_direction_biases(matrix, user_events, object_decomposition) 
   filtered_matrix = filter_update_function_matrix(pre_filtered_matrix, object_decomposition)
+  
+  anonymized_filtered_matrix = deepcopy(filtered_matrix)
+  for i in 1:size(matrix)[1]
+    for j in 1:size(matrix)[2]
+      anonymized_filtered_matrix[i,j] = [replace(replace(filtered_matrix[i, j][1], "id) $(i)" => "id) x"), "obj$(i)" => "objX")]
+    end
+  end
+  
   global_object_decomposition = object_decomposition
 
   for object_type in object_types
@@ -661,17 +669,34 @@ function generate_on_clauses(matrix, object_decomposition, user_events, grid_siz
       object_trajectory = filtered_matrix[object_id, :]
     end
 
-    # determine an event predicate for each update function except for the no-change update function 
-    distinct_update_rules = filter(rule -> rule != "", unique(vcat(object_trajectory...)))
-    
-    # sort distinct update functions by their frequency in the trajectory
-    distinct_update_rules = reverse(sort(distinct_update_rules, by=x -> count(y -> y[1] == x, object_trajectory)))
-    println("HERE")
-    println(distinct_update_rules)
+    all_update_rules = filter(rule -> rule != "", unique(vcat(vec(anonymized_filtered_matrix[object_ids, :])...)))
 
     state_update_on_clauses = []
 
-    for update_rule in distinct_update_rules
+    for update_rule in all_update_rules 
+      # find a trajectory containing this update_rule
+      if length(object_ids) == 1
+        object_id = object_ids[1]
+        object_trajectory = filtered_matrix[object_ids[1], :]
+      else
+        ids_with_rule = findall(idx_set -> idx_set != [], map(id -> findall(rule -> rule[1] == update_rule, anonymized_filtered_matrix[id, :]), object_ids))
+        trajectory_lengths = map(id -> length(unique(filter(x -> x != "", anonymized_filtered_matrix[id, :]))), ids_with_rule)
+        max_index = findall(x -> x == maximum(trajectory_lengths) , trajectory_lengths)[1]
+        object_id = ids_with_rule[max_index]
+        object_trajectory = filtered_matrix[object_id, :]
+      end
+
+      # de-anonymize update_rule 
+      update_rule = replace(replace(update_rule, "id) x" => "id) $(object_id)"), "objX" => "obj$(object_id)")
+
+      # determine an event predicate for each update function except for the no-change update function 
+      distinct_update_rules = filter(rule -> rule != "", unique(vcat(object_trajectory...)))
+      
+      # sort distinct update functions by their frequency in the trajectory
+      distinct_update_rules = reverse(sort(distinct_update_rules, by=x -> count(y -> y[1] == x, object_trajectory)))
+      println("HERE")
+      println(distinct_update_rules)
+
       if update_rule != "" && !is_no_change_rule(update_rule)
         println("UPDATE_RULEEE")
         println(update_rule)
@@ -698,12 +723,16 @@ function generate_on_clauses(matrix, object_decomposition, user_events, grid_siz
             nonlist_start_objects = filter(obj -> count(x -> x.type.id == obj.type.id, start_objects) == 1, start_objects)
             type_id = object_type.id
 
-            if occursin("first (filter", event)
+            if occursin(".. (first (filter", event)
               reformatted_event = split(event, " ")[2] 
               second_reformatted_event = replace(split(event, reformatted_event)[2][1:end-1], "(first (filter (--> obj (== (.. obj id) $(object_id))) (prev addedObjType$(type_id)List)))" => "obj")
               reformatted_rule = replace(update_rule, "(--> obj (== (.. obj id) $(object_id)))" => "(--> obj $(second_reformatted_event))")
 
               on_clause = "(on $(reformatted_event) $(reformatted_rule))"
+            elseif occursin("(first (filter", event)
+              reformatted_event = replace(event, "(first (filter (--> obj (== (.. obj id) $(object_id))) (prev addedObjType$(type_id)List)))" => "obj")
+              reformatted_rule = replace(update_rule, "(--> obj (== (.. obj id) $(object_id)))" => "(--> obj $(reformatted_event))")
+              on_clause = "(on true $(reformatted_rule))"
             elseif occursin("filter", event) && !(object_id in map(obj -> obj.id, nonlist_start_objects))
               # obj involved in event is in a list, so it cannot be accessed directly 
               reformatted_event = replace(event, "(filter (--> obj (== (.. obj id) $(object_id))) (prev addedObjType$(type_id)List))" => "obj")
@@ -1170,7 +1199,7 @@ function full_program(observations, user_events, grid_size=16)
   matrix = new_matrix
 
   on_clauses, new_object_decomposition = generate_on_clauses(matrix, object_decomposition, user_events, grid_size)
-  object_types, object_mapping, background, grid_size = new_object_decomposition
+  object_types, object_mapping, background, _ = new_object_decomposition
 
   on_clauses = unique(on_clauses)
   true_on_clauses = filter(on_clause -> occursin("on true", on_clause), on_clauses)
@@ -1178,8 +1207,6 @@ function full_program(observations, user_events, grid_size=16)
   other_on_clauses = filter(on_clause -> !((on_clause in true_on_clauses) || (on_clause in user_event_on_clauses)), on_clauses)
   
   on_clauses = vcat(true_on_clauses, other_on_clauses..., user_event_on_clauses...)
-
-  object_types, object_mapping, background, _ = object_decomposition
   
   objects = sort(filter(obj -> obj != nothing, [object_mapping[i][1] for i in 1:length(collect(keys(object_mapping)))]), by=(x -> x.id))
   

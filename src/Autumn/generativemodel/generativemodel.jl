@@ -247,32 +247,33 @@ function gen_event_bool(object_decomposition, object_id, user_events)
   type_id = filter(x -> !isnothing(x), object_mapping[object_id])[1].type.id
   other_object_types = filter(type -> type.id != type_id, object_types)  
 
-  if length(non_list_objects) > 0
-    object = rand(non_list_objects)
-    if length(object.type.custom_fields) > 0
-      color = object.type.custom_fields[1][3][rand(1:2)]
-      push!(choices, """(== (.. obj$(object.id) color) "$(color)")""")    
-    end
-    push!(choices, """(intersects (prev obj$(object.id)) (prev addedObjType$(rand(other_object_types).id)List))""")
-  end
-
-  if length(other_object_types) > 0 && !(object_id in map(x -> x.id, non_list_objects))
-    push!(choices, "(intersects (filter (--> obj (== (.. obj id) $(object_id))) (prev addedObjType$(type_id)List)) (list $(join(map(x -> "(prev obj$(x.id))", non_list_objects), " "))))")
-    push!(choices, "(intersects (filter (--> obj (== (.. obj id) $(object_id))) (prev addedObjType$(type_id)List)) (prev addedObjType$(rand(other_object_types).id)List))")  
-  end
-
-  push!(choices, "(== (% (prev time) 10) 5)")
-  push!(choices, "(== (% (prev time) 10) 0)")  
-  push!(choices, "(== (% (prev time) 5) 2)")
-
-  # if "clicked" in user_events
-  push!(choices, "(& clicked (== (prev addedObjType$(type_id)List) (list)))")
-  push!(choices, "(& clicked (!= (prev addedObjType$(type_id)List) (list)))")
+  # if length(non_list_objects) > 0
+  #   object = rand(non_list_objects)
+  #   if length(object.type.custom_fields) > 0
+  #     color = object.type.custom_fields[1][3][rand(1:2)]
+  #     push!(choices, """(== (.. obj$(object.id) color) "$(color)")""")    
+  #   end
+  #   push!(choices, """(intersects (prev obj$(object.id)) (prev addedObjType$(rand(other_object_types).id)List))""")
   # end
 
+  # if length(other_object_types) > 0 && !(object_id in map(x -> x.id, non_list_objects))
+  #   push!(choices, "(intersects (filter (--> obj (== (.. obj id) $(object_id))) (prev addedObjType$(type_id)List)) (list $(join(map(x -> "(prev obj$(x.id))", non_list_objects), " "))))")
+  #   push!(choices, "(intersects (filter (--> obj (== (.. obj id) $(object_id))) (prev addedObjType$(type_id)List)) (prev addedObjType$(rand(other_object_types).id)List))")  
+  # end
+
+  # push!(choices, "(== (% (prev time) 10) 5)")
+  # push!(choices, "(== (% (prev time) 10) 0)")  
+  # push!(choices, "(== (% (prev time) 5) 2)")
+
+  # # if "clicked" in user_events
+  # push!(choices, "(& clicked (== (prev addedObjType$(type_id)List) (list)))")
+  # push!(choices, "(& clicked (!= (prev addedObjType$(type_id)List) (list)))")
+  # # end
+
   color_fields = filter(tuple -> tuple[1] == "color", filter(t -> t.id == type_id, object_types)[1].custom_fields)
-  if color_fields != []
-    push!(choices, "(adjacent () (prev addedObjType$(type_id)List))")
+  if color_fields != [] && !(object_id in map(x -> x.id, non_list_objects))
+    colors = color_fields[1][3]
+    push!(choices, """(intersects (adjacentObjs (first (filter (--> obj (== (.. obj id) $(object_id))) (prev addedObjType$(type_id)List)))) (filter (--> obj (== (.. obj color) "$(rand(colors))")) (prev addedObjType$(type_id)List)))""")
   end
 
 
