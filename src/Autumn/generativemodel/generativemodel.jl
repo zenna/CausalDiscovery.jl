@@ -180,12 +180,12 @@ function generate_hypothesis_position(position, environment_vars)
   user_event = filter(x -> !(x isa Obj), environment_vars)[1]
   @show environment_vars
   choices = []
-  if length(objects) != 0
-    push!(choices, ["(.. $(rand(objects)) origin)",
-                    "(move (.. $(rand(objects)) origin) (Position $(rand(0:1)) $(rand(0:1))))"]...)
-  end
+  # if length(objects) != 0
+  #   push!(choices, ["(.. $(rand(objects)) origin)",
+  #                   "(move (.. $(rand(objects)) origin) (Position $(rand(0:1)) $(rand(0:1))))"]...)
+  # end
 
-  if !isnothing(user_event) && (split(user_event, " ")[1] == "clicked") 
+  if !isnothing(user_event) && (occursin("click", split(user_event, " ")[1])) 
     push!(choices, "(Position (.. click x) (.. click y))")
   end
 
@@ -236,13 +236,16 @@ function generate_hypothesis_string_program(hypothesis_string, actual_string, ob
                    ")")
 end
 
-function gen_event_bool(object_decomposition, object_id, user_events)
-  choices = ["true", "clicked"] # "left", "right", "up", "down"
+function gen_event_bool(object_decomposition, object_id, user_events, global_var_dict)
+  choices = ["true", "(& clicked (isFree click))"] # "left", "right", "up", "down"
   object_types, object_mapping, _, _ = object_decomposition
   environment_vars = map(k -> object_mapping[k][1], filter(key -> !isnothing(object_mapping[key][1]), collect(keys(object_mapping))))
   non_list_objects = filter(x -> count(y -> y.type.id == x.type.id, environment_vars) == 1, environment_vars)
 
   user_event = filter(x -> !isnothing(x), user_events) == [] ? nothing : filter(x -> !isnothing(x), user_events)[1]
+  # if !isnothing(user_event) && !occursin("click", user_event)
+  #   push!(choices, user_event)
+  # end
 
   type_id = filter(x -> !isnothing(x), object_mapping[object_id])[1].type.id
   other_object_types = filter(type -> type.id != type_id, object_types)  
@@ -270,23 +273,42 @@ function gen_event_bool(object_decomposition, object_id, user_events)
   # push!(choices, "(& clicked (!= (prev addedObjType$(type_id)List) (list)))")
   # # end
 
-  color_fields = filter(tuple -> tuple[1] == "color", filter(t -> t.id == type_id, object_types)[1].custom_fields)
-  if color_fields != [] && !(object_id in map(x -> x.id, non_list_objects))
-    colors = color_fields[1][3]
-    push!(choices, """(intersects (adjacentObjs (first (filter (--> obj (== (.. obj id) $(object_id))) (prev addedObjType$(type_id)List)))) (filter (--> obj (== (.. obj color) "$(rand(colors))")) (prev addedObjType$(type_id)List)))""")
-  end
+  # color_fields = filter(tuple -> tuple[1] == "color", filter(t -> t.id == type_id, object_types)[1].custom_fields)
+  # if color_fields != [] && !(object_id in map(x -> x.id, non_list_objects))
+  #   colors = color_fields[1][3]
+  #   push!(choices, """(intersects (adjacentObjs (first (filter (--> obj (== (.. obj id) $(object_id))) (prev addedObjType$(type_id)List)))) (filter (--> obj (== (.. obj color) "$(rand(colors))")) (prev addedObjType$(type_id)List)))""")
+  # end
 
 
-  non_color_fields = filter(tuple -> tuple[1] != "color", filter(t -> t.id == type_id, object_types)[1].custom_fields)
-  if (non_color_fields != [])
-    tuple = non_color_fields[1]
-    field_name = tuple[1]
-    field_values = tuple[3]
-    if user_event != nothing 
-      push!(choices, "(& $(user_event) (== (.. (first (filter (--> obj (== (.. obj id) $(object_id))) (prev addedObjType$(type_id)List))) $(field_name)) $(rand(field_values))))")
+  # non_color_fields = filter(tuple -> tuple[1] != "color", filter(t -> t.id == type_id, object_types)[1].custom_fields)
+  # if (non_color_fields != [])
+  #   tuple = non_color_fields[1]
+  #   field_name = tuple[1]
+  #   field_values = tuple[3]
+  #   if user_event != nothing 
+  #     push!(choices, "(& $(user_event) (== (.. (first (filter (--> obj (== (.. obj id) $(object_id))) (prev addedObjType$(type_id)List))) $(field_name)) $(rand(field_values))))")
+  #   end
+  # end
+
+  if length(collect(keys(global_var_dict))) != 0
+    values = unique(global_var_dict[1])
+    push!(choices, "(& (& clicked (isFree click)) (== (prev globalVar1) $(rand(values))))")
+    if (user_event != "nothing") && !(occursin("click", user_event))
+      push!(choices, "(& $(user_event) (== (prev globalVar1) $(rand(values))))")
     end
   end
 
+  if non_list_objects != []
+    object = rand(non_list_objects)
+    push!(choices, "(clicked (prev obj$(object.id)))")
+  end
+
+  for type in object_types 
+    if (length(type.custom_fields) > 0) && type.custom_fields[1][1] == "color" 
+      color_values = type.custom_fields[1][3]
+      push!(choices, """(clicked (filter (--> obj (== (.. obj color) "$(rand(color_values))")) (prev addedObjType$(type.id)List)))""")
+    end
+  end 
 
   choice = rand(choices)
   println("XYZ")

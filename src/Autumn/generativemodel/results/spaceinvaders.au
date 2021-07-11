@@ -1,0 +1,36 @@
+(program
+  (= GRID_SIZE 8)
+  (= background "white")
+  (object ObjType1  (list (Cell 0 0  "blue" )))
+  (object ObjType2  (list (Cell 0 0  "black" )))
+  (object ObjType3  (list (Cell 0 0  "orange" )))
+  (object ObjType4  (list (Cell 0 0  "red" )))
+
+  (: addedObjType1List (List ObjType1))
+  (: obj9 ObjType2)
+
+  (: addedObjType2List (List ObjType2))
+  (: addedObjType3List (List ObjType3))
+  (: addedObjType4List (List ObjType4))
+
+  (= addedObjType1List (initnext (list (ObjType1  (Position 0 1)) (ObjType1  (Position 2 1)) (ObjType1  (Position 4 1)) (ObjType1  (Position 6 1)) (ObjType1  (Position 1 3)) (ObjType1  (Position 3 3)) (ObjType1  (Position 5 3)) (ObjType1  (Position 7 3))) (prev addedObjType1List)))
+  (= obj9 (initnext (ObjType2  (Position 7 7)) (prev obj9)))
+  
+  (= addedObjType2List (initnext (list) (prev addedObjType2List)))
+  (= addedObjType3List (initnext (list) (prev addedObjType3List)))
+  (= addedObjType4List (initnext (list) (prev addedObjType4List)))
+
+
+  (: time Int)
+  (= time (initnext 0 (+ time 1)))
+
+  (on true (= addedObjType3List (updateObj (prev addedObjType3List) (--> obj (moveDown obj)) (--> obj true))))
+  (on true (= addedObjType4List (updateObj (prev addedObjType4List) (--> obj (moveUp obj)) (--> obj true))))
+  (on (intersects (prev addedObjType1List) (prev addedObjType4List)) (= addedObjType1List (removeObj (prev addedObjType1List) (--> obj (intersects obj (prev addedObjType4List))))))
+  (on (intersects (prev obj9) (prev addedObjType3List)) (let ((= obj9 (removeObj obj9)))))
+  (on (== (% (prev time) 5) 2) (= addedObjType3List (addObj addedObjType3List (ObjType3  (.. (uniformChoice (prev addedObjType1List)) origin)))))
+  (on (intersects (prev addedObjType4List) (prev addedObjType1List)) (= addedObjType4List (removeObj (prev addedObjType4List) (--> obj (intersects obj (prev addedObjType1List))))))
+  (on (== (% (prev time) 10) 5) (= addedObjType1List (updateObj (prev addedObjType1List) (--> obj (moveRight obj)) (--> obj true))))
+  (on (== (% (prev time) 10) 0) (= addedObjType1List (updateObj (prev addedObjType1List) (--> obj (moveLeft obj)) (--> obj true))))
+  (on left (let ((= obj9 (moveLeft obj9)))))
+  (on up (= addedObjType4List (addObj addedObjType4List (ObjType4  (.. obj9 origin))))))

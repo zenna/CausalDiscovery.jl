@@ -1,0 +1,28 @@
+(program
+  (= GRID_SIZE 10)
+  (= background "white")
+  (object ObjType1  (list (Cell 0 0  "black" )))
+
+  
+
+  (: addedObjType1List (List ObjType1))
+
+  
+  
+  (= addedObjType1List (initnext (list) (prev addedObjType1List)))
+
+
+  (: time Int)
+  (= time (initnext 0 (+ time 1)))
+
+  (on clicked (= addedObjType1List (removeObj (prev addedObjType1List) (--> obj true))))
+  (on (& clicked (== (prev addedObjType1List) (list))) (let ((= addedObjType1List (addObj addedObjType1List (ObjType1  (Position 0 0))))
+                                                             (= addedObjType1List (addObj addedObjType1List (ObjType1  (Position 1 1))))
+                                                             (= addedObjType1List (addObj addedObjType1List (ObjType1  (Position 2 2))))
+                                                             (= addedObjType1List (addObj addedObjType1List (ObjType1  (Position 3 3))))
+                                                             (= addedObjType1List (addObj addedObjType1List (ObjType1  (Position 4 4))))
+                                                             (= addedObjType1List (addObj addedObjType1List (ObjType1  (Position 5 5))))
+                                                             (= addedObjType1List (addObj addedObjType1List (ObjType1  (Position 6 6))))
+                                                             (= addedObjType1List (addObj addedObjType1List (ObjType1  (Position 7 7))))
+                                                             (= addedObjType1List (addObj addedObjType1List (ObjType1  (Position 8 8))))
+                                                             (= addedObjType1List (addObj addedObjType1List (ObjType1  (Position 9 9))))))))
