@@ -267,7 +267,7 @@ function gen_event_bool(object_decomposition, object_id, user_events, global_var
   # push!(choices, "(== (% (prev time) 10) 5)")
   # push!(choices, "(== (% (prev time) 10) 0)")  
   # push!(choices, "(== (% (prev time) 5) 2)")
-  push!(choices, "(== (% time 4) 2)")
+  push!(choices, "(== (% (prev time) 4) 2)")
 
   # # if "clicked" in user_events
   # push!(choices, "(& clicked (== (prev addedObjType$(type_id)List) (list)))")
