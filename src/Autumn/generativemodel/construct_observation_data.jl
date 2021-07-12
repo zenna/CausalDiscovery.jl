@@ -268,7 +268,3 @@ function generate_observations_gravity(m::Module)
   end
   observations, user_events
 end
-
-function generate_observations_wind(m::Module)
-
-end

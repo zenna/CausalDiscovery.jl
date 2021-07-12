@@ -237,7 +237,7 @@ function generate_hypothesis_string_program(hypothesis_string, actual_string, ob
 end
 
 function gen_event_bool(object_decomposition, object_id, user_events, global_var_dict)
-  choices = ["true", "(& clicked (isFree click))"] # "left", "right", "up", "down"
+  choices = ["true", "left", "right" ] # "left", "right", "up", "down" "(& clicked (isFree click))", "up", "down"
   object_types, object_mapping, _, _ = object_decomposition
   environment_vars = map(k -> object_mapping[k][1], filter(key -> !isnothing(object_mapping[key][1]), collect(keys(object_mapping))))
   non_list_objects = filter(x -> count(y -> y.type.id == x.type.id, environment_vars) == 1, environment_vars)
@@ -267,6 +267,7 @@ function gen_event_bool(object_decomposition, object_id, user_events, global_var
   # push!(choices, "(== (% (prev time) 10) 5)")
   # push!(choices, "(== (% (prev time) 10) 0)")  
   # push!(choices, "(== (% (prev time) 5) 2)")
+  push!(choices, "(== (% time 4) 2)")
 
   # # if "clicked" in user_events
   # push!(choices, "(& clicked (== (prev addedObjType$(type_id)List) (list)))")
@@ -292,10 +293,11 @@ function gen_event_bool(object_decomposition, object_id, user_events, global_var
 
   if length(collect(keys(global_var_dict))) != 0
     values = unique(global_var_dict[1])
-    push!(choices, "(& (& clicked (isFree click)) (== (prev globalVar1) $(rand(values))))")
-    if (user_event != "nothing") && !(occursin("click", user_event))
-      push!(choices, "(& $(user_event) (== (prev globalVar1) $(rand(values))))")
-    end
+    # push!(choices, "(& (& clicked (isFree click)) (== (prev globalVar1) $(rand(values))))")
+    # if (user_event != "nothing") && !(occursin("click", user_event))
+    #   push!(choices, "(& $(user_event) (== (prev globalVar1) $(rand(values))))")
+    # end
+    push!(choices, "(== (prev globalVar1) $(rand(values)))")
   end
 
   if non_list_objects != []

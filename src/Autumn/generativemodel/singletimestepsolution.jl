@@ -17,13 +17,15 @@ function singletimestepsolution_matrix(observations, user_events, grid_size)
   
   # SEED PREV USED RULES FOR EFFIENCY AT THE MOMENT
   prev_used_rules = ["(= objX (prev objX))",
-                     "(= objX (moveUpNoCollision objX))",
-                     "(= objX (moveDownNoCollision objX))",
-                     "(= objX (moveLeftNoCollision objX))",
-                     "(= objX (moveRightNoCollision objX))",
+                    #  "(= objX (moveUpNoCollision objX))",
+                     "(= objX (moveDown objX))",
+                    #  "(= objX (moveLeftNoCollision objX))",
+                    #  "(= objX (moveRightNoCollision objX))",
                     #  "(= objX (nextLiquid objX))",
                     #  "(= objX (nextSolid objX))",
                     #  "(= objX (removeObj objX))",
+                     "(= objX (moveLeft (moveDown objX)))",
+                     "(= objX (moveRight (moveDown objX)))",
                     ] # prev_used_rules = []
 
   prev_abstract_positions = []
@@ -49,7 +51,7 @@ expr = nothing
 mod = nothing
 global_iters = 0
 """Synthesize a set of update functions that """
-function synthesize_update_functions(object_id, time, object_decomposition, user_events, prev_used_rules, prev_abstract_positions, grid_size=16, max_iters=5)
+function synthesize_update_functions(object_id, time, object_decomposition, user_events, prev_used_rules, prev_abstract_positions, grid_size=16, max_iters=4)
   object_types, object_mapping, background, _ = object_decomposition
   @show object_id 
   @show time
@@ -519,7 +521,7 @@ function generate_on_clauses(matrix, object_decomposition, user_events, grid_siz
     addObj_times_dict = Dict()
 
     for rule in addObj_rules 
-      addObj_times_dict[rule] = sort(unique(vcat(map(id -> findall(r -> r == rule, vcat(filtered_matrix[id, :]...)), object_ids))))
+      addObj_times_dict[rule] = sort(unique(vcat(map(id -> findall(r -> r == rule, vcat(filtered_matrix[id, :]...)), object_ids)...)))
     end
     
     group_addObj_rules = false
@@ -566,58 +568,7 @@ function generate_on_clauses(matrix, object_decomposition, user_events, grid_siz
 
         if event != ""
           # collect all objects of type object_type
-          if occursin("addObj", update_rule)
-
-            if group_addObj_rules
-              on_clause = "(on $(event) (let ($(join(addObj_rules, "\n")))))"
-            else
-              reformatted_rule = replace(update_rule, " id) x" => " id) $(object_id)")
-              on_clause = "(on $(event) $(reformatted_rule))"
-            end
-
-            reformatted_rule = replace(update_rule, " id) x" => " id) $(object_id)")
-            on_clause = "(on $(event) $(reformatted_rule))"
-
-          else 
-            start_objects = filter(obj -> !isnothing(obj), [object_mapping[id][1] for id in collect(keys(object_mapping))])
-            nonlist_start_objects = filter(obj -> count(x -> x.type.id == obj.type.id, start_objects) == 1, start_objects)
-            type_id = object_type.id
-
-            if occursin(".. (first (filter", event)
-              reformatted_event = split(event, " ")[2] 
-              second_reformatted_event = replace(split(event, reformatted_event)[2][1:end-1], "(first (filter (--> obj (== (.. obj id) $(object_id))) (prev addedObjType$(type_id)List)))" => "obj")
-              reformatted_rule = replace(update_rule, "(--> obj (== (.. obj id) $(object_id)))" => "(--> obj $(second_reformatted_event))")
-
-              on_clause = "(on $(reformatted_event) $(reformatted_rule))"
-            elseif occursin("(first (filter", event)
-              reformatted_event = replace(event, "(first (filter (--> obj (== (.. obj id) $(object_id))) (prev addedObjType$(type_id)List)))" => "obj")
-              reformatted_rule = replace(update_rule, "(--> obj (== (.. obj id) $(object_id)))" => "(--> obj $(reformatted_event))")
-              on_clause = "(on true $(reformatted_rule))"
-            elseif occursin("filter", event) && !(object_id in map(obj -> obj.id, nonlist_start_objects))
-              # obj involved in event is in a list, so it cannot be accessed directly 
-              reformatted_event = replace(event, "(filter (--> obj (== (.. obj id) $(object_id))) (prev addedObjType$(type_id)List))" => "obj")
-              reformatted_rule = replace(update_rule, "(--> obj (== (.. obj id) $(object_id)))" => "(--> obj $(reformatted_event))")
-              
-              second_reformatted_event = replace(event, "(filter (--> obj (== (.. obj id) $(object_id))) (prev addedObjType$(type_id)List))" => "(prev addedObjType$(type_id)List)")
-              
-              on_clause = "(on $(second_reformatted_event) $(reformatted_rule))"
-            else
-              if !(object_id in map(obj -> obj.id, nonlist_start_objects))  
-                reformatted_rule = replace(update_rule, "(--> obj (== (.. obj id) $(object_id)))" => "(--> obj true)")
-                on_clause = "(on $(event) $(reformatted_rule))"
-              else
-                if !occursin("addObj", update_rule)
-                  reformatted_rules = map(id -> replace(update_rule, "(.. obj id) $(object_id))" => "(.. obj id) $(id))"), object_ids)
-                  # reformatted_rule = replace(update_rule, "(--> obj (== (.. obj id) $(object_id)))" => "")
-                  on_clause = "(on $(event) (let ($(join(reformatted_rules, "\n")))))"  
-                else
-                  on_clause = "(on $(event) $(update_rule))"
-                end
-
-              end
-            end
-          end
-          @show global_var_dict[1]
+          on_clause = format_on_clause(update_rule, event, object_id, object_ids, object_type, group_addObj_rules, addObj_rules, object_mapping)
           push!(on_clauses, on_clause)
         else # handle construction of new state
 
@@ -633,6 +584,7 @@ function generate_on_clauses(matrix, object_decomposition, user_events, grid_siz
           @show new_state_update_times 
           @show new_global_var_dict
 
+          on_clause = format_on_clause(split(on_clause, "\n")[2][1:end-1], replace(split(on_clause, "\n")[1], "(on " => ""), object_id, object_ids, object_type, group_addObj_rules, addObj_rules, object_mapping)
           push!(on_clauses, on_clause)
           global_var_dict = new_global_var_dict 
           state_update_on_clauses = filter(x -> x != "", new_state_update_times)
@@ -689,6 +641,61 @@ function generate_on_clauses(matrix, object_decomposition, user_events, grid_siz
   end
   [on_clauses..., state_update_on_clauses...], global_object_decomposition, global_var_dict 
 end
+
+function format_on_clause(update_rule, event, object_id, object_ids, object_type, group_addObj_rules, addObj_rules, object_mapping)
+  if occursin("addObj", update_rule)
+
+    if group_addObj_rules
+      on_clause = "(on $(event) (let ($(join(addObj_rules, "\n")))))"
+    else
+      reformatted_rule = replace(update_rule, " id) x" => " id) $(object_id)")
+      on_clause = "(on $(event) $(reformatted_rule))"
+    end
+
+    reformatted_rule = replace(update_rule, " id) x" => " id) $(object_id)")
+    on_clause = "(on $(event) $(reformatted_rule))"
+
+  else 
+    start_objects = filter(obj -> !isnothing(obj), [object_mapping[id][1] for id in collect(keys(object_mapping))])
+    nonlist_start_objects = filter(obj -> count(x -> x.type.id == obj.type.id, start_objects) == 1, start_objects)
+    type_id = object_type.id
+  
+    if occursin(".. (first (filter", event)
+      reformatted_event = split(event, " ")[2] 
+      second_reformatted_event = replace(split(event, reformatted_event)[2][1:end-1], "(first (filter (--> obj (== (.. obj id) $(object_id))) (prev addedObjType$(type_id)List)))" => "obj")
+      reformatted_rule = replace(update_rule, "(--> obj (== (.. obj id) $(object_id)))" => "(--> obj $(second_reformatted_event))")
+  
+      on_clause = "(on $(reformatted_event) $(reformatted_rule))"
+    elseif occursin("(first (filter", event)
+      reformatted_event = replace(event, "(first (filter (--> obj (== (.. obj id) $(object_id))) (prev addedObjType$(type_id)List)))" => "obj")
+      reformatted_rule = replace(update_rule, "(--> obj (== (.. obj id) $(object_id)))" => "(--> obj $(reformatted_event))")
+      on_clause = "(on true $(reformatted_rule))"
+    elseif occursin("filter", event) && !(object_id in map(obj -> obj.id, nonlist_start_objects))
+      # obj involved in event is in a list, so it cannot be accessed directly 
+      reformatted_event = replace(event, "(filter (--> obj (== (.. obj id) $(object_id))) (prev addedObjType$(type_id)List))" => "obj")
+      reformatted_rule = replace(update_rule, "(--> obj (== (.. obj id) $(object_id)))" => "(--> obj $(reformatted_event))")
+      
+      second_reformatted_event = replace(event, "(filter (--> obj (== (.. obj id) $(object_id))) (prev addedObjType$(type_id)List))" => "(prev addedObjType$(type_id)List)")
+      
+      on_clause = "(on $(second_reformatted_event) $(reformatted_rule))"
+    else
+      if !(object_id in map(obj -> obj.id, nonlist_start_objects))  
+        reformatted_rule = replace(update_rule, "(--> obj (== (.. obj id) $(object_id)))" => "(--> obj true)")
+        on_clause = "(on $(event) $(reformatted_rule))"
+      else
+        if !occursin("addObj", update_rule)
+          reformatted_rules = map(id -> replace(update_rule, "(.. obj id) $(object_id))" => "(.. obj id) $(id))"), object_ids)
+          # reformatted_rule = replace(update_rule, "(--> obj (== (.. obj id) $(object_id)))" => "")
+          on_clause = "(on $(event) (let ($(join(reformatted_rules, "\n")))))"  
+        else
+          on_clause = "(on $(event) $(update_rule))"
+        end
+      end
+    end 
+  end
+  on_clause 
+end
+
 
 "Select one update function from each matrix cell's update function set, which may contain multiple update functions"
 function filter_update_function_matrix(matrix, object_decomposition)
@@ -893,7 +900,8 @@ function generate_event(update_rule, distinct_update_rules, object_id, object_tr
         program_str = singletimestepsolution_program_given_matrix_NEW(matrix, object_decomposition, dim) # CHANGE BACK TO DIM LATER
         program_tokens = split(program_str, """(: time Int)\n  (= time (initnext 0 (+ time 1)))""")
         if state_update_on_clauses != []
-          program_str = string(program_tokens[1], """(: time Int)\n  (= time (initnext 0 (+ time 1)))""", "\n\t (: globalVar1 Int)\n\t (= globalVar1 (initnext 1 (prev globalVar1)))\n\t (: event Bool) \n\t (= event (initnext false $(event)))\n", program_tokens[2])
+          global_var_init_val = global_var_dict[1][1]
+          program_str = string(program_tokens[1], """(: time Int)\n  (= time (initnext 0 (+ time 1)))""", "\n\t (: globalVar1 Int)\n\t (= globalVar1 (initnext $(global_var_init_val) (prev globalVar1)))\n\t (: event Bool) \n\t (= event (initnext false $(event)))\n", program_tokens[2])
           
           state_update_on_clauses_str = join(state_update_on_clauses, "\n  ")
           program_str = string(program_str[1:end-1], state_update_on_clauses_str, ")")
@@ -974,12 +982,7 @@ function generate_new_state(update_rule, update_function_times, event_vector_dic
   for event in keys(event_vector_dict)
     event_vector = event_vector_dict[event]
     event_times = findall(x -> x == 1, event_vector)
-    # @show event_vector 
-    # @show event_times
-    # @show update_function_times 
-    # @show intersect(event_times, update_function_times)
     if repr(sort(intersect(event_times, update_function_times))) == repr(sort(update_function_times))
-      # println("HERE")
       push!(co_occurring_events, (event, length([time for time in event_times if !(time in update_function_times)])))
     end 
   end
@@ -989,7 +992,7 @@ function generate_new_state(update_rule, update_function_times, event_vector_dic
   # initialize global_var_dict and get global_var_value
   if length(collect(keys(global_var_dict))) == 0
     global_var_value = 1
-    global_var_dict[1] = ones(Int, length(user_events))
+    global_var_dict[1] = ones(Int, length(state_update_times))
   else
     global_var_value = maximum(global_var_dict[1])
   end
@@ -1008,13 +1011,38 @@ function generate_new_state(update_rule, update_function_times, event_vector_dic
   ranges = []
   augmented_true_positive_times = map(t -> (t, global_var_value), true_positive_times)
   augmented_false_positive_times = map(t -> (t, global_var_value + 1), false_positive_times)
-
   augmented_positive_times = sort(vcat(augmented_true_positive_times, augmented_false_positive_times), by=x -> x[1])
+
   for i in 1:(length(augmented_positive_times)-1)
     prev_time, prev_value = augmented_positive_times[i]
     next_time, next_value = augmented_positive_times[i + 1]
     if prev_value != next_value
       push!(ranges, (augmented_positive_times[i], augmented_positive_times[i + 1]))
+    end
+  end
+
+  # add ranges that interface between global_var_value and lower values 
+  if global_var_value > 1
+    for time in 1:(length(state_update_times) - 1)
+      prev_val = global_var_dict[1][time]
+      next_val = global_var_dict[1][time + 1]
+
+      if (prev_val < global_var_value) && (next_val == global_var_value)
+        if (filter(t -> t[1] == time + 1, augmented_positive_times) != []) && (filter(t -> t[1] == time + 1, augmented_positive_times)[1][2] != global_var_value)
+          new_value = filter(t -> t[1] == time + 1, augmented_positive_times)[1][2]
+          push!(ranges, ((time, prev_val), (time + 1, new_value)))        
+        else
+          push!(ranges, ((time, prev_val), (time + 1, next_val)))        
+        end
+
+      elseif (prev_val == global_var_value) && (next_val < global_var_value)
+        if (filter(t -> t[1] == time, augmented_positive_times) != []) && (filter(t -> t[1] == time, augmented_positive_times)[1][2] != global_var_value)
+          new_value = filter(t -> t[1] == time, augmented_positive_times)[1][2]
+          push!(ranges, ((time, new_value), (time + 1, next_val)))        
+        else
+          push!(ranges, ((time, prev_val), (time + 1, next_val)))        
+        end
+      end
     end
   end
 
@@ -1038,7 +1066,7 @@ function generate_new_state(update_rule, update_function_times, event_vector_dic
     max_global_var_value = maximum(map(tuple -> tuple[2], augmented_positive_times))
 
     # search for events within range
-    events_in_range = find_state_update_events(event_vector_dict, augmented_positive_times, time_ranges, start_value, end_value)
+    events_in_range = find_state_update_events(event_vector_dict, augmented_positive_times, time_ranges, start_value, end_value, global_var_dict)
     if events_in_range != [] # event with zero false positives found
       state_update_event, event_times = events_in_range[1]
 
@@ -1052,8 +1080,9 @@ function generate_new_state(update_rule, update_function_times, event_vector_dic
 
     else # no event with zero false positives found; use best false-positive event and specialize globalVar values (i.e. add new value)
       # find co-occurring event with fewest false positives 
-      false_positive_events = find_state_update_events_false_positives(event_vector_dict, augmented_positive_times, time_ranges, start_value, end_value)
-      false_positive_event, _, true_positive_times, false_positive_times = false_positive_events[1] 
+      false_positive_events = find_state_update_events_false_positives(event_vector_dict, augmented_positive_times, time_ranges, start_value, end_value, global_var_dict)
+      false_positive_events_with_state = filter(e -> occursin("globalVar1", e[1]), false_positive_events) # want the most specific events in the false positive case
+      false_positive_event, _, true_positive_times, false_positive_times = false_positive_events_with_state[1] 
 
       # construct state update on-clause
       state_update_on_clause = "(on $(false_positive_event)\n$(state_update_function))"
@@ -1096,25 +1125,43 @@ function generate_new_state(update_rule, update_function_times, event_vector_dic
         next_time, next_value = augmented_positive_times[i + 1]
         if prev_value != next_value
           if length(unique(new_state_update_times[prev_time:next_time-1])) == 1 && unique(new_state_update_times[prev_time:next_time-1])[1] == ""
+            # if there are no state update functions within this range, add it to new_ranges
             push!(new_ranges, (augmented_positive_times[i], augmented_positive_times[i + 1]))
-          else # modify existing on-clause
+          elseif intersect(true_positive_times, collect(prev_time:next_time-1)) == []
+            # if the state_update_function in this range is not among those just added (which are correct), add range to new_ranges
             @show prev_time 
             @show prev_value 
             @show next_time 
             @show next_value 
-            on_clause_index = findall(x -> x != "", new_state_update_times[prev_time:next_time-1])[1]
-            on_clause = new_state_update_times[prev_time:next_time-1][on_clause_index]
             
-            on_clause_event = split(on_clause, "\n")[1]
-            on_clause_function = split(on_clause, "\n")[2]
+            on_clause_index = findall(x -> x != "", new_state_update_times[prev_time:next_time-1])[1]
+            # on_clause = new_state_update_times[prev_time:next_time-1][on_clause_index]
+            
+            # on_clause_event = split(on_clause, "\n")[1]
+            # on_clause_function = split(on_clause, "\n")[2]
 
-            if occursin("(== (prev globalVar1) ", on_clause_event)
-              on_clause_segments = split(on_clause_event, "(== (prev globalVar1) ")
-              on_clause_event = string(on_clause_segments[1], "(== (prev globalVar1) ", prev_value, on_clause_segments[2][2:end])
+            # if occursin("(== (prev globalVar1) ", on_clause_event)
+            #   on_clause_segments = split(on_clause_event, "(== (prev globalVar1) ")
+            #   on_clause_event = string(on_clause_segments[1], "(== (prev globalVar1) ", prev_value, on_clause_segments[2][2:end])
+            # end
+
+            # on_clause_function = "(= globalVar1 $(next_value)))"
+            new_state_update_times[on_clause_index + prev_time - 1] = ""
+            push!(new_ranges, (augmented_positive_times[i], augmented_positive_times[i + 1]))
+          end
+        end
+      end
+
+      # add ranges that interface between global_var_value and lower values to new_ranges 
+      if global_var_value > 1
+        for time in 1:(length(state_update_times) - 1)
+          prev_val = global_var_dict[1][time]
+          next_val = global_var_dict[1][time + 1]
+
+          if ((prev_val < global_var_value) && (next_val == global_var_value) || (prev_val == global_var_value) && (next_val < global_var_value))
+            if intersect([time], collect(prev_time:next_time - 1)) == [] 
+              push!(new_ranges, ((time, prev_val), (time + 1, next_val)))
             end
-
-            on_clause_function = "(= globalVar1 $(next_value)))"
-            new_state_update_times[on_clause_index + prev_time - 1] = "$(on_clause_event)\n$(on_clause_function)"
           end
         end
       end
@@ -1143,6 +1190,136 @@ function generate_new_state(update_rule, update_function_times, event_vector_dic
   on_clause = "(on $(occursin("globalVar1", co_occurring_event) ? co_occurring_event : "(& (== globalVar1 $(global_var_value)) $(co_occurring_event))")\n$(update_rule))"
   
   on_clause, global_var_dict, new_state_update_times
+end
+
+function generate_new_object_specific_state(update_rule, update_function_times_dict, event_vector_dict, type_id, object_decomposition)
+  object_types, object_mapping, background, grid_size = object_decomposition 
+
+  # initialize state_update_times 
+  state_update_times = Dict()
+  for id in collect(keys(update_function_times_dict))
+    state_update_times[id] = [("", -1) for i in 1:length(collect(values(event_vector_dict))[1])]
+  end
+
+  # compute co-occurring event 
+  # only look at global events for now 
+  events = filter(k -> event_vector_dict[k] isa Array, collect(keys(event_vector_dict))) 
+  co_occurring_events = []
+  for event in events 
+    event_vector = event_vector_dict[event]
+    co_occurring = foldl(&, map(update_function_times -> is_co_occurring(event, event_vector, update_function_times), collect(values(update_function_times_dict))), init=true)
+    if co_occurring
+      false_positive_count = num_false_positives(event_vector, update_function_times)
+      push!(co_occurring_events, (event, num_false_positives))
+    end
+  end
+  co_occurring_event = sort(co_occurring_events, by=x -> x[2])[1]
+  co_occurring_event_trajectory = event_vector_dict[co_occurring_event]
+
+  augmented_positive_times_dict = Dict()
+  for object_id in collect(keys(update_function_times_dict)) 
+    true_positive_times = update_function_times_dict[object_id] # times when co_occurring_event happened and update_rule happened 
+    false_positive_times = [] # times when user_event happened and update_rule didn't happen
+    
+    # construct false_positive_times 
+    for time in 1:length(user_events)
+      if co_occurring_event_trajectory[time] == 1 && !(time in true_positive_times)
+          push!(false_positive_times, time)
+      end
+    end
+
+    # construct positive times list augmented by true/false value 
+    augmented_true_positive_times = map(t -> (t, 1), true_positive_times)
+    augmented_false_positive_times = map(t -> (t, 2), false_positive_times)
+    augmented_positive_times = sort(vcat(augmented_true_positive_times, augmented_false_positive_times), by=x -> x[1])  
+
+    augmented_positive_times_dict[object_id] = augmented_positive_times 
+  end
+
+  # compute ranges 
+  ranges_dict = Dict()
+  for object_id in collect(keys(update_function_times_dict))
+    ranges = []
+    augmented_positive_times = augmented_positive_times_dict[object_id]
+    for i in 1:(length(augmented_positive_times)-1)
+      prev_time, prev_value = augmented_positive_times[i]
+      next_time, next_value = augmented_positive_times[i + 1]
+      if prev_value != next_value
+        push!(ranges, (augmented_positive_times[i], augmented_positive_times[i + 1]))
+      end
+    end
+    ranges_dict[object_id] = ranges
+  end
+  grouped_ranges = group_ranges(ranges_dict)
+
+  while length(grouped_ranges) > 0
+    grouped_range = grouped_ranges[1]
+    grouped_ranges = grouped_ranges[2:end]
+
+    range = grouped_range[1]
+    start_value = range[1][2]
+    end_value = range[2][2]
+
+    # try global events first 
+    events_in_range = []
+    if events_in_range == [] # if no global events are found, try object-specific events 
+      # do something
+    end
+
+    if length(events_in_range) > 0 # only handling perfect matches currently 
+      event, event_times = events_in_range[1]
+
+      # construct state_update_function 
+      state_update_function = ""
+
+      for id in collect(keys(state_update_times))
+        object_event_times = map(t -> t[1], filter(time -> time[2] == object_id, event_times))
+        for time in object_event_times 
+          state_update_times[id][time] = (state_update_function, end_value)
+        end
+      end
+    end
+  end
+
+  # construct field values for each object 
+  object_field_values = Dict()
+  for object_id in collect(keys(update_function_times_dict))
+    init_value = augmented_positive_times_dict[object_id][1][2]
+    object_field_values[object_id] = [init_value for i in 1:(length(state_update_times) + 1)]
+    
+    curr_value = -1
+    for time in 1:length(object_field_values[object_id])
+      if curr_value != -1
+        object_field_values[object_id][time] = curr_value
+      end
+      
+      if state_update_times[object_id][time] != ("", -1)
+        curr_value = state_update_times[object_id][time][2]
+      end
+    end
+  end
+
+  # construct new object decomposition
+  ## add field to correct ObjType in object_types
+  new_object_types = deepcopy(object_types)
+  new_object_type = filter(type -> type.id == type_id, new_object_types)[1]
+  push!(new_object_type.custom_fields, ("field1", "Int", [1, 2]))
+  
+  ## modify objects in object_mapping
+  new_object_mapping = deepcopy(object_mapping)
+  for id in collect(keys(new_object_mapping))
+    if id in collect(keys(update_function_times_dict))
+      for time in 1:length(new_object_mapping[id])
+        new_object_mapping[id][time].type = new_object_type 
+        new_object_mapping[id][time].custom_field_values = vcat(new_object_mapping[id][time].custom_field_values, object_field_values[id][time])
+      end
+    end
+  end
+  new_object_decomposition = new_object_types, new_object_mapping, background, grid_size
+
+  on_clause = "(on $(co_occurring_event) (= ))"
+  state_update_on_clauses = unique(filter(r -> r != "", vcat([state_update_times[k][1] for k in collect(keys(state_update_times))]...)))
+  on_clause, state_update_on_clauses, new_object_decomposition 
 end
 
 function generate_new_state(update_rule, user_event, user_events, object_id, object_trajectory, object_decomposition, filtered_matrix, global_var_dict, state_update_times)
@@ -1474,7 +1651,8 @@ function full_program(observations, user_events, grid_size=16)
   program_no_update_rules = program_string_synth_standard_groups((object_types, object_mapping, background, grid_size))
   
   if length(collect(keys(global_var_dict))) > 0
-    program_no_update_rules = string(program_no_update_rules[1:end-2], "(: globalVar1 Int)\n (= globalVar1 (initnext 1 (prev globalVar1)))", ")")
+    global_var_init_val = global_var_dict[1][1]
+    program_no_update_rules = string(program_no_update_rules[1:end-2], "(: globalVar1 Int)\n (= globalVar1 (initnext $(global_var_init_val) (prev globalVar1)))", ")")
   end
   
   t = """(: time Int)\n  (= time (initnext 0 (+ time 1)))"""
