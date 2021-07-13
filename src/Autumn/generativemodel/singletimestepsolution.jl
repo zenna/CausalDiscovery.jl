@@ -651,10 +651,6 @@ function format_on_clause(update_rule, event, object_id, object_ids, object_type
       reformatted_rule = replace(update_rule, " id) x" => " id) $(object_id)")
       on_clause = "(on $(event) $(reformatted_rule))"
     end
-
-    reformatted_rule = replace(update_rule, " id) x" => " id) $(object_id)")
-    on_clause = "(on $(event) $(reformatted_rule))"
-
   else 
     start_objects = filter(obj -> !isnothing(obj), [object_mapping[id][1] for id in collect(keys(object_mapping))])
     nonlist_start_objects = filter(obj -> count(x -> x.type.id == obj.type.id, start_objects) == 1, start_objects)
