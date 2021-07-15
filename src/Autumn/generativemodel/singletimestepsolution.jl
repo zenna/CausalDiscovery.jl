@@ -18,14 +18,14 @@ function singletimestepsolution_matrix(observations, user_events, grid_size)
   # SEED PREV USED RULES FOR EFFIENCY AT THE MOMENT
   prev_used_rules = ["(= objX (prev objX))",
                     #  "(= objX (moveUpNoCollision objX))",
-                     "(= objX (moveDown objX))",
+                    #  "(= objX (moveDown objX))",
                     #  "(= objX (moveLeftNoCollision objX))",
                     #  "(= objX (moveRightNoCollision objX))",
                     #  "(= objX (nextLiquid objX))",
                     #  "(= objX (nextSolid objX))",
                     #  "(= objX (removeObj objX))",
-                     "(= objX (moveLeft (moveDown objX)))",
-                     "(= objX (moveRight (moveDown objX)))",
+                    #  "(= objX (moveLeft (moveDown objX)))",
+                    #  "(= objX (moveRight (moveDown objX)))",
                     ] # prev_used_rules = []
 
   prev_abstract_positions = []
@@ -51,7 +51,7 @@ expr = nothing
 mod = nothing
 global_iters = 0
 """Synthesize a set of update functions that """
-function synthesize_update_functions(object_id, time, object_decomposition, user_events, prev_used_rules, prev_abstract_positions, grid_size=16, max_iters=4)
+function synthesize_update_functions(object_id, time, object_decomposition, user_events, prev_used_rules, prev_abstract_positions, grid_size=16, max_iters=1)
   object_types, object_mapping, background, _ = object_decomposition
   @show object_id 
   @show time
@@ -1017,32 +1017,44 @@ function generate_new_state(update_rule, update_function_times, event_vector_dic
     end
   end
 
-  # add ranges that interface between global_var_value and lower values 
+  # add ranges that interface between global_var_value and lower values
   if global_var_value > 1
     for time in 1:(length(state_update_times) - 1)
-      prev_val = global_var_dict[1][time]
-      next_val = global_var_dict[1][time + 1]
+      if length(intersect(map(t -> t[1], augmented_positive_times), [time, time + 1])) == 1
+        prev_val = global_var_dict[1][time]
+        next_val = global_var_dict[1][time + 1]
 
-      if (prev_val < global_var_value) && (next_val == global_var_value)
-        if (filter(t -> t[1] == time + 1, augmented_positive_times) != []) && (filter(t -> t[1] == time + 1, augmented_positive_times)[1][2] != global_var_value)
-          new_value = filter(t -> t[1] == time + 1, augmented_positive_times)[1][2]
-          push!(ranges, ((time, prev_val), (time + 1, new_value)))        
-        else
-          push!(ranges, ((time, prev_val), (time + 1, next_val)))        
-        end
+        if (prev_val < global_var_value) && (next_val == global_var_value)
+          if (filter(t -> t[1] == time + 1, augmented_positive_times) != []) && (filter(t -> t[1] == time + 1, augmented_positive_times)[1][2] != global_var_value)
+            new_value = filter(t -> t[1] == time + 1, augmented_positive_times)[1][2]
+            push!(ranges, ((time, prev_val), (time + 1, new_value)))        
+          else
+            push!(ranges, ((time, prev_val), (time + 1, next_val)))        
+          end
 
-      elseif (prev_val == global_var_value) && (next_val < global_var_value)
-        if (filter(t -> t[1] == time, augmented_positive_times) != []) && (filter(t -> t[1] == time, augmented_positive_times)[1][2] != global_var_value)
-          new_value = filter(t -> t[1] == time, augmented_positive_times)[1][2]
-          push!(ranges, ((time, new_value), (time + 1, next_val)))        
-        else
-          push!(ranges, ((time, prev_val), (time + 1, next_val)))        
+        elseif (prev_val == global_var_value) && (next_val < global_var_value)
+          if (filter(t -> t[1] == time, augmented_positive_times) != []) && (filter(t -> t[1] == time, augmented_positive_times)[1][2] != global_var_value)
+            new_value = filter(t -> t[1] == time, augmented_positive_times)[1][2]
+            push!(ranges, ((time, new_value), (time + 1, next_val)))        
+          else
+            push!(ranges, ((time, prev_val), (time + 1, next_val)))        
+          end
         end
       end
     end
   end
 
-  grouped_ranges = group_ranges(ranges)
+  # filter ranges where both the range's start and end times are already included
+  new_ranges = []
+  for range in ranges
+    start_tuples = map(range -> range[1], filter(r -> r != range, ranges))
+    end_tuples = map(range -> range[2], filter(r -> r != range, ranges))
+    if !((range[1] in start_tuples) && (range[2] in end_tuples))
+      push!(new_ranges, range)      
+    end
+  end
+
+  grouped_ranges = group_ranges(new_ranges)
 
   # while there are ranges that need to be explained, search for explaining events within them
   while length(grouped_ranges) > 0 
@@ -1062,7 +1074,7 @@ function generate_new_state(update_rule, update_function_times, event_vector_dic
     max_global_var_value = maximum(map(tuple -> tuple[2], augmented_positive_times))
 
     # search for events within range
-    events_in_range = find_state_update_events(event_vector_dict, augmented_positive_times, time_ranges, start_value, end_value, global_var_dict)
+    events_in_range = find_state_update_events(event_vector_dict, augmented_positive_times, time_ranges, start_value, end_value, global_var_dict, global_var_value)
     if events_in_range != [] # event with zero false positives found
       state_update_event, event_times = events_in_range[1]
 
@@ -1076,7 +1088,7 @@ function generate_new_state(update_rule, update_function_times, event_vector_dic
 
     else # no event with zero false positives found; use best false-positive event and specialize globalVar values (i.e. add new value)
       # find co-occurring event with fewest false positives 
-      false_positive_events = find_state_update_events_false_positives(event_vector_dict, augmented_positive_times, time_ranges, start_value, end_value, global_var_dict)
+      false_positive_events = find_state_update_events_false_positives(event_vector_dict, augmented_positive_times, time_ranges, start_value, end_value, global_var_dict, global_var_value)
       false_positive_events_with_state = filter(e -> occursin("globalVar1", e[1]), false_positive_events) # want the most specific events in the false positive case
       false_positive_event, _, true_positive_times, false_positive_times = false_positive_events_with_state[1] 
 
@@ -1155,13 +1167,24 @@ function generate_new_state(update_rule, update_function_times, event_vector_dic
           next_val = global_var_dict[1][time + 1]
 
           if ((prev_val < global_var_value) && (next_val == global_var_value) || (prev_val == global_var_value) && (next_val < global_var_value))
-            if intersect([time], collect(prev_time:next_time - 1)) == [] 
+            if intersect([time], true_positive_times) == [] 
               push!(new_ranges, ((time, prev_val), (time + 1, next_val)))
             end
           end
         end
       end
-      grouped_ranges = group_ranges(new_ranges) 
+
+      # filter ranges where both the range's start and end times are already included
+      filtered_ranges = []
+      for range in new_ranges
+        start_tuples = map(range -> range[1], filter(r -> r != range, new_ranges))
+        end_tuples = map(range -> range[2], filter(r -> r != range, new_ranges))
+        if !((range[1] in start_tuples) && (range[2] in end_tuples))
+          push!(filtered_ranges, range)      
+        end
+      end
+
+      grouped_ranges = group_ranges(filtered_ranges) 
     end
   end
 
@@ -1205,7 +1228,7 @@ function generate_new_object_specific_state(update_rule, update_function_times_d
     event_vector = event_vector_dict[event]
     co_occurring = foldl(&, map(update_function_times -> is_co_occurring(event, event_vector, update_function_times), collect(values(update_function_times_dict))), init=true)
     if co_occurring
-      false_positive_count = num_false_positives(event_vector, update_function_times)
+      false_positive_count = foldl(+, map(update_function_times -> num_false_positives(event_vector, update_function_times), collect(values(update_function_tines_dict))), init=0)
       push!(co_occurring_events, (event, num_false_positives))
     end
   end
@@ -1256,7 +1279,7 @@ function generate_new_object_specific_state(update_rule, update_function_times_d
     start_value = range[1][2]
     end_value = range[2][2]
 
-    # try global events first 
+    # TODO: try global events too  
     events_in_range = []
     if events_in_range == [] # if no global events are found, try object-specific events 
       # do something
@@ -1316,302 +1339,6 @@ function generate_new_object_specific_state(update_rule, update_function_times_d
   on_clause = "(on $(co_occurring_event) (= ))"
   state_update_on_clauses = unique(filter(r -> r != "", vcat([state_update_times[k][1] for k in collect(keys(state_update_times))]...)))
   on_clause, state_update_on_clauses, new_object_decomposition 
-end
-
-function generate_new_state(update_rule, user_event, user_events, object_id, object_trajectory, object_decomposition, filtered_matrix, global_var_dict, state_update_times)
-  object_types, object_mapping, background, grid_size = object_decomposition
-  
-  on_clause = "" 
-  state_update_on_clauses = []
-  new_object_decomposition = object_decomposition
-  new_state_update_times = deepcopy(state_update_times)
-
-  if occursin("addObj", update_rule)
-    if occursin("click", user_event) 
-      event_times = []
-      modified_user_event = "(& clicked (isFree click))"
-
-      object_trajectories = map(id -> filtered_matrix[id, :], filter(k -> filter(obj -> !isnothing(obj), object_mapping[k])[1].type.id == filter(obj -> !isnothing(obj), object_mapping[object_id])[1].type.id, collect(keys(object_mapping))))
-      true_rule_times = vcat(map(trajectory -> findall(rule -> rule == update_rule, vcat(trajectory...)), object_trajectories)...) 
-  
-      true_event_times = [] # times when user_event happened and update_rule happened 
-      false_event_times = [] # times when user_event happened and update_rule didn't happen
-
-      for time in 1:length(user_events)
-        if !isnothing(user_events[time]) && occursin("click", user_events[time])
-          # check if clicked position is free 
-          object_positions = map(o -> o.position, filter(obj -> !isnothing(obj), [object_mapping[id][time] for id in collect(keys(object_mapping))]))
-          click_x = parse(Int, split(user_events[time], " ")[2])
-          click_y = parse(Int, split(user_events[time], " ")[3])
-
-          if !((click_x, click_y) in object_positions) 
-            if time in true_rule_times 
-              push!(true_event_times, time)
-            else
-              push!(false_event_times, time)
-            end
-          end
-        end
-      end
-
-      if length(collect(keys(global_var_dict))) == 0
-        global_var_value = 1
-        global_var_dict[1] = ones(Int, length(user_events))
-      else
-        global_var_value = maximum(global_var_dict[1])
-        false_event_times = filter(time -> global_var_dict[1][time] == global_var_value, false_event_times)
-      end
-  
-      # compute ranges in which to search for events 
-      ranges = []
-      augmented_true_event_times = map(t -> (t, true), true_event_times)
-      augmented_false_event_times = map(t -> (t, false), false_event_times)
-
-      augmented_event_times = sort(vcat(augmented_true_event_times, augmented_false_event_times), by=x -> x[1])
-      for i in 1:(length(augmented_event_times)-1)
-        prev_time, prev_bool = augmented_event_times[i]
-        next_time, next_bool = augmented_event_times[i + 1]
-        if prev_bool != next_bool
-          push!(ranges, (augmented_event_times[i], augmented_event_times[i + 1]))
-        end
-      end
-
-      for range in ranges
-        start_time = range[1][1] + 1
-        start_bool = range[1][2]
-
-        end_time = range[2][1] - 1
-        end_bool = range[2][2]
-
-        events_in_range = filter(event -> !isnothing(event) && (event != "nothing"), user_events[start_time:end_time])
-        if events_in_range != []
-          event = events_in_range[1]
-          event_time = filter(time -> (time >= start_time) && (time <= end_time), findall(x -> x == event, user_events))[1]
-          push!(event_times, event_time)
-
-          if occursin("click", event)
-            x = parse(Int, split(event, " ")[2])
-            y = parse(Int, split(event, " ")[3])
-            clicked_objects = filter(obj -> !isnothing(obj) && obj.position == (x, y), [object_mapping[id][event_time] for id in collect(keys(object_mapping))])
-            if clicked_objects != []
-              clicked_object = clicked_objects[1]
-              clicked_object_id = clicked_object.id 
-              
-              # check if object is in list
-              start_objects = sort(filter(obj -> obj != nothing, [object_mapping[i][1] for i in 1:length(collect(keys(object_mapping)))]), by=(x -> x.id))
-              contained_in_list = isnothing(object_mapping[clicked_object_id][1]) || (count(x -> x.type.id == object_mapping[clicked_object_id][1].type.id, start_objects) > 1)
-              
-              if contained_in_list 
-                state_update_event = "(clicked (prev addedObjType$(clicked_object.type.id)List))"
-              else
-                state_update_event = "(clicked (prev obj$(clicked_object_id)))"
-              end                
-            end
-          else # event is not click
-            if start_bool && !end_bool 
-              state_update_event = "(& $(event) (== (prev globalVar1) $(global_var_value)))" 
-            else
-              state_update_event = "(& $(event) (== (prev globalVar1) $(global_var_value + 1)))" 
-            end
-          end
-
-          if start_bool && !end_bool 
-            state_update_function = "(= globalVar1 $(global_var_value + 1))"
-          else
-            state_update_function = "(= globalVar1 $(global_var_value))"
-          end
-          state_update_on_clause = "(on $(state_update_event) $(state_update_function))"
-          state_update_on_clauses = vcat(state_update_on_clauses..., state_update_on_clause)
-
-        end
-      end
-
-      @show event_times 
-
-      if length(ranges) == 1
-        event_time = event_times[1]
-        start_bool = ranges[1][1][2]
-        end_bool = ranges[1][2][2]
-
-        if start_bool && !end_bool 
-          for time in (event_time + 1):length(user_events)
-            if global_var_dict[1][time] == global_var_value 
-              global_var_dict[1][time] = global_var_value + 1
-            end
-          end
-        elseif !start_bool && end_bool 
-          for time in 1:event_time
-            if global_var_dict[1][time] == global_var_value 
-              global_var_dict[1][time] = global_var_value + 1
-            end
-          end
-        end
-
-      elseif length(ranges) == 2
-        event_time_1 = event_times[1]
-        event_time_2 = event_times[2]
-
-        start_bool = ranges[1][2][2]
-        end_bool = ranges[2][1][2]
-
-        if start_bool && end_bool 
-          for time in vcat(collect(1:event_time_1), collect((event_time_2 + 1):length(user_events)))
-            if global_var_dict[1][time] == global_var_value 
-              global_var_dict[1][time] = global_var_value + 1
-            end           
-          end
-        elseif !start_bool && !end_bool 
-          for time in (event_time_1 + 1):event_time_2
-            if global_var_dict[1][time] == global_var_value 
-              global_var_dict[1][time] = global_var_value + 1
-            end
-          end
-        end
-      end  
-      
-      # modify state_update_times 
-      for i in 1:(length(user_events) - 1)
-        if new_state_update_times[i] != ""
-          state_update = new_state_update_times[i]
-          event_value = parse(Int, split(state_update, "== (prev globalVar1) ")[2][1])
-          next_value = parse(Int, split(state_update, "(= globalVar1 ")[2][1])
-          if event_value != global_var_dict[1][i]
-            println("hello")
-            new_state_update_times[i] = replace(state_update, "== (prev globalVar1) $(event_value)" => "== (prev globalVar1) $(global_var_dict[1][i])")
-          end
-
-          if next_value != global_var_dict[1][i + 1]
-            new_state_update_times[i] = replace(state_update, "(= globalVar1 $(next_value)" => "(= globalVar1 $(global_var_dict[1][i + 1])")
-          end
-        end
-      end
-
-      for i in 1:length(event_times)
-        new_clause = state_update_on_clauses[i]
-        event_time = event_times[i]
-        new_state_update_times[event_time] = new_clause
-      end
-
-
-      on_clause = "(on (& $(modified_user_event) (== (prev globalVar1) $(global_var_value))) $(update_rule))"
-      println("HAHA")
-      @show state_update_on_clauses
-    end
-  else
-    true_event_times = []
-    false_event_times = []
-    for time in 1:length(object_trajectory)
-      if (user_events[time] == user_event)
-        if object_trajectory[time] == [update_rule]
-          push!(true_event_times, time)
-        else
-          push!(false_event_times, time)
-        end
-      end
-    end
-  
-    # check separability
-    start_time = -1
-    end_time = -1
-    if (minimum(true_event_times) > maximum(false_event_times)) 
-      start_time = maximum(false_event_times) + 1
-      end_time = minimum(true_event_times) - 1
-    elseif (minimum(false_event_times) > maximum(true_event_times))
-      start_time = maximum(true_event_times) + 1
-      end_time = minimum(false_event_times) - 1
-    end
-  
-    if (start_time != -1) && (end_time != -1)
-      # search for an event in between these times 
-      events_in_range = filter(event -> !isnothing(event) && (event != "nothing") && occursin("click", event), user_events[start_time:end_time])
-      if events_in_range != []
-        event = events_in_range[1]
-        time_ = findall(x -> x == event, user_events)[1]
-        x = parse(Int, split(event, " ")[2])
-        y = parse(Int, split(event, " ")[3])
-        clicked_objects = filter(obj -> obj.position == (x, y), [object_mapping[id][time_] for id in collect(keys(object_mapping))])
-        if clicked_objects != []
-          clicked_object = clicked_objects[1]
-          clicked_object_id = clicked_object.id 
-          
-          # check if object is in list
-          start_objects = sort(filter(obj -> obj != nothing, [object_mapping[i][1] for i in 1:length(collect(keys(object_mapping)))]), by=(x -> x.id))
-          contained_in_list = isnothing(object_mapping[clicked_object_id][1]) || (count(x -> x.type.id == object_mapping[clicked_object_id][1].type.id, start_objects) > 1)
-          
-          if contained_in_list 
-            state_update_event = "(clicked (prev addedObjType$(clicked_object.type.id)List))"
-          else
-            state_update_event = "(clicked (prev obj$(clicked_object_id)))"
-          end
-          
-          type_id = filter(obj -> !isnothing(obj), object_mapping[object_id])[1].type.id 
-          
-          # HACK: proper way to do this is to look at other trajectories, and notice that the clicked object 
-          # undergoes a state change
-          state_update_function = """(let ((= addedObjType$(type_id)List (updateObj (prev addedObjType$(type_id)List) (--> obj (updateObj obj "field1" 2)))) 
-                                           (= addedObjType$(type_id)List (updateObj addedObjType$(type_id)List (--> obj (updateObj obj "field1" 1)) (--> obj (== (.. obj id) (.. (objClicked click addedObjType$(type_id)List) id)))))
-                                          ))"""
-  
-          state_update_on_clause = """(on $(state_update_event) $(state_update_function))"""
-          push!(state_update_on_clauses, state_update_on_clause)
-          field_name = "field1"
-          field_values = [1, 2]
-          on_clause = "(on $(user_event) $(replace(update_rule, "(--> obj (== (.. obj id) $(object_id)))" => "(--> obj (== (.. obj field1) 1))")))"
-          
-          # construct new object decomposition
-          ## add field to correct ObjType in object_types
-          new_object_types = deepcopy(object_types)
-          new_object_type = filter(type -> type.id == type_id, new_object_types)[1]
-          push!(new_object_type.custom_fields, ("field1", "Int", [1, 2]))
-          
-          ## modify objects in object_mapping
-          unformatted_update_rule = replace(update_rule, "obj$(object_id)" => "objX")
-          unformatted_update_rule = replace(unformatted_update_rule, " id) $(object_id)" => " id) x")
-          new_object_mapping = deepcopy(object_mapping)
-          for object_id in collect(keys(new_object_mapping))
-            object_type_id = filter(x -> !isnothing(x), new_object_mapping[object_id])[1].type.id 
-            if object_type_id == type_id 
-              foreach(obj -> obj.type = new_object_type, filter(x -> !isnothing(x), new_object_mapping[object_id]))
-              updates_before_time = map(rule -> replace(replace(rule, "obj$(object_id)" => "objX"), " id) $(object_id)" => " id) x"), vcat(filtered_matrix[object_id, 1:time_]...))
-              updates_after_time = map(rule -> replace(replace(rule, "obj$(object_id)" => "objX"), " id) $(object_id)" => " id) x"), vcat(filtered_matrix[object_id, time_+1:end]...))
-  
-              if unformatted_update_rule in updates_before_time
-                for obj in new_object_mapping[object_id][1:time_] 
-                  if !isnothing(obj)
-                    obj.custom_field_values = vcat(obj.custom_field_values..., 1)                  
-                  end 
-                end
-              else
-                for obj in new_object_mapping[object_id][1:time_] 
-                  if !isnothing(obj)
-                    obj.custom_field_values = vcat(obj.custom_field_values..., 2)                  
-                  end 
-                end
-              end
-  
-              if unformatted_update_rule in updates_after_time 
-                for obj in new_object_mapping[object_id][time_+1:end] 
-                  if !isnothing(obj)
-                    obj.custom_field_values = vcat(obj.custom_field_values..., 1)                  
-                  end 
-                end
-              else
-                for obj in new_object_mapping[object_id][time_+1:end] 
-                  if !isnothing(obj)
-                    obj.custom_field_values = vcat(obj.custom_field_values..., 2)                  
-                  end 
-                end
-              end
-  
-            end
-          end
-          new_object_decomposition = (new_object_types, new_object_mapping, background, grid_size)
-        end
-      end
-    end  
-  end
-
-  on_clause, state_update_on_clauses, new_object_decomposition, global_var_dict, new_state_update_times
 end
 
 function is_no_change_rule(update_rule)
