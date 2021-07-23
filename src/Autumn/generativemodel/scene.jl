@@ -22,7 +22,7 @@ function generate_and_save_random_scene(rng)
   save("scene.png", colorview(RGBA, image))
 end
 
-"""Generate and save random scene as scene2.png"""
+"""Generate and save random scene as scene_inf.png"""
 function generate_and_save_random_scene_inf(rng)
   image = render_inf(generatescene_objects_inf(rng))
   save("scene_inf.png", colorview(RGBA, image))
