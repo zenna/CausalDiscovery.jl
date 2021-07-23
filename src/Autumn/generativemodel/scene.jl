@@ -10,6 +10,10 @@ Example Use:
 > image = render(generatescene_objects(rng))
 > save("scene.png", colorview(RGBA, image))
 > println(parsescene_image(image))
+
+Example Use for Inference
+> rng = MersenneTwister(0)
+> generate_and_save_random_scene_inf(rng) # saves image as scene2.png
 """
 
 """Generate and save random scene as scene.png"""
