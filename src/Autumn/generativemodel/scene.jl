@@ -48,7 +48,7 @@ function render_inf(objects; gridsize=16, transparent=false)
           if image[y, x] == RGBA(1.0, 0.0, 0.0, 1.0)
             image[y, x] = RGBA(color.r, color.g, color.b, 0.6)
           else
-            new_alpha = image[x,y].alpha + 0.6 - image[x,y].alpha * 0.6
+            new_alpha = image[y,x].alpha + 0.6 - image[y,x].alpha * 0.6
             image[y, x] = RGBA((image[y,x].alpha * image[y,x].r + 0.6*(1 - image[y,x].alpha)*color.r)/new_alpha,
                                (image[y,x].alpha * image[y,x].g + 0.6*(1 - image[y,x].alpha)*color.g)/new_alpha,
                                (image[y,x].alpha * image[y,x].b + 0.6*(1 - image[y,x].alpha)*color.b)/new_alpha,
@@ -189,7 +189,7 @@ function render(types_and_objects)
         if image[y, x] == RGBA(1.0, 0.0, 0.0, 1.0)
           image[y, x] = RGBA(color.r, color.g, color.b, 0.6)
         else
-          new_alpha = image[x,y].alpha + 0.6 - image[x,y].alpha * 0.6
+          new_alpha = image[y,x].alpha + 0.6 - image[y,x].alpha * 0.6
           image[y, x] = RGBA((image[y,x].alpha * image[y,x].r + 0.6*(1 - image[y,x].alpha)*color.r)/new_alpha,
                              (image[y,x].alpha * image[y,x].g + 0.6*(1 - image[y,x].alpha)*color.g)/new_alpha,
                              (image[y,x].alpha * image[y,x].b + 0.6*(1 - image[y,x].alpha)*color.b)/new_alpha,
