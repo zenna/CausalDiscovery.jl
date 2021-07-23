@@ -268,3 +268,31 @@ function generate_observations_gravity(m::Module)
   end
   observations, user_events
 end
+
+function generate_observations_sand(m::Module)
+  state = m.init(nothing, nothing, nothing, nothing, nothing)
+  observations = []
+  user_events = []
+  push!(observations, m.render(state.scene))
+
+  clicks = Dict([2 => (3, 1),
+                 3 => (2, 2),
+                 5 => (7, 0),
+                 7 => (5, 7),
+                 17 => (2, 0),
+                 18 => (0, 3),
+                ])
+
+  for i in 0:20
+    if i in collect(keys(clicks))
+      click_x, click_y = clicks[i]
+      state = m.next(state, m.Click(click_x, click_y), nothing, nothing, nothing, nothing)
+      push!(user_events, "click $(click_x) $(click_y)")
+    else
+      state = m.next(state, nothing, nothing, nothing, nothing, nothing)
+      push!(user_events, nothing)
+    end
+    push!(observations, m.render(state.scene))
+  end
+  observations, user_events
+end

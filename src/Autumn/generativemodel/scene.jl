@@ -12,6 +12,69 @@ Example Use:
 > println(parsescene_image(image))
 """
 
+"""Generate and save random scene as scene.png"""
+function generate_and_save_random_scene(rng)
+  image = render(generatescene_objects(rng))
+  save("scene.png", colorview(RGBA, image))
+end
+
+"""Generate and save random scene as scene2.png"""
+function generate_and_save_random_scene_inf(rng)
+  image = render_inf(generatescene_objects_inf(rng))
+  save("scene_inf.png", colorview(RGBA, image))
+end
+
+# ----- NEW: render functions for inference ----- # 
+
+"""Input: list of objects, where each object is a tuple (shape, color, position)"""
+function render_inf(objects; gridsize=16, transparent=false)
+  background = "white"
+  image = [RGBA(1.0, 0.0, 0.0, 1.0) for x in 1:gridsize, y in 1:gridsize]
+  for object in objects
+    center_x = object[3][1]
+    center_y = object[3][2]
+    shape = object[1]
+    color = rgb(object[2])
+    for shape_position in shape
+      shape_x, shape_y = shape_position
+      x = center_x + shape_x
+      y = center_y + shape_y
+      if (x > 0) && (x <= gridsize) && (y > 0) && (y <= gridsize) # only render in-bound pixel positions
+        if transparent 
+          if image[y, x] == RGBA(1.0, 0.0, 0.0, 1.0)
+            image[y, x] = RGBA(color.r, color.g, color.b, 0.6)
+          else
+            new_alpha = image[x,y].alpha + 0.6 - image[x,y].alpha * 0.6
+            image[y, x] = RGBA((image[y,x].alpha * image[y,x].r + 0.6*(1 - image[y,x].alpha)*color.r)/new_alpha,
+                               (image[y,x].alpha * image[y,x].g + 0.6*(1 - image[y,x].alpha)*color.g)/new_alpha,
+                               (image[y,x].alpha * image[y,x].b + 0.6*(1 - image[y,x].alpha)*color.b)/new_alpha,
+                              new_alpha)
+          end  
+        else
+          image[y, x] = RGBA(color.r, color.g, color.b, 0.6)
+        end
+      end
+    end
+  end
+  for x in 1:gridsize
+    for y in 1:gridsize
+      if image[x, y] == RGBA(1.0, 0.0, 0.0, 1.0)
+        image[x, y] = rgb(background)
+      end
+    end
+  end
+  image
+end
+
+function generatescene_objects_inf(rng=Random.GLOBAL_RNG; gridsize::Int=16)
+  types, objects, background, gridsize = generatescene_objects(rng, gridsize=gridsize)
+  formatted_objects = []
+  for object in sort(objects, by=x->x.type.id)
+    push!(formatted_objects, (object.type.shape, object.type.color, object.position))
+  end
+  formatted_objects
+end
+
 # ----- define colors and color-related functions ----- # 
 
 colors = ["red", "yellow", "green", "blue"]
