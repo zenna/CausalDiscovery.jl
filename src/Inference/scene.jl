@@ -317,8 +317,10 @@ end
 
 function generatescene_objects(rng=Random.GLOBAL_RNG; gridsize::Int=16)
   background = backgroundcolors[rand(1:length(backgroundcolors))]
-  numObjects = rand(rng, 1:20)
-  numTypes = rand(rng, 1:min(numObjects, 5))
+  # numObjects = rand(rng, 1:20)
+  # numTypes = rand(rng, 1:min(numObjects, 5))
+  numObjects = 5 # rand(rng, 1:20)
+  numTypes = 3 # rand(rng, 1:min(numObjects, 5))
   types = [] # each type has form (list of position tuples, index in types list)::Tuple{Array{Tuple{Int, Int}}, Int}
   
   objectPositions = [(rand(rng, 1:gridsize), rand(rng, 1:gridsize)) for x in 1:numObjects]
