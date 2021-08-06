@@ -166,14 +166,9 @@ function synthesize_update_functions(object_id, time, object_decomposition, user
       # @show global_iters
       # @show update_rule
 
-      global expr = striplines(compiletojulia(parseautumn(hypothesis_program)))
-      #@show expr
-      module_name = Symbol("CompiledProgram$(global_iters)")
-      global expr.args[1].args[2] = module_name
-      # @show expr.args[1].args[2]
-      global mod = @eval $(expr)
-      # @show repr(mod)
-      hypothesis_frame_state = @eval mod.next(mod.init(nothing, nothing, nothing, nothing, nothing), nothing, nothing, nothing, nothing, nothing)
+      expr = parseautumn(hypothesis_program)
+      # global expr = striplines(compiletojulia(parseautumn(hypothesis_program)))
+      hypothesis_frame_state = interpret_over_time(expr, 1).state
       
       hypothesis_object = filter(o -> o.id == object_id, hypothesis_frame_state.scene.objects)[1]
       #@show hypothesis_frame_state.scene.objects
@@ -553,19 +548,20 @@ function abstract_position(position, prev_abstract_positions, user_event, object
     hypothesis_position_program = generate_hypothesis_position_program(hypothesis_position, position, object_decomposition)
     println("HYPOTHESIS PROGRAM")
     println(hypothesis_position_program)
-    global expr = striplines(compiletojulia(parseautumn(hypothesis_position_program)))
-    #@show expr
-    module_name = Symbol("CompiledProgram$(global_iters)")
-    global expr.args[1].args[2] = module_name
-    # @show expr.args[1].args[2]
-    global mod = @eval $(expr)
-    # @show repr(mod)
+    expr = parseautumn(hypothesis_position_program)
+    # global expr = striplines(compiletojulia(parseautumn(hypothesis_position_program)))
+    # #@show expr
+    # module_name = Symbol("CompiledProgram$(global_iters)")
+    # global expr.args[1].args[2] = module_name
+    # # @show expr.args[1].args[2]
+    # global mod = @eval $(expr)
+    # # @show repr(mod)
     if !isnothing(user_event) && occursin("click",split(user_event, " ")[1])
       global x = parse(Int, split(user_event, " ")[2])
       global y = parse(Int, split(user_event, " ")[3])
-      hypothesis_frame_state = @eval mod.next(mod.init(nothing, nothing, nothing, nothing, nothing), mod.Click(x, y), nothing, nothing, nothing, nothing)
+      hypothesis_frame_state = interpret_over_time(expr, 1, [(click=AutumnStandardLibrary.Click(x, y),)]).state
     else
-      hypothesis_frame_state = @eval mod.next(mod.init(nothing, nothing, nothing, nothing, nothing), nothing, nothing, nothing, nothing, nothing)
+      hypothesis_frame_state = interpret_over_time(expr, 1).state
     end
 
     hypothesis_matches = hypothesis_frame_state.matchesHistory[1]
@@ -594,14 +590,15 @@ function abstract_string(string, object_decomposition, max_iters=25)
       hypothesis_string_program = generate_hypothesis_string_program(hypothesis_string, string, object_decomposition)
       println("HYPOTHESIS PROGRAM")
       println(hypothesis_string_program)
-      global expr = striplines(compiletojulia(parseautumn(hypothesis_string_program)))
+      expr = parseautumn(hypothesis_string_program)
+      # global expr = striplines(compiletojulia(parseautumn(hypothesis_string_program)))
       #@show expr
-      module_name = Symbol("CompiledProgram$(global_iters)")
-      global expr.args[1].args[2] = module_name
-      # @show expr.args[1].args[2]
-      global mod = @eval $(expr)
+      # module_name = Symbol("CompiledProgram$(global_iters)")
+      # global expr.args[1].args[2] = module_name
+      # # @show expr.args[1].args[2]
+      # global mod = @eval $(expr)
       # @show repr(mod)
-      hypothesis_frame_state = @eval mod.next(mod.init(nothing, nothing, nothing, nothing, nothing), nothing, nothing, nothing, nothing, nothing)
+      hypothesis_frame_state = interpret_over_time(expr, 1).state
       hypothesis_matches = hypothesis_frame_state.matchesHistory[1]
       if hypothesis_matches
         # success 
