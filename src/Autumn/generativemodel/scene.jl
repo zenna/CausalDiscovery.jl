@@ -260,16 +260,19 @@ function program_string_synth_standard_groups(object_decomposition)
   start_objects = sort(filter(obj -> obj != nothing, [object_mapping[i][1] for i in 1:length(collect(keys(object_mapping)))]), by=(x -> x.id))
 
   start_type_mapping = Dict()
+  num_objects_with_type = Dict()
 
   for type in object_types
     start_type_mapping[type.id] = sort(filter(obj -> obj.type.id == type.id, start_objects), by=(x -> x.id))
+    num_objects_with_type[type.id] = count(obj_id -> filter(x -> !isnothing(x), object_mapping[obj_id])[1].type.id == type.id, collect(keys(object_mapping)))
   end
+  
 
-  start_constants_and_lists = vcat(filter(l -> length(l) == 1, map(k -> start_type_mapping[k], collect(keys(start_type_mapping))))..., 
-                                   filter(l -> length(l) > 1, map(k -> start_type_mapping[k], collect(keys(start_type_mapping)))))
+  start_constants_and_lists = vcat(filter(l -> length(l) == 1 && (num_objects_with_type[l[1].type.id] == 1), map(k -> start_type_mapping[k], collect(keys(start_type_mapping))))..., 
+                                   filter(l -> length(l) > 1 || ((num_objects_with_type[l[1].type.id] > 1) && (length(l) == 1)), map(k -> start_type_mapping[k], collect(keys(start_type_mapping)))))
   start_constants_and_lists = sort(start_constants_and_lists, by=x -> x isa Array ? x[1].id : x.id)
 
-  other_list_types = filter(k -> length(start_type_mapping[k]) <= 1, sort(collect(keys(start_type_mapping))))
+  other_list_types = filter(k -> (length(start_type_mapping[k]) == 0) || (length(start_type_mapping[k]) == 1 && num_objects_with_type[k] == 1), sort(collect(keys(start_type_mapping))))
 
   """ 
   (program
@@ -456,44 +459,46 @@ function color_contiguity_autumn(position_to_color, pos1, pos2)
 end
 
 function parsescene_autumn(render_output::AbstractArray, dim::Int=16, background::String="white"; color=true)
-  
-  position_to_color = Dict()
-  for cell in render_output
-    if (cell.position.x, cell.position.y) in keys(position_to_color)
-      push!(position_to_color[(cell.position.x, cell.position.y)], cell.color)
-    else
-      position_to_color[(cell.position.x, cell.position.y)] = [cell.color] 
-    end
-  end
+  colors = unique(map(cell -> cell.color, render_output))
 
-  colored_positions = sort(collect(keys(position_to_color)))
   objectshapes = []
-  visited = []
-  for position in colored_positions
-    if !(position in visited)
-      objectshape = []
-      q = Queue{Any}()
-      enqueue!(q, position)
-      while !isempty(q)
-        pos = dequeue!(q)
-        push!(objectshape, pos)
-        push!(visited, pos)
-        pos_neighbors = neighbors(pos)
-        for n in pos_neighbors
-          if (n in colored_positions) && !(n in visited) && (color ? color_contiguity_autumn(position_to_color, n, pos) : true) 
-            enqueue!(q, n)
+  for c in colors   
+    colored_positions = sort(map(cell -> (cell.position.x, cell.position.y), filter(cell -> cell.color == c, render_output)))
+    if length(unique(colored_positions)) == length(colored_positions) # no overlapping objects of the same color 
+      visited = []
+      for position in colored_positions
+        if !(position in visited)
+          objectshape = []
+          q = Queue{Any}()
+          enqueue!(q, position)
+          while !isempty(q)
+            pos = dequeue!(q)
+            push!(objectshape, (pos, c))
+            push!(visited, pos)
+            pos_neighbors = neighbors(pos)
+            for n in pos_neighbors
+              if (n in colored_positions) && !(n in visited) 
+                enqueue!(q, n)
+              end
+            end
           end
+          push!(objectshapes, objectshape)
         end
       end
-      push!(objectshapes, objectshape)
+    else # overlapping objects of the same color; parse each cell as a different object
+      for position in colored_positions 
+        push!(objectshapes, [(position, c)])
+      end
     end
   end  
+  @show objectshapes
 
   types = []
   objects = []
   # @show length(objectshapes)
-  for objectshape in objectshapes
-    objectcolor = position_to_color[objectshape[1]][1]
+  for objectshape_with_color in objectshapes
+    objectcolor = objectshape_with_color[1][2]
+    objectshape = map(o -> o[1], objectshape_with_color)
     # @show objectcolor 
     # @show objectshape
     translated = map(pos -> dim * pos[2] + pos[1], objectshape)
@@ -526,6 +531,7 @@ function parsescene_autumn_given_types(render_output::AbstractArray, override_ty
   println("OBJECT_TYPES")
   println(standard_types)
   # extract multi-cellular types that do not appear in override_types
+  old_override_types = deepcopy(override_types)
   @show override_types 
   @show standard_types
   types_to_ungroup = filter(s_type -> (length(s_type.shape) > 1), standard_types)
@@ -717,8 +723,8 @@ function parsescene_autumn_given_types(render_output::AbstractArray, override_ty
   @show new_objects 
 
   # take the union of override_types and new_types
-  @show override_types
-  old_types = deepcopy(override_types)
+  @show old_override_types
+  old_types = deepcopy(old_override_types)
   new_object_colors = map(o -> o.type.color, new_objects)
   types_to_add = []
   for new_type in new_types
@@ -749,6 +755,10 @@ function parsescene_autumn_given_types(render_output::AbstractArray, override_ty
     end
   end 
   new_types = vcat(old_types..., types_to_add...)
+
+  for i in 1:length(new_types) 
+    new_types[i].id = i
+  end
 
   println("POST UNION")
   println(new_types)

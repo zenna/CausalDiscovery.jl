@@ -22,7 +22,7 @@
   (on true 
     (= addedObjType2List (updateObj (prev addedObjType2List) (--> obj (moveDown obj)) (--> obj true))))
   
-  (on ((% (prev time) 4) 2) 
+  (on (== (% (prev time) 4) 2) 
     (let ((= addedObjType2List (addObj addedObjType2List (ObjType2  (Position 2 2))))
     (= addedObjType2List (addObj addedObjType2List (ObjType2  (Position 6 2))))
     (= addedObjType2List (addObj addedObjType2List (ObjType2  (Position 10 2))))

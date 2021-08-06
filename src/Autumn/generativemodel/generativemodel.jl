@@ -185,7 +185,7 @@ function generate_hypothesis_position(position, environment_vars)
   #                   "(move (.. $(rand(objects)) origin) (Position $(rand(0:1)) $(rand(0:1))))"]...)
   # end
 
-  if !isnothing(user_event) && (occursin("click", split(user_event, " ")[1])) 
+  if !isnothing(user_event) && (user_event != "nothing") && (occursin("click", split(user_event, " ")[1])) 
     push!(choices, "(Position (.. click x) (.. click y))")
   end
 
@@ -237,10 +237,10 @@ function generate_hypothesis_string_program(hypothesis_string, actual_string, ob
 end
 
 function gen_event_bool(object_decomposition, object_id, user_events, global_var_dict)
-  choices = ["true", "left", "right", "(& clicked (isFree click))", "up", "down"] # "left", "right", "up", "down" "(& clicked (isFree click))", "up", "down"
+  choices = ["true", "(& clicked (isFree click))", "left", "right", "up", "down"] # "left", "right", "up", "down" "(& clicked (isFree click))", "up", "down"
   object_types, object_mapping, _, _ = object_decomposition
   environment_vars = map(k -> object_mapping[k][1], filter(key -> !isnothing(object_mapping[key][1]), collect(keys(object_mapping))))
-  non_list_objects = filter(x -> count(y -> y.type.id == x.type.id, environment_vars) == 1, environment_vars)
+  non_list_objects = filter(x -> (count(y -> y.type.id == x.type.id, environment_vars) == 1) && (count(obj_id -> filter(z -> !isnothing(z), object_mapping[obj_id])[1].type.id == x.type.id, collect(keys(object_mapping))) == 1), environment_vars)
 
   user_events = filter(e -> (e != "") && (e != "nothing"), user_events)
   user_event = filter(x -> !isnothing(x), user_events) == [] ? nothing : filter(x -> !isnothing(x), user_events)[1]
@@ -269,7 +269,7 @@ function gen_event_bool(object_decomposition, object_id, user_events, global_var
   # push!(choices, "(== (% (prev time) 10) 0)")  
   # push!(choices, "(== (% (prev time) 5) 2)")
 
-  push!(choices, "(== (% (prev time) 4) 2)")
+  # push!(choices, "(== (% (prev time) 4) 2)")
 
   # # if "clicked" in user_events
   # push!(choices, "(& clicked (== (prev addedObjType$(type_id)List) (list)))")
@@ -277,19 +277,47 @@ function gen_event_bool(object_decomposition, object_id, user_events, global_var
   # # end
 
   color_fields = filter(tuple -> tuple[1] == "color", filter(t -> t.id == type_id, object_types)[1].custom_fields)
-  if color_fields != [] && !(object_id in map(x -> x.id, non_list_objects))
+  # if color_fields != [] && !(object_id in map(x -> x.id, non_list_objects))
+  #   colors = color_fields[1][3]
+  #   push!(choices, """(intersects (adjacentObjs (first (filter (--> obj (== (.. obj id) $(object_id))) (prev addedObjType$(type_id)List)))) (filter (--> obj (== (.. obj color) "$(rand(colors))")) (prev addedObjType$(type_id)List)))""")
+  # end
+
+  if color_fields != []
     colors = color_fields[1][3]
-    push!(choices, """(intersects (adjacentObjs (first (filter (--> obj (== (.. obj id) $(object_id))) (prev addedObjType$(type_id)List)))) (filter (--> obj (== (.. obj color) "$(rand(colors))")) (prev addedObjType$(type_id)List)))""")
+    # push!(choices, """(intersects (list "$(rand(colors))") (map (--> obj (.. obj color)) (filter (--> obj (== (.. obj id) $(object_id))) (prev addedObjType$(type_id)List))))""")
+    # push!(choices, """(intersects (list "$(rand(colors))" "$(rand(colors))") (map (--> obj (.. obj color)) (filter (--> obj (== (.. obj id) $(object_id))) (prev addedObjType$(type_id)List))))""")
+    # push!(choices, """(intersects (unfold (map (--> obj (adjacentObjs obj)) (filter (--> obj (== (.. obj id) $(object_id))) (prev addedObjType$(type_id)List)))) (filter (--> obj (== (.. obj color) "$(rand(colors))")) (prev addedObjType$(type_id)List)))""")
+
+    # sand
+    # push!(choices, """(intersects (list "tan") (map (--> obj (.. obj color)) (filter (--> obj (== (.. obj id) $(object_id))) (prev addedObjType$(type_id)List))))""")
+    # push!(choices, """(intersects (list "skyblue") (map (--> obj (.. obj color)) (filter (--> obj (== (.. obj id) $(object_id))) (prev addedObjType$(type_id)List))))""")
+    # push!(choices, """(intersects (list "sandybrown" "skyblue") (map (--> obj (.. obj color)) (filter (--> obj (== (.. obj id) $(object_id))) (prev addedObjType$(type_id)List))))""")
+    # push!(choices, """(intersects (unfold (map (--> obj (adjacentObjs obj)) (filter (--> obj (== (.. obj id) $(object_id))) (prev addedObjType$(type_id)List)))) (filter (--> obj (== (.. obj color) "skyblue")) (prev addedObjType$(type_id)List)))""")
+
+    # push!(choices, """(intersects (list "tan") (map (--> obj (.. obj color)) (filter (--> obj (== (.. obj id) $(object_id))) (prev addedObjType$(type_id)List))))""")
+    # push!(choices, """(intersects (list "sandybrown" "skyblue") (map (--> obj (.. obj color)) (filter (--> obj (== (.. obj id) $(object_id))) (prev addedObjType$(type_id)List))))""")
   end
 
 
-  non_color_fields = filter(tuple -> tuple[1] != "color", filter(t -> t.id == type_id, object_types)[1].custom_fields)
-  if (non_color_fields != [])
-    tuple = non_color_fields[1]
-    field_name = tuple[1]
-    field_values = tuple[3]
-    push!(choices, "(& $(rand(["left", "right", "up", "down"])) (== (.. (first (filter (--> obj (== (.. obj id) $(object_id))) (prev addedObjType$(type_id)List))) $(field_name)) $(rand(field_values))))")
+  # non_color_fields = filter(tuple -> tuple[1] != "color", filter(t -> t.id == type_id, object_types)[1].custom_fields)
+  # if (non_color_fields != [])
+  #   tuple = non_color_fields[1]
+  #   field_name = tuple[1]
+  #   field_values = tuple[3]
+  #   push!(choices, "(& $(rand(["left", "right", "up", "down"])) (== (.. (first (filter (--> obj (== (.. obj id) $(object_id))) (prev addedObjType$(type_id)List))) $(field_name)) $(rand(field_values))))")
     
+  # end
+
+  if length(collect(keys(global_var_dict))) != 0
+    for key in collect(keys(global_var_dict)) 
+      values = unique(global_var_dict[1])
+      push!(choices, "(== (prev globalVar$(key)) $(rand(values)))")  
+      push!(choices, "(& (& clicked (isFree click)) (== (prev globalVar$(key)) $(rand(values))))")
+    end
+    # push!(choices, "(& up (== (prev globalVar1) $(rand(values))))")
+    # push!(choices, "(& down (== (prev globalVar1) $(rand(values))))")
+    # push!(choices, "(& left (== (prev globalVar1) $(rand(values))))")
+    # push!(choices, "(& right (== (prev globalVar1) $(rand(values))))")
   end
 
   # if length(collect(keys(global_var_dict))) != 0
@@ -306,15 +334,34 @@ function gen_event_bool(object_decomposition, object_id, user_events, global_var
   #   push!(choices, "(clicked (prev obj$(object.id)))")
   # end
 
-  # for type in object_types 
-  #   if (length(type.custom_fields) > 0) && type.custom_fields[1][1] == "color" 
-  #     color_values = type.custom_fields[1][3]
-  #     push!(choices, """(clicked (filter (--> obj (== (.. obj color) "$(rand(color_values))")) (prev addedObjType$(type.id)List)))""")
+  for type in object_types 
+    if (length(type.custom_fields) > 0) && type.custom_fields[1][1] == "color" 
+      color_values = type.custom_fields[1][3]
+      color = rand(color_values)
+      # push!(choices, """(clicked (filter (--> obj (== (.. obj color) "$(rand(color_values))")) (prev addedObjType$(type.id)List)))""")
+
+      push!(choices, """(intersects (list "$(color)") (filter (--> obj (== (.. obj id) $(object_id))) addedObjType$(type.id)List))""")
+      push!(choices, """(intersects (list "$(color)") (map (--> obj (.. obj color)) (prev addedObjType$(type.id)List)))""")
+      push!(choices, """(& left (intersects (list "$(color)") (map (--> obj (.. obj color)) (prev addedObjType$(type.id)List))))""")
+      push!(choices, """(& right (intersects (list "$(color)") (map (--> obj (.. obj color)) (prev addedObjType$(type.id)List))))""")
+      push!(choices, """(& up (intersects (list "$(color)") (map (--> obj (.. obj color)) (prev addedObjType$(type.id)List))))""")
+      push!(choices, """(clicked (filter (--> obj (== (.. obj color) "$(color)")) (prev addedObjType$(type.id)List)))""")
+      if non_list_objects != []
+        obj = non_list_objects[1]
+        push!(choices, """(& (.. (prev obj$(obj.id)) alive) (& (intersects (list "$(color)") (map (--> obj (.. obj color)) (prev addedObjType$(type.id)List))) (== (.. (.. (prev obj$(obj.id)) origin) y) 13)))""")  
+      end    
+    end
+  end
+  
+  # push!(choices, "(& (clicked (prev addedObjType$(type_id)List)) (in (objClicked click (prev addedObjType$(type_id)List)) (filter (--> obj (== (.. obj id) $(object_id))) (prev addedObjType$(type_id)List))))")
+  # push!(choices, "(& (clicked (prev addedObjType$(type_id)List)) (! (in (objClicked click (prev addedObjType$(type_id)List)) (filter (--> obj (== (.. obj id) $(object_id))) (prev addedObjType$(type_id)List)))))")
+
+  # for id in collect(keys(object_mapping))
+  #   if id < 3 
+  #     object_type_id = filter(obj -> !isnothing(obj), object_mapping[object_id])[1].type.id
+  #     push!(choices, "(clicked (filter (--> obj (== (.. obj id) $(id))) (prev addedObjType$(type_id)List)))")
   #   end
   # end
-  
-  push!(choices, "(& (clicked (prev addedObjType$(type_id)List)) (in (objClicked click (prev addedObjType$(type_id)List)) (filter (--> obj (== (.. obj id) $(object_id))) (prev addedObjType$(type_id)List))))")
-  push!(choices, "(& (clicked (prev addedObjType$(type_id)List)) (! (in (objClicked click (prev addedObjType$(type_id)List)) (filter (--> obj (== (.. obj id) $(object_id))) (prev addedObjType$(type_id)List)))))")
 
   choice = rand(choices)
   println("XYZ")
