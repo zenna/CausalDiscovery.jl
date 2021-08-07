@@ -269,7 +269,7 @@ function program_string_synth_standard_groups(object_decomposition)
   
 
   start_constants_and_lists = vcat(filter(l -> length(l) == 1 && (num_objects_with_type[l[1].type.id] == 1), map(k -> start_type_mapping[k], collect(keys(start_type_mapping))))..., 
-                                   filter(l -> length(l) > 1 || ((num_objects_with_type[l[1].type.id] > 1) && (length(l) == 1)), map(k -> start_type_mapping[k], collect(keys(start_type_mapping)))))
+                                   filter(l -> length(l) > 1 || ((length(l) == 1) && (num_objects_with_type[l[1].type.id] > 1)), map(k -> start_type_mapping[k], collect(keys(start_type_mapping)))))
   start_constants_and_lists = sort(start_constants_and_lists, by=x -> x isa Array ? x[1].id : x.id)
 
   other_list_types = filter(k -> (length(start_type_mapping[k]) == 0) || (length(start_type_mapping[k]) == 1 && num_objects_with_type[k] == 1), sort(collect(keys(start_type_mapping))))

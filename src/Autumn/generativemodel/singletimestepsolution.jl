@@ -24,12 +24,12 @@ function singletimestepsolution_matrix(observations, user_events, grid_size)
                     #  "(= objX (moveRightNoCollision (moveUpNoCollision objX)))",
                     #  "(= objX (moveRightNoCollision (moveDownNoCollision objX)))",
                     #  "(= objX (moveUpNoCollision objX))",
-                     "(= objX (moveUpNoCollision objX))",
-                     "(= objX (moveDownNoCollision objX))",
+                    #  "(= objX (moveUpNoCollision objX))",
+                    #  "(= objX (moveDownNoCollision objX))",
                      "(= objX (moveLeftNoCollision objX))",
                      "(= objX (moveRightNoCollision objX))",
                      "(= objX (nextLiquid objX))",
-                    #  "(= objX (nextSolid objX))",
+                     "(= objX (nextSolid objX))",
                     #  "(= objX (moveDown objX))",
                     #  "(= objX (moveLeft objX))",
                     #  "(= objX (moveRight objX))",
@@ -61,7 +61,7 @@ expr = nothing
 mod = nothing
 global_iters = 0
 """Synthesize a set of update functions that """
-function synthesize_update_functions(object_id, time, object_decomposition, user_events, prev_used_rules, prev_abstract_positions, grid_size=16, max_iters=6)
+function synthesize_update_functions(object_id, time, object_decomposition, user_events, prev_used_rules, prev_abstract_positions, grid_size=16, max_iters=5)
   object_types, object_mapping, background, grid_size = object_decomposition
   @show object_id 
   @show time
@@ -98,7 +98,7 @@ function synthesize_update_functions(object_id, time, object_decomposition, user
       ]
       
       # perform string abstraction 
-      abstracted_strings = [] # abstract_string(next_object.custom_field_values[1], (object_types, prev_objects, background, grid_size))
+      abstracted_strings = abstract_string(next_object.custom_field_values[1], (object_types, prev_objects, background, grid_size))
       if abstracted_strings != []
         abstracted_string = abstracted_strings[1]
         update_rules = vcat(update_rules..., """(= addedObjType$(next_object.type.id)List (addObj addedObjType$(next_object.type.id)List (ObjType$(next_object.type.id) $(abstracted_string) (Position $(next_object.position[1]) $(next_object.position[2])))))""")
@@ -170,6 +170,7 @@ function synthesize_update_functions(object_id, time, object_decomposition, user
       # global expr = striplines(compiletojulia(parseautumn(hypothesis_program)))
       hypothesis_frame_state = interpret_over_time(expr, 1).state
       
+      @show hypothesis_frame_state
       hypothesis_object = filter(o -> o.id == object_id, hypothesis_frame_state.scene.objects)[1]
       #@show hypothesis_frame_state.scene.objects
       #@show hypothesis_object
@@ -190,8 +191,8 @@ function synthesize_update_functions(object_id, time, object_decomposition, user
           global global_iters += 1
           start_objects = filter(obj -> !isnothing(obj), [object_mapping[id][1] for id in collect(keys(object_mapping))])
           prev_objects_maybe_listed = filter(obj -> !isnothing(obj) && !isnothing(object_mapping[obj.id][1]), [object_mapping[id][time - 1] for id in 1:length(collect(keys(object_mapping)))])
-          curr_objects = filter(obj -> (count(id -> (filter(x -> !isnothing(x), object_mapping[id]))[1].type.id == object_mapping[object_id][1].type.id, collect(keys(object_mapping))) == 1), prev_objects_maybe_listed)      
-          abstracted_strings = [] # abstract_string(next_object.custom_field_values[1], (object_types, curr_objects, background, grid_size))
+          curr_objects = filter(obj -> (count(id -> (filter(x -> !isnothing(x), object_mapping[id]))[1].type.id == obj.type.id, collect(keys(object_mapping))) == 1), prev_objects_maybe_listed)      
+          abstracted_strings = abstract_string(next_object.custom_field_values[1], (object_types, curr_objects, background, grid_size))
           
           if abstracted_strings != []
             abstracted_string = abstracted_strings[1]
@@ -217,7 +218,8 @@ function synthesize_update_functions(object_id, time, object_decomposition, user
             # map_lambda_func = replace(string("(-->", replace(update_rule, "obj$(object_id)" => "obj")[3:end]), "(prev obj)" => "(prev obj)")
             push!(solutions, "(= addedObjType$(prev_object.type.id)List (updateObj addedObjType$(prev_object.type.id)List $(map_lambda_func) (--> obj (== (.. obj id) $(object_id)))))")
           else # object was present at the start of the program
-            push!(solutions, replace(update_rule, "obj$(object_id)" => "(prev obj$(object_id))"))
+            update_rule_parts = filter(x -> x != "", split(update_rule, " "))
+            push!(solutions, join([update_rule_parts[1], update_rule_parts[2], replace(join(update_rule_parts[3:end], " "), "obj$(object_id)" => "(prev obj$(object_id))" )], " "))
           end
         end
       end
@@ -373,9 +375,9 @@ function parse_and_map_objects(observations, gridsize=16)
               equal_distance_dict[key] = sort(equal_distance_dict[key], by=x -> length(x[2]))
             end
           end
-          println("TIS I")
-          @show minimum(collect(keys(equal_distance_dict)))
-          @show equal_distance_dict[minimum(collect(keys(equal_distance_dict)))][1]
+          # println("TIS I")
+          # @show minimum(collect(keys(equal_distance_dict)))
+          # @show equal_distance_dict[minimum(collect(keys(equal_distance_dict)))][1]
           closest_objects = vcat(map(key -> equal_distance_dict[key], sort(collect(keys(equal_distance_dict))))...)
         end
       end
@@ -668,13 +670,15 @@ function generate_on_clauses(matrix, object_decomposition, user_events, grid_siz
       if update_rule != "" && !is_no_change_rule(update_rule)
         println("UPDATE_RULEEE")
         println(update_rule)
-        event, event_is_global, event_vector_dict, observation_data_dict = generate_event(update_rule, object_ids[1], object_ids, matrix, filtered_matrix, global_object_decomposition, user_events, state_update_on_clauses, global_var_dict, global_event_vector_dict, grid_size)
+        events, event_is_globals, event_vector_dict, observation_data_dict = generate_event(update_rule, object_ids[1], object_ids, matrix, filtered_matrix, global_object_decomposition, user_events, state_update_on_clauses, global_var_dict, global_event_vector_dict, grid_size)
         global_event_vector_dict = event_vector_dict
-        println("EVENT")
-        println(event)
+        println("EVENTS")
+        println(events)
         @show event_vector_dict
         @show observation_data_dict
-        if event != ""
+        if events != []
+          event = events[1]
+          event_is_global = event_is_globals[1]
           on_clause = format_on_clause(replace(update_rule, ".. obj id) x" => ".. obj id) $(object_ids[1])"), event, object_ids[1], object_ids, object_type, group_addObj_rules, addObj_rules, object_mapping, event_is_global)
           push!(on_clauses, on_clause)
         else # handle construction of new state
@@ -1035,7 +1039,7 @@ end
 # generate_event, generate_hypothesis_position, generate_hypothesis_position_program 
 ## tricky things: add user events, and fix environment 
 global hypothesis_state = nothing
-function generate_event(anonymized_update_rule, object_id, object_ids, matrix, filtered_matrix, object_decomposition, user_events, state_update_on_clauses, global_var_dict, event_vector_dict, grid_size, max_iters=400)
+function generate_event(anonymized_update_rule, object_id, object_ids, matrix, filtered_matrix, object_decomposition, user_events, state_update_on_clauses, global_var_dict, event_vector_dict, grid_size, min_events=1, max_iters=400)
   println("GENERATE EVENT")
   @show object_decomposition
   object_types, object_mapping, background, dim = object_decomposition 
@@ -1097,32 +1101,16 @@ function generate_event(anonymized_update_rule, object_id, object_ids, matrix, f
   println("----------------> LOOK AT ME")
   @show object_decomposition
 
-  iters = 0
-  event = ""
-  final_event_global = true
-  old_events = []
-  while iters < max_iters
-    @show iters
-    event_sampling_max_iters = 800
-    event_sampling_iters = 0
-    event = ""
-    final_event_global = true
-    while event_sampling_iters < event_sampling_max_iters 
+  tried_compound_events = false 
 
-      event = gen_event_bool(object_decomposition, object_ids[1], filter(e -> e != "", unique(user_events)), global_var_dict)
-      if !(event in old_events)
-        push!(old_events, event)
-        break
-      end
-      event_sampling_iters += 1
-      event = ""
-    end
-    println(event)
-
-    if event != "" # new event to try found
+  found_events = []
+  final_event_globals = []
+  events_to_try = unique(vcat(gen_event_bool(object_decomposition, "x", filter(e -> e != "", unique(user_events)), global_var_dict), collect(keys(event_vector_dict))))
+  while true
+    for event in events_to_try 
       event_is_global = !occursin(".. obj id)", event)
-      anonymized_event = replace(event, ".. obj id) $(object_ids[1])" => ".. obj id) x")
-      if !(anonymized_event in keys(event_vector_dict)) || intersect(object_ids, collect(keys(event_vector_dict[anonymized_event]))) == [] # event values are not stored
+      anonymized_event = event # replace(event, ".. obj id) $(object_ids[1])" => ".. obj id) x")
+      if !(anonymized_event in keys(event_vector_dict)) || !(event_vector_dict[anonymized_event] isa AbstractArray) && intersect(object_ids, collect(keys(event_vector_dict[anonymized_event]))) == [] # event values are not stored
         
         if event_is_global # if the event is global, only need to evaluate the event on one object_id 
           event_object_ids = object_ids[1]
@@ -1130,15 +1118,15 @@ function generate_event(anonymized_update_rule, object_id, object_ids, matrix, f
           event_object_ids = collect(keys(object_mapping)) # object_ids; evaluate even for ids not with the current rule's type, for uniformity!!
           event_vector_dict[anonymized_event] = Dict()
         end
-
+  
         for object_id in event_object_ids 
-          formatted_event = replace(event, ".. obj id) $(object_ids[1])" => ".. obj id) $(object_id)")
+          formatted_event = replace(event, ".. obj id) x" => ".. obj id) $(object_id)")
           program_str = singletimestepsolution_program_given_matrix_NEW(matrix, object_decomposition, grid_size) # CHANGE BACK TO DIM LATER
           program_tokens = split(program_str, """(: time Int)\n  (= time (initnext 0 (+ time 1)))""")
-
+  
           # elements to insert between program_tokens[1] and program_tokens[2]
           insertions = ["""(: time Int)\n  (= time (initnext 0 (+ time 1)))""", "\n\t (: event Bool) \n\t (= event (initnext false $(formatted_event)))\n"]
-
+  
           # insert globalVar initialization
           inits = []
           for key in collect(keys(global_var_dict))
@@ -1146,9 +1134,9 @@ function generate_event(anonymized_update_rule, object_id, object_ids, matrix, f
             push!(inits, """\n\t (: globalVar$(key) Int)\n\t (= globalVar$(key) (initnext $(global_var_init_val) (prev globalVar$(key))))""")
           end
           insertions = [insertions[1], inits..., insertions[2]]
-
+  
           program_str = string(program_tokens[1], insertions..., program_tokens[2])
-
+  
           # insert state update on_clauses 
           if (state_update_on_clauses != [])
             state_update_on_clauses_str = join(reverse(state_update_on_clauses), "\n  ")
@@ -1156,38 +1144,56 @@ function generate_event(anonymized_update_rule, object_id, object_ids, matrix, f
           end
                     
           println(program_str)
-          global expr = striplines(compiletojulia(parseautumn(program_str)))
-          #@show expr
-          module_name = Symbol("CompiledProgram$(global_iters)")
-          global expr.args[1].args[2] = module_name
-          # @show expr.args[1].args[2]
-          global mod = @eval $(expr)
-          # @show repr(mod)
+          global expr = parseautumn(program_str)
+          # global expr = striplines(compiletojulia(parseautumn(program_str)))
+          # #@show expr
+          # module_name = Symbol("CompiledProgram$(global_iters)")
+          # global expr.args[1].args[2] = module_name
+          # # @show expr.args[1].args[2]
+          # global mod = @eval $(expr)
+          # # @show repr(mod)
     
-          iters += 1
-          global global_iters += 1
-    
-          global hypothesis_state = @eval mod.init(nothing, nothing, nothing, nothing, nothing)
-          @show hypothesis_state
-          for time in 1:length(user_events)
-            @show time
-            if user_events[time] != nothing && (split(user_events[time], " ")[1] in ["click", "clicked"])
-              global x = parse(Int, split(user_events[time], " ")[2])
-              global y = parse(Int, split(user_events[time], " ")[3])
-    
-              global hypothesis_state = @eval mod.next(hypothesis_state, mod.Click(x, y), nothing, nothing, nothing, nothing)
-            elseif user_events[time] == "left"
-              global hypothesis_state = @eval mod.next(hypothesis_state, nothing, mod.Left(), nothing, nothing, nothing)
-            elseif user_events[time] == "right"
-              global hypothesis_state = @eval mod.next(hypothesis_state, nothing, nothing, mod.Right(), nothing, nothing)
-            elseif user_events[time] == "up"
-              global hypothesis_state = @eval mod.next(hypothesis_state, nothing, nothing, nothing, mod.Up(), nothing)
-            elseif user_events[time] == "down"
-              global hypothesis_state = @eval mod.next(hypothesis_state, nothing, nothing, nothing, nothing, mod.Down())
+          user_events_for_interpreter = []
+          for e in user_events 
+            if isnothing(e) || e == "nothing"
+              push!(user_events_for_interpreter, Dict())
+            elseif e == "left"
+              push!(user_events_for_interpreter, Dict(:left => true))
+            elseif e == "right"
+              push!(user_events_for_interpreter, Dict(:right => true))
+            elseif e == "up"
+              push!(user_events_for_interpreter, Dict(:up => true))
+            elseif e == "down"
+              push!(user_events_for_interpreter, Dict(:down => true))
             else
-              global hypothesis_state = @eval mod.next(hypothesis_state, nothing, nothing, nothing, nothing, nothing)
+              global x = parse(Int, split(e, " ")[2])
+              global y = parse(Int, split(e, " ")[3])
+              push!(user_events_for_interpreter, Dict(:click => AutumnStandardLibrary.Click(x, y)))
             end
           end
+          hypothesis_state = interpret_over_time(expr, length(user_events), user_events_for_interpreter).state
+    
+          # global hypothesis_state = @eval mod.init(nothing, nothing, nothing, nothing, nothing)
+          # @show hypothesis_state
+          # for time in 1:length(user_events)
+          #   @show time
+          #   if user_events[time] != nothing && (split(user_events[time], " ")[1] in ["click", "clicked"])
+          #     global x = parse(Int, split(user_events[time], " ")[2])
+          #     global y = parse(Int, split(user_events[time], " ")[3])
+    
+          #     global hypothesis_state = @eval mod.next(hypothesis_state, mod.Click(x, y), nothing, nothing, nothing, nothing)
+          #   elseif user_events[time] == "left"
+          #     global hypothesis_state = @eval mod.next(hypothesis_state, nothing, mod.Left(), nothing, nothing, nothing)
+          #   elseif user_events[time] == "right"
+          #     global hypothesis_state = @eval mod.next(hypothesis_state, nothing, nothing, mod.Right(), nothing, nothing)
+          #   elseif user_events[time] == "up"
+          #     global hypothesis_state = @eval mod.next(hypothesis_state, nothing, nothing, nothing, mod.Up(), nothing)
+          #   elseif user_events[time] == "down"
+          #     global hypothesis_state = @eval mod.next(hypothesis_state, nothing, nothing, nothing, nothing, mod.Down())
+          #   else
+          #     global hypothesis_state = @eval mod.next(hypothesis_state, nothing, nothing, nothing, nothing, nothing)
+          #   end
+          # end
           event_values = map(key -> hypothesis_state.eventHistory[key], sort(collect(keys(hypothesis_state.eventHistory))))[2:end]
   
           # update event_vector_dict 
@@ -1199,7 +1205,7 @@ function generate_event(anonymized_update_rule, object_id, object_ids, matrix, f
         end
       end
       event_values_dicts = []
-      if event_vector_dict[anonymized_event] isa Array 
+      if event_vector_dict[anonymized_event] isa AbstractArray 
         event_values_dict = Dict()
         for object_id in object_ids 
           event_values_dict[object_id] = event_vector_dict[anonymized_event]
@@ -1209,7 +1215,7 @@ function generate_event(anonymized_update_rule, object_id, object_ids, matrix, f
         # add object-specific event values
         event_values_dict = Dict() 
         for object_id in object_ids 
-          event_values_dict[object_id] = event_vector_dict[anonymized_event]
+          event_values_dict[object_id] = event_vector_dict[anonymized_event][object_id]
         end
         push!(event_values_dicts, (event, event_values_dict))
         
@@ -1223,7 +1229,7 @@ function generate_event(anonymized_update_rule, object_id, object_ids, matrix, f
           push!(event_values_dicts, (object_specific_event, object_specific_event_values_dict))
         end
       end
-
+  
       # check if event_values match true_times/false_times 
       @show observation_data_dict
       @show event_values_dicts
@@ -1250,28 +1256,28 @@ function generate_event(anonymized_update_rule, object_id, object_ids, matrix, f
           break
         end
       end
-
+  
       if equals
+        push!(found_events, event)
         println("SUCCESS")
         if occursin("obj id) x", event)
-          final_event_global = false
+          push!(final_event_globals, false)
         else
-          final_event_global = true
+          push!(final_event_globals, true)
         end
         break
-      else
-        event = ""
       end
+    end
+
+    if length(found_events) < min_events && !tried_compound_events
+      events_to_try = construct_compound_events(event_vector_dict)
+      tried_compound_events = true
     else
       break
     end
-    if event_sampling_iters == 600
-      break 
-    else
-      iters += 1
-    end
   end
-  event, final_event_global, event_vector_dict, observation_data_dict    
+  @show found_events
+  found_events, final_event_globals, event_vector_dict, observation_data_dict    
 end
 
 # generation of new global state 
