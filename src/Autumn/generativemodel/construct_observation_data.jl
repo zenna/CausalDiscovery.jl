@@ -1,158 +1,144 @@
 function generate_observations_ice(m::Module)
-  state = m.init(nothing, nothing, nothing, nothing, nothing)
+  state = Base.invokelatest(m.init, nothing, nothing, nothing, nothing, nothing)
   observations = []
   user_events = []
-  push!(observations, m.render(state.scene))
+  push!(observations, Base.invokelatest(m.render, state.scene))
 
   for i in 0:20
     if i in [2, 7, 12] # 17
-      # state = m.next(state, nothing, nothing, nothing, nothing, nothing)
-      state = m.next(state, nothing, nothing, nothing, nothing, mod.Down())
+      # state = Base.invokelatest(m.next(state, nothing, nothing, nothing, nothing, nothing)
+      state = Base.invokelatest(m.next, state, nothing, nothing, nothing, nothing, Base.invokelatest(m.Down))
       push!(user_events, "down")
     elseif i == 10
-      state = m.next(state, nothing, nothing, mod.Right(), nothing, nothing)
+      state = Base.invokelatest(m.next, state, nothing, nothing, Base.invokelatest(m.Right), nothing, nothing)
       push!(user_events, "right")
     elseif i == 14
-      state = m.next(state, nothing, mod.Left(), nothing, nothing, nothing)
+      state = Base.invokelatest(m.next, state, nothing, Base.invokelatest(m.Left), nothing, nothing, nothing)
       push!(user_events, "left")
     elseif i == 5 || i == 16
       x = rand(1:6)
       y = rand(1:6)
-      state = m.next(state, m.Click(x, y), nothing, nothing, nothing, nothing)
+      state = Base.invokelatest(m.next, state, Base.invokelatest(m.Click, x, y), nothing, nothing, nothing, nothing)
       push!(user_events, "clicked $(x) $(y)")
     else
-      state = m.next(state, nothing, nothing, nothing, nothing, nothing)
+      state = Base.invokelatest(m.next, state, nothing, nothing, nothing, nothing, nothing)
       push!(user_events, nothing)
     end
-    push!(observations, m.render(state.scene))
+    push!(observations, Base.invokelatest(m.render, state.scene))
   end
-  observations, user_events
+  observations, user_events, 8
 end
 
 function generate_observations_particles(m::Module)
-  state = m.init(nothing, nothing, nothing, nothing, nothing)
+  state = Base.invokelatest(m.init, nothing, nothing, nothing, nothing, nothing)
   observations = []
   user_events = []
-  push!(observations, m.render(state.scene))
+  push!(observations, Base.invokelatest(m.render, state.scene))
 
   for i in 0:20
     if i in [2, 5, 8] # 17
-      # state = m.next(state, nothing, nothing, nothing, nothing, nothing)
+      # state = Base.invokelatest(m.next(state, nothing, nothing, nothing, nothing, nothing)
       x = rand(1:10)
       y = rand(1:10)
-      state = m.next(state, m.Click(x, y), nothing, nothing, nothing, nothing)
+      state = Base.invokelatest(m.next, state, Base.invokelatest(m.Click, x, y), nothing, nothing, nothing, nothing)
       push!(user_events, "clicked $(x) $(y)")
     else
-      state = m.next(state, nothing, nothing, nothing, nothing, nothing)
+      state = Base.invokelatest(m.next, state, nothing, nothing, nothing, nothing, nothing)
       push!(user_events, nothing)
     end
-    push!(observations, m.render(state.scene))
+    push!(observations, Base.invokelatest(m.render, state.scene))
   end
-  observations, user_events
+  observations, user_events, 16
 end
 
-function generate_observations_ants(m::Module)
-  state = m.init(nothing, nothing, nothing, nothing, nothing)
-  observations = []
-  user_events = []
-  push!(observations, m.render(state.scene))
-
-  for i in 0:20
-    if i in [4] 
-      state = m.next(state, m.Click(7,7), nothing, nothing, nothing, nothing)
-      push!(user_events, "clicked 7 7")
-    else
-      state = m.next(state, nothing, nothing, nothing, nothing, nothing)
-      push!(user_events, "nothing")
-    end
-    push!(observations, m.render(state.scene))
-  end
-  observations, user_events
-end
 
 function generate_observations_lights(m::Module)
-  state = m.init(nothing, nothing, nothing, nothing, nothing)
+  state = Base.invokelatest(m.init, nothing, nothing, nothing, nothing, nothing)
   observations = []
   user_events = []
-  push!(observations, m.render(state.scene))
+  push!(observations, Base.invokelatest(m.render, state.scene))
 
-  for i in 0:20
-    if i == 2
-      state = m.next(state, m.Click(3, 2), nothing, nothing, nothing, nothing)
-      push!(user_events, "clicked 3 2")
-    elseif i == 5 
-      state = m.next(state, m.Click(4, 5), nothing, nothing, nothing, nothing)
-      push!(user_events, "clicked 4 5")
+  clicks = Dict([1 => (4, 3),
+                 3 => (7, 7),
+                 5 => (1, 13),
+                 7 => (8, 10),
+                ])
+
+  for i in 0:22
+    if i in collect(keys(clicks))
+      click_x, click_y = clicks[i]
+      state = Base.invokelatest(m.next, state, Base.invokelatest(m.Click, click_x, click_y), nothing, nothing, nothing, nothing)
+      push!(user_events, "click $(click_x) $(click_y)")
     else
-      state = m.next(state, nothing, nothing, nothing, nothing, nothing)
+      state = Base.invokelatest(m.next, state, nothing, nothing, nothing, nothing, nothing)
       push!(user_events, nothing)
     end
-    push!(observations, m.render(state.scene))
+    push!(observations, Base.invokelatest(m.render, state.scene))
   end
-  observations, user_events
+  observations, user_events, 10
 end
 
 function generate_observations_space_invaders(m::Module)
-  state = m.init(nothing, nothing, nothing, nothing, nothing)
+  state = Base.invokelatest(m.init, nothing, nothing, nothing, nothing, nothing)
   observations = []
   user_events = []
-  push!(observations, m.render(state.scene))
+  push!(observations, Base.invokelatest(m.render, state.scene))
 
   for i in 0:20
     if i in [3, 10, 16]
-      state = m.next(state, nothing, nothing, nothing, m.Up(), nothing)
+      state = Base.invokelatest(m.next, state, nothing, nothing, nothing, Base.invokelatest(m.Up), nothing)
       push!(user_events, "up")
     elseif i in [6] 
-      state = m.next(state, nothing, m.Left(), nothing, nothing, nothing)
+      state = Base.invokelatest(m.next, state, nothing, Base.invokelatest(m.Left), nothing, nothing, nothing)
       push!(user_events, "left")
     elseif i in [12]
-      state = m.next(state, nothing, nothing, m.Right(), nothing, nothing)
+      state = Base.invokelatest(m.next, state, nothing, nothing, Base.invokelatest(m.Right), nothing, nothing)
       push!(user_events, "right")
     else
-      state = m.next(state, nothing, nothing, nothing, nothing, nothing)
+      state = Base.invokelatest(m.next, state, nothing, nothing, nothing, nothing, nothing)
       push!(user_events, nothing)
     end
-    push!(observations, m.render(state.scene))
+    push!(observations, Base.invokelatest(m.render, state.scene))
   end
-  observations, user_events
+  observations, user_events, 8
 end
 
 function generate_observations_disease(m::Module)
-  state = m.init(nothing, nothing, nothing, nothing, nothing)
+  state = Base.invokelatest(m.init, nothing, nothing, nothing, nothing, nothing)
   observations = []
   user_events = []
-  push!(observations, m.render(state.scene))
+  push!(observations, Base.invokelatest(m.render, state.scene))
 
   for i in 0:20
     if i in [4, 7, 15]
-      state = m.next(state, nothing, nothing, nothing, nothing, m.Down())
+      state = Base.invokelatest(m.next, state, nothing, nothing, nothing, nothing, Base.invokelatest(m.Down))
       push!(user_events, "down")
     elseif i in [2, 13, 16]
-      state = m.next(state, nothing, nothing, nothing, m.Up(), nothing)
+      state = Base.invokelatest(m.next, state, nothing, nothing, nothing, Base.invokelatest(m.Up), nothing)
       push!(user_events, "up")
     elseif i in [1, 12] 
-      state = m.next(state, nothing, m.Left(), nothing, nothing, nothing)
+      state = Base.invokelatest(m.next, state, nothing, Base.invokelatest(m.Left), nothing, nothing, nothing)
       push!(user_events, "left")
     elseif i in [6, 14]
-      state = m.next(state, nothing, nothing, m.Right(), nothing, nothing)
+      state = Base.invokelatest(m.next, state, nothing, nothing, Base.invokelatest(m.Right), nothing, nothing)
       push!(user_events, "right")
     elseif i in [10]
-      state = m.next(state, m.Click(4, 4), nothing, nothing, nothing, nothing)
+      state = Base.invokelatest(m.next, state, Base.invokelatest(m.Click, 4, 4), nothing, nothing, nothing, nothing)
       push!(user_events, "click 4 4")
     else
-      state = m.next(state, nothing, nothing, nothing, nothing, nothing)
+      state = Base.invokelatest(m.next, state, nothing, nothing, nothing, nothing, nothing)
       push!(user_events, nothing)
     end
-    push!(observations, m.render(state.scene))
+    push!(observations, Base.invokelatest(m.render, state.scene))
   end
-  observations, user_events
+  observations, user_events, 8
 end
 
 function generate_observations_water_plug(m::Module)
-  state = m.init(nothing, nothing, nothing, nothing, nothing)
+  state = Base.invokelatest(m.init, nothing, nothing, nothing, nothing, nothing)
   observations = []
   user_events = []
-  push!(observations, m.render(state.scene))
+  push!(observations, Base.invokelatest(m.render, state.scene))
 
   clicks = Dict([1 => (4, 5),
                  2 => (8, 3),
@@ -174,22 +160,22 @@ function generate_observations_water_plug(m::Module)
   for i in 0:25
     if i in collect(keys(clicks))
       click_x, click_y = clicks[i]
-      state = m.next(state, m.Click(click_x, click_y), nothing, nothing, nothing, nothing)
+      state = Base.invokelatest(m.next, state, Base.invokelatest(m.Click, click_x, click_y), nothing, nothing, nothing, nothing)
       push!(user_events, "click $(click_x) $(click_y)")
     else
-      state = m.next(state, nothing, nothing, nothing, nothing, nothing)
+      state = Base.invokelatest(m.next, state, nothing, nothing, nothing, nothing, nothing)
       push!(user_events, nothing)
     end
-    push!(observations, m.render(state.scene))
+    push!(observations, Base.invokelatest(m.render, state.scene))
   end
-  observations, user_events
+  observations, user_events, 16
 end
 
 function generate_observations_paint(m::Module)
-  state = m.init(nothing, nothing, nothing, nothing, nothing)
+  state = Base.invokelatest(m.init, nothing, nothing, nothing, nothing, nothing)
   observations = []
   user_events = []
-  push!(observations, m.render(state.scene))
+  push!(observations, Base.invokelatest(m.render, state.scene))
 
   clicks = Dict([1 => (4, 5),
                  2 => (8, 3),
@@ -204,47 +190,47 @@ function generate_observations_paint(m::Module)
   for i in 0:25
     if i in collect(keys(clicks))
       click_x, click_y = clicks[i]
-      state = m.next(state, m.Click(click_x, click_y), nothing, nothing, nothing, nothing)
+      state = Base.invokelatest(m.next, state, Base.invokelatest(m.Click, click_x, click_y), nothing, nothing, nothing, nothing)
       push!(user_events, "click $(click_x) $(click_y)")
     elseif i in [4, 8, 11, 14, 17]
-      state = m.next(state, nothing, nothing, nothing, m.Up(), nothing)
+      state = Base.invokelatest(m.next, state, nothing, nothing, nothing, Base.invokelatest(m.Up), nothing)
       push!(user_events, "up")
     else
-      state = m.next(state, nothing, nothing, nothing, nothing, nothing)
+      state = Base.invokelatest(m.next, state, nothing, nothing, nothing, nothing, nothing)
       push!(user_events, nothing)
     end
-    push!(observations, m.render(state.scene))
+    push!(observations, Base.invokelatest(m.render, state.scene))
   end
-  observations, user_events
+  observations, user_events, 16
 end
 
 function generate_observations_wind(m::Module)
-  state = m.init(nothing, nothing, nothing, nothing, nothing)
+  state = Base.invokelatest(m.init, nothing, nothing, nothing, nothing, nothing)
   observations = []
   user_events = []
-  push!(observations, m.render(state.scene))
+  push!(observations, Base.invokelatest(m.render, state.scene))
 
   for i in 0:17
     if i in [8, 11]
-      state = m.next(state, nothing, m.Left(), nothing, nothing, nothing)
+      state = Base.invokelatest(m.next, state, nothing, Base.invokelatest(m.Left), nothing, nothing, nothing)
       push!(user_events, "left")
     elseif i in [4, 14]
-      state = m.next(state, nothing, nothing, m.Right(), nothing, nothing)
+      state = Base.invokelatest(m.next, state, nothing, nothing, Base.invokelatest(m.Right), nothing, nothing)
       push!(user_events, "right")
     else
-      state = m.next(state, nothing, nothing, nothing, nothing, nothing)
+      state = Base.invokelatest(m.next, state, nothing, nothing, nothing, nothing, nothing)
       push!(user_events, nothing)
     end
-    push!(observations, m.render(state.scene))
+    push!(observations, Base.invokelatest(m.render, state.scene))
   end
-  observations, user_events
+  observations, user_events, 17
 end
 
 function generate_observations_gravity(m::Module)
-  state = m.init(nothing, nothing, nothing, nothing, nothing)
+  state = Base.invokelatest(m.init, nothing, nothing, nothing, nothing, nothing)
   observations = []
   user_events = []
-  push!(observations, m.render(state.scene))
+  push!(observations, Base.invokelatest(m.render, state.scene))
 
   clicks = Dict([1 => (5, 6),
                  2 => (2, 3),
@@ -258,22 +244,22 @@ function generate_observations_gravity(m::Module)
   for i in 0:17
     if i in collect(keys(clicks))
       click_x, click_y = clicks[i]
-      state = m.next(state, m.Click(click_x, click_y), nothing, nothing, nothing, nothing)
+      state = Base.invokelatest(m.next, state, Base.invokelatest(m.Click, click_x, click_y), nothing, nothing, nothing, nothing)
       push!(user_events, "click $(click_x) $(click_y)")
     else
-      state = m.next(state, nothing, nothing, nothing, nothing, nothing)
+      state = Base.invokelatest(m.next, state, nothing, nothing, nothing, nothing, nothing)
       push!(user_events, nothing)
     end
-    push!(observations, m.render(state.scene))
+    push!(observations, Base.invokelatest(m.render, state.scene))
   end
-  observations, user_events
+  observations, user_events, 16
 end
 
 function generate_observations_sand(m::Module)
-  state = m.init(nothing, nothing, nothing, nothing, nothing)
+  state = Base.invokelatest(m.init, nothing, nothing, nothing, nothing, nothing)
   observations = []
   user_events = []
-  push!(observations, m.render(state.scene))
+  push!(observations, Base.invokelatest(m.render, state.scene))
 
   clicks = Dict([2 => (3, 1),
                  3 => (2, 2),
@@ -286,22 +272,22 @@ function generate_observations_sand(m::Module)
   for i in 0:20
     if i in collect(keys(clicks))
       click_x, click_y = clicks[i]
-      state = m.next(state, m.Click(click_x, click_y), nothing, nothing, nothing, nothing)
+      state = Base.invokelatest(m.next, state, Base.invokelatest(m.Click, click_x, click_y), nothing, nothing, nothing, nothing)
       push!(user_events, "click $(click_x) $(click_y)")
     else
-      state = m.next(state, nothing, nothing, nothing, nothing, nothing)
+      state = Base.invokelatest(m.next, state, nothing, nothing, nothing, nothing, nothing)
       push!(user_events, nothing)
     end
-    push!(observations, m.render(state.scene))
+    push!(observations, Base.invokelatest(m.render, state.scene))
   end
-  observations, user_events
+  observations, user_events, 10
 end
 
 function generate_observations_sand_simple(m::Module)
-  state = m.init(nothing, nothing, nothing, nothing, nothing)
+  state = Base.invokelatest(m.init, nothing, nothing, nothing, nothing, nothing)
   observations = []
   user_events = []
-  push!(observations, m.render(state.scene))
+  push!(observations, Base.invokelatest(m.render, state.scene))
 
   clicks = Dict([2 => (2, 7),
                  4 => (2, 5),
@@ -313,25 +299,25 @@ function generate_observations_sand_simple(m::Module)
                  18 => (5, 3),
                 ])
 
-  for i in 0:20
+  for i in 0:30
     if i in collect(keys(clicks))
       click_x, click_y = clicks[i]
-      state = m.next(state, m.Click(click_x, click_y), nothing, nothing, nothing, nothing)
+      state = Base.invokelatest(m.next, state, Base.invokelatest(m.Click, click_x, click_y), nothing, nothing, nothing, nothing)
       push!(user_events, "click $(click_x) $(click_y)")
     else
-      state = m.next(state, nothing, nothing, nothing, nothing, nothing)
+      state = Base.invokelatest(m.next, state, nothing, nothing, nothing, nothing, nothing)
       push!(user_events, nothing)
     end
-    push!(observations, m.render(state.scene))
+    push!(observations, Base.invokelatest(m.render, state.scene))
   end
-  observations, user_events
+  observations, user_events, 10
 end
 
 function generation_observations_gravity3(m::Module)
-  state = m.init(nothing, nothing, nothing, nothing, nothing)
+  state = Base.invokelatest(m.init, nothing, nothing, nothing, nothing, nothing)
   observations = []
   user_events = []
-  push!(observations, m.render(state.scene))
+  push!(observations, Base.invokelatest(m.render, state.scene))
 
   events = Dict([1 => "left",
                  2 => "up",
@@ -363,57 +349,57 @@ function generation_observations_gravity3(m::Module)
     if i in collect(keys(events))
       event = events[i]
       if event == "left"
-        state = m.next(state, nothing, mod.Left(), nothing, nothing, nothing)
+        state = Base.invokelatest(m.next, state, nothing, Base.invokelatest(m.Left), nothing, nothing, nothing)
       elseif event == "right"
-        state = m.next(state, nothing, nothing, mod.Right(), nothing, nothing)
+        state = Base.invokelatest(m.next, state, nothing, nothing, Base.invokelatest(m.Right), nothing, nothing)
       elseif event == "up"
-        state = m.next(state, nothing, nothing, nothing, mod.Up(), nothing)
+        state = Base.invokelatest(m.next, state, nothing, nothing, nothing, Base.invokelatest(m.Up), nothing)
       elseif event == "down"
-        state = m.next(state, nothing, nothing, nothing, nothing, mod.Down())
+        state = Base.invokelatest(m.next, state, nothing, nothing, nothing, nothing, Base.invokelatest(m.Down))
       end
       push!(user_events, event)
     else
-      state = m.next(state, nothing, nothing, nothing, nothing, nothing)
+      state = Base.invokelatest(m.next, state, nothing, nothing, nothing, nothing, nothing)
       push!(user_events, nothing)
     end
-    push!(observations, m.render(state.scene))
+    push!(observations, Base.invokelatest(m.render, state.scene))
   end
-  observations, user_events
+  observations, user_events, 16
 end
 
 function generate_observations_egg(m::Module)
   state = m.init(nothing, nothing, nothing, nothing, nothing)
   observations = []
   user_events = []
-  push!(observations, m.render(state.scene))
+  push!(observations, Base.invokelatest(m.render, state.scene))
 
   for i in 0:24 
     if i < 9
-      state = m.next(state, nothing, nothing, nothing, m.Up(), nothing)
+      state = Base.invokelatest(m.next, state, nothing, nothing, nothing, Base.invokelatest(m.Up), nothing)
       push!(user_events, "up")
     elseif i in [12, 17]
-      state = m.next(state, nothing, m.Left(), nothing, nothing, nothing)
+      state = Base.invokelatest(m.next, state, nothing, Base.invokelatest(m.Left), nothing, nothing, nothing)
       push!(user_events, "left")
     elseif i in [13, 18]
-      state = m.next(state, nothing, nothing, m.Right(), nothing, nothing)
+      state = Base.invokelatest(m.next, state, nothing, nothing, Base.invokelatest(m.Right), nothing, nothing)
       push!(user_events, "right")
     elseif i == 14
-      state = m.next(state, m.Click(0, 0), nothing, nothing, nothing, nothing)
+      state = Base.invokelatest(m.next, state, Base.invokelatest(m.Click, 0, 0), nothing, nothing, nothing, nothing)
       push!(user_events, "click 0 0")
     else
-      state = m.next(state, nothing, nothing, nothing, nothing, nothing)
+      state = Base.invokelatest(m.next, state, nothing, nothing, nothing, nothing, nothing)
       push!(user_events, nothing)
     end
-    push!(observations, m.render(state.scene))
+    push!(observations, Base.invokelatest(m.render, state.scene))
   end
-  observations, user_events
+  observations, user_events, 16
 end
 
 function generate_observations_grow(m::Module)
-  state = m.init(nothing, nothing, nothing, nothing, nothing)
+  state = Base.invokelatest(m.init, nothing, nothing, nothing, nothing, nothing)
   observations = []
   user_events = []
-  push!(observations, m.render(state.scene))
+  push!(observations, Base.invokelatest(m.render, state.scene))
 
   events = Dict([1 => "left",
                  2 => "down",
@@ -446,29 +432,29 @@ function generate_observations_grow(m::Module)
     if i in collect(keys(events))
       event = events[i]
       if event == "left"
-        state = m.next(state, nothing, m.Left(), nothing, nothing, nothing)
+        state = Base.invokelatest(m.next, state, nothing, Base.invokelatest(m.Left), nothing, nothing, nothing)
         push!(user_events, event)
       elseif event == "right"
-        state = m.next(state, nothing, nothing, m.Right(), nothing, nothing)
+        state = Base.invokelatest(m.next, state, nothing, nothing, Base.invokelatest(m.Right), nothing, nothing)
         push!(user_events, event)
       elseif event == "up"
-        state = m.next(state, nothing, nothing, nothing, m.Up(), nothing)
+        state = Base.invokelatest(m.next, state, nothing, nothing, nothing, Base.invokelatest(m.Up), nothing)
         push!(user_events, event)
       elseif event == "down"
-        state = m.next(state, nothing, nothing, nothing, nothing, m.Down())
+        state = Base.invokelatest(m.next, state, nothing, nothing, nothing, nothing, Base.invokelatest(m.Down))
         push!(user_events, event)
       else 
         click_x, click_y = events[i]
-        state = m.next(state, m.Click(click_x, click_y), nothing, nothing, nothing, nothing)
+        state = Base.invokelatest(m.next, state, Base.invokelatest(m.Click, click_x, click_y), nothing, nothing, nothing, nothing)
         push!(user_events, "click $(click_x) $(click_y)")
       end
     else
-      state = m.next(state, nothing, nothing, nothing, nothing, nothing)
+      state = Base.invokelatest(m.next, state, nothing, nothing, nothing, nothing, nothing)
       push!(user_events, nothing)
     end
-    push!(observations, m.render(state.scene))
+    push!(observations, Base.invokelatest(m.render, state.scene))
   end
-  observations, user_events
+  observations, user_events, 8
 end
 
 function generate_observations_sokoban(m::Module)
@@ -492,10 +478,10 @@ function generate_observations_magnets3(m::Module)
 end
 
 function generate_observations_gravity2(m::Module)
-  state = m.init(nothing, nothing, nothing, nothing, nothing)
+  state = Base.invokelatest(m.init, nothing, nothing, nothing, nothing, nothing)
   observations = []
   user_events = []
-  push!(observations, m.render(state.scene))
+  push!(observations, Base.invokelatest(m.render, state.scene))
 
   clicks = Dict([1 => (15, 6),
                  3 => (12, 3),
@@ -507,18 +493,105 @@ function generate_observations_gravity2(m::Module)
                  15 => (29, 14),
                  17 => (14, 0),
                  19 => (14, 29),
+                 20 => (28, 5),
                   ])
 
   for i in 0:22
     if i in collect(keys(clicks))
       click_x, click_y = clicks[i]
-      state = m.next(state, m.Click(click_x, click_y), nothing, nothing, nothing, nothing)
+      state = Base.invokelatest(m.next, state, Base.invokelatest(m.Click, click_x, click_y), nothing, nothing, nothing, nothing)
       push!(user_events, "click $(click_x) $(click_y)")
     else
-      state = m.next(state, nothing, nothing, nothing, nothing, nothing)
+      state = Base.invokelatest(m.next, state, nothing, nothing, nothing, nothing, nothing)
       push!(user_events, nothing)
     end
-    push!(observations, m.render(state.scene))
+    push!(observations, Base.invokelatest(m.render, state.scene))
   end
-  observations, user_events
+  observations, user_events, 30
+end
+
+function generate_observations_particles(m::Module)
+  state = Base.invokelatest(m.init, nothing, nothing, nothing, nothing, nothing)
+  observations = []
+  user_events = []
+  push!(observations, Base.invokelatest(m.render, state.scene))
+
+  clicks = Dict([1 => (4, 3),
+                 3 => (13, 13),
+                 5 => (9, 9),
+                ])
+
+  for i in 0:22
+    if i in collect(keys(clicks))
+      click_x, click_y = clicks[i]
+      state = Base.invokelatest(m.next, state, Base.invokelatest(m.Click, click_x, click_y), nothing, nothing, nothing, nothing)
+      push!(user_events, "click $(click_x) $(click_y)")
+    else
+      state = Base.invokelatest(m.next, state, nothing, nothing, nothing, nothing, nothing)
+      push!(user_events, nothing)
+    end
+    push!(observations, Base.invokelatest(m.render, state.scene))
+  end
+  observations, user_events, 16
+end
+
+function generate_observations_chase(m::Module) 
+  state = Base.invokelatest(m.init, nothing, nothing, nothing, nothing, nothing)
+  observations = []
+  user_events = []
+  push!(observations, Base.invokelatest(m.render, state.scene))
+
+  events = Dict([1 => "down",
+                 2 => "up",
+                 3 => "left",
+                 4 => "right",
+                ])
+
+  for i in 0:20
+    if i in collect(keys(events))
+      event = events[i]
+      if event == "left"
+        state = Base.invokelatest(m.next, state, nothing, Base.invokelatest(m.Left), nothing, nothing, nothing)
+        push!(user_events, event)
+      elseif event == "right"
+        state = Base.invokelatest(m.next, state, nothing, nothing, Base.invokelatest(m.Right), nothing, nothing)
+        push!(user_events, event)
+      elseif event == "up"
+        state = Base.invokelatest(m.next, state, nothing, nothing, nothing, Base.invokelatest(m.Up), nothing)
+        push!(user_events, event)
+      elseif event == "down"
+        state = Base.invokelatest(m.next, state, nothing, nothing, nothing, nothing, Base.invokelatest(m.Down))
+        push!(user_events, event)
+      end
+    else
+      state = Base.invokelatest(m.next, state, nothing, nothing, nothing, nothing, nothing)
+      push!(user_events, nothing)
+    end
+    push!(observations, Base.invokelatest(m.render, state.scene))
+  end
+  observations, user_events, 16
+end
+
+function generate_observations_ants(m::Module)
+  state = Base.invokelatest(m.init, nothing, nothing, nothing, nothing, nothing)
+  observations = []
+  user_events = []
+  push!(observations, Base.invokelatest(m.render, state.scene))
+
+  clicks = Dict([1 => (4, 3),
+                 5 => (13, 13),
+                ])
+
+  for i in 0:22
+    if i in collect(keys(clicks))
+      click_x, click_y = clicks[i]
+      state = Base.invokelatest(m.next, state, Base.invokelatest(m.Click, click_x, click_y), nothing, nothing, nothing, nothing)
+      push!(user_events, "click $(click_x) $(click_y)")
+    else
+      state = Base.invokelatest(m.next, state, nothing, nothing, nothing, nothing, nothing)
+      push!(user_events, nothing)
+    end
+    push!(observations, Base.invokelatest(m.render, state.scene))
+  end
+  observations, user_events, 16
 end

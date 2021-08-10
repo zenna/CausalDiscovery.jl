@@ -6,14 +6,30 @@ include("generativemodel.jl")
 include("state_construction_utils.jl")
 include("construct_observation_data.jl")
 
+function find_global_index(update_function)
+  if is_no_change_rule(update_function)
+    1
+  else
+    ordered_rules = ["moveUpNoCollision", "moveDownNoCollision", "moveLeftNoCollision", "moveRightNoCollision", "nextLiquid", "moveUp", "moveDown", "moveLeft", "moveRight", "click", "uniformChoice", "randomPositions"]
+    bools = map(r -> occursin(r, update_function), ordered_rules)
+    indices = findall(x -> x == 1, bools)
+    if indices != []
+      indices[1] + 1
+    else
+      length(ordered_rules) + 2
+    end
+  end
+end
+
 """Construct matrix of single timestep solutions"""
-function singletimestepsolution_matrix(observations, user_events, grid_size)
-  object_decomposition = parse_and_map_objects(observations, grid_size)
+function singletimestepsolution_matrix(observations, user_events, grid_size; singlecell=false)
+  object_decomposition = parse_and_map_objects(observations, grid_size, singlecell=singlecell)
   object_types, object_mapping, background, _ = object_decomposition
   # matrix of update function sets for each object/time pair
   # number of rows = number of objects, number of cols = number of time steps  
   num_objects = length(collect(keys(object_mapping)))
   matrix = [[] for object_id in 1:num_objects, time in 1:(length(observations) - 1)]
+  unformatted_matrix = [[] for object_id in 1:num_objects, time in 1:(length(observations) - 1)]
   
   # SEED PREV USED RULES FOR EFFIENCY AT THE MOMENT
   prev_used_rules = ["(= objX objX)",
@@ -24,19 +40,22 @@ function singletimestepsolution_matrix(observations, user_events, grid_size)
                     #  "(= objX (moveRightNoCollision (moveUpNoCollision objX)))",
                     #  "(= objX (moveRightNoCollision (moveDownNoCollision objX)))",
                     #  "(= objX (moveUpNoCollision objX))",
-                    #  "(= objX (moveUpNoCollision objX))",
-                    #  "(= objX (moveDownNoCollision objX))",
+
+                    "(= objX (moveUpNoCollision objX))",
+                     "(= objX (moveDownNoCollision objX))",
                      "(= objX (moveLeftNoCollision objX))",
                      "(= objX (moveRightNoCollision objX))",
                      "(= objX (nextLiquid objX))",
-                     "(= objX (nextSolid objX))",
-                    #  "(= objX (moveDown objX))",
-                    #  "(= objX (moveLeft objX))",
-                    #  "(= objX (moveRight objX))",
-                    #  "(= objX (removeObj objX))",
-                    #  "(= objX (moveLeft (moveDown objX)))",
-                    #  "(= objX (moveRight (moveDown objX)))",
-                    ] # prev_used_rules = []
+                    #  "(= objX (nextSolid objX))",
+                     "(= objX (moveDown objX))",
+                     "(= objX (moveUp objX))",
+                     "(= objX (moveLeft objX))",
+                     "(= objX (moveRight objX))",
+                     "(= objX (removeObj objX))",
+                     "(= objX (moveLeft (moveDown objX)))",
+                     "(= objX (moveRight (moveDown objX)))",
+
+                     ] # prev_used_rules = []
 
   prev_abstract_positions = []
   
@@ -46,23 +65,30 @@ function singletimestepsolution_matrix(observations, user_events, grid_size)
     # for each object in previous time step, determine a set of update functions  
     # that takes the previous object to the next object
     for object_id in 1:num_objects
-      update_functions, prev_used_rules, prev_abstract_positions = synthesize_update_functions(object_id, time, object_decomposition, user_events, prev_used_rules, prev_abstract_positions, grid_size)
+      update_functions, unformatted_update_functions, prev_used_rules, prev_abstract_positions = synthesize_update_functions(object_id, time, object_decomposition, user_events, prev_used_rules, prev_abstract_positions, grid_size)
       @show update_functions 
       if length(update_functions) == 0
         println("HOLY SHIT")
       end
       matrix[object_id, time - 1] = update_functions 
+      unformatted_matrix[object_id, time - 1] = unformatted_update_functions
     end
   end
-  matrix, object_decomposition, prev_used_rules
+  matrix, unformatted_matrix, object_decomposition, prev_used_rules
 end
 
 expr = nothing
 mod = nothing
 global_iters = 0
 """Synthesize a set of update functions that """
-function synthesize_update_functions(object_id, time, object_decomposition, user_events, prev_used_rules, prev_abstract_positions, grid_size=16, max_iters=5)
+function synthesize_update_functions(object_id, time, object_decomposition, user_events, prev_used_rules, prev_abstract_positions, grid_size=16, max_iters=14)
   object_types, object_mapping, background, grid_size = object_decomposition
+  
+  if length(unique(map(k -> length(object_mapping[k]), collect(keys(object_mapping))))) != 1 
+    @show object_mapping
+    println("TERRIBLE WHAT")
+  end
+  
   @show object_id 
   @show time
   prev_object = object_mapping[object_id][time - 1]
@@ -74,7 +100,7 @@ function synthesize_update_functions(object_id, time, object_decomposition, user
   #@show next_object
   # @show isnothing(prev_object) && isnothing(next_object)
   if isnothing(prev_object) && isnothing(next_object)
-    [""], prev_used_rules, prev_abstract_positions
+    [""], [""], prev_used_rules, prev_abstract_positions
   elseif isnothing(prev_object)
     # perform position abstraction step
     start_objects = filter(obj -> !isnothing(obj), [object_mapping[id][1] for id in collect(keys(object_mapping))])
@@ -83,7 +109,7 @@ function synthesize_update_functions(object_id, time, object_decomposition, user
     println("HELLO")
     @show prev_objects
     abstracted_positions, prev_abstract_positions = abstract_position(next_object.position, prev_abstract_positions, user_events[time - 1], (object_types, prev_objects, background, grid_size))
-    # abstracted_positions = ["(uniformChoice (randomPositions $(grid_size) 1))", abstracted_positions...]
+    # abstracted_positions = [abstracted_positions..., "(uniformChoice (randomPositions $(grid_size) 1))"]
     
     # add uniformChoice option
     matching_objects = filter(o -> o.position == next_object.position, prev_objects_maybe_listed)
@@ -96,6 +122,9 @@ function synthesize_update_functions(object_id, time, object_decomposition, user
       update_rules = [
         """(= addedObjType$(next_object.type.id)List (addObj addedObjType$(next_object.type.id)List (ObjType$(next_object.type.id) $(join(map(v -> """ "$(v)" """, next_object.custom_field_values), " ")) (Position $(next_object.position[1]) $(next_object.position[2])))))""",
       ]
+
+      # add randomPositions option
+      update_rules = vcat(update_rules..., "(= addedObjType$(next_object.type.id)List (addObj addedObjType$(next_object.type.id)List (map (--> pos (ObjType$(next_object.type.id) $(join(map(v -> """ "$(v)" """, next_object.custom_field_values), " ")) pos)) (randomPositions GRID_SIZE 1))))")
       
       # perform string abstraction 
       abstracted_strings = abstract_string(next_object.custom_field_values[1], (object_types, prev_objects, background, grid_size))
@@ -116,21 +145,28 @@ function synthesize_update_functions(object_id, time, object_decomposition, user
           end
         end
       end
-      reverse(update_rules), prev_used_rules, prev_abstract_positions
+      reverse(update_rules), reverse(update_rules), prev_used_rules, prev_abstract_positions
     else
       update_rules = map(pos -> 
       "(= addedObjType$(next_object.type.id)List (addObj addedObjType$(next_object.type.id)List (ObjType$(next_object.type.id) $(join(map(v -> """ "$(v)" """, next_object.custom_field_values), " ")) $(pos))))",
       abstracted_positions)
-      vcat(update_rules..., "(= addedObjType$(next_object.type.id)List (addObj addedObjType$(next_object.type.id)List (ObjType$(next_object.type.id) $(join(map(v -> """ "$(v)" """, next_object.custom_field_values), " ")) (Position $(next_object.position[1]) $(next_object.position[2])))))"), prev_used_rules, prev_abstract_positions
+
+      # add randomPositions option
+      update_rules = vcat(update_rules..., "(= addedObjType$(next_object.type.id)List (addObj addedObjType$(next_object.type.id)List (map (--> pos (ObjType$(next_object.type.id) pos)) (randomPositions GRID_SIZE 1))))")
+      
+      update_rules = vcat(update_rules..., "(= addedObjType$(next_object.type.id)List (addObj addedObjType$(next_object.type.id)List (ObjType$(next_object.type.id) $(join(map(v -> """ "$(v)" """, next_object.custom_field_values), " ")) (Position $(next_object.position[1]) $(next_object.position[2])))))")
+      update_rules, update_rules, prev_used_rules, prev_abstract_positions
     end
   elseif isnothing(next_object)
     start_objects = sort(filter(obj -> obj != nothing, [object_mapping[i][1] for i in 1:length(collect(keys(object_mapping)))]), by=(x -> x.id))
     contained_in_list = isnothing(object_mapping[object_id][1]) || (count(id -> (filter(x -> !isnothing(x), object_mapping[id]))[1].type.id == object_mapping[object_id][1].type.id, collect(keys(object_mapping))) > 1)
 
     if contained_in_list # object was added later; contained in addedList
-      ["(= addedObjType$(prev_object.type.id)List (removeObj addedObjType$(prev_object.type.id)List (--> obj (== (.. obj id) $(object_id)))))"], prev_used_rules, prev_abstract_positions
+      update_rules = ["(= addedObjType$(prev_object.type.id)List (removeObj addedObjType$(prev_object.type.id)List (--> obj (== (.. obj id) $(object_id)))))"]
+      update_rules, update_rules, prev_used_rules, prev_abstract_positions
     else # object was present at the start of the program
-      ["(= obj$(object_id) (removeObj (prev obj$(object_id))))"], prev_used_rules, prev_abstract_positions
+      update_rules = ["(= obj$(object_id) (removeObj (prev obj$(object_id))))"]
+      update_rules, update_rules, prev_used_rules, prev_abstract_positions
     end
   else # actual synthesis problem
     # prev_objects = filter(obj -> !isnothing(obj) && (obj.id != prev_object.id), [object_mapping[id][time - 1] for id in 1:length(collect(keys(object_mapping)))])
@@ -143,6 +179,7 @@ function synthesize_update_functions(object_id, time, object_decomposition, user
 
     #@show prev_objects
     solutions = []
+    unformatted_solutions = []
     iters = 0
     prev_used_rules_index = 1
     using_prev = false
@@ -154,9 +191,12 @@ function synthesize_update_functions(object_id, time, object_decomposition, user
         update_rule = replace(prev_used_rules[prev_used_rules_index], "objX" => "obj$(object_id)")
         using_prev = true
         prev_used_rules_index += 1
+        @show prev_used_rules_index
       else
         using_prev = false
-        update_rule = generate_hypothesis_update_rule(prev_object, (object_types, prev_objects, background, grid_size), p=0.2) # "(= obj1 (moveDownNoCollision (moveDownNoCollision (prev obj1))))"
+        update_rule = generate_hypothesis_update_rule(prev_object, (object_types, prev_objects, background, grid_size), p=0.0) # "(= obj1 (moveDownNoCollision (moveDownNoCollision (prev obj1))))"
+        println("IS THIS THE REAL LIFE")
+        @show update_rule 
       end      
       
       hypothesis_program = string(hypothesis_program[1:end-2], "\n\t (on true ", update_rule, ")\n)")
@@ -179,7 +219,8 @@ function synthesize_update_functions(object_id, time, object_decomposition, user
         if using_prev
           println("HOORAY")
         end
-        generic_update_rule = replace(update_rule, "obj$(object_id)" => "objX")
+        generic_update_rule = replace(update_rule, "obj$(object_id)" => "objX") 
+        push!(unformatted_solutions, generic_update_rule)       
         if !(generic_update_rule in prev_used_rules) && !(occursin("color", generic_update_rule))
           push!(prev_used_rules, generic_update_rule)
         end
@@ -231,23 +272,23 @@ function synthesize_update_functions(object_id, time, object_decomposition, user
     if (iters == max_iters)
       println("FAILURE")
     end
-    solutions, prev_used_rules, prev_abstract_positions
+    unique(solutions), unique(unformatted_solutions), prev_used_rules, prev_abstract_positions
   end
 end
 
 """Parse observations into object types and objects, and assign 
    objects in current observed frame to objects in next frame"""
-function parse_and_map_objects(observations, gridsize=16)
+function parse_and_map_objects(observations, gridsize=16; singlecell=false)
   object_mapping = Dict{Int, Array{Union{Nothing, Obj}}}()
 
   # check if observations contains frames with overlapping cells
-  overlapping_cells = false # foldl(|, map(frame -> has_dups(map(cell -> (cell.position.x, cell.position.y, cell.color), frame)), observations), init=false)
+  overlapping_cells = singlecell # false # foldl(|, map(frame -> has_dups(map(cell -> (cell.position.x, cell.position.y, cell.color), frame)), observations), init=false)
   println("OVERLAPPING_CELLS")
   println(overlapping_cells)
   # construct object_types
   ## initialize object_types based on first observation frame
   if overlapping_cells
-    object_types, _, background, dim = parsescene_autumn_singlecell(observations[1], gridsize)
+    object_types, _, background, dim = parsescene_autumn_singlecell(observations[1], "white", gridsize)
   else
     object_types, _, background, dim = parsescene_autumn(observations[1], gridsize)
   end
@@ -255,7 +296,7 @@ function parse_and_map_objects(observations, gridsize=16)
   ## iteratively build object_types through each subsequent observation frame
   for time in 2:length(observations)
     if overlapping_cells
-      object_types, _, _, _ = parsescene_autumn_singlecell_given_types(observations[time], object_types, gridsize)
+      object_types, _, _, _ = parsescene_autumn_singlecell_given_types(observations[time], object_types, "white", gridsize)
     else
       object_types, _, _, _ = parsescene_autumn_given_types(observations[time], object_types, gridsize)
     end
@@ -264,7 +305,7 @@ function parse_and_map_objects(observations, gridsize=16)
   println(object_types)
 
   if overlapping_cells
-    _, objects, _, _ = parsescene_autumn_singlecell_given_types(observations[1], object_types, gridsize)
+    _, objects, _, _ = parsescene_autumn_singlecell_given_types(observations[1], object_types, "white", gridsize)
   else
     _, objects, _, _ = parsescene_autumn_given_types(observations[1], object_types, gridsize)
   end
@@ -279,7 +320,7 @@ function parse_and_map_objects(observations, gridsize=16)
     println(time)
     println(object_types)
     if overlapping_cells
-      _, next_objects, _, _ = parsescene_autumn_singlecell_given_types(observations[time], deepcopy(object_types)) # parsescene_autumn_singlecell
+      _, next_objects, _, _ = parsescene_autumn_singlecell_given_types(observations[time], deepcopy(object_types), "white", gridsize) # parsescene_autumn_singlecell
     else
       _, next_objects, _, _ = parsescene_autumn_given_types(observations[time], deepcopy(object_types)) # parsescene_autumn_singlecell
     end
@@ -308,11 +349,11 @@ function parse_and_map_objects(observations, gridsize=16)
           elseif length(intersect(closest_ids, map(o -> o.id, next_objects_with_type))) > 1
             # if there is an object with the same color as the current object among the closest objects, choose that one
             curr_object = filter(o -> o.id == object_id, curr_objects_with_type)[1]
-            curr_object_color = curr_object.custom_field_values == [] ? curr_object.color : curr_object.custom_field_values[1]
+            curr_object_color = curr_object.custom_field_values == [] ? curr_object.type. color : curr_object.custom_field_values[1]
 
             closest_ids = intersect(closest_ids, map(o -> o.id, next_objects_with_type))
             objects = map(id -> filter(o -> o.id == id, next_objects_with_type)[1], closest_ids)
-            closest_objects_with_same_color = filter(o -> (o.custom_field_values == [] ? o.color : o.custom_field_values[1]) == curr_object_color, objects)
+            closest_objects_with_same_color = filter(o -> (o.custom_field_values == [] ? o.type.color : o.custom_field_values[1]) == curr_object_color, objects)
             if closest_objects_with_same_color != [] 
               closest_id = closest_objects_with_same_color[1].id 
             else
@@ -401,6 +442,14 @@ function parse_and_map_objects(observations, gridsize=16)
     objects = next_objects
 
   end
+
+  # hack; fix this later 
+  for object_id in collect(keys(object_mapping))
+    if length(object_mapping[object_id]) != length(observations)
+      push!(object_mapping[object_id], [nothing for i in (length(object_mapping[object_id]) + 1):length(observations)]...)
+    end
+  end
+
   (object_types, object_mapping, background, dim)  
 end
 
@@ -458,7 +507,7 @@ end
 
 function singletimestepsolution_program(observations, user_events, grid_size=16)
   
-  matrix, object_decomposition, _ = singletimestepsolution_matrix(observations, user_events, grid_size)
+  matrix, unformatted_matrix, object_decomposition, _ = singletimestepsolution_matrix(observations, user_events, grid_size)
   singletimestepsolution_program_given_matrix(matrix, object_decomposition, grid_size)
 end
 
@@ -507,12 +556,19 @@ end
 
 function singletimestepsolution_program_given_matrix_NEW(matrix, object_decomposition, grid_size=16)  
   object_types, object_mapping, background, _ = object_decomposition
+
+  matrix_copy = deepcopy(matrix)
+  for row in 1:size(matrix_copy)[1]
+    for col in 1:size(matrix_copy)[2]
+      matrix_copy[row, col] = filter(x -> !occursin("uniformChoice", x) && !occursin("randomPositions", x), matrix_copy[row, col])
+    end
+  end
   
   program_no_update_rules = program_string_synth_standard_groups((object_types, object_mapping, background, grid_size))
   time = """(: time Int)\n  (= time (initnext 0 (+ time 1)))"""
-  update_rule_times = filter(time -> join(map(l -> l[1], matrix[:, time]), "") != "", [1:size(matrix)[2]...])
-  update_rules = join(map(time -> """(on (== time $(time - 1))\n  (let\n    ($(join(map(id -> !occursin("--> obj (prev obj)", matrix[id, time][1]) ? (occursin("addObj", matrix[id, time][1]) ? format_matrix_function(matrix[id, time][1], object_mapping[id][time + 1]) : matrix[id, time][1]) : "", 
-                          collect(1:size(matrix)[1])), "\n    "))))\n  )""", update_rule_times), "\n  ")
+  update_rule_times = filter(time -> join(map(l -> l[1], matrix_copy[:, time]), "") != "", [1:size(matrix_copy)[2]...])
+  update_rules = join(map(time -> """(on (== time $(time - 1))\n  (let\n    ($(join(map(id -> !occursin("--> obj (prev obj)", matrix_copy[id, time][1]) ? (occursin("addObj", matrix_copy[id, time][1]) ? format_matrix_function(matrix_copy[id, time][1], object_mapping[id][time + 1]) : matrix_copy[id, time][1]) : "", 
+                          collect(1:size(matrix_copy)[1])), "\n    "))))\n  )""", update_rule_times), "\n  ")
                         
   for type in object_types
     update_rules = replace(update_rules, "(prev addedObjType$(type.id)List)" => "addedObjType$(type.id)List")
@@ -537,7 +593,7 @@ function abstract_position(position, prev_abstract_positions, user_event, object
   while length(solutions) < 1 && iters < max_iters  
     
     if prev_used_index <= length(prev_abstract_positions)
-      hypothesis_position = prev_abstract_positions[prev_used_index]
+      hypothesis_position = "(Position -1 -1)" # prev_abstract_positions[prev_used_index]
       using_prev = true
       prev_used_index += 1
     else
@@ -558,7 +614,7 @@ function abstract_position(position, prev_abstract_positions, user_event, object
     # # @show expr.args[1].args[2]
     # global mod = @eval $(expr)
     # # @show repr(mod)
-    if !isnothing(user_event) && occursin("click",split(user_event, " ")[1])
+    if !isnothing(user_event) && occursin("click", split(user_event, " ")[1])
       global x = parse(Int, split(user_event, " ")[2])
       global y = parse(Int, split(user_event, " ")[3])
       hypothesis_frame_state = interpret_over_time(expr, 1, [(click=AutumnStandardLibrary.Click(x, y),)]).state
@@ -614,164 +670,230 @@ function abstract_string(string, object_decomposition, max_iters=25)
   solutions
 end
 
-function generate_on_clauses(matrix, object_decomposition, user_events, grid_size=16)
-  on_clauses = []
-  global_var_dict = Dict()
+function generate_on_clauses(matrix, unformatted_matrix, object_decomposition, user_events, grid_size=16)
   object_types, object_mapping, background, dim = object_decomposition
+  solutions = []
 
   # pre_filtered_matrix = pre_filter_with_direction_biases(matrix, user_events, object_decomposition) 
   # filtered_matrix = filter_update_function_matrix_multiple(pre_filtered_matrix, object_decomposition)[1]
   
-  # pre_filtered_matrix = pre_filter_with_direction_biases(matrix, user_events, object_decomposition) 
-  filtered_matrix = filter_update_function_matrix_multiple(deepcopy(matrix), object_decomposition)[1]
+  filtered_matrices = []
 
-  anonymized_filtered_matrix = deepcopy(filtered_matrix)
-  for i in 1:size(matrix)[1]
-    for j in 1:size(matrix)[2]
-      anonymized_filtered_matrix[i,j] = [replace(filtered_matrix[i, j][1], "id) $(i)" => "id) x")]
+  # add non-random filtered matrices to filtered_matrices
+  non_random_matrix = deepcopy(matrix)
+  for row in 1:size(non_random_matrix)[1]
+    for col in 1:size(non_random_matrix)[2]
+      non_random_matrix[row, col] = filter(x -> !occursin("uniformChoice", x) && !occursin("randomPositions", x), non_random_matrix[row, col])
     end
   end
+  filtered_non_random_matrices = filter_update_function_matrix_multiple(non_random_matrix, object_decomposition, multiple=true)
+  filtered_non_random_matrices = filtered_non_random_matrices[1:min(4, length(filtered_non_random_matrices))]
+  push!(filtered_matrices, filtered_non_random_matrices...)
   
-  global_object_decomposition = object_decomposition
-  global_state_update_times_dict = Dict(1 => ["" for x in 1:length(user_events)])
-  object_specific_state_update_times_dict = Dict()
 
-  global_state_update_on_clauses = []
-  object_specific_state_update_on_clauses = []
-  state_update_on_clauses = []
-  
-  global_event_vector_dict = Dict()
+  # add direction-bias-filtered matrix to filtered_matrices 
+  pre_filtered_matrix = pre_filter_with_direction_biases(deepcopy(matrix), user_events, object_decomposition) 
+  push!(filtered_matrices, filter_update_function_matrix_multiple(pre_filtered_matrix, object_decomposition, multiple=false)...)
 
-  for object_type in object_types
-    type_id = object_type.id
-    object_ids = sort(filter(id -> filter(obj -> !isnothing(obj), object_mapping[id])[1].type.id == object_type.id, collect(keys(object_mapping))))
+  # add random filtered matrices to filtered_matrices 
+  random_matrix = deepcopy(matrix)
+  for row in 1:size(random_matrix)[1]
+    for col in 1:size(random_matrix)[2]
+      if filter(x -> occursin("uniformChoice", x) || occursin("randomPositions", x), random_matrix[row, col]) != []
+        random_matrix[row, col] = filter(x -> occursin("uniformChoice", x) || occursin("randomPositions", x), random_matrix[row, col])
+      end
+    end
+  end
+  filtered_random_matrices = filter_update_function_matrix_multiple(random_matrix, object_decomposition, multiple=true)
+  filtered_random_matrices = filtered_random_matrices[1:min(4, length(filtered_random_matrices))]
+  push!(filtered_matrices, filtered_random_matrices...)
 
-    all_update_rules = filter(rule -> rule != "", unique(vcat(vec(anonymized_filtered_matrix[object_ids, :])...)))
+  # add "chaos" solution to filtered_matrices 
+  filtered_unformatted_matrix = filter_update_function_matrix_multiple(unformatted_matrix, object_decomposition, multiple=false)[1]
+  push!(filtered_matrices, filter_update_function_matrix_multiple(construct_chaos_matrix(filtered_unformatted_matrix, object_decomposition), object_decomposition, multiple=false)...)
 
-    update_rule_set = vcat(filter(r -> r != "", vcat(map(id -> map(x -> replace(x[1], "obj id) $(id)" => "obj id) x"), filtered_matrix[id, :]), object_ids)...))...)
+  @show length(filtered_matrices)
+  for filtered_matrix in filtered_matrices
+    failed = false
+    on_clauses = []
+    global_var_dict = Dict()
 
-    addObj_rules = unique(filter(rule -> occursin("addObj", rule), vcat(map(id -> vcat(filtered_matrix[id, :]...), object_ids)...)))
-    addObj_times_dict = Dict()
-
-    for rule in addObj_rules 
-      addObj_times_dict[rule] = sort(unique(vcat(map(id -> findall(r -> r == rule, vcat(filtered_matrix[id, :]...)), object_ids)...)))
+    anonymized_filtered_matrix = deepcopy(filtered_matrix)
+    for i in 1:size(matrix)[1]
+      for j in 1:size(matrix)[2]
+        anonymized_filtered_matrix[i,j] = [replace(filtered_matrix[i, j][1], "id) $(i)" => "id) x")]
+      end
     end
     
-    group_addObj_rules = false
-    if length(unique(collect(values(addObj_times_dict)))) == 1
-      group_addObj_rules = true
-      all_update_rules = filter(r -> !(r in addObj_rules), all_update_rules)
-      push!(all_update_rules, addObj_rules[1])
-    end
-
-    all_update_rules = reverse(sort(all_update_rules, by=x -> count(y -> y == x, update_rule_set)))
-    for update_rule in all_update_rules 
-      @show global_object_decomposition
-      if update_rule != "" && !is_no_change_rule(update_rule)
-        println("UPDATE_RULEEE")
-        println(update_rule)
-        events, event_is_globals, event_vector_dict, observation_data_dict = generate_event(update_rule, object_ids[1], object_ids, matrix, filtered_matrix, global_object_decomposition, user_events, state_update_on_clauses, global_var_dict, global_event_vector_dict, grid_size)
-        global_event_vector_dict = event_vector_dict
-        println("EVENTS")
-        println(events)
-        @show event_vector_dict
-        @show observation_data_dict
-        if events != []
-          event = events[1]
-          event_is_global = event_is_globals[1]
-          on_clause = format_on_clause(replace(update_rule, ".. obj id) x" => ".. obj id) $(object_ids[1])"), event, object_ids[1], object_ids, object_type, group_addObj_rules, addObj_rules, object_mapping, event_is_global)
-          push!(on_clauses, on_clause)
-        else # handle construction of new state
-
-          # determine whether to search for new global state or new object-specific state
-          search_for_global_state = true
-          for time in 1:length(user_events)
-            observation_values = map(id -> observation_data_dict[id][time], object_ids)
-            if (0 in observation_values) && (1 in observation_values)
-              search_for_global_state = false
-            end
-          end
-
-          if search_for_global_state # search for global state
-            if occursin("addObj", update_rule)
-              object_trajectories = map(id -> anonymized_filtered_matrix[id, :], filter(k -> filter(obj -> !isnothing(obj), object_mapping[k])[1].type.id == filter(obj -> !isnothing(obj), object_mapping[object_ids[1]])[1].type.id, collect(keys(object_mapping))))
-              true_times = vcat(map(trajectory -> findall(rule -> rule == update_rule, vcat(trajectory...)), object_trajectories)...)
-              object_trajectory = []
-            else 
-              ids_with_rule = map(idx -> object_ids[idx], findall(idx_set -> idx_set != [], map(id -> findall(rule -> rule[1] == update_rule, anonymized_filtered_matrix[id, :]), object_ids)))
-              trajectory_lengths = map(id -> length(unique(filter(x -> x != "", anonymized_filtered_matrix[id, :]))), ids_with_rule)
-              max_index = findall(x -> x == maximum(trajectory_lengths) , trajectory_lengths)[1]
-              object_id = ids_with_rule[max_index]
-              object_trajectory = anonymized_filtered_matrix[object_id, :]
-              true_times = findall(rule -> rule == update_rule, vcat(object_trajectory...))
-            end
+    global_object_decomposition = object_decomposition
+    global_state_update_times_dict = Dict(1 => ["" for x in 1:length(user_events)])
+    object_specific_state_update_times_dict = Dict()
   
-            on_clause, new_global_var_dict, new_state_update_times_dict = generate_new_state(update_rule, true_times, global_event_vector_dict, object_trajectory, global_var_dict, global_state_update_times_dict)
-            @show on_clause 
-            @show new_state_update_times_dict 
-            @show new_global_var_dict 
+    global_state_update_on_clauses = []
+    object_specific_state_update_on_clauses = []
+    state_update_on_clauses = []
+    
+    global_event_vector_dict = Dict()
   
-            on_clause = format_on_clause(split(replace(on_clause, ".. obj id) x" => ".. obj id) $(object_ids[1])"), "\n")[2][1:end-1], replace(split(on_clause, "\n")[1], "(on " => ""), object_ids[1], object_ids, object_type, group_addObj_rules, addObj_rules, object_mapping, true)
-            push!(on_clauses, on_clause)
-            global_var_dict = new_global_var_dict 
-            global_state_update_on_clauses = vcat(map(k -> filter(x -> x != "", new_state_update_times_dict[k]), collect(keys(new_state_update_times_dict)))...) # vcat(state_update_on_clauses..., filter(x -> x != "", new_state_update_times)...)
-            state_update_on_clauses = vcat(global_state_update_on_clauses, object_specific_state_update_on_clauses)
-            global_state_update_times_dict = new_state_update_times_dict
-            
-            @show global_var_dict 
-            @show state_update_on_clauses 
-            @show global_state_update_times_dict
-            @show object_specific_state_update_times_dict
-
-            for event in collect(keys(global_event_vector_dict))
-              if occursin("globalVar", event)
-                delete!(global_event_vector_dict, event)
-              end
-            end
+    for object_type in object_types
+      type_id = object_type.id
+      object_ids = sort(filter(id -> filter(obj -> !isnothing(obj), object_mapping[id])[1].type.id == object_type.id, collect(keys(object_mapping))))
   
-          else # search for object-specific state
-            update_function_times_dict = Dict()
-            for object_id in object_ids 
-              update_function_times_dict[object_id] = findall(x -> x == 1, observation_data_dict[object_id])
-            end
-            on_clause, new_state_update_on_clauses, new_object_decomposition, new_object_specific_state_update_times_dict = generate_new_object_specific_state(update_rule, update_function_times_dict, event_vector_dict, type_id, global_object_decomposition, object_specific_state_update_times_dict)            
-            
-            @show new_object_specific_state_update_times_dict
-            object_specific_state_update_times_dict = new_object_specific_state_update_times_dict
-
-            # on_clause = format_on_clause(split(on_clause, "\n")[2][1:end-1], replace(replace(split(on_clause, "\n")[1], "(on " => ""), "(== (.. obj id) x)" => "(== (.. obj id) $(object_ids[1]))"), object_ids[1], object_ids, object_type, group_addObj_rules, addObj_rules, object_mapping, false)
-            push!(on_clauses, on_clause)
-
-            global_object_decomposition = new_object_decomposition
-            object_types, object_mapping, background, dim = global_object_decomposition
-            
-            println("UPDATEEE")
-            @show global_object_decomposition
-
-            # new_state_update_on_clauses = map(x -> format_on_clause(split(x, "\n")[2][1:end-1], replace(split(x, "\n")[1], "(on " => ""), object_ids[1], object_ids, object_type, group_addObj_rules, addObj_rules, object_mapping, false), new_state_update_on_clauses)
-            object_specific_state_update_on_clauses = unique(vcat(object_specific_state_update_on_clauses..., new_state_update_on_clauses...))
-            state_update_on_clauses = vcat(global_state_update_on_clauses, object_specific_state_update_on_clauses)
-            for event in collect(keys(global_event_vector_dict))
-              if occursin("field1", event)
-                delete!(global_event_vector_dict, event)
-              end
-            end
-
-          end
-
-        end
-
+      all_update_rules = filter(rule -> rule != "", unique(vcat(vec(anonymized_filtered_matrix[object_ids, :])...)))
+  
+      update_rule_set = vcat(filter(r -> r != "", vcat(map(id -> map(x -> replace(x[1], "obj id) $(id)" => "obj id) x"), filtered_matrix[id, :]), object_ids)...))...)
+  
+      addObj_rules = filter(rule -> occursin("addObj", rule), vcat(map(id -> vcat(filtered_matrix[id, :]...), object_ids)...))
+      unique_addObj_rules = unique(filter(rule -> occursin("addObj", rule), vcat(map(id -> vcat(filtered_matrix[id, :]...), object_ids)...)))
+      addObj_times_dict = Dict()
+  
+      for rule in unique_addObj_rules 
+        addObj_times_dict[rule] = sort(unique(vcat(map(id -> findall(r -> r == rule, vcat(filtered_matrix[id, :]...)), object_ids)...)))
       end
+      
+      group_addObj_rules = false
+      addObj_count = 0
+      if length(unique(collect(values(addObj_times_dict)))) == 1
+        group_addObj_rules = true
+        all_update_rules = filter(r -> !(r in addObj_rules), all_update_rules)
+        push!(all_update_rules, addObj_rules[1]) 
+        addObj_count = count(r -> occursin("addObj", r), vcat(filtered_matrix[:, collect(values(addObj_times_dict))[1][1]]...))
+      end
+  
+      all_update_rules = reverse(sort(all_update_rules, by=x -> count(y -> y == x, update_rule_set)))
+      for update_rule in all_update_rules 
+        @show global_object_decomposition
+        if update_rule != "" && !is_no_change_rule(update_rule)
+          println("UPDATE_RULEEE")
+          println(update_rule)
+          events, event_is_globals, event_vector_dict, observation_data_dict = generate_event(update_rule, object_ids[1], object_ids, matrix, filtered_matrix, global_object_decomposition, user_events, state_update_on_clauses, global_var_dict, global_event_vector_dict, grid_size)
+          global_event_vector_dict = event_vector_dict
+          println("EVENTS")
+          println(events)
+          @show event_vector_dict
+          @show observation_data_dict
+          if events != []
+            event = events[1]
+            event_is_global = event_is_globals[1]
+            on_clause = format_on_clause(replace(update_rule, ".. obj id) x" => ".. obj id) $(object_ids[1])"), event, object_ids[1], object_ids, object_type, group_addObj_rules, addObj_rules, object_mapping, event_is_global, grid_size, addObj_count)
+            push!(on_clauses, on_clause)
+          else # handle construction of new state
+  
+            # determine whether to search for new global state or new object-specific state
+            search_for_global_state = true
+            for time in 1:length(user_events)
+              observation_values = map(id -> observation_data_dict[id][time], object_ids)
+              if (0 in observation_values) && (1 in observation_values)
+                search_for_global_state = false
+              end
+            end
+  
+            if search_for_global_state # search for global state
+              if occursin("addObj", update_rule)
+                object_trajectories = map(id -> anonymized_filtered_matrix[id, :], filter(k -> filter(obj -> !isnothing(obj), object_mapping[k])[1].type.id == filter(obj -> !isnothing(obj), object_mapping[object_ids[1]])[1].type.id, collect(keys(object_mapping))))
+                true_times = unique(vcat(map(trajectory -> findall(rule -> rule == update_rule, vcat(trajectory...)), object_trajectories)...))
+                object_trajectory = []
+              else 
+                ids_with_rule = map(idx -> object_ids[idx], findall(idx_set -> idx_set != [], map(id -> findall(rule -> rule[1] == update_rule, anonymized_filtered_matrix[id, :]), object_ids)))
+                trajectory_lengths = map(id -> length(unique(filter(x -> x != "", anonymized_filtered_matrix[id, :]))), ids_with_rule)
+                max_index = findall(x -> x == maximum(trajectory_lengths) , trajectory_lengths)[1]
+                object_id = ids_with_rule[max_index]
+                object_trajectory = anonymized_filtered_matrix[object_id, :]
+                true_times = unique(findall(rule -> rule == update_rule, vcat(object_trajectory...)))
+              end
+    
+              on_clause, new_global_var_dict, new_state_update_times_dict = generate_new_state(update_rule, true_times, global_event_vector_dict, object_trajectory, global_var_dict, global_state_update_times_dict)
+              @show on_clause 
+              @show new_state_update_times_dict 
+              @show new_global_var_dict 
 
+              if on_clause == "" # failure 
+                failed = true 
+                break 
+              else 
+                on_clause = format_on_clause(split(replace(on_clause, ".. obj id) x" => ".. obj id) $(object_ids[1])"), "\n")[2][1:end-1], replace(split(on_clause, "\n")[1], "(on " => ""), object_ids[1], object_ids, object_type, group_addObj_rules, addObj_rules, object_mapping, true, grid_size, addObj_count)
+                push!(on_clauses, on_clause)
+                global_var_dict = new_global_var_dict 
+                global_state_update_on_clauses = vcat(map(k -> filter(x -> x != "", new_state_update_times_dict[k]), collect(keys(new_state_update_times_dict)))...) # vcat(state_update_on_clauses..., filter(x -> x != "", new_state_update_times)...)
+                state_update_on_clauses = vcat(global_state_update_on_clauses, object_specific_state_update_on_clauses)
+                global_state_update_times_dict = new_state_update_times_dict
+                
+                @show global_var_dict 
+                @show state_update_on_clauses 
+                @show global_state_update_times_dict
+                @show object_specific_state_update_times_dict
+    
+                for event in collect(keys(global_event_vector_dict))
+                  if occursin("globalVar", event)
+                    delete!(global_event_vector_dict, event)
+                  end
+                end
+
+              end   
+            else # search for object-specific state
+              update_function_times_dict = Dict()
+              for object_id in object_ids 
+                update_function_times_dict[object_id] = findall(x -> x == 1, observation_data_dict[object_id])
+              end
+              on_clause, new_state_update_on_clauses, new_object_decomposition, new_object_specific_state_update_times_dict = generate_new_object_specific_state(update_rule, update_function_times_dict, event_vector_dict, type_id, global_object_decomposition, object_specific_state_update_times_dict)            
+              
+              if on_clause == "" 
+                failed = true 
+                break
+              else
+                @show new_object_specific_state_update_times_dict
+                object_specific_state_update_times_dict = new_object_specific_state_update_times_dict
+    
+                # on_clause = format_on_clause(split(on_clause, "\n")[2][1:end-1], replace(replace(split(on_clause, "\n")[1], "(on " => ""), "(== (.. obj id) x)" => "(== (.. obj id) $(object_ids[1]))"), object_ids[1], object_ids, object_type, group_addObj_rules, addObj_rules, object_mapping, false)
+                push!(on_clauses, on_clause)
+    
+                global_object_decomposition = new_object_decomposition
+                object_types, object_mapping, background, dim = global_object_decomposition
+                
+                println("UPDATEEE")
+                @show global_object_decomposition
+    
+                # new_state_update_on_clauses = map(x -> format_on_clause(split(x, "\n")[2][1:end-1], replace(split(x, "\n")[1], "(on " => ""), object_ids[1], object_ids, object_type, group_addObj_rules, addObj_rules, object_mapping, false), new_state_update_on_clauses)
+                object_specific_state_update_on_clauses = unique(vcat(object_specific_state_update_on_clauses..., new_state_update_on_clauses...))
+                state_update_on_clauses = vcat(global_state_update_on_clauses, object_specific_state_update_on_clauses)
+                for event in collect(keys(global_event_vector_dict))
+                  if occursin("field1", event)
+                    delete!(global_event_vector_dict, event)
+                  end
+                end
+  
+              end
+  
+            end
+  
+          end
+  
+        end
+  
+      end
+      if failed 
+        break
+      end
+    end
+    if failed 
+      push!(solutions, ([], [], [], Dict()))
+    else 
+      push!(solutions, ([deepcopy(on_clauses)..., deepcopy(state_update_on_clauses)...], deepcopy(global_object_decomposition), deepcopy(global_var_dict)))
     end
   end
-  [on_clauses..., state_update_on_clauses...], global_object_decomposition, global_var_dict 
+  solutions 
 end
 
-function format_on_clause(update_rule, event, object_id, object_ids, object_type, group_addObj_rules, addObj_rules, object_mapping, event_is_global)
+function format_on_clause(update_rule, event, object_id, object_ids, object_type, group_addObj_rules, addObj_rules, object_mapping, event_is_global, grid_size, addObj_count)
   if occursin("addObj", update_rule) # handle addition of object rules 
     if group_addObj_rules # several objects are added simultaneously
-      on_clause = "(on $(event) (let ($(join(addObj_rules, "\n")))))"
+      println("DID I MAKE IT")
+      if occursin("randomPositions", addObj_rules[1])
+        println("DID I MAKE IT 2")
+        on_clause = "(on $(event) $(replace(replace(addObj_rules[1], "randomPositions $(grid_size) 1" => "randomPositions $(grid_size) $(addObj_count)"), "randomPositions GRID_SIZE 1" => "randomPositions GRID_SIZE $(addObj_count)")))"
+      else
+        on_clause = "(on $(event) (let ($(join(unique(addObj_rules), "\n")))))"
+      end
     else # addition of just one object
       on_clause = "(on $(event) $(update_rule))"
     end
@@ -786,10 +908,10 @@ function format_on_clause(update_rule, event, object_id, object_ids, object_type
       end
     else # event is object-specific
       if occursin("(--> obj (== (.. obj id) $(object_id)))", update_rule) # update rule is object-specific
-        reformatted_event = replace(event, "(filter (--> obj (== (.. obj id) $(object_id))) (prev addedObjType$(type_id)List))" => "(list (prev obj))")
+        reformatted_event = replace(event, "(filter (--> obj (== (.. obj id) $(object_id))) (prev addedObjType$(object_type.id)List))" => "(list (prev obj))")
         reformatted_rule = replace(update_rule, "(--> obj (== (.. obj id) $(object_id)))" => "(--> obj $(reformatted_event))")
         
-        second_reformatted_event = replace(event, "(filter (--> obj (== (.. obj id) $(object_id))) (prev addedObjType$(type_id)List))" => "(prev addedObjType$(type_id)List)")
+        second_reformatted_event = replace(event, "(filter (--> obj (== (.. obj id) $(object_id))) (prev addedObjType$(object_type.id)List))" => "(prev addedObjType$(object_type.id)List)")
         
         on_clause = "(on $(second_reformatted_event) $(reformatted_rule))"
       else
@@ -803,6 +925,17 @@ end
 "Select one update function from each matrix cell's update function set, which may contain multiple update functions"
 function filter_update_function_matrix_multiple(matrix, object_decomposition; multiple = true)
   object_types, object_mapping, _, _ = object_decomposition
+
+  for row in 1:size(matrix)[1]
+    for col in 1:size(matrix)[2]
+        if length(matrix[row, col]) == 0 
+            @show matrix
+            println("MATRIX BAD :(")
+            @show row
+            @show col
+        end
+    end
+  end
 
   new_matrices = []
   type_id_and_colors = []
@@ -842,18 +975,18 @@ function filter_update_function_matrix_multiple(matrix, object_decomposition; mu
         same_type_update_function_sets[color] = []
       end
       same_type_update_function_sets[nothing] = []
-      @show same_type_update_function_sets 
+      # @show same_type_update_function_sets 
       for other_object_id in 1:size(matrix)[1]
 
         other_object_type = filter(object -> !isnothing(object), object_mapping[other_object_id])[1].type
         
         if other_object_type.id == type.id
-          @show other_object_id
+          # @show other_object_id
 
           for time in 1:size(matrix)[2]
             if !isnothing(object_mapping[other_object_id][time])
               color = object_mapping[other_object_id][time].custom_field_values[1]
-              @show color
+              # @show color
 
               if !isnothing(object_mapping[other_object_id][time + 1]) && (object_mapping[other_object_id][time + 1].custom_field_values[1] != color)
                 # color change update rules are placed in the `nothing` category
@@ -876,8 +1009,6 @@ function filter_update_function_matrix_multiple(matrix, object_decomposition; mu
     end
   end
 
-
-
   for perm in 0:num_permutations
     bits = reverse(bitstring(perm))
     new_matrix = deepcopy(matrix)
@@ -894,7 +1025,6 @@ function filter_update_function_matrix_multiple(matrix, object_decomposition; mu
         # multiplicity handling: if bit_value == 1, then consider second-most frequent update function instead of first
         type_index = findall(x -> x[1] == object_type.id, type_id_and_colors)[1]
         bit_value = parse(Int, bits[type_index])
-
         for time in 1:size(matrix)[2]
           update_functions = unique(map(s -> replace(s, "id) $(object_id)" => "id) x"), matrix[object_id, time]))
           if length(update_functions) > 1 
@@ -904,6 +1034,15 @@ function filter_update_function_matrix_multiple(matrix, object_decomposition; mu
               global_sorted_update_functions = update_functions
             else
               global_sorted_update_functions = reverse(sort(unique(same_type_update_function_set), by=x -> count(y -> y == x, same_type_update_function_set)))
+              global_sorted_frequencies = map(x -> count(y -> y == x, same_type_update_function_set), global_sorted_update_functions)
+              
+              # sort most-frequent update functions (top functions) by their original order in matrix
+              top_indices = findall(x -> x == maximum(global_sorted_frequencies), global_sorted_frequencies)
+              sorted_top_indices = sort(top_indices, by=i -> find_global_index(global_sorted_update_functions[i])) 
+              top_functions = map(i -> global_sorted_update_functions[i], sorted_top_indices)
+              
+              non_top_functions = filter(x -> !(x in top_functions), global_sorted_update_functions)
+              global_sorted_update_functions = vcat(top_functions, non_top_functions)
             end
             
             if (bit_value == 1) && length(global_sorted_update_functions) > 1
@@ -928,8 +1067,9 @@ function filter_update_function_matrix_multiple(matrix, object_decomposition; mu
         same_type_update_function_sets = same_type_update_function_sets_dict[object_type.id]
         # perform filtering
         for time in 1:size(matrix)[2]
-            update_functions = unique(map(s -> replace(s, "id) $(object_id)" => "id) x"), matrix[object_id, time]))
+          update_functions = unique(map(s -> replace(s, "id) $(object_id)" => "id) x"), matrix[object_id, time]))
           if length(update_functions) > 1
+            println("HERE?")
             object = object_mapping[object_id][time]
             if !isnothing(object)
               color = object.custom_field_values[1]
@@ -937,15 +1077,28 @@ function filter_update_function_matrix_multiple(matrix, object_decomposition; mu
               # multiplicity handling: if bit_value == 1, then consider second-most frequent update function instead of first
               type_index = findall(x -> x[1] == object_type.id && x[2] == color, type_id_and_colors)[1]
               bit_value = parse(Int, bits[type_index])
+              @show bit_value
 
               update_function_frequencies = map(func -> count(x -> x == func, same_type_update_function_sets[color]), update_functions)
               if length(unique(map(x -> count(y -> y == x, same_type_update_function_sets_dict[object_type.id][color]), update_functions))) == 1 
                 global_sorted_update_functions = update_functions
               else
                 global_sorted_update_functions = reverse(sort(unique(same_type_update_function_sets_dict[object_type.id][color]), by=x -> count(y -> y == x, same_type_update_function_sets_dict[object_type.id][color])))
+                global_sorted_frequencies = map(x -> count(y -> y == x, same_type_update_function_sets_dict[object_type.id][color]), global_sorted_update_functions)
+                
+                # sort most-frequent update functions (top functions) by their original order in matrix
+                top_indices = findall(x -> x == maximum(global_sorted_frequencies), global_sorted_frequencies)
+                sorted_top_indices = sort(top_indices, by=i -> find_global_index(global_sorted_update_functions[i])) 
+                top_functions = map(i -> global_sorted_update_functions[i], sorted_top_indices)
+                
+                non_top_functions = filter(x -> !(x in top_functions), global_sorted_update_functions)
+                global_sorted_update_functions = vcat(top_functions, non_top_functions)
               end
               
+              @show bit_value
+              @show length(global_sorted_update_functions)
               if (bit_value == 1) && length(global_sorted_update_functions) > 1
+                println("HELLO")
                 # swap first and second elements of global_sorted_update_functions
                 temp = global_sorted_update_functions[2]
                 global_sorted_update_functions[2] = global_sorted_update_functions[1]
@@ -971,7 +1124,18 @@ function filter_update_function_matrix_multiple(matrix, object_decomposition; mu
 
     end
 
+    for row in 1:size(new_matrix)[1]
+      for col in 1:size(new_matrix)[2]
+          if length(new_matrix[row, col]) == 0 
+              @show row
+              @show col
+          end
+      end
+    end
+ 
     for object_id in 1:size(new_matrix)[1]
+      @show object_id 
+      @show new_matrix[object_id, :]
       new_matrix[object_id, :] = map(list -> [replace(list[1], " id) $(object_id)" => " id) x")], new_matrix[object_id, :])
     end
     push!(new_matrices, new_matrix)
@@ -1001,7 +1165,9 @@ function filter_update_function_matrix_multiple(matrix, object_decomposition; mu
       new_matrix[object_id, :] = map(list -> [replace(list[1], " id) x" => " id) $(object_id)")], new_matrix[object_id, :])
     end  
   end
-  @show same_type_update_function_sets_dict
+  @show length(new_matrices)
+  @show length(unique(new_matrices))
+
   unique(new_matrices)
 end
 
@@ -1034,6 +1200,34 @@ function pre_filter_with_direction_biases(matrix, user_events, object_decomposit
   end
 
   deepcopy(new_matrix)
+end
+
+function construct_chaos_matrix(unformatted_matrix, object_decomposition)
+  object_types, object_mapping, _, _ = object_decomposition 
+
+  chaos_matrix = deepcopy(unformatted_matrix)
+  for object_type in object_types 
+    object_ids = sort(filter(id -> filter(obj -> !isnothing(obj), object_mapping[id])[1].type.id == object_type.id, collect(keys(object_mapping))))
+    generic_update_rules = unique(filter(x -> occursin("objX", x) && !occursin("\"color\"", x), vcat([unformatted_matrix[row, col] for row in object_ids for col in 1:size(unformatted_matrix)[2]]...)))
+    stripped_generic_update_rules = map(r -> replace(r, "(= objX " => "")[1:end-1], generic_update_rules)  
+    # construct chaos update function (i.e. update function that is uniformChoice of all non-addObj/non-removeObj options)
+    if length(object_ids) == 1
+      update_rule = "(= obj$(object_ids[1]) (uniformChoice (list $(join(stripped_generic_update_rules, " ")))))"
+      update_rule = replace(update_rule, "objX" => "(prev obj$(object_ids[1]))")
+    else
+      update_rule = "(= addedObjType$(object_type.id)List (updateObj addedObjType$(object_type.id)List (--> obj (uniformChoice (list $(join(stripped_generic_update_rules, " ")))))))"
+      update_rule = replace(update_rule, "objX" => "(prev obj)")
+    end
+
+    for row in object_ids
+      for col in 1:size(chaos_matrix)[2]
+        if filter(x -> occursin("objX", x), chaos_matrix[row, col]) != []
+          chaos_matrix[row, col] = [update_rule]
+        end
+      end
+    end
+  end
+  chaos_matrix
 end
 
 # generate_event, generate_hypothesis_position, generate_hypothesis_position_program 
@@ -1105,7 +1299,8 @@ function generate_event(anonymized_update_rule, object_id, object_ids, matrix, f
 
   found_events = []
   final_event_globals = []
-  events_to_try = unique(vcat(gen_event_bool(object_decomposition, "x", filter(e -> e != "", unique(user_events)), global_var_dict), collect(keys(event_vector_dict))))
+  new_choices = gen_event_bool(object_decomposition, "x", filter(e -> e != "", unique(user_events)), global_var_dict)
+  events_to_try = sort(unique(vcat(new_choices, collect(keys(event_vector_dict)))), by=length)
   while true
     for event in events_to_try 
       event_is_global = !occursin(".. obj id)", event)
@@ -1221,7 +1416,7 @@ function generate_event(anonymized_update_rule, object_id, object_ids, matrix, f
         
         for object_id in object_ids 
           # these object-specific events may be treated as global events; each mapping in object_specific dictionary contains same array
-          object_specific_event = replace(event, "obj id) x" => "obj id) $(object_id)")
+          object_specific_event = replace(event, "obj id) x" => "obj id) $(object_id)") 
           object_specific_event_values_dict = Dict() 
           for object_id_2 in object_ids 
             object_specific_event_values_dict[object_id_2] = event_values_dict[object_id] # array 
@@ -1270,7 +1465,7 @@ function generate_event(anonymized_update_rule, object_id, object_ids, matrix, f
     end
 
     if length(found_events) < min_events && !tried_compound_events
-      events_to_try = construct_compound_events(event_vector_dict)
+      events_to_try = sort(unique(vcat(construct_compound_events(new_choices, event_vector_dict), collect(keys(event_vector_dict)))), by=length)
       tried_compound_events = true
     else
       break
@@ -1290,8 +1485,8 @@ function generate_new_state(update_rule, update_function_times, event_vector_dic
   @show global_var_dict 
   @show state_update_times_dict   
   new_state_update_times_dict = deepcopy(state_update_times_dict)
-
-  events = filter(e -> event_vector_dict[e] isa Array, collect(keys(event_vector_dict)))
+  failed = false
+  events = filter(e -> event_vector_dict[e] isa AbstractArray, collect(keys(event_vector_dict)))
 
   # compute best co-occurring event (i.e. event with fewest false positives)
   co_occurring_events = []
@@ -1302,6 +1497,7 @@ function generate_new_state(update_rule, update_function_times, event_vector_dic
       push!(co_occurring_events, (event, length([time for time in event_times if !(time in update_function_times)])))
     end 
   end
+  @show co_occurring_events
   co_occurring_event = sort(co_occurring_events, by=x->x[2])[1][1]
   co_occurring_event_trajectory = event_vector_dict[co_occurring_event]
 
@@ -1335,6 +1531,8 @@ function generate_new_state(update_rule, update_function_times, event_vector_dic
   false_positive_times = [] # times when user_event happened and update_rule didn't happen
 
   # construct true_positive_times and false_positive_times 
+  @show length(user_events)
+  @show length(co_occurring_event_trajectory)
   for time in 1:length(user_events)
     if co_occurring_event_trajectory[time] == 1 && !(time in true_positive_times)
       if occursin("addObj", update_rule)
@@ -1418,9 +1616,17 @@ function generate_new_state(update_rule, update_function_times, event_vector_dic
     # search for events within range
     events_in_range = find_state_update_events(event_vector_dict, augmented_positive_times, time_ranges, start_value, end_value, global_var_dict, global_var_id, global_var_value)
     if events_in_range != [] # event with zero false positives found
+      println("PLS WORK 2")
+      @show event_vector_dict
+      @show events_in_range 
       if filter(tuple -> !occursin("true", tuple[1]), events_in_range) != []
-        state_update_event, event_times = filter(tuple -> !occursin("true", tuple[1]), events_in_range)[1]
-      else
+        if filter(tuple -> !occursin("globalVar", tuple[1]) && !occursin("true", tuple[1]), events_in_range) != []
+          state_update_event, event_times = filter(tuple -> !occursin("globalVar", tuple[1]) && !occursin("true", tuple[1]), events_in_range)[1]
+        else
+          state_update_event, event_times = filter(tuple -> !occursin("true", tuple[1]), events_in_range)[1]
+        end
+      else 
+        # FAILURE CASE 
         state_update_event, event_times = events_in_range[1]
       end
 
@@ -1443,7 +1649,10 @@ function generate_new_state(update_rule, update_function_times, event_vector_dic
       if events_without_true != []
         false_positive_event, _, true_positive_times, false_positive_times = events_without_true[1] 
       else
-        false_positive_event, _, true_positive_times, false_positive_times = false_positive_events_with_state[1] 
+        # FAILURE CASE: only separating event with false positives is true-based 
+        # false_positive_event, _, true_positive_times, false_positive_times = false_positive_events_with_state[1]
+        failed = true 
+        break  
       end
 
       # construct state update on-clause
@@ -1556,27 +1765,31 @@ function generate_new_state(update_rule, update_function_times, event_vector_dic
     end
   end
 
-  # update global_var_dict
-  _, init_value = augmented_positive_times[1]                                   
-  for time in 1:length(global_var_dict[global_var_id]) 
-    if global_var_dict[global_var_id][time] >= global_var_value 
-      global_var_dict[global_var_id][time] = init_value
+  if failed 
+    "", global_var_dict, new_state_update_times_dict
+  else
+    # update global_var_dict
+    _, init_value = augmented_positive_times[1]                                   
+    for time in 1:length(global_var_dict[global_var_id]) 
+      if global_var_dict[global_var_id][time] >= global_var_value 
+        global_var_dict[global_var_id][time] = init_value
+      end
     end
-  end
 
-  curr_value = -1
-  for time in 1:length(global_var_dict[global_var_id])
-    if curr_value != -1 
-      global_var_dict[global_var_id][time] = curr_value
+    curr_value = -1
+    for time in 1:length(global_var_dict[global_var_id])
+      if curr_value != -1 
+        global_var_dict[global_var_id][time] = curr_value
+      end
+      if new_state_update_times_dict[global_var_id][time] != ""
+        curr_value = parse(Int, split(split(new_state_update_times_dict[global_var_id][time], "\n")[2], "(= globalVar$(global_var_id) ")[2][1])
+      end
     end
-    if new_state_update_times_dict[global_var_id][time] != ""
-      curr_value = parse(Int, split(split(new_state_update_times_dict[global_var_id][time], "\n")[2], "(= globalVar$(global_var_id) ")[2][1])
-    end
-  end
 
-  on_clause = "(on $(occursin("globalVar$(global_var_id)", co_occurring_event) ? co_occurring_event : "(& (== (prev globalVar$(global_var_id)) $(global_var_value)) $(co_occurring_event))")\n$(update_rule))"
-  
-  on_clause, global_var_dict, new_state_update_times_dict
+    on_clause = "(on $(occursin("globalVar$(global_var_id)", co_occurring_event) ? co_occurring_event : "(& (== (prev globalVar$(global_var_id)) $(global_var_value)) $(co_occurring_event))")\n$(update_rule))"
+    
+    on_clause, global_var_dict, new_state_update_times_dict
+  end
 end
 
 function generate_new_object_specific_state(update_rule, update_function_times_dict, event_vector_dict, type_id, object_decomposition, state_update_times)
@@ -1587,7 +1800,7 @@ function generate_new_object_specific_state(update_rule, update_function_times_d
   @show type_id 
   @show object_decomposition
   @show state_update_times  
-  
+  failed = false
   object_types, object_mapping, background, grid_size = object_decomposition 
   object_ids = sort(collect(keys(update_function_times_dict)))
 
@@ -1606,7 +1819,7 @@ function generate_new_object_specific_state(update_rule, update_function_times_d
   events = collect(keys(event_vector_dict))
   co_occurring_events = []
   for event in events
-    if event_vector_dict[event] isa Array
+    if event_vector_dict[event] isa AbstractArray
       event_vector = event_vector_dict[event]
       co_occurring = foldl(&, map(update_function_times -> is_co_occurring(event, event_vector, update_function_times), collect(values(update_function_times_dict))), init=true)      
     
@@ -1634,7 +1847,7 @@ function generate_new_object_specific_state(update_rule, update_function_times_d
     
     # construct false_positive_times 
     for time in 1:(length(object_mapping[object_ids[1]])-1)
-      if co_occurring_event_trajectory isa Array
+      if co_occurring_event_trajectory isa AbstractArray
         if co_occurring_event_trajectory[time] == 1 && !(time in true_positive_times)
           push!(false_positive_times, time)
         end
@@ -1726,7 +1939,6 @@ function generate_new_object_specific_state(update_rule, update_function_times_d
     # TODO: try global events too  
     events_in_range = []
     if events_in_range == [] # if no global events are found, try object-specific events 
-      # do something
       # events_in_range = find_state_update_events(event_vector_dict, augmented_positive_times, time_ranges, start_value, end_value, global_var_dict, global_var_value)
       events_in_range = find_state_update_events_object_specific(event_vector_dict, augmented_positive_times_dict, grouped_range, object_ids, object_mapping, max_state_value)
     end
@@ -1750,64 +1962,71 @@ function generate_new_object_specific_state(update_rule, update_function_times_d
           state_update_times[id][time] = (state_update_function, end_value)
         end
       end
+    else
+      failed = true 
+      break
     end
   end
 
-  # construct field values for each object 
-  object_field_values = Dict()
-  for object_id in object_ids
-    init_value = length(augmented_positive_times_dict[object_id]) == 0 ? (max_state_value + 1) : augmented_positive_times_dict[object_id][1][2]
-    object_field_values[object_id] = [init_value for i in 1:(length(state_update_times[object_id]) + 1)]
-    
-    curr_value = -1
-    for time in 1:length(state_update_times[object_id])
-      if curr_value != -1
-        object_field_values[object_id][time] = curr_value
-      end
-      
-      if state_update_times[object_id][time] != ("", -1)
-        curr_value = state_update_times[object_id][time][2]
-      end
-    end
-    object_field_values[object_id][length(object_field_values[object_id])] = curr_value != -1 ? curr_value : init_value
-  end
-
-  # construct new object decomposition
-  ## add field to correct ObjType in object_types
-  new_object_types = deepcopy(object_types)
-  new_object_type = filter(type -> type.id == type_id, new_object_types)[1]
-  if !("field1" in map(field_tuple -> field_tuple[1], new_object_type.custom_fields))
-    push!(new_object_type.custom_fields, ("field1", "Int", [1, 2]))
+  if failed 
+    "", [], object_decomposition, state_update_times  
   else
-    custom_field_index = findall(field_tuple -> field_tuple[1] == "field1", filter(obj -> !isnothing(obj), object_mapping[object_ids[1]])[1].type.custom_fields)[1]
-    push!(new_object_type.custom_fields[custom_field_index][3], max_state_value + 1)
-  end
-  
-  ## modify objects in object_mapping
-  new_object_mapping = deepcopy(object_mapping)
-  for id in collect(keys(new_object_mapping))
-    if id in collect(keys(update_function_times_dict))
-      for time in 1:length(new_object_mapping[id])
-        if !isnothing(object_mapping[id][time])
-          values = new_object_mapping[id][time].custom_field_values
-          if !((values != []) && (values[end] isa Int) && (values[end] < max_state_value))
-            new_object_mapping[id][time].type = new_object_type
-            if (values != []) && (values[end] isa Int)
-              new_object_mapping[id][time].custom_field_values = vcat(new_object_mapping[id][time].custom_field_values[1:end-1], object_field_values[id][time])
-            else
-              new_object_mapping[id][time].custom_field_values = vcat(new_object_mapping[id][time].custom_field_values, object_field_values[id][time])
+    # construct field values for each object 
+    object_field_values = Dict()
+    for object_id in object_ids
+      init_value = length(augmented_positive_times_dict[object_id]) == 0 ? (max_state_value + 1) : augmented_positive_times_dict[object_id][1][2]
+      object_field_values[object_id] = [init_value for i in 1:(length(state_update_times[object_id]) + 1)]
+      
+      curr_value = -1
+      for time in 1:length(state_update_times[object_id])
+        if curr_value != -1
+          object_field_values[object_id][time] = curr_value
+        end
+        
+        if state_update_times[object_id][time] != ("", -1)
+          curr_value = state_update_times[object_id][time][2]
+        end
+      end
+      object_field_values[object_id][length(object_field_values[object_id])] = curr_value != -1 ? curr_value : init_value
+    end
+
+    # construct new object decomposition
+    ## add field to correct ObjType in object_types
+    new_object_types = deepcopy(object_types)
+    new_object_type = filter(type -> type.id == type_id, new_object_types)[1]
+    if !("field1" in map(field_tuple -> field_tuple[1], new_object_type.custom_fields))
+      push!(new_object_type.custom_fields, ("field1", "Int", [1, 2]))
+    else
+      custom_field_index = findall(field_tuple -> field_tuple[1] == "field1", filter(obj -> !isnothing(obj), object_mapping[object_ids[1]])[1].type.custom_fields)[1]
+      push!(new_object_type.custom_fields[custom_field_index][3], max_state_value + 1)
+    end
+    
+    ## modify objects in object_mapping
+    new_object_mapping = deepcopy(object_mapping)
+    for id in collect(keys(new_object_mapping))
+      if id in collect(keys(update_function_times_dict))
+        for time in 1:length(new_object_mapping[id])
+          if !isnothing(object_mapping[id][time])
+            values = new_object_mapping[id][time].custom_field_values
+            if !((values != []) && (values[end] isa Int) && (values[end] < max_state_value))
+              new_object_mapping[id][time].type = new_object_type
+              if (values != []) && (values[end] isa Int)
+                new_object_mapping[id][time].custom_field_values = vcat(new_object_mapping[id][time].custom_field_values[1:end-1], object_field_values[id][time])
+              else
+                new_object_mapping[id][time].custom_field_values = vcat(new_object_mapping[id][time].custom_field_values, object_field_values[id][time])
+              end
             end
           end
         end
       end
     end
-  end
-  new_object_decomposition = new_object_types, new_object_mapping, background, grid_size
+    new_object_decomposition = new_object_types, new_object_mapping, background, grid_size
 
-  formatted_co_occurring_event = replace(co_occurring_event, "(filter (--> obj (== (.. obj id) x)) (prev addedObjType$(type_id)List))" => "(list (prev obj))")
-  on_clause = "(on true\n$(replace(update_rule, "(== (.. obj id) x)" => "(& $(formatted_co_occurring_event) (== (.. obj field1) $(max_state_value)))")))"
-  state_update_on_clauses = map(x -> x[1], unique(filter(r -> r != ("", -1), vcat([state_update_times[k] for k in collect(keys(state_update_times))]...))))
-  on_clause, state_update_on_clauses, new_object_decomposition, state_update_times  
+    formatted_co_occurring_event = replace(co_occurring_event, "(filter (--> obj (== (.. obj id) x)) (prev addedObjType$(type_id)List))" => "(list (prev obj))")
+    on_clause = "(on true\n$(replace(update_rule, "(== (.. obj id) x)" => "(& $(formatted_co_occurring_event) (== (.. obj field1) $(max_state_value)))")))"
+    state_update_on_clauses = map(x -> x[1], unique(filter(r -> r != ("", -1), vcat([state_update_times[k] for k in collect(keys(state_update_times))]...))))
+    on_clause, state_update_on_clauses, new_object_decomposition, state_update_times  
+  end
 end
 
 function is_no_change_rule(update_rule)
@@ -1816,7 +2035,7 @@ function is_no_change_rule(update_rule)
 end 
 
 function full_program(observations, user_events, grid_size=16)
-  matrix, object_decomposition, _ = singletimestepsolution_matrix(observations, user_events, grid_size)
+  matrix, unformatted_matrix, object_decomposition, _ = singletimestepsolution_matrix(observations, user_events, grid_size)
 
   object_types, object_mapping, background, _ = object_decomposition
   
@@ -1828,7 +2047,11 @@ function full_program(observations, user_events, grid_size=16)
   end
   matrix = new_matrix
 
-  on_clauses, new_object_decomposition, global_var_dict, filtered_matrix = generate_on_clauses(matrix, object_decomposition, user_events, grid_size)
+  on_clauses, new_object_decomposition, global_var_dict = generate_on_clauses(matrix, unformatted_matrix, object_decomposition, user_events, grid_size)[1]
+  s = full_program_given_on_clauses(on_clauses, new_object_decomposition, global_var_dict, grid_size)
+end
+
+function full_program_given_on_clauses(on_clauses, new_object_decomposition, global_var_dict, grid_size)
   object_types, object_mapping, background, _ = new_object_decomposition
 
   # for object_id in object_ids

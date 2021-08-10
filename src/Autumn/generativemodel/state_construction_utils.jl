@@ -25,7 +25,7 @@ function find_state_update_events_false_positives(orig_event_vector_dict, augmen
 
   co_occurring_events = []
   @show collect(keys(event_vector_dict))
-  for event in collect(keys(event_vector_dict)) 
+  for event in sort(collect(keys(event_vector_dict)), by=length) 
     event_vector = event_vector_dict[event]
     event_times = findall(x -> x == 1, event_vector)
     if time_ranges == []
@@ -76,8 +76,8 @@ function find_state_update_events_false_positives(orig_event_vector_dict, augmen
   
         end
         num_false_positives_with_effects = count(x -> x != end_value && x != -1, desired_end_values)
-        false_positive_with_effects_times = [false_positive_times[i] for i in findall(v -> v != end_value && x != -1, desired_end_values)]
-        no_effect_times = [false_positive_times[i] for i in findall(v -> v == end_value || x == -1, desired_end_values)]
+        false_positive_with_effects_times = [false_positive_times[i] for i in findall(v -> v != end_value && v != -1, desired_end_values)]
+        no_effect_times = [false_positive_times[i] for i in findall(v -> v == end_value || v == -1, desired_end_values)]
         push!(co_occurring_events, (event, 
                                     num_false_positives_with_effects, 
                                     [co_occurring_times..., no_effect_times...], 
@@ -98,10 +98,14 @@ function find_state_update_events_false_positives(orig_event_vector_dict, augmen
   co_occurring_events = sort(co_occurring_events, by=x->x[2])
 
   # among events with minimum # of false positives, sort by length of event (i.e. so "left" appears before "& left (== globalVar1 1)")
-  min_false_positives = co_occurring_events[1][2]
-  min_false_positive_events = sort(filter(e -> e[2] == min_false_positives, co_occurring_events), by=x->length(x[1]))
-  other_events = filter(e -> e[2] != min_false_positives, co_occurring_events)
-  co_occurring_events = vcat(min_false_positive_events, other_events)
+  if co_occurring_events == [] 
+    []
+  else
+    min_false_positives = co_occurring_events[1][2]
+    min_false_positive_events = sort(filter(e -> e[2] == min_false_positives, co_occurring_events), by=x->length(x[1]))
+    other_events = filter(e -> e[2] != min_false_positives, co_occurring_events)
+    co_occurring_events = vcat(min_false_positive_events, other_events)
+  end
 end
 
 function group_ranges(ranges)
@@ -132,7 +136,7 @@ end
 
 function find_state_update_events_object_specific(event_vector_dict, augmented_positive_times_dict, grouped_range, object_ids, object_mapping, max_state_value)
   # extract object-specific events 
-  events = filter(e -> !(event_vector_dict[e] isa Array) && sort(collect(keys(event_vector_dict[e]))) == sort(object_ids), collect(keys(event_vector_dict))) 
+  events = filter(e -> !(event_vector_dict[e] isa AbstractArray) && sort(collect(keys(event_vector_dict[e]))) == sort(object_ids), collect(keys(event_vector_dict))) 
   global_events = filter(e -> event_vector_dict[e] isa Array, collect(keys(event_vector_dict)))
 
   update_events_dict = Dict()
@@ -168,14 +172,21 @@ function find_state_update_events_object_specific(event_vector_dict, augmented_p
     update_events_dict[object_id] = update_events
   end
   @show update_events_dict
-  common_event = intersect(map(id -> map(x -> x[1], update_events_dict[id]), object_ids)...)[1]
-  event_times = []
-  for object_id in object_ids 
-    object_event_times = filter(event_tuple -> event_tuple[1] == common_event, update_events_dict[object_id])[1][2]
-    augmented_times = map(time -> (time, object_id), object_event_times)
-    event_times = vcat(event_times..., augmented_times...)
+  common_events = intersect(map(id -> map(x -> x[1], update_events_dict[id]), object_ids)...)
+  if common_events == [] 
+    # FAILURE CASE
+    []
+  else
+    common_event = common_events[1]
+    event_times = []
+    for object_id in object_ids 
+      object_event_times = filter(event_tuple -> event_tuple[1] == common_event, update_events_dict[object_id])[1][2]
+      augmented_times = map(time -> (time, object_id), object_event_times)
+      event_times = vcat(event_times..., augmented_times...)
+    end
+    [(common_event, event_times)]  
   end
-  [(common_event, event_times)]
+
 end
 
 function is_co_occurring(event, event_vector, update_function_times)  

@@ -65,7 +65,11 @@ function genObjectUpdateRule(object, environment; p=0.0)
     if length(other_types) > 0
       push!(choices, "(move $(object) (unitVector $(object) (closest $(object) $(split(rand(other_types), "_")[2]))))")
     end
-    choice = choices[rand(1:length(choices))]
+    if choices == [] 
+      choice = object
+    else
+      choice = choices[rand(1:length(choices))]
+    end
     # "($(choice[1]) $(join(map(eval, choice[2]), " ")))"
     choice
   end
