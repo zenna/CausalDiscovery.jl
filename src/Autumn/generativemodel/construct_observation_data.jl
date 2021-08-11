@@ -59,9 +59,9 @@ function generate_observations_lights(m::Module)
   push!(observations, Base.invokelatest(m.render, state.scene))
 
   clicks = Dict([1 => (4, 3),
-                 3 => (7, 7),
-                 5 => (1, 13),
-                 7 => (8, 10),
+                 10 => (7, 8),
+                #  10 => (1, 13),
+                #  13 => (8, 10),
                 ])
 
   for i in 0:22
@@ -75,7 +75,7 @@ function generate_observations_lights(m::Module)
     end
     push!(observations, Base.invokelatest(m.render, state.scene))
   end
-  observations, user_events, 10
+  map(obs -> filter(cell -> cell.color != "white", obs), observations), user_events, 10
 end
 
 function generate_observations_space_invaders(m::Module)
@@ -368,22 +368,22 @@ function generation_observations_gravity3(m::Module)
 end
 
 function generate_observations_egg(m::Module)
-  state = m.init(nothing, nothing, nothing, nothing, nothing)
+  state = Base.invokelatest(m.init, nothing, nothing, nothing, nothing, nothing)
   observations = []
   user_events = []
   push!(observations, Base.invokelatest(m.render, state.scene))
 
-  for i in 0:24 
-    if i < 9
+  for i in 0:29 
+    if i < 9 || i == 16
       state = Base.invokelatest(m.next, state, nothing, nothing, nothing, Base.invokelatest(m.Up), nothing)
       push!(user_events, "up")
-    elseif i in [12, 17]
+    elseif i in [12, 15,  20]
       state = Base.invokelatest(m.next, state, nothing, Base.invokelatest(m.Left), nothing, nothing, nothing)
       push!(user_events, "left")
-    elseif i in [13, 18]
+    elseif i in [13, 14, 21]
       state = Base.invokelatest(m.next, state, nothing, nothing, Base.invokelatest(m.Right), nothing, nothing)
       push!(user_events, "right")
-    elseif i == 14
+    elseif i == 18
       state = Base.invokelatest(m.next, state, Base.invokelatest(m.Click, 0, 0), nothing, nothing, nothing, nothing)
       push!(user_events, "click 0 0")
     else
@@ -594,4 +594,64 @@ function generate_observations_ants(m::Module)
     push!(observations, Base.invokelatest(m.render, state.scene))
   end
   observations, user_events, 16
+end
+
+function generate_observations_sokoban(m::Module)
+  state = Base.invokelatest(m.init, nothing, nothing, nothing, nothing, nothing)
+  observations = []
+  user_events = []
+  push!(observations, Base.invokelatest(m.render, state.scene))
+
+  events = Dict([1 => "left",
+                 2 => "up",
+                 3 => "up",
+                 4 => "right",
+                 5 => "down",
+                 6 => "down",
+                 7 => "left",
+                 8 => "left",
+                 9 => "left",
+                 10 => "left",
+                 11 => "left",
+                 12 => "left",
+                 13 => "up",
+                 14 => "up",
+                 15 => "left",
+                 16 => "left",
+                 17 => "left",
+                 18 => "down",
+                 19 => "left",
+                 20 => "left",
+                 21 => "up",
+                 22 => "up",
+                 23 => "up",
+                ])
+
+  for i in 0:23
+    if i in collect(keys(events))
+      event = events[i]
+      if event == "left"
+        state = Base.invokelatest(m.next, state, nothing, Base.invokelatest(m.Left), nothing, nothing, nothing)
+        push!(user_events, event)
+      elseif event == "right"
+        state = Base.invokelatest(m.next, state, nothing, nothing, Base.invokelatest(m.Right), nothing, nothing)
+        push!(user_events, event)
+      elseif event == "up"
+        state = Base.invokelatest(m.next, state, nothing, nothing, nothing, Base.invokelatest(m.Up), nothing)
+        push!(user_events, event)
+      elseif event == "down"
+        state = Base.invokelatest(m.next, state, nothing, nothing, nothing, nothing, Base.invokelatest(m.Down))
+        push!(user_events, event)
+      end
+    else
+      state = Base.invokelatest(m.next, state, nothing, nothing, nothing, nothing, nothing)
+      push!(user_events, nothing)
+    end
+    push!(observations, Base.invokelatest(m.render, state.scene))
+  end
+  observations, user_events, 8
+end
+
+function generate_observations_sokoban_2(m::Module)
+
 end

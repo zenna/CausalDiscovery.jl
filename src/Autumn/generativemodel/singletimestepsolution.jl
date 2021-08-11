@@ -41,11 +41,11 @@ function singletimestepsolution_matrix(observations, user_events, grid_size; sin
                     #  "(= objX (moveRightNoCollision (moveDownNoCollision objX)))",
                     #  "(= objX (moveUpNoCollision objX))",
 
-                    "(= objX (moveUpNoCollision objX))",
-                     "(= objX (moveDownNoCollision objX))",
-                     "(= objX (moveLeftNoCollision objX))",
-                     "(= objX (moveRightNoCollision objX))",
-                     "(= objX (nextLiquid objX))",
+                    # "(= objX (moveUpNoCollision objX))",
+                    #  "(= objX (moveDownNoCollision objX))",
+                    #  "(= objX (moveLeftNoCollision objX))",
+                    #  "(= objX (moveRightNoCollision objX))",
+                    #  "(= objX (nextLiquid objX))",
                     #  "(= objX (nextSolid objX))",
                      "(= objX (moveDown objX))",
                      "(= objX (moveUp objX))",
@@ -81,7 +81,7 @@ expr = nothing
 mod = nothing
 global_iters = 0
 """Synthesize a set of update functions that """
-function synthesize_update_functions(object_id, time, object_decomposition, user_events, prev_used_rules, prev_abstract_positions, grid_size=16, max_iters=14)
+function synthesize_update_functions(object_id, time, object_decomposition, user_events, prev_used_rules, prev_abstract_positions, grid_size=16, max_iters=8)
   object_types, object_mapping, background, grid_size = object_decomposition
   
   if length(unique(map(k -> length(object_mapping[k]), collect(keys(object_mapping))))) != 1 
@@ -382,7 +382,7 @@ function parse_and_map_objects(observations, gridsize=16; singlecell=false)
               # @show curr_objects_with_type
               # @show next_objects_with_type
               curr_objects_with_type = filter(o -> o.id != object.id, curr_objects_with_type)
-              if distance(object.position, next_object.position) < 5
+              if distance(object.position, next_object.position) < 4
                 next_objects_with_type = filter(o -> o.id != next_object.id, next_objects_with_type)
                 next_object.id = object.id
                 push!(object_mapping[object.id], next_object)
@@ -679,6 +679,39 @@ function generate_on_clauses(matrix, unformatted_matrix, object_decomposition, u
   
   filtered_matrices = []
 
+  # # add non-random filtered matrices to filtered_matrices
+  # non_random_matrix = deepcopy(matrix)
+  # for row in 1:size(non_random_matrix)[1]
+  #   for col in 1:size(non_random_matrix)[2]
+  #     non_random_matrix[row, col] = filter(x -> !occursin("uniformChoice", x) && !occursin("randomPositions", x), non_random_matrix[row, col])
+  #   end
+  # end
+  # filtered_non_random_matrices = filter_update_function_matrix_multiple(non_random_matrix, object_decomposition, multiple=true)
+  # # filtered_non_random_matrices = filtered_non_random_matrices[1:min(4, length(filtered_non_random_matrices))]
+  # push!(filtered_matrices, filtered_non_random_matrices...)
+  
+
+  # # add direction-bias-filtered matrix to filtered_matrices 
+  # pre_filtered_matrix = pre_filter_with_direction_biases(deepcopy(matrix), user_events, object_decomposition) 
+  # push!(filtered_matrices, filter_update_function_matrix_multiple(pre_filtered_matrix, object_decomposition, multiple=false)...)
+
+  # # add random filtered matrices to filtered_matrices 
+  # random_matrix = deepcopy(matrix)
+  # for row in 1:size(random_matrix)[1]
+  #   for col in 1:size(random_matrix)[2]
+  #     if filter(x -> occursin("uniformChoice", x) || occursin("randomPositions", x), random_matrix[row, col]) != []
+  #       random_matrix[row, col] = filter(x -> occursin("uniformChoice", x) || occursin("randomPositions", x), random_matrix[row, col])
+  #     end
+  #   end
+  # end
+  # filtered_random_matrices = filter_update_function_matrix_multiple(random_matrix, object_decomposition, multiple=true)
+  # filtered_random_matrices = filtered_random_matrices[1:min(4, length(filtered_random_matrices))]
+  # push!(filtered_matrices, filtered_random_matrices...)
+
+  # # add "chaos" solution to filtered_matrices 
+  # filtered_unformatted_matrix = filter_update_function_matrix_multiple(unformatted_matrix, object_decomposition, multiple=false)[1]
+  # push!(filtered_matrices, filter_update_function_matrix_multiple(construct_chaos_matrix(filtered_unformatted_matrix, object_decomposition), object_decomposition, multiple=false)...)
+
   # add non-random filtered matrices to filtered_matrices
   non_random_matrix = deepcopy(matrix)
   for row in 1:size(non_random_matrix)[1]
@@ -687,30 +720,8 @@ function generate_on_clauses(matrix, unformatted_matrix, object_decomposition, u
     end
   end
   filtered_non_random_matrices = filter_update_function_matrix_multiple(non_random_matrix, object_decomposition, multiple=true)
-  filtered_non_random_matrices = filtered_non_random_matrices[1:min(4, length(filtered_non_random_matrices))]
-  push!(filtered_matrices, filtered_non_random_matrices...)
-  
-
-  # add direction-bias-filtered matrix to filtered_matrices 
-  pre_filtered_matrix = pre_filter_with_direction_biases(deepcopy(matrix), user_events, object_decomposition) 
-  push!(filtered_matrices, filter_update_function_matrix_multiple(pre_filtered_matrix, object_decomposition, multiple=false)...)
-
-  # add random filtered matrices to filtered_matrices 
-  random_matrix = deepcopy(matrix)
-  for row in 1:size(random_matrix)[1]
-    for col in 1:size(random_matrix)[2]
-      if filter(x -> occursin("uniformChoice", x) || occursin("randomPositions", x), random_matrix[row, col]) != []
-        random_matrix[row, col] = filter(x -> occursin("uniformChoice", x) || occursin("randomPositions", x), random_matrix[row, col])
-      end
-    end
-  end
-  filtered_random_matrices = filter_update_function_matrix_multiple(random_matrix, object_decomposition, multiple=true)
-  filtered_random_matrices = filtered_random_matrices[1:min(4, length(filtered_random_matrices))]
-  push!(filtered_matrices, filtered_random_matrices...)
-
-  # add "chaos" solution to filtered_matrices 
-  filtered_unformatted_matrix = filter_update_function_matrix_multiple(unformatted_matrix, object_decomposition, multiple=false)[1]
-  push!(filtered_matrices, filter_update_function_matrix_multiple(construct_chaos_matrix(filtered_unformatted_matrix, object_decomposition), object_decomposition, multiple=false)...)
+  # filtered_non_random_matrices = filtered_non_random_matrices[1:min(4, length(filtered_non_random_matrices))]
+  push!(filtered_matrices, filtered_non_random_matrices[1])
 
   @show length(filtered_matrices)
   for filtered_matrix in filtered_matrices
@@ -759,8 +770,10 @@ function generate_on_clauses(matrix, unformatted_matrix, object_decomposition, u
         push!(all_update_rules, addObj_rules[1]) 
         addObj_count = count(r -> occursin("addObj", r), vcat(filtered_matrix[:, collect(values(addObj_times_dict))[1][1]]...))
       end
-  
-      all_update_rules = reverse(sort(all_update_rules, by=x -> count(y -> y == x, update_rule_set)))
+      
+      no_change_rules = filter(x -> is_no_change_rule(x), unique(all_update_rules))
+      all_update_rules = reverse(sort(filter(x -> !is_no_change_rule(x), all_update_rules), by=x -> count(y -> y == x, update_rule_set)))
+      all_update_rules = [no_change_rules..., all_update_rules...]
       for update_rule in all_update_rules 
         @show global_object_decomposition
         if update_rule != "" && !is_no_change_rule(update_rule)
@@ -775,7 +788,7 @@ function generate_on_clauses(matrix, unformatted_matrix, object_decomposition, u
           if events != []
             event = events[1]
             event_is_global = event_is_globals[1]
-            on_clause = format_on_clause(replace(update_rule, ".. obj id) x" => ".. obj id) $(object_ids[1])"), event, object_ids[1], object_ids, object_type, group_addObj_rules, addObj_rules, object_mapping, event_is_global, grid_size, addObj_count)
+            on_clause = format_on_clause(replace(update_rule, ".. obj id) x" => ".. obj id) $(object_ids[1])"), replace(event, ".. obj id) x" => ".. obj id) $(object_ids[1])"), object_ids[1], object_ids, object_type, group_addObj_rules, addObj_rules, object_mapping, event_is_global, grid_size, addObj_count)
             push!(on_clauses, on_clause)
           else # handle construction of new state
   
@@ -811,7 +824,7 @@ function generate_on_clauses(matrix, unformatted_matrix, object_decomposition, u
                 failed = true 
                 break 
               else 
-                on_clause = format_on_clause(split(replace(on_clause, ".. obj id) x" => ".. obj id) $(object_ids[1])"), "\n")[2][1:end-1], replace(split(on_clause, "\n")[1], "(on " => ""), object_ids[1], object_ids, object_type, group_addObj_rules, addObj_rules, object_mapping, true, grid_size, addObj_count)
+                on_clause = format_on_clause(split(replace(on_clause, ".. obj id) x" => ".. obj id) $(object_ids[1])"), "\n")[2][1:end-1], replace(replace(split(on_clause, "\n")[1], "(on " => ""), ".. obj id) x" => ".. obj id) $(object_ids[1])"), object_ids[1], object_ids, object_type, group_addObj_rules, addObj_rules, object_mapping, true, grid_size, addObj_count)
                 push!(on_clauses, on_clause)
                 global_var_dict = new_global_var_dict 
                 global_state_update_on_clauses = vcat(map(k -> filter(x -> x != "", new_state_update_times_dict[k]), collect(keys(new_state_update_times_dict)))...) # vcat(state_update_on_clauses..., filter(x -> x != "", new_state_update_times)...)
@@ -911,9 +924,9 @@ function format_on_clause(update_rule, event, object_id, object_ids, object_type
         reformatted_event = replace(event, "(filter (--> obj (== (.. obj id) $(object_id))) (prev addedObjType$(object_type.id)List))" => "(list (prev obj))")
         reformatted_rule = replace(update_rule, "(--> obj (== (.. obj id) $(object_id)))" => "(--> obj $(reformatted_event))")
         
-        second_reformatted_event = replace(event, "(filter (--> obj (== (.. obj id) $(object_id))) (prev addedObjType$(object_type.id)List))" => "(prev addedObjType$(object_type.id)List)")
+        # second_reformatted_event = replace(event, "(filter (--> obj (== (.. obj id) $(object_id))) (prev addedObjType$(object_type.id)List))" => "(prev addedObjType$(object_type.id)List)")
         
-        on_clause = "(on $(second_reformatted_event) $(reformatted_rule))"
+        on_clause = "(on true $(reformatted_rule))"
       else
         on_clause = "(on $(event) $(update_rule))"
       end
@@ -1247,7 +1260,9 @@ function generate_event(anonymized_update_rule, object_id, object_ids, matrix, f
   # construct sorted distinct_update_rules 
   all_update_rules = vcat(filter(r -> r != "", vcat(map(id -> map(x -> replace(x[1], "obj id) $(id)" => "obj id) x"), filtered_matrix[id, :]), object_ids)...))...)
   distinct_update_rules = unique(all_update_rules)
-  distinct_update_rules = reverse(sort(distinct_update_rules, by=x -> count(y -> y == x, all_update_rules)))
+  no_change_rules = filter(x -> is_no_change_rule(x), distinct_update_rules)
+  distinct_update_rules = reverse(sort(filter(x -> !is_no_change_rule(x), distinct_update_rules), by=x -> count(y -> y == x, all_update_rules)))
+  distinct_update_rules = [no_change_rules..., distinct_update_rules...]
 
   for object_id in object_ids 
     object_trajectory = filtered_matrix[object_id, :]
@@ -1498,7 +1513,10 @@ function generate_new_state(update_rule, update_function_times, event_vector_dic
     end 
   end
   @show co_occurring_events
-  co_occurring_event = sort(co_occurring_events, by=x->x[2])[1][1]
+  co_occurring_events = sort(co_occurring_events, by=x->x[2]) # [1][1]
+  best_co_occurring_events = sort(filter(e -> e[2] == minimum(map(x -> x[2], co_occurring_events)), co_occurring_events), by=z -> length(z[1]))
+  @show best_co_occurring_events
+  co_occurring_event = best_co_occurring_events[1][1]
   co_occurring_event_trajectory = event_vector_dict[co_occurring_event]
 
   # initialize global_var_dict and get global_var_value
@@ -1837,7 +1855,10 @@ function generate_new_object_specific_state(update_rule, update_function_times_d
       end
     end
   end
-  co_occurring_event = sort(co_occurring_events, by=(x -> x[2]))[1][1]
+  co_occurring_events = sort(co_occurring_events, by=x->x[2]) # [1][1]
+  best_co_occurring_events = sort(filter(e -> e[2] == minimum(map(x -> x[2], co_occurring_events)), co_occurring_events), by=z -> length(z[1]))
+  @show best_co_occurring_events
+  co_occurring_event = best_co_occurring_events[1][1]
   co_occurring_event_trajectory = event_vector_dict[co_occurring_event]
 
   augmented_positive_times_dict = Dict()
@@ -1902,9 +1923,9 @@ function generate_new_object_specific_state(update_rule, update_function_times_d
           elseif (prev_val == max_state_value) && (next_val < max_state_value)
             if (filter(t -> t[1] == time, augmented_positive_times) != []) && (filter(t -> t[1] == time, augmented_positive_times)[1][2] != max_state_value)
               new_value = filter(t -> t[1] == time, augmented_positive_times)[1][2]
-              push!(ranges[object_id], ((time, new_value), (time + 1, next_val)))        
+              push!(ranges_dict[object_id], ((time, new_value), (time + 1, next_val)))        
             else
-              push!(ranges[object_id], ((time, prev_val), (time + 1, next_val)))        
+              push!(ranges_dict[object_id], ((time, prev_val), (time + 1, next_val)))        
             end
           end
         end
@@ -2066,11 +2087,11 @@ function full_program_given_on_clauses(on_clauses, new_object_decomposition, glo
   # end
 
   on_clauses = unique(on_clauses)
-  true_on_clauses = filter(on_clause -> occursin("on true", on_clause), on_clauses)
-  user_event_on_clauses = filter(on_clause -> !(on_clause in true_on_clauses) && foldl(|, map(event -> occursin(event, on_clause) , ["clicked", "left", "right", "down", "up"])), on_clauses)
-  other_on_clauses = filter(on_clause -> !((on_clause in true_on_clauses) || (on_clause in user_event_on_clauses)), on_clauses)
+  # true_on_clauses = filter(on_clause -> occursin("on true", on_clause), on_clauses)
+  # user_event_on_clauses = filter(on_clause -> !(on_clause in true_on_clauses) && foldl(|, map(event -> occursin(event, on_clause) , ["clicked", "left", "right", "down", "up"])), on_clauses)
+  # other_on_clauses = filter(on_clause -> !((on_clause in true_on_clauses) || (on_clause in user_event_on_clauses)), on_clauses)
   
-  on_clauses = vcat(true_on_clauses, other_on_clauses..., user_event_on_clauses...)
+  # on_clauses = vcat(true_on_clauses, other_on_clauses..., user_event_on_clauses...)
   
   objects = sort(filter(obj -> obj != nothing, [object_mapping[i][1] for i in 1:length(collect(keys(object_mapping)))]), by=(x -> x.id))
   

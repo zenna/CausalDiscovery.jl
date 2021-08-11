@@ -20,7 +20,7 @@
   (on (intersects (prev addedObjType2List) (prev addedObjType1List)) (= addedObjType2List (removeObj (prev addedObjType2List) (--> obj (intersects obj (prev addedObjType1List))))))
   (on clicked (= addedObjType2List (addObj addedObjType2List (ObjType2  (Position (.. click x) (.. click y)))))))
 
-  (program
+(program
   (= GRID_SIZE 16)
   (= background "white")
   (object ObjType1  (list (Cell 0 0  "gray" )))
@@ -31,7 +31,7 @@
   (: addedObjType1List (List ObjType1))
   (: addedObjType2List (List ObjType2))
 
-  (= obj1 (initnext (ObjType1  (Position 11 13)) (prev obj1)))
+  (= obj1 (initnext (ObjType1  (Position 6 3)) (prev obj1)))
   
   (= addedObjType1List (initnext (list) (prev addedObjType1List)))
   (= addedObjType2List (initnext (list) (prev addedObjType2List)))
@@ -41,5 +41,5 @@
   (= time (initnext 0 (+ time 1)))
 
   (on true (= obj1 (move (prev obj1) (unitVector (prev obj1) (closest (prev obj1) ObjType2)))))
-  (on true (= addedObjType2List (removeObj addedObjType2List (--> obj (intersects (prev obj1) (filter (--> obj (== (.. obj id) x)) (prev addedObjType2List)))))))
-  (on (& clicked (isFree click)) (= addedObjType2List (addObj addedObjType2List (ObjType2  (uniformChoice (randomPositions 16 1)))))))
+  (on true (= addedObjType2List (removeObj addedObjType2List (--> obj (intersects (prev obj1) (list obj))))))
+  (on (& clicked (isFree click)) (= addedObjType2List (addObj addedObjType2List (map (--> pos (ObjType2 pos)) (randomPositions GRID_SIZE 4))))))
