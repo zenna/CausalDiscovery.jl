@@ -278,7 +278,7 @@ function program_string_synth_standard_groups(object_decomposition)
   (program
     (= GRID_SIZE $(gridsize))
     (= background "$(background)")
-    $(join(map(t -> "(object ObjType$(t.id) $(join(map(tuple -> "(: $(tuple[1]) $(tuple[2]))", t.custom_fields), " ")) (list $(join(map(cell -> """(Cell $(cell[1]) $(cell[2]) $(t.custom_fields == [] ? """ "$(t.color)" """ : "color"))""", t.shape), " "))))", object_types), "\n  "))
+    $(join(map(t -> "(object ObjType$(t.id) $(join(map(tuple -> "(: $(tuple[1]) $(tuple[2]))", t.custom_fields), " ")) (list $(join(map(cell -> """(Cell $(cell[1]) $(cell[2]) $(filter(tuple -> tuple[1] == "color", t.custom_fields) == [] ? """ "$(t.color)" """ : "color"))""", t.shape), " "))))", object_types), "\n  "))
 
     $((join(map(obj -> obj isa Array ? """(: addedObjType$(obj[1].type.id)List (List ObjType$(obj[1].type.id)))""" 
                                      : """(: obj$(obj.id) ObjType$(obj.type.id))""", start_constants_and_lists), "\n  "))...)

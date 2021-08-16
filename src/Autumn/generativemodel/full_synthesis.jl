@@ -154,13 +154,14 @@ programs = Dict("particles"                                 => """(program
                                                                   (: plugs (List Plug))
                                                                   (= plugs (initnext (list (Plug (Position 7 15)) (Plug (Position 8 15)) (Plug (Position 7 14)) (Plug (Position 8 14)) (Plug (Position 7 13)) (Plug (Position 8 13))) (prev plugs)))
                                                                   (: water (List Water))
-                                                                  (= water (initnext (list) (updateObj (prev water) nextLiquid)))
+                                                                  (= water (initnext (list) (prev water)))
                                                                 
                                                                   (= currentParticle (initnext "vessel" (prev currentParticle)))
                                                                 
-                                                                  (on (& clicked (& (isFree click) (== currentParticle "vessel"))) (= vessels (addObj (prev vessels) (Vessel (Position (.. click x) (.. click y))))))
-                                                                  (on (& clicked (& (isFree click) (== currentParticle "plug"))) (= plugs (addObj (prev plugs) (Plug (Position (.. click x) (.. click y))))))
-                                                                  (on (& clicked (& (isFree click) (== currentParticle "water"))) (= water (addObj (prev water) (Water (Position (.. click x) (.. click y))))))
+                                                                  (on true (= water (updateObj (prev water) (--> obj (nextLiquid obj)))))
+                                                                  (on (& clicked (& (isFree click) (== currentParticle "vessel"))) (= vessels (addObj vessels (Vessel (Position (.. click x) (.. click y))))))
+                                                                  (on (& clicked (& (isFree click) (== currentParticle "plug"))) (= plugs (addObj plugs (Plug (Position (.. click x) (.. click y))))))
+                                                                  (on (& clicked (& (isFree click) (== currentParticle "water"))) (= water (addObj water (Water (Position (.. click x) (.. click y))))))
                                                                   (on (clicked vesselButton) (= currentParticle "vessel"))
                                                                   (on (clicked plugButton) (= currentParticle "plug"))
                                                                   (on (clicked waterButton) (= currentParticle "water"))
@@ -234,7 +235,66 @@ programs = Dict("particles"                                 => """(program
                                                                 (on up (= activeParticle (moveNoCollision (prev activeParticle) 0 -1)))
                                                                 (on down (= activeParticle (moveNoCollision (prev activeParticle) 0 1)))
                                                               )"""
-                ,"space_invaders" => ""
+                ,"space_invaders"                     => """(program
+                                                            (= GRID_SIZE 16)
+                                                            
+                                                            (object Enemy (Cell 0 0 "blue"))
+                                                            (object Hero (Cell 0 0 "black"))
+                                                            (object Bullet (Cell 0 0 "red"))
+                                                            (object EnemyBullet (Cell 0 0 "orange"))
+                                                            
+                                                            (: enemies1 (List Enemy))
+                                                            (= enemies1 (initnext (map 
+                                                                                    (--> pos (Enemy pos)) 
+                                                                                    (filter (--> pos (& (== (.. pos y) 1) (== (% (.. pos x) 2) 0))) (allPositions GRID_SIZE)))
+                                                                                  (prev enemies1)))
+                                                          
+                                                            (= enemies2 (initnext (map 
+                                                                                    (--> pos (Enemy pos)) 
+                                                                                    (filter (--> pos (& (== (.. pos y) 3) (== (% (.. pos x) 2) 1))) (allPositions GRID_SIZE)))
+                                                                                  (prev enemies2)))
+                                                          
+                                                            
+                                                            (: hero Hero)
+                                                            (= hero (initnext (Hero (Position 8 15)) (prev hero)))
+                                                            
+                                                            (: enemyBullets (List EnemyBullet))
+                                                            (= enemyBullets (initnext (list) (updateObj (prev enemyBullets) (--> obj (move obj 0 1)))))
+                                                          
+                                                            (: bullets (List Bullet))
+                                                            (= bullets (initnext (list) (updateObj (prev bullets) (--> obj (move obj 0 -1)))))
+                                                            
+                                                            (: time Int)
+                                                            (= time (initnext 0 (+ (prev time) 1)))                                                         
+                                                                                                                    
+                                                            (on left (= hero (moveLeftNoCollision (prev hero))))
+                                                            (on right (= hero (moveRightNoCollision (prev hero))))
+                                                            (on (& up (.. (prev hero) alive)) (= bullets (addObj (prev bullets) (Bullet (.. (prev hero) origin)))))  
+                                                          
+                                                            (on (== (% time 10) 5) (= enemies1 (updateObj (prev enemies1) (--> obj (moveLeft obj)))))
+                                                            (on (== (% time 10) 0) (= enemies1 (updateObj (prev enemies1) (--> obj (moveRight obj)))))
+                                                          
+                                                            (on (== (% time 10) 5) (= enemies2 (updateObj (prev enemies2) (--> obj (moveRight obj)))))
+                                                            (on (== (% time 10) 0) (= enemies2 (updateObj (prev enemies2) (--> obj (moveLeft obj)))))
+                                                            
+                                                            (on (intersects (prev bullets) (prev enemies1))
+                                                              (let ((= bullets (removeObj (prev bullets) (--> obj (intersects obj (prev enemies1)))))
+                                                                    (= enemies1 (removeObj (prev enemies1) (--> obj (intersects obj (prev bullets)))))))
+                                                            )          
+                                                                    
+                                                            (on (intersects (prev bullets) (prev enemies2))
+                                                              (let ((= bullets (removeObj (prev bullets) (--> obj (intersects obj (prev enemies2)))))
+                                                                    (= enemies2 (removeObj (prev enemies2) (--> obj (intersects obj (prev bullets)))))))
+                                                            )
+                                                                    
+                                                            (on (== (% time 5) 2) (= enemyBullets (addObj (prev enemyBullets) (EnemyBullet (uniformChoice (map (--> obj (.. obj origin)) (prev enemies2)))))))         
+                                                            (on (intersects (prev hero) (prev enemyBullets)) (= hero (removeObj (prev hero))))
+                                                          
+                                                            (on (intersects (prev bullets) (prev enemyBullets)) 
+                                                              (let 
+                                                                ((= bullets (removeObj (prev bullets) (--> obj (intersects obj (prev enemyBullets))))) 
+                                                                  (= enemyBullets (removeObj (prev enemyBullets) (--> obj (intersects obj (prev bullets))))))))           
+                                                          )"""
                 ,"gol" => ""
                 ,"sokoban_i" =>                               """(program
                                                                   (= GRID_SIZE 8)

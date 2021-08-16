@@ -198,7 +198,7 @@ function is_co_occurring(event, event_vector, update_function_times)
   end
 end
 
-function num_false_positives(event_vector, update_function_times)
+function num_false_positives(event_vector, update_function_times, object_trajectory)
   event_times = findall(x -> x == 1, event_vector)
-  length([ time for time in event_times if !(time in update_function_times) ])
+  length([ time for time in event_times if !(time in update_function_times) && !isnothing(object_trajectory[time]) && !isnothing(object_trajectory[time + 1]) ])
 end
