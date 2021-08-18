@@ -39,7 +39,7 @@ function generate_observations(model_name::String)
   elseif model_name == "snake"
     observations, user_events, grid_size = generate_observations_snake(m)
   elseif model_name == "magnets_i"
-    observations, user_events, grid_size = generate_observations_magnets_i(m)
+    observations, user_events, grid_size = generate_observations_magnets(m)
   elseif model_name == "magnets_ii"
     observations, user_events, grid_size = generate_observations_magnets_ii(m)
   elseif model_name == "magnets_iii"
@@ -206,7 +206,32 @@ programs = Dict("particles"                                 => """(program
                                                                 )""",
                 "tetris" => ""
                 ,"snake" => ""
-                ,"magnets_i" => ""
+                ,"magnets_i"                                  => """(program
+                                                                (= GRID_SIZE 16)
+                                                                
+                                                                (object Magnet (: color String) (list (Cell 0 0 color) (Cell 0 1 color)))
+                                                                
+                                                                (: fixedMagnet Magnet)
+                                                                (= fixedMagnet (initnext (Magnet "red" (Position 7 7)) (prev fixedMagnet)))
+                                                              
+                                                                (: mobileMagnet Magnet)
+                                                                (= mobileMagnet (initnext (Magnet "blue" (Position 4 7)) (prev mobileMagnet)))
+                                                              
+                                                                (on clicked (= mobileMagnet (rotateNoCollision (prev mobileMagnet))))
+                                                                (on left (= mobileMagnet (moveNoCollision (prev mobileMagnet) -1 0)))
+                                                                (on right (= mobileMagnet (moveNoCollision (prev mobileMagnet) 1 0)))
+                                                                (on up (= mobileMagnet (moveNoCollision (prev mobileMagnet) 0 -1)))
+                                                                (on down (= mobileMagnet (moveNoCollision (prev mobileMagnet) 0 1)))
+                                                                (on (adjacent (posPole mobileMagnet) (posPole fixedMagnet)) (= mobileMagnet (prev mobileMagnet)))
+                                                                (on (adjacent (negPole mobileMagnet) (negPole fixedMagnet)) (= mobileMagnet (prev mobileMagnet)))
+                                                                (on (in (displacement (posPole mobileMagnet) (negPole fixedMagnet)) attractVectors) (= mobileMagnet (move mobileMagnet    (unitVector (displacement (posPole mobileMagnet) (negPole fixedMagnet))))))
+                                                                (on (in (displacement (negPole mobileMagnet) (posPole fixedMagnet)) attractVectors) (= mobileMagnet (move mobileMagnet (unitVector (displacement (negPole mobileMagnet) (posPole fixedMagnet))))))
+                                                                  
+                                                                (= posPole (fn (magnet) (first (render magnet))))  
+                                                                (= negPole (fn (magnet) (last (render magnet))))  
+                                                              
+                                                                (= attractVectors (list (Position 0 2) (Position 2 0) (Position -2 0) (Position 0 -2)))
+                                                              )"""
                 ,"magnets_ii" => ""
                 ,"magnets_iii" => ""
                 ,"disease"                                    => """(program
@@ -249,6 +274,7 @@ programs = Dict("particles"                                 => """(program
                                                                                     (filter (--> pos (& (== (.. pos y) 1) (== (% (.. pos x) 2) 0))) (allPositions GRID_SIZE)))
                                                                                   (prev enemies1)))
                                                           
+                                                            (: enemies2 (List Enemy))
                                                             (= enemies2 (initnext (map 
                                                                                     (--> pos (Enemy pos)) 
                                                                                     (filter (--> pos (& (== (.. pos y) 3) (== (% (.. pos x) 2) 1))) (allPositions GRID_SIZE)))
@@ -259,41 +285,44 @@ programs = Dict("particles"                                 => """(program
                                                             (= hero (initnext (Hero (Position 8 15)) (prev hero)))
                                                             
                                                             (: enemyBullets (List EnemyBullet))
-                                                            (= enemyBullets (initnext (list) (updateObj (prev enemyBullets) (--> obj (move obj 0 1)))))
+                                                            (= enemyBullets (initnext (list) (prev enemyBullets)))
                                                           
                                                             (: bullets (List Bullet))
-                                                            (= bullets (initnext (list) (updateObj (prev bullets) (--> obj (move obj 0 -1)))))
+                                                            (= bullets (initnext (list) (prev bullets)))
                                                             
                                                             (: time Int)
                                                             (= time (initnext 0 (+ (prev time) 1)))                                                         
-                                                                                                                    
+                                                            
+                                                            (on true (= enemyBullets (updateObj enemyBullets (--> obj (moveDown obj)))))
+                                                            (on true (= bullets (updateObj bullets (--> obj (moveUp obj)))))
+
                                                             (on left (= hero (moveLeftNoCollision (prev hero))))
                                                             (on right (= hero (moveRightNoCollision (prev hero))))
-                                                            (on (& up (.. (prev hero) alive)) (= bullets (addObj (prev bullets) (Bullet (.. (prev hero) origin)))))  
+                                                            (on (& up (.. (prev hero) alive)) (= bullets (addObj bullets (Bullet (.. (prev hero) origin)))))  
                                                           
-                                                            (on (== (% time 10) 5) (= enemies1 (updateObj (prev enemies1) (--> obj (moveLeft obj)))))
-                                                            (on (== (% time 10) 0) (= enemies1 (updateObj (prev enemies1) (--> obj (moveRight obj)))))
+                                                            (on (== (% time 10) 5) (= enemies1 (updateObj enemies1 (--> obj (moveLeft obj)))))
+                                                            (on (== (% time 10) 0) (= enemies1 (updateObj enemies1 (--> obj (moveRight obj)))))
                                                           
-                                                            (on (== (% time 10) 5) (= enemies2 (updateObj (prev enemies2) (--> obj (moveRight obj)))))
-                                                            (on (== (% time 10) 0) (= enemies2 (updateObj (prev enemies2) (--> obj (moveLeft obj)))))
+                                                            (on (== (% time 10) 5) (= enemies2 (updateObj enemies2 (--> obj (moveRight obj)))))
+                                                            (on (== (% time 10) 0) (= enemies2 (updateObj enemies2 (--> obj (moveLeft obj)))))
                                                             
                                                             (on (intersects (prev bullets) (prev enemies1))
-                                                              (let ((= bullets (removeObj (prev bullets) (--> obj (intersects obj (prev enemies1)))))
-                                                                    (= enemies1 (removeObj (prev enemies1) (--> obj (intersects obj (prev bullets)))))))
+                                                              (let ((= bullets (removeObj bullets (--> obj (intersects obj (prev enemies1)))))
+                                                                    (= enemies1 (removeObj enemies1 (--> obj (intersects obj (prev bullets)))))))
                                                             )          
                                                                     
                                                             (on (intersects (prev bullets) (prev enemies2))
-                                                              (let ((= bullets (removeObj (prev bullets) (--> obj (intersects obj (prev enemies2)))))
-                                                                    (= enemies2 (removeObj (prev enemies2) (--> obj (intersects obj (prev bullets)))))))
+                                                              (let ((= bullets (removeObj bullets (--> obj (intersects obj (prev enemies2)))))
+                                                                    (= enemies2 (removeObj enemies2 (--> obj (intersects obj (prev bullets)))))))
                                                             )
                                                                     
-                                                            (on (== (% time 5) 2) (= enemyBullets (addObj (prev enemyBullets) (EnemyBullet (uniformChoice (map (--> obj (.. obj origin)) (prev enemies2)))))))         
+                                                            (on (== (% time 5) 2) (= enemyBullets (addObj enemyBullets (EnemyBullet (uniformChoice (map (--> obj (.. obj origin)) (prev enemies2)))))))         
                                                             (on (intersects (prev hero) (prev enemyBullets)) (= hero (removeObj (prev hero))))
                                                           
                                                             (on (intersects (prev bullets) (prev enemyBullets)) 
                                                               (let 
-                                                                ((= bullets (removeObj (prev bullets) (--> obj (intersects obj (prev enemyBullets))))) 
-                                                                  (= enemyBullets (removeObj (prev enemyBullets) (--> obj (intersects obj (prev bullets))))))))           
+                                                                ((= bullets (removeObj bullets (--> obj (intersects obj (prev enemyBullets))))) 
+                                                                  (= enemyBullets (removeObj enemyBullets (--> obj (intersects obj (prev bullets))))))))           
                                                           )"""
                 ,"gol" => ""
                 ,"sokoban_i" =>                               """(program

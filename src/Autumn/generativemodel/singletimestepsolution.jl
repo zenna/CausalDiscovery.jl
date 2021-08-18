@@ -54,7 +54,8 @@ function singletimestepsolution_matrix(observations, user_events, grid_size; sin
                      "(= objX (removeObj objX))",
                      "(= objX (moveLeft (moveDown objX)))",
                      "(= objX (moveRight (moveDown objX)))",
-
+                     "(= objX (moveRight (moveUp objX)))",
+                     "(= objX (moveRight (moveRight objX)))",
                      ] # prev_used_rules = []
 
   prev_abstract_positions = []
@@ -81,7 +82,7 @@ expr = nothing
 mod = nothing
 global_iters = 0
 """Synthesize a set of update functions that """
-function synthesize_update_functions(object_id, time, object_decomposition, user_events, prev_used_rules, prev_abstract_positions, grid_size=16, max_iters=9)
+function synthesize_update_functions(object_id, time, object_decomposition, user_events, prev_used_rules, prev_abstract_positions, grid_size=16, max_iters=11)
   object_types, object_mapping, background, grid_size = object_decomposition
   
   if length(unique(map(k -> length(object_mapping[k]), collect(keys(object_mapping))))) != 1 
@@ -104,15 +105,24 @@ function synthesize_update_functions(object_id, time, object_decomposition, user
   elseif isnothing(prev_object)
     # perform position abstraction step
     start_objects = filter(obj -> !isnothing(obj), [object_mapping[id][1] for id in collect(keys(object_mapping))])
-    prev_objects_maybe_listed = filter(obj -> !isnothing(obj) && !isnothing(object_mapping[obj.id][1]), [object_mapping[id][time - 1] for id in 1:length(collect(keys(object_mapping)))])
-    prev_objects = filter(obj -> (count(id -> (filter(x -> !isnothing(x), object_mapping[id]))[1].type.id == obj.type.id, collect(keys(object_mapping))) == 1), prev_objects_maybe_listed)
+    # prev_objects_maybe_listed = filter(obj -> !isnothing(obj) && !isnothing(object_mapping[obj.id][1]), [object_mapping[id][time - 1] for id in 1:length(collect(keys(object_mapping)))])
+    # prev_objects = filter(obj -> (count(id -> (filter(x -> !isnothing(x), object_mapping[id]))[1].type.id == obj.type.id, collect(keys(object_mapping))) == 1), prev_objects_maybe_listed)
+    
+    prev_existing_objects = filter(obj -> !isnothing(obj), [object_mapping[id][time - 1] for id in 1:length(collect(keys(object_mapping)))])
+    prev_removed_object_ids = filter(id -> isnothing(object_mapping[id][time - 1]) && (unique(object_mapping[id][1:time - 1]) != [nothing]), collect(keys(object_mapping)))
+    prev_removed_objects = deepcopy(map(id -> filter(obj -> !isnothing(obj), object_mapping[id][1:time - 1])[1], prev_removed_object_ids))
+    foreach(obj -> obj.position = (-1, -1), prev_removed_objects)
+
+    prev_objects = vcat(prev_existing_objects..., prev_removed_objects...)
+
     println("HELLO")
     # @show prev_objects
-    abstracted_positions, prev_abstract_positions = abstract_position(next_object.position, prev_abstract_positions, user_events[time - 1], (object_types, prev_objects, background, grid_size))
+    prev_objects_not_listed = filter(x -> !isnothing(object_mapping[x.id][1]) && count(k -> filter(y -> !isnothing(y), object_mapping[k])[1].type.id == x.type.id, collect(keys(object_mapping))) == 1, prev_objects)
+    abstracted_positions, prev_abstract_positions = abstract_position(next_object.position, prev_abstract_positions, user_events[time - 1], (object_types, sort(prev_objects_not_listed, by = x -> x.id), background, grid_size))
     # abstracted_positions = [abstracted_positions..., "(uniformChoice (randomPositions $(grid_size) 1))"]
     
     # add uniformChoice option
-    matching_objects = filter(o -> o.position == next_object.position, prev_objects_maybe_listed)
+    matching_objects = filter(o -> o.position == next_object.position, prev_existing_objects)
     if (matching_objects != []) && (isnothing(object_mapping[matching_objects[1].id][1]) || (count(x -> x.type.id == matching_objects[1].type.id, start_objects) > 1)) 
       matching_object = matching_objects[1]
       push!(abstracted_positions , "(.. (uniformChoice (prev addedObjType$(matching_object.type.id)List)) origin)")
@@ -634,53 +644,66 @@ end
 function abstract_position(position, prev_abstract_positions, user_event, object_decomposition, max_iters=50)
   object_types, prev_objects, _, _ = object_decomposition
   solutions = []
-  iters = 0
-  prev_used_index = 1
-  using_prev = false
-  while length(solutions) < 2 && iters < max_iters  
-    
-    if prev_used_index <= length(prev_abstract_positions)
-      hypothesis_position = prev_abstract_positions[prev_used_index] # "(Position -1 -1)" 
-      using_prev = true
-      prev_used_index += 1
-    else
-      using_prev = false
-      hypothesis_position = generate_hypothesis_position(position, vcat(prev_objects, user_event))
-      if hypothesis_position == ""
-        break
+  if length(prev_objects) != 0 
+    iters = 0
+    prev_used_index = 1
+    using_prev = false
+    while length(solutions) < 2 && iters < max_iters  
+      
+      if prev_used_index <= length(prev_abstract_positions)
+        hypothesis_position = prev_abstract_positions[prev_used_index] # "(Position -1 -1)" 
+        using_prev = true
+        prev_used_index += 1
+      else
+        using_prev = false
+        hypothesis_position = generate_hypothesis_position(position, vcat(prev_objects, user_event))
+        if hypothesis_position == ""
+          break
+        end
       end
-    end
-    hypothesis_position_program = generate_hypothesis_position_program(hypothesis_position, position, object_decomposition)
-    println("HYPOTHESIS PROGRAM")
-    println(hypothesis_position_program)
-    expr = parseautumn(hypothesis_position_program)
-    # global expr = striplines(compiletojulia(parseautumn(hypothesis_position_program)))
-    # ## @show expr
-    # module_name = Symbol("CompiledProgram$(global_iters)")
-    # global expr.args[1].args[2] = module_name
-    # # # @show expr.args[1].args[2]
-    # global mod = @eval $(expr)
-    # # # @show repr(mod)
-    if !isnothing(user_event) && occursin("click", split(user_event, " ")[1])
-      global x = parse(Int, split(user_event, " ")[2])
-      global y = parse(Int, split(user_event, " ")[3])
-      hypothesis_frame_state = interpret_over_time(expr, 1, [(click=AutumnStandardLibrary.Click(x, y),)]).state
-    else
-      hypothesis_frame_state = interpret_over_time(expr, 1).state
-    end
-
-    hypothesis_matches = hypothesis_frame_state.matchesHistory[1]
-    if hypothesis_matches
-      # success 
-      println("SUCCESS")
-      push!(solutions, hypothesis_position)
-      if !(hypothesis_position in prev_abstract_positions)
-        push!(prev_abstract_positions, hypothesis_position)
+      # hypothesis_position_program = generate_hypothesis_position_program(hypothesis_position, position, object_decomposition)
+      hypothesis_position_program = program_string_synth_update_rule(object_decomposition)
+      hypothesis_position_program = string(hypothesis_position_program[1:end-2], 
+                                  "\n",
+                                  """
+                                  (: matches Bool)
+                                  (= matches (initnext false (prev matches)))
+  
+                                  (on (== $(hypothesis_position) (Position $(position[1]) $(position[2]))) (= matches true)) 
+                                  """, "\n",
+                                ")")
+  
+      println("HYPOTHESIS PROGRAM")
+      println(hypothesis_position_program)
+      expr = parseautumn(hypothesis_position_program)
+      # global expr = striplines(compiletojulia(parseautumn(hypothesis_position_program)))
+      # ## @show expr
+      # module_name = Symbol("CompiledProgram$(global_iters)")
+      # global expr.args[1].args[2] = module_name
+      # # # @show expr.args[1].args[2]
+      # global mod = @eval $(expr)
+      # # # @show repr(mod)
+      if !isnothing(user_event) && occursin("click", split(user_event, " ")[1])
+        global x = parse(Int, split(user_event, " ")[2])
+        global y = parse(Int, split(user_event, " ")[3])
+        hypothesis_frame_state = interpret_over_time(expr, 1, [(click=AutumnStandardLibrary.Click(x, y),)]).state
+      else
+        hypothesis_frame_state = interpret_over_time(expr, 1).state
       end
+  
+      hypothesis_matches = hypothesis_frame_state.matchesHistory[1]
+      if hypothesis_matches
+        # success 
+        println("SUCCESS")
+        push!(solutions, hypothesis_position)
+        if !(hypothesis_position in prev_abstract_positions)
+          push!(prev_abstract_positions, hypothesis_position)
+        end
+      end
+  
+      iters += 1
+      global global_iters += 1
     end
-
-    iters += 1
-    global global_iters += 1
   end
   solutions, prev_abstract_positions
 end
@@ -730,7 +753,7 @@ function generate_on_clauses(matrix, unformatted_matrix, object_decomposition, u
   # non_random_matrix = deepcopy(matrix)
   # for row in 1:size(non_random_matrix)[1]
   #   for col in 1:size(non_random_matrix)[2]
-  #     non_random_matrix[row, col] = filter(x -> !occursin("uniformChoice", x) && !occursin("randomPositions", x), non_random_matrix[row, col])
+  #     non_random_matrix[row, col] = filter(x -> !occursin("randomPositions", x), non_random_matrix[row, col])
   #   end
   # end
   # filtered_non_random_matrices = filter_update_function_matrix_multiple(non_random_matrix, object_decomposition, multiple=true)
@@ -763,12 +786,12 @@ function generate_on_clauses(matrix, unformatted_matrix, object_decomposition, u
   non_random_matrix = deepcopy(matrix)
   for row in 1:size(non_random_matrix)[1]
     for col in 1:size(non_random_matrix)[2]
-      non_random_matrix[row, col] = filter(x -> !occursin("uniformChoice", x) && !occursin("randomPositions", x), non_random_matrix[row, col])
+      non_random_matrix[row, col] = filter(x -> !occursin("randomPositions", x), non_random_matrix[row, col])
     end
   end
   filtered_non_random_matrices = filter_update_function_matrix_multiple(non_random_matrix, object_decomposition, multiple=true)
   # filtered_non_random_matrices = filtered_non_random_matrices[1:min(4, length(filtered_non_random_matrices))] 
-  push!(filtered_matrices, filtered_non_random_matrices[5])
+  push!(filtered_matrices, filtered_non_random_matrices[2]) # use 5 for water_plug
 
   # @show length(filtered_matrices)
   for filtered_matrix in filtered_matrices
@@ -1906,6 +1929,7 @@ function generate_new_object_specific_state(update_rule, update_function_times_d
   failed = false
   object_types, object_mapping, background, grid_size = object_decomposition 
   object_ids = sort(collect(keys(update_function_times_dict)))
+  @show object_ids
 
   # initialize state_update_times
   if length(collect(keys(state_update_times))) == 0 || length(intersect(collect(keys(update_function_times_dict)), collect(keys(state_update_times)))) == 0
