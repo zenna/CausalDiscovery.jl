@@ -220,6 +220,7 @@ function generate_observations_paint(m::Module)
                  13 => (8, 0),
                  16 => (6, 10),
                  18 => (7, 10),
+                 24 => (1, 1),
                 ])
 
   for i in 0:25
@@ -689,7 +690,7 @@ function generate_observations_ants(m::Module)
   push!(observations, Base.invokelatest(m.render, state.scene))
 
   clicks = Dict([1 => (4, 3),
-                 5 => (13, 13),
+                 4 => (13, 13),
                 ])
 
   for i in 0:22
@@ -764,4 +765,29 @@ end
 
 function generate_observations_sokoban_2(m::Module)
 
+end
+
+
+# PEDRO 
+pedro_output_folder = "/Users/riadas/Documents/urop/RC_RL/autumn_renders/"
+pedro_events = ["nothing", "right", "left", "up", "down", "click -1 -1"]
+function generate_observations_pedro(game_name)
+  observations = []
+  user_events = []
+  render_folder = string(pedro_output_folder, "/", game_name)
+  sorted_files = sort(filter(f -> occursin("render", f), readdir(render_folder)), by=x -> parse(Int, split(x, "render")[2]))
+  for render_file in sorted_files
+    println(render_file)
+    cell_strings = readlines(string(render_folder, "/", render_file))
+    push!(observations, map(s -> Autumn.AutumnStandardLibrary.Cell(parse(Int, split(s, " ")[2]), 
+                                                                    parse(Int, split(s, " ")[1]), 
+                                                                    lowercase(split(s, " ")[3])), cell_strings))
+  end
+  user_event_strings = readlines(string(render_folder, "/user_events"))
+  
+  for s in user_event_strings 
+    push!(user_events, pedro_events[parse(Int, s) + 1])
+  end
+
+  observations, user_events, [900, 330]
 end

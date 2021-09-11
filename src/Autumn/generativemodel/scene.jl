@@ -242,7 +242,7 @@ function program_string_synth_update_rule(types_and_objects)
   types, objects, background, gridsize = types_and_objects 
   """ 
   (program
-    (= GRID_SIZE $(gridsize))
+    (= GRID_SIZE $(gridsize isa Int ? gridsize : "(list $(gridsize[1]) $(gridsize[2]))"))
     (= background "$(background)")
     $(join(map(t -> "(object ObjType$(t.id) $(join(map(tuple -> "(: $(tuple[1]) $(tuple[2]))", t.custom_fields), " ")) (list $(join(map(cell -> """(Cell $(cell[1]) $(cell[2]) $(t.custom_fields == [] ? """ "$(t.color)" """ : "color"))""", t.shape), " "))))", types), "\n  "))
 
@@ -779,9 +779,9 @@ function parsescene_autumn_given_types(render_output::AbstractArray, override_ty
 end
 
 function combine_types_with_same_shape(object_types, objects)
-  println("COMBINE TYPES WITH SAME SHAPE")
-  println(object_types)
-  println(objects)
+  # println("COMBINE TYPES WITH SAME SHAPE")
+  # println(object_types)
+  # println(objects)
   types_to_remove = []
   for i in 1:length(object_types)
     type_i = object_types[i]
@@ -831,9 +831,9 @@ function combine_types_with_same_shape(object_types, objects)
   end
 
 
-  println("END COMBINE TYPES WITH SAME SHAPE")
-  println(object_types)
-  println(objects)
+  # println("END COMBINE TYPES WITH SAME SHAPE")
+  # println(object_types)
+  # println(objects)
   (object_types, objects)
 end
 
@@ -888,3 +888,70 @@ function parsescene_autumn_singlecell_given_types(render_output::AbstractArray, 
 end
 
 # ----- end functions related to scene parsing ----- #
+
+# ----- PEDRO functions ----- # 
+
+function parsescene_autumn_pedro(render_output, gridsize=16, background::String="white")
+  dim = gridsize[1]
+  objectshapes = []
+  
+  render_output_copy = deepcopy(render_output)
+  while !isempty(render_output_copy)
+    min_x = minimum(map(cell -> cell.position.x, render_output_copy))
+    min_y = minimum(map(cell -> cell.position.y, filter(cell -> cell.position.x == min_x, render_output_copy)))
+    color = filter(cell -> cell.position.x == min_x && cell.position.y == min_y, render_output_copy)[1].color
+
+    shape = unique(filter(cell -> (cell.position.x in collect(min_x:min_x + 29)) && (cell.position.y in collect(min_y:min_y + 29)) && cell.color == color, render_output_copy))
+    # remove shape from render_output_copy 
+    for cell in shape 
+      matching_cell_indices = findall(c -> c == cell, render_output_copy)
+      deleteat!(render_output_copy, matching_cell_indices[1])
+    end
+
+    shape = map(cell -> ((cell.position.x, cell.position.y), cell.color), shape)
+    push!(objectshapes, shape)    
+  end
+  # @show objectshapes
+
+  types = []
+  objects = []
+  # @show length(objectshapes)
+  for objectshape_with_color in objectshapes
+    objectcolor = objectshape_with_color[1][2]
+    objectshape = map(o -> o[1], objectshape_with_color)
+    # @show objectcolor 
+    # @show objectshape
+    translated = map(pos -> dim * pos[2] + pos[1], objectshape)
+    translated = length(translated) % 2 == 0 ? translated[1:end-1] : translated # to produce a single median
+    centerPos = objectshape[findall(x -> x == median(translated), translated)[1]]
+    translatedShape = unique(map(pos -> (pos[1] - centerPos[1], pos[2] - centerPos[2]), sort(objectshape)))
+
+    if !(objectcolor in map(type -> type.color , types))
+      push!(types, ObjType(translatedShape, objectcolor, [], length(types) + 1))
+      push!(objects, Obj(types[length(types)], centerPos, [], length(objects) + 1))
+    else
+      type_id = findall(type -> type.color == objectcolor, types)[1]
+      push!(objects, Obj(types[type_id], centerPos, [], length(objects) + 1))
+    end
+  end
+
+  # combine types with the same shape but different colors
+  # println("INSIDE REGULAR PARSER")
+  # @show types 
+  # @show objects
+  # (types, objects) = combine_types_with_same_shape(types, objects)
+
+  (types, objects, background, dim)
+end
+
+function parsescene_autumn_pedro_given_types(render_output, types, gridsize=16, background::String="white")
+  (_, objects, _, _) = parsescene_autumn_pedro(render_output, gridsize, background)
+
+  new_objects = []
+  # reassign types to objects 
+  for object in objects 
+    type = filter(t -> t.color == object.type.color, types)[1]
+    push!(new_objects, Obj(type, object.position, [], object.id))
+  end
+  (types, new_objects, background, gridsize) 
+end

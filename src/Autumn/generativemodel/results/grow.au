@@ -1,4 +1,4 @@
-program
+(program
   (= GRID_SIZE 8)
   (= background "white")
   (object ObjType1  (list (Cell 0 -1  "gold" ) (Cell 0 0  "gold" ) (Cell 1 -1  "gold" ) (Cell 1 0  "gold" )))

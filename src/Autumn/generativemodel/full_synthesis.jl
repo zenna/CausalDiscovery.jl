@@ -1,18 +1,33 @@
 include("singletimestepsolution.jl");
 
 function synthesize_program(model_name::String; 
-                            singlecell = false
+                            singlecell = false,
+                            pedro = false,
+                            desired_solution_count = 100,
                             )
-  observations, user_events, grid_size = generate_observations(model_name)
-  matrix, unformatted_matrix, object_decomposition, prev_used_rules = singletimestepsolution_matrix(observations, user_events, grid_size, singlecell=singlecell)
-  solutions = generate_on_clauses(matrix, unformatted_matrix, object_decomposition, user_events, grid_size)
+  if pedro 
+    observations, user_events, grid_size = generate_observations_pedro(model_name)
+  else
+    observations, user_events, grid_size = generate_observations(model_name)
+  end
+
   program_strings = []
-  for solution in solutions 
-    if solution[1] != [] 
-      on_clauses, new_object_decomposition, global_var_dict = solution
-      program = full_program_given_on_clauses(on_clauses, new_object_decomposition, global_var_dict, grid_size)
-      push!(program_strings, program)
+  global_event_vector_dict = Dict()
+  redundant_events_set = Set()
+  for upd_func_space in [1, 2, 3]
+    matrix, unformatted_matrix, object_decomposition, prev_used_rules = singletimestepsolution_matrix(observations, user_events, grid_size, singlecell=singlecell, pedro=pedro, upd_func_space=upd_func_space)
+    solutions = generate_on_clauses(matrix, unformatted_matrix, object_decomposition, user_events, global_event_vector_dict, redundant_events_set, grid_size, desired_solution_count)
+    for solution in solutions 
+      if solution[1] != [] 
+        on_clauses, new_object_decomposition, global_var_dict = solution
+        program = full_program_given_on_clauses(on_clauses, new_object_decomposition, global_var_dict, grid_size)
+        push!(program_strings, program)
+      end
     end
+    
+    if length(program_strings) > desired_solution_count
+      break
+    end    
   end
   program_strings
 end

@@ -6,6 +6,17 @@ include("generativemodel.jl")
 include("state_construction_utils.jl")
 include("construct_observation_data.jl")
 
+displacement_dict = Dict((0, 0) => "(= objX objX)", 
+                         (0, 1) => "(= objX (moveDown objX))", 
+                         (0, -1) => "(= objX (moveUp objX))", 
+                         (-1, 0) => "(= objX (moveLeft objX))", 
+                         (1, 0) => "(= objX (moveRight objX))", 
+                         (-1, 1) => "(= objX (moveLeft (moveDown objX)))", 
+                         (1, 1) => "(= objX (moveRight (moveDown objX)))", 
+                         (1, -1) => "(= objX (moveRight (moveUp objX)))", 
+                         (2, 0) => "(= objX (moveRight (moveRight objX)))", 
+                        )
+
 function find_global_index(update_function)
   if is_no_change_rule(update_function)
     1
@@ -22,42 +33,53 @@ function find_global_index(update_function)
 end
 
 """Construct matrix of single timestep solutions"""
-function singletimestepsolution_matrix(observations, user_events, grid_size; singlecell=false)
-  object_decomposition = parse_and_map_objects(observations, grid_size, singlecell=singlecell)
+function singletimestepsolution_matrix(observations, user_events, grid_size; singlecell=false, pedro=false, upd_func_space=1)
+  object_decomposition = parse_and_map_objects(observations, grid_size, singlecell=singlecell, pedro=pedro)
+
   object_types, object_mapping, background, _ = object_decomposition
+
   # matrix of update function sets for each object/time pair
   # number of rows = number of objects, number of cols = number of time steps  
   num_objects = length(collect(keys(object_mapping)))
   matrix = [[] for object_id in 1:num_objects, time in 1:(length(observations) - 1)]
   unformatted_matrix = [[] for object_id in 1:num_objects, time in 1:(length(observations) - 1)]
   
-  # SEED PREV USED RULES FOR EFFIENCY AT THE MOMENT
-  prev_used_rules = ["(= objX objX)",
-                    #  "(= objX (moveLeftNoCollision objX))",
-                    #  "(= objX (moveLeftNoCollision (moveUpNoCollision objX)))",
-                    #  "(= objX (moveLeftNoCollision (moveDownNoCollision objX)))",
-                    #  "(= objX (moveRightNoCollision objX))",
-                    #  "(= objX (moveRightNoCollision (moveUpNoCollision objX)))",
-                    #  "(= objX (moveRightNoCollision (moveDownNoCollision objX)))",
-                    #  "(= objX (moveUpNoCollision objX))",
+  # SEED PREV USED RULES FOR EFFIENCY AT THE MOMENT 
+    prev_used_rules = [ "(= objX objX)",
+                        "(= objX (nextLiquid objX))",
+                        "(= objX (moveDown objX))",
+                        "(= objX (moveUp objX))",
+                        "(= objX (moveLeft objX))",
+                        "(= objX (moveRight objX))",
+                        "(= objX (moveLeft (moveDown objX)))",
+                        "(= objX (moveRight (moveDown objX)))",
+                        "(= objX (moveRight (moveUp objX)))",
+                        "(= objX (moveRight (moveRight objX)))",
+                      ]
 
-                    # "(= objX (moveUpNoCollision objX))",
-                    #  "(= objX (moveDownNoCollision objX))",
-                    #  "(= objX (moveLeftNoCollision objX))",
-                    #  "(= objX (moveRightNoCollision objX))",
-                     "(= objX (nextLiquid objX))",
-                    #  "(= objX (nextSolid objX))",
-                     "(= objX (moveDown objX))",
-                     "(= objX (moveUp objX))",
-                     "(= objX (moveLeft objX))",
-                     "(= objX (moveRight objX))",
-                     "(= objX (removeObj objX))",
-                     "(= objX (moveLeft (moveDown objX)))",
-                     "(= objX (moveRight (moveDown objX)))",
-                     "(= objX (moveRight (moveUp objX)))",
-                     "(= objX (moveRight (moveRight objX)))",
-                     ] # prev_used_rules = []
+  if upd_func_space == 2 
+    push!(prev_used_rules, [
+                            "(= objX (moveLeftNoCollision objX))",
+                            "(= objX (moveLeftNoCollision (moveUpNoCollision objX)))",
+                            "(= objX (moveLeftNoCollision (moveDownNoCollision objX)))",
+                            "(= objX (moveRightNoCollision objX))",
+                            "(= objX (moveRightNoCollision (moveUpNoCollision objX)))",
+                            "(= objX (moveRightNoCollision (moveDownNoCollision objX)))",
+                            "(= objX (moveUpNoCollision objX))",
 
+                            "(= objX (moveUpNoCollision objX))",
+                            "(= objX (moveDownNoCollision objX))",
+                            "(= objX (moveLeftNoCollision objX))",
+                            "(= objX (moveRightNoCollision objX))",
+                            ]...)
+  end
+
+  max_iters = length(prev_used_rules)
+
+  if upd_func_space == 3 
+    max_iters += 1
+  end
+  
   prev_abstract_positions = []
   
   # @show size(matrix)
@@ -66,7 +88,7 @@ function singletimestepsolution_matrix(observations, user_events, grid_size; sin
     # for each object in previous time step, determine a set of update functions  
     # that takes the previous object to the next object
     for object_id in 1:num_objects
-      update_functions, unformatted_update_functions, prev_used_rules, prev_abstract_positions = synthesize_update_functions(object_id, time, object_decomposition, user_events, prev_used_rules, prev_abstract_positions, grid_size)
+      update_functions, unformatted_update_functions, prev_used_rules, prev_abstract_positions = synthesize_update_functions(object_id, time, object_decomposition, user_events, prev_used_rules, prev_abstract_positions, grid_size, max_iters, pedro=pedro)
       # @show update_functions 
       if length(update_functions) == 0
         println("HOLY SHIT")
@@ -82,7 +104,7 @@ expr = nothing
 mod = nothing
 global_iters = 0
 """Synthesize a set of update functions that """
-function synthesize_update_functions(object_id, time, object_decomposition, user_events, prev_used_rules, prev_abstract_positions, grid_size=16, max_iters=11)
+function synthesize_update_functions(object_id, time, object_decomposition, user_events, prev_used_rules, prev_abstract_positions, grid_size=16, max_iters=11; pedro=false)
   object_types, object_mapping, background, grid_size = object_decomposition
   
   if length(unique(map(k -> length(object_mapping[k]), collect(keys(object_mapping))))) != 1 
@@ -123,7 +145,8 @@ function synthesize_update_functions(object_id, time, object_decomposition, user
     
     # add uniformChoice option
     matching_objects = filter(o -> o.position == next_object.position, prev_existing_objects)
-    if (matching_objects != []) && (isnothing(object_mapping[matching_objects[1].id][1]) || (count(x -> x.type.id == matching_objects[1].type.id, start_objects) > 1)) 
+    if (matching_objects != []) && (isnothing(object_mapping[matching_objects[1].id][1]) || !(matching_objects[1].type.id in map(x -> x.id, prev_objects_not_listed))) 
+      # matching object is in a list!
       matching_object = matching_objects[1]
       push!(abstracted_positions , "(.. (uniformChoice (prev addedObjType$(matching_object.type.id)List)) origin)")
     end
@@ -193,7 +216,19 @@ function synthesize_update_functions(object_id, time, object_decomposition, user
     iters = 0
     prev_used_rules_index = 1
     using_prev = false
-    while (iters < max_iters) # length(solutions) < 3 && 
+    while (iters < max_iters) # && length(solutions) < 1
+      dist = distance(prev_object.position, next_object.position)
+      if pedro 
+        if dist != 0 
+          x_displacement = next_object.position[1] - prev_object.position[1]
+          y_displacement = next_object.position[2] - prev_object.position[2]
+          new_rule = "(= objX (move objX (Position $(x_displacement) $(y_displacement))))" 
+        else
+          new_rule = "(= objX (prev objX))"
+        end
+        push!(solutions, new_rule)
+        break
+      end
       hypothesis_program = program_string_synth_update_rule((object_types, sort([prev_objects..., prev_object], by=(x -> x.id)), background, grid_size))
       if (prev_object.custom_field_values != []) && (next_object.custom_field_values != []) && (prev_object.custom_field_values[1] != next_object.custom_field_values[1])
         update_rule = """(= obj$(object_id) (updateObj obj$(object_id) "color" "$(next_object.custom_field_values[1])"))"""
@@ -209,23 +244,38 @@ function synthesize_update_functions(object_id, time, object_decomposition, user
         # @show update_rule 
       end      
       
-      hypothesis_program = string(hypothesis_program[1:end-2], "\n\t (on true ", update_rule, ")\n)")
-      println("HYPOTHESIS_PROGRAM")
-      println(prev_object)
-      println(hypothesis_program)
-      # # @show global_iters
-      # # @show update_rule
+      if occursin("NoCollision", update_rule) || occursin("closest", update_rule) || occursin("nextLiquid", update_rule) || occursin("color", update_rule)
+        hypothesis_program = string(hypothesis_program[1:end-2], "\n\t (on true ", update_rule, ")\n)")
+        println("HYPOTHESIS_PROGRAM")
+        println(prev_object)
+        println(hypothesis_program)
+        # # @show global_iters
+        # # @show update_rule
+  
+        expr = parseautumn(hypothesis_program)
+        # global expr = striplines(compiletojulia(parseautumn(hypothesis_program)))
+        hypothesis_frame_state = interpret_over_time(expr, 1).state
+        
+        # @show hypothesis_frame_state
+        hypothesis_object = filter(o -> o.id == object_id, hypothesis_frame_state.scene.objects)[1]
+        ## @show hypothesis_frame_state.scene.objects
+        ## @show hypothesis_object
+        equals = render_equals(hypothesis_object, next_object)
+      else
+        # update rule does not need evaluation in Autumn program 
+        x_displacement = next_object.position[1] - prev_object.position[1]
+        y_displacement = next_object.position[2] - prev_object.position[2]
+        displacement = (x_displacement, y_displacement)
 
-      expr = parseautumn(hypothesis_program)
-      # global expr = striplines(compiletojulia(parseautumn(hypothesis_program)))
-      hypothesis_frame_state = interpret_over_time(expr, 1).state
-      
-      # @show hypothesis_frame_state
-      hypothesis_object = filter(o -> o.id == object_id, hypothesis_frame_state.scene.objects)[1]
-      ## @show hypothesis_frame_state.scene.objects
-      ## @show hypothesis_object
+        anonymized_update_rule = replace(update_rule, "obj$(object_id)" => "objX")
+        if (displacement in keys(displacement_dict)) && displacement_dict[displacement] == anonymized_update_rule
+          equals = true
+        else
+          equals = false
+        end        
+      end
 
-      if render_equals(hypothesis_object, next_object)
+      if equals
         if using_prev
           println("HOORAY")
         end
@@ -288,8 +338,14 @@ end
 
 """Parse observations into object types and objects, and assign 
    objects in current observed frame to objects in next frame"""
-function parse_and_map_objects(observations, gridsize=16; singlecell=false)
+function parse_and_map_objects(observations, gridsize=16; singlecell=false, pedro=false)
   object_mapping = Dict{Int, Array{Union{Nothing, Obj}}}()
+
+  if pedro 
+    unitSize = 30 
+  else
+    unitSize = 1
+  end
 
   # check if observations contains frames with overlapping cells
   overlapping_cells = singlecell # false # foldl(|, map(frame -> has_dups(map(cell -> (cell.position.x, cell.position.y, cell.color), frame)), observations), init=false)
@@ -297,30 +353,43 @@ function parse_and_map_objects(observations, gridsize=16; singlecell=false)
   println(overlapping_cells)
   # construct object_types
   ## initialize object_types based on first observation frame
-  if overlapping_cells
-    object_types, _, background, dim = parsescene_autumn_singlecell(observations[1], "white", gridsize)
-  else
-    object_types, _, background, dim = parsescene_autumn(observations[1], gridsize)
-  end
-
-  ## iteratively build object_types through each subsequent observation frame
-  for time in 2:length(observations)
+  if !pedro 
     if overlapping_cells
-      object_types, _, _, _ = parsescene_autumn_singlecell_given_types(observations[time], object_types, "white", gridsize)
+      object_types, _, background, dim = parsescene_autumn_singlecell(observations[1], "white", gridsize)
     else
-      object_types, _, _, _ = parsescene_autumn_given_types(observations[time], object_types, gridsize)
+      object_types, _, background, dim = parsescene_autumn(observations[1], gridsize)
     end
-  end
-  println("HERE 1")
-  println(object_types)
-
-  if overlapping_cells
-    _, objects, _, _ = parsescene_autumn_singlecell_given_types(observations[1], object_types, "white", gridsize)
+  
+    ## iteratively build object_types through each subsequent observation frame
+    for time in 2:length(observations)
+      if overlapping_cells
+        object_types, _, _, _ = parsescene_autumn_singlecell_given_types(observations[time], object_types, "white", gridsize)
+      else
+        object_types, _, _, _ = parsescene_autumn_given_types(observations[time], object_types, gridsize)
+      end
+    end
+    println("HERE 1")
+    println(object_types)
+  
+    if overlapping_cells
+      _, objects, _, _ = parsescene_autumn_singlecell_given_types(observations[1], object_types, "white", gridsize)
+    else
+      _, objects, _, _ = parsescene_autumn_given_types(observations[1], object_types, gridsize)
+    end
+    println("HERE 2")
+    println(object_types)  
   else
-    _, objects, _, _ = parsescene_autumn_given_types(observations[1], object_types, gridsize)
+    # compute union of all colors seen across observations
+    object_types_list = vcat(map(obs -> parsescene_autumn_pedro(obs, gridsize isa Int ? gridsize : gridsize[1], "white")[1], observations)...)
+    shape = object_types_list[1].shape
+    colors = unique(map(t -> t.color, object_types_list))
+    object_types = []
+    for i in 1:length(colors)
+      push!(object_types, ObjType(shape, colors[i], [], i))
+    end
+
+    _, objects, _, _ = parsescene_autumn_pedro_given_types(observations[1], object_types, gridsize, "white")
   end
-  println("HERE 2")
-  println(object_types)
 
   # reassign id's to objects so that id's within a type form disjoint intervals 
   object_max_id = 0
@@ -339,11 +408,17 @@ function parse_and_map_objects(observations, gridsize=16; singlecell=false)
     println("HERE 3")
     println(time)
     println(object_types)
-    if overlapping_cells
-      _, next_objects, _, _ = parsescene_autumn_singlecell_given_types(observations[time], deepcopy(object_types), "white", gridsize) # parsescene_autumn_singlecell
+    if !pedro 
+      if overlapping_cells
+        _, next_objects, _, _ = parsescene_autumn_singlecell_given_types(observations[time], deepcopy(object_types), "white", gridsize) # parsescene_autumn_singlecell
+      else
+        _, next_objects, _, _ = parsescene_autumn_given_types(observations[time], deepcopy(object_types)) # parsescene_autumn_singlecell
+      end
+  
     else
-      _, next_objects, _, _ = parsescene_autumn_given_types(observations[time], deepcopy(object_types)) # parsescene_autumn_singlecell
+      _, next_objects, _, _ = parsescene_autumn_pedro_given_types(observations[time], deepcopy(object_types), gridsize, "white")
     end
+
     if time == 30 
       println("------------------- DARN")
       # @show filter(o -> o.type.id == 4, objects)
@@ -370,6 +445,7 @@ function parse_and_map_objects(observations, gridsize=16; singlecell=false)
       end
       if !(isempty(curr_objects_with_type) || isempty(next_objects_with_type)) 
         while length(closest_objects) > 0
+          println("IN WHILE LOOP")
           object_id, closest_ids = closest_objects[1]
           if length(intersect(closest_ids, map(o -> o.id, next_objects_with_type))) == 1
             closest_id = intersect(closest_ids, map(o -> o.id, next_objects_with_type))[1] 
@@ -414,7 +490,7 @@ function parse_and_map_objects(observations, gridsize=16; singlecell=false)
             # @show length(object_mapping[22])
           end
 
-          if length(filter(t -> length(intersect(t[2], map(o -> o.id, next_objects_with_type))) == 1, closest_objects)) == 0
+          if length(filter(t -> length(intersect(t[2], map(o -> o.id, next_objects_with_type))) >= 1, closest_objects)) == 0
             # every remaining object to be mapped is equidistant to at least two closest objects, or zero objects
             # perform a brute force assignment
             while !isempty(curr_objects_with_type) && !isempty(next_objects_with_type)
@@ -424,7 +500,7 @@ function parse_and_map_objects(observations, gridsize=16; singlecell=false)
               # # @show curr_objects_with_type
               # # @show next_objects_with_type
               curr_objects_with_type = filter(o -> o.id != object.id, curr_objects_with_type)
-              if distance(object.position, next_object.position) < 4
+              if distance(object.position, next_object.position) < 4 * unitSize
                 next_objects_with_type = filter(o -> o.id != next_object.id, next_objects_with_type)
                 next_object.id = object.id
                 push!(object_mapping[object.id], next_object)
@@ -507,7 +583,7 @@ function parse_and_map_objects(observations, gridsize=16; singlecell=false)
   #   end
   # end
 
-  (object_types, object_mapping, background, dim)  
+  (object_types, object_mapping, "white", gridsize)  
 end
 
 function compute_closest_objects(curr_objects, next_objects)
@@ -562,11 +638,11 @@ function render_equals(hypothesis_object, actual_object)
   (translated_hypothesis_object == translated_actual_object) && hypothesis_object.alive
 end
 
-function singletimestepsolution_program(observations, user_events, grid_size=16)
+# function singletimestepsolution_program(observations, user_events, grid_size=16)
   
-  matrix, unformatted_matrix, object_decomposition, _ = singletimestepsolution_matrix(observations, user_events, grid_size)
-  singletimestepsolution_program_given_matrix(matrix, object_decomposition, grid_size)
-end
+#   matrix, unformatted_matrix, object_decomposition, _ = singletimestepsolution_matrix(observations, user_events, grid_size)
+#   singletimestepsolution_program_given_matrix(matrix, object_decomposition, grid_size)
+# end
 
 function singletimestepsolution_program_given_matrix(matrix, object_decomposition, grid_size=16)
   object_types, object_mapping, background, _ = object_decomposition
@@ -642,69 +718,74 @@ function has_dups(list::AbstractArray)
 end
 
 function abstract_position(position, prev_abstract_positions, user_event, object_decomposition, max_iters=50)
+  println("ABSTRACT POSITION")
+  @show position 
+  @show prev_abstract_positions 
+  @show user_event 
+  @show object_decomposition 
+
   object_types, prev_objects, _, _ = object_decomposition
   solutions = []
-  if length(prev_objects) != 0 
-    iters = 0
-    prev_used_index = 1
-    using_prev = false
-    while length(solutions) < 2 && iters < max_iters  
-      
-      if prev_used_index <= length(prev_abstract_positions)
-        hypothesis_position = prev_abstract_positions[prev_used_index] # "(Position -1 -1)" 
-        using_prev = true
-        prev_used_index += 1
-      else
-        using_prev = false
-        hypothesis_position = generate_hypothesis_position(position, vcat(prev_objects, user_event))
-        if hypothesis_position == ""
-          break
-        end
+  iters = 0
+  prev_used_index = 1
+  using_prev = false
+  while length(solutions) < 2 && iters < max_iters  
+    
+    if prev_used_index <= length(prev_abstract_positions)
+      hypothesis_position = prev_abstract_positions[prev_used_index] # "(Position -1 -1)" 
+      using_prev = true
+      prev_used_index += 1
+    else
+      using_prev = false
+      hypothesis_position = generate_hypothesis_position(position, vcat(prev_objects, user_event))
+      if hypothesis_position == ""
+        break
       end
-      # hypothesis_position_program = generate_hypothesis_position_program(hypothesis_position, position, object_decomposition)
-      hypothesis_position_program = program_string_synth_update_rule(object_decomposition)
-      hypothesis_position_program = string(hypothesis_position_program[1:end-2], 
-                                  "\n",
-                                  """
-                                  (: matches Bool)
-                                  (= matches (initnext false (prev matches)))
-  
-                                  (on (== $(hypothesis_position) (Position $(position[1]) $(position[2]))) (= matches true)) 
-                                  """, "\n",
-                                ")")
-  
-      println("HYPOTHESIS PROGRAM")
-      println(hypothesis_position_program)
-      expr = parseautumn(hypothesis_position_program)
-      # global expr = striplines(compiletojulia(parseautumn(hypothesis_position_program)))
-      # ## @show expr
-      # module_name = Symbol("CompiledProgram$(global_iters)")
-      # global expr.args[1].args[2] = module_name
-      # # # @show expr.args[1].args[2]
-      # global mod = @eval $(expr)
-      # # # @show repr(mod)
-      if !isnothing(user_event) && occursin("click", split(user_event, " ")[1])
-        global x = parse(Int, split(user_event, " ")[2])
-        global y = parse(Int, split(user_event, " ")[3])
-        hypothesis_frame_state = interpret_over_time(expr, 1, [(click=AutumnStandardLibrary.Click(x, y),)]).state
-      else
-        hypothesis_frame_state = interpret_over_time(expr, 1).state
-      end
-  
-      hypothesis_matches = hypothesis_frame_state.matchesHistory[1]
-      if hypothesis_matches
-        # success 
-        println("SUCCESS")
-        push!(solutions, hypothesis_position)
-        if !(hypothesis_position in prev_abstract_positions)
-          push!(prev_abstract_positions, hypothesis_position)
-        end
-      end
-  
-      iters += 1
-      global global_iters += 1
     end
+    # hypothesis_position_program = generate_hypothesis_position_program(hypothesis_position, position, object_decomposition)
+    hypothesis_position_program = program_string_synth_update_rule(object_decomposition)
+    hypothesis_position_program = string(hypothesis_position_program[1:end-2], 
+                                "\n",
+                                """
+                                (: matches Bool)
+                                (= matches (initnext false (prev matches)))
+
+                                (on (== $(hypothesis_position) (Position $(position[1]) $(position[2]))) (= matches true)) 
+                                """, "\n",
+                              ")")
+
+    println("HYPOTHESIS PROGRAM")
+    println(hypothesis_position_program)
+    expr = parseautumn(hypothesis_position_program)
+    # global expr = striplines(compiletojulia(parseautumn(hypothesis_position_program)))
+    # ## @show expr
+    # module_name = Symbol("CompiledProgram$(global_iters)")
+    # global expr.args[1].args[2] = module_name
+    # # # @show expr.args[1].args[2]
+    # global mod = @eval $(expr)
+    # # # @show repr(mod)
+    if !isnothing(user_event) && occursin("click", split(user_event, " ")[1])
+      global x = parse(Int, split(user_event, " ")[2])
+      global y = parse(Int, split(user_event, " ")[3])
+      hypothesis_frame_state = interpret_over_time(expr, 1, [(click=AutumnStandardLibrary.Click(x, y),)]).state
+    else
+      hypothesis_frame_state = interpret_over_time(expr, 1).state
+    end
+
+    hypothesis_matches = hypothesis_frame_state.matchesHistory[1]
+    if hypothesis_matches
+      # success 
+      println("SUCCESS")
+      push!(solutions, hypothesis_position)
+      if !(hypothesis_position in prev_abstract_positions)
+        push!(prev_abstract_positions, hypothesis_position)
+      end
+    end
+
+    iters += 1
+    global global_iters += 1
   end
+
   solutions, prev_abstract_positions
 end
 
@@ -740,7 +821,7 @@ function abstract_string(string, object_decomposition, max_iters=25)
   solutions
 end
 
-function generate_on_clauses(matrix, unformatted_matrix, object_decomposition, user_events, grid_size=16)
+function generate_on_clauses(matrix, unformatted_matrix, object_decomposition, user_events, global_event_vector_dict, redundant_events_set, grid_size=16, desired_solution_count=1)
   object_types, object_mapping, background, dim = object_decomposition
   solutions = []
 
@@ -748,39 +829,6 @@ function generate_on_clauses(matrix, unformatted_matrix, object_decomposition, u
   # filtered_matrix = filter_update_function_matrix_multiple(pre_filtered_matrix, object_decomposition)[1]
   
   filtered_matrices = []
-
-  # # add non-random filtered matrices to filtered_matrices
-  # non_random_matrix = deepcopy(matrix)
-  # for row in 1:size(non_random_matrix)[1]
-  #   for col in 1:size(non_random_matrix)[2]
-  #     non_random_matrix[row, col] = filter(x -> !occursin("randomPositions", x), non_random_matrix[row, col])
-  #   end
-  # end
-  # filtered_non_random_matrices = filter_update_function_matrix_multiple(non_random_matrix, object_decomposition, multiple=true)
-  # # filtered_non_random_matrices = filtered_non_random_matrices[1:min(4, length(filtered_non_random_matrices))]
-  # push!(filtered_matrices, filtered_non_random_matrices...)
-  
-
-  # # add direction-bias-filtered matrix to filtered_matrices 
-  # pre_filtered_matrix = pre_filter_with_direction_biases(deepcopy(matrix), user_events, object_decomposition) 
-  # push!(filtered_matrices, filter_update_function_matrix_multiple(pre_filtered_matrix, object_decomposition, multiple=false)...)
-
-  # # add random filtered matrices to filtered_matrices 
-  # random_matrix = deepcopy(matrix)
-  # for row in 1:size(random_matrix)[1]
-  #   for col in 1:size(random_matrix)[2]
-  #     if filter(x -> occursin("uniformChoice", x) || occursin("randomPositions", x), random_matrix[row, col]) != []
-  #       random_matrix[row, col] = filter(x -> occursin("uniformChoice", x) || occursin("randomPositions", x), random_matrix[row, col])
-  #     end
-  #   end
-  # end
-  # filtered_random_matrices = filter_update_function_matrix_multiple(random_matrix, object_decomposition, multiple=true)
-  # filtered_random_matrices = filtered_random_matrices[1:min(4, length(filtered_random_matrices))]
-  # push!(filtered_matrices, filtered_random_matrices...)
-
-  # # add "chaos" solution to filtered_matrices 
-  # filtered_unformatted_matrix = filter_update_function_matrix_multiple(unformatted_matrix, object_decomposition, multiple=false)[1]
-  # push!(filtered_matrices, filter_update_function_matrix_multiple(construct_chaos_matrix(filtered_unformatted_matrix, object_decomposition), object_decomposition, multiple=false)...)
 
   # add non-random filtered matrices to filtered_matrices
   non_random_matrix = deepcopy(matrix)
@@ -790,11 +838,55 @@ function generate_on_clauses(matrix, unformatted_matrix, object_decomposition, u
     end
   end
   filtered_non_random_matrices = filter_update_function_matrix_multiple(non_random_matrix, object_decomposition, multiple=true)
-  # filtered_non_random_matrices = filtered_non_random_matrices[1:min(4, length(filtered_non_random_matrices))] 
-  push!(filtered_matrices, filtered_non_random_matrices[2]) # use 5 for water_plug
+  # filtered_non_random_matrices = filtered_non_random_matrices[1:min(4, length(filtered_non_random_matrices))]
+  push!(filtered_matrices, filtered_non_random_matrices...)
+  
+
+  # add direction-bias-filtered matrix to filtered_matrices 
+  pre_filtered_matrix = pre_filter_with_direction_biases(deepcopy(matrix), user_events, object_decomposition) 
+  push!(filtered_matrices, filter_update_function_matrix_multiple(pre_filtered_matrix, object_decomposition, multiple=false)...)
+
+  # add random filtered matrices to filtered_matrices 
+  random_matrix = deepcopy(matrix)
+  for row in 1:size(random_matrix)[1]
+    for col in 1:size(random_matrix)[2]
+      if filter(x -> occursin("uniformChoice", x) || occursin("randomPositions", x), random_matrix[row, col]) != []
+        random_matrix[row, col] = filter(x -> occursin("uniformChoice", x) || occursin("randomPositions", x), random_matrix[row, col])
+      end
+    end
+  end
+  filtered_random_matrices = filter_update_function_matrix_multiple(random_matrix, object_decomposition, multiple=true)
+  filtered_random_matrices = filtered_random_matrices[1:min(4, length(filtered_random_matrices))]
+  push!(filtered_matrices, filtered_random_matrices...)
+
+  # add "chaos" solution to filtered_matrices 
+  filtered_unformatted_matrix = filter_update_function_matrix_multiple(unformatted_matrix, object_decomposition, multiple=false)[1]
+  push!(filtered_matrices, filter_update_function_matrix_multiple(construct_chaos_matrix(filtered_unformatted_matrix, object_decomposition), object_decomposition, multiple=false)...)
+
+  # # add non-random filtered matrices to filtered_matrices
+  # non_random_matrix = deepcopy(matrix)
+  # for row in 1:size(non_random_matrix)[1]
+  #   for col in 1:size(non_random_matrix)[2]
+  #     non_random_matrix[row, col] = filter(x -> !occursin("randomPositions", x), non_random_matrix[row, col])
+  #   end
+  # end
+  # filtered_non_random_matrices = filter_update_function_matrix_multiple(non_random_matrix, object_decomposition, multiple=true)
+  # # filtered_non_random_matrices = filtered_non_random_matrices[1:min(4, length(filtered_non_random_matrices))] 
+  # push!(filtered_matrices, filtered_non_random_matrices[2]) # use 5 for water_plug
 
   # @show length(filtered_matrices)
-  for filtered_matrix in filtered_matrices
+
+  for filtered_matrix_index in 1:length(filtered_matrices)
+    @show filtered_matrix_index
+    @show length(filtered_matrices)
+    @show solutions
+    filtered_matrix = filtered_matrices[filtered_matrix_index]
+
+    if (length(filter(x -> x[1] != [], solutions)) >= desired_solution_count) # || ((length(filter(x -> x[1] != [], solutions)) > 0) && length(filter(x -> occursin("randomPositions", x), vcat(vcat(filtered_matrix...)...))) > 0) 
+      # if we have reached a sufficient solution count or have found a solution before trying random solutions, exit
+      break
+    end
+
     failed = false
     on_clauses = []
     global_var_dict = Dict()
@@ -813,8 +905,21 @@ function generate_on_clauses(matrix, unformatted_matrix, object_decomposition, u
     global_state_update_on_clauses = []
     object_specific_state_update_on_clauses = []
     state_update_on_clauses = []
+
+    # reset global_event_vector_dict and redundant_events_set:
+    # remove events dealing with global or object-specific state
+    for event in keys(global_event_vector_dict)
+      if occursin("globalVar", event) || occursin("field1", event)
+        delete!(global_event_vector_dict, event)
+      end
+    end
+
+    for event in redundant_events_set 
+      if occursin("globalVar", event) || occursin("field1", event)
+        delete!(redundant_events_set, event)
+      end
+    end
     
-    global_event_vector_dict = Dict()
   
     for object_type in object_types
       type_id = object_type.id
@@ -844,12 +949,15 @@ function generate_on_clauses(matrix, unformatted_matrix, object_decomposition, u
       no_change_rules = filter(x -> is_no_change_rule(x), unique(all_update_rules))
       all_update_rules = reverse(sort(filter(x -> !is_no_change_rule(x), all_update_rules), by=x -> count(y -> y == x, update_rule_set)))
       all_update_rules = [no_change_rules..., all_update_rules...]
-      for update_rule in all_update_rules 
+      for update_rule_index in 1:length(all_update_rules) 
+        @show update_rule_index 
+        @show length(all_update_rules)
+        update_rule = all_update_rules[update_rule_index]
         # @show global_object_decomposition
         if update_rule != "" && !is_no_change_rule(update_rule)
           println("UPDATE_RULEEE")
           println(update_rule)
-          events, event_is_globals, event_vector_dict, observation_data_dict = generate_event(update_rule, object_ids[1], object_ids, matrix, filtered_matrix, global_object_decomposition, user_events, state_update_on_clauses, global_var_dict, global_event_vector_dict, grid_size)
+          events, event_is_globals, event_vector_dict, observation_data_dict = generate_event(update_rule, object_ids[1], object_ids, matrix, filtered_matrix, global_object_decomposition, user_events, state_update_on_clauses, global_var_dict, global_event_vector_dict, grid_size, redundant_events_set)
           global_event_vector_dict = event_vector_dict
           println("EVENTS")
           println(events)
@@ -885,7 +993,7 @@ function generate_on_clauses(matrix, unformatted_matrix, object_decomposition, u
                 true_times = unique(findall(rule -> rule == update_rule, vcat(object_trajectory...)))
               end
     
-              on_clause, new_global_var_dict, new_state_update_times_dict = generate_new_state(update_rule, true_times, global_event_vector_dict, object_trajectory, global_var_dict, global_state_update_times_dict)
+              on_clause, new_global_var_dict, new_state_update_times_dict = generate_new_state(update_rule, true_times, global_event_vector_dict, object_trajectory, global_var_dict, global_state_update_times_dict, object_decomposition)
               # @show on_clause 
               # @show new_state_update_times_dict 
               # @show new_global_var_dict 
@@ -900,6 +1008,9 @@ function generate_on_clauses(matrix, unformatted_matrix, object_decomposition, u
                 global_state_update_on_clauses = vcat(map(k -> filter(x -> x != "", new_state_update_times_dict[k]), collect(keys(new_state_update_times_dict)))...) # vcat(state_update_on_clauses..., filter(x -> x != "", new_state_update_times)...)
                 state_update_on_clauses = vcat(global_state_update_on_clauses, object_specific_state_update_on_clauses)
                 global_state_update_times_dict = new_state_update_times_dict
+
+                state_update_on_clauses = unique(state_update_on_clauses)
+                on_clauses = unique(on_clauses)
                 
                 # @show global_var_dict 
                 # @show state_update_on_clauses 
@@ -944,6 +1055,10 @@ function generate_on_clauses(matrix, unformatted_matrix, object_decomposition, u
                     delete!(global_event_vector_dict, event)
                   end
                 end
+
+                state_update_on_clauses = unique(state_update_on_clauses)
+                on_clauses = unique(on_clauses)
+
   
               end
   
@@ -1318,7 +1433,7 @@ end
 # generate_event, generate_hypothesis_position, generate_hypothesis_position_program 
 ## tricky things: add user events, and fix environment 
 global hypothesis_state = nothing
-function generate_event(anonymized_update_rule, object_id, object_ids, matrix, filtered_matrix, object_decomposition, user_events, state_update_on_clauses, global_var_dict, event_vector_dict, grid_size, min_events=1, max_iters=400)
+function generate_event(anonymized_update_rule, object_id, object_ids, matrix, filtered_matrix, object_decomposition, user_events, state_update_on_clauses, global_var_dict, event_vector_dict, grid_size, redundant_events_set, min_events=1, max_iters=400)
   println("GENERATE EVENT")
   # @show object_decomposition
   object_types, object_mapping, background, dim = object_decomposition 
@@ -1386,7 +1501,9 @@ function generate_event(anonymized_update_rule, object_id, object_ids, matrix, f
 
   found_events = []
   final_event_globals = []
-  new_choices = gen_event_bool(object_decomposition, "x", filter(e -> e != "", unique(user_events)), global_var_dict)
+  new_choices = filter(e -> !(e in redundant_events_set), gen_event_bool(object_decomposition, "x", filter(e -> e != "", unique(user_events)), global_var_dict))
+  @show length(new_choices)
+  @show length(collect(keys(event_vector_dict)))
   events_to_try = sort(unique(vcat(new_choices, collect(keys(event_vector_dict)))), by=length)
   while true
     for event in events_to_try 
@@ -1511,6 +1628,9 @@ function generate_event(anonymized_update_rule, object_id, object_ids, matrix, f
           push!(event_values_dicts, (object_specific_event, object_specific_event_values_dict))
         end
       end
+
+      # remove duplicate events that are observationally equivalent
+      event_vector_dict, redundant_events_set = prune_by_observational_equivalence(event_vector_dict, redundant_events_set)
   
       # check if event_values match true_times/false_times 
       # @show observation_data_dict
@@ -1552,7 +1672,7 @@ function generate_event(anonymized_update_rule, object_id, object_ids, matrix, f
     end
 
     if length(found_events) < min_events && !tried_compound_events
-      events_to_try = sort(unique(vcat(construct_compound_events(new_choices, event_vector_dict), collect(keys(event_vector_dict)))), by=length)
+      events_to_try = sort(unique(vcat(construct_compound_events(new_choices, event_vector_dict, redundant_events_set), collect(keys(event_vector_dict)))), by=length)
       tried_compound_events = true
     else
       break
@@ -1563,7 +1683,7 @@ function generate_event(anonymized_update_rule, object_id, object_ids, matrix, f
 end
 
 # generation of new global state 
-function generate_new_state(update_rule, update_function_times, event_vector_dict, object_trajectory, global_var_dict, state_update_times_dict)
+function generate_new_state(update_rule, update_function_times, event_vector_dict, object_trajectory, global_var_dict, state_update_times_dict, object_decomposition)
   println("GENERATE_NEW_STATE")
   @show update_rule 
   @show update_function_times
@@ -1574,6 +1694,14 @@ function generate_new_state(update_rule, update_function_times, event_vector_dic
   new_state_update_times_dict = deepcopy(state_update_times_dict)
   failed = false
   events = filter(e -> event_vector_dict[e] isa AbstractArray, collect(keys(event_vector_dict)))
+
+  atomic_events = gen_event_bool_human_prior(object_decomposition, "x", ["nothing"], global_var_dict)
+  small_event_vector_dict = deepcopy(event_vector_dict)    
+  for e in keys(event_vector_dict)
+    if !(e in atomic_events)
+      delete!(small_event_vector_dict, e)
+    end
+  end
 
   # compute best co-occurring event (i.e. event with fewest false positives)
   co_occurring_events = []
@@ -1730,7 +1858,7 @@ function generate_new_state(update_rule, update_function_times, event_vector_dic
     max_global_var_value = maximum(map(tuple -> tuple[2], augmented_positive_times))
 
     # search for events within range
-    events_in_range = find_state_update_events(event_vector_dict, augmented_positive_times, time_ranges, start_value, end_value, global_var_dict, global_var_id, global_var_value)
+    events_in_range = find_state_update_events(small_event_vector_dict, augmented_positive_times, time_ranges, start_value, end_value, global_var_dict, global_var_id, global_var_value)
     if events_in_range != [] # event with zero false positives found
       println("PLS WORK 2")
       # @show event_vector_dict
@@ -1758,7 +1886,7 @@ function generate_new_state(update_rule, update_function_times, event_vector_dic
 
     else # no event with zero false positives found; use best false-positive event and specialize globalVar values (i.e. add new value)
       # find co-occurring event with fewest false positives 
-      false_positive_events = find_state_update_events_false_positives(event_vector_dict, augmented_positive_times, time_ranges, start_value, end_value, global_var_dict, global_var_id, global_var_value)
+      false_positive_events = find_state_update_events_false_positives(small_event_vector_dict, augmented_positive_times, time_ranges, start_value, end_value, global_var_dict, global_var_id, global_var_value)
       false_positive_events_with_state = filter(e -> occursin("globalVar$(global_var_id)", e[1]), false_positive_events) # want the most specific events in the false positive case
       
       events_without_true = filter(tuple -> !occursin("true", tuple[1]) && tuple[2] == minimum(map(t -> t[2], false_positive_events_with_state)), false_positive_events_with_state)
@@ -1879,8 +2007,8 @@ function generate_new_state(update_rule, update_function_times, event_vector_dic
 
       # reset any functions inside these new ranges in new_state_update_times
       for range in filtered_ranges 
-        start_time = range[1]
-        end_time = range[2] - 1
+        start_time = range[1][1]
+        end_time = range[2][1] - 1
 
         for t in start_time:end_time
           new_state_update_times_dict[global_var_id][t] = ""
@@ -1930,6 +2058,14 @@ function generate_new_object_specific_state(update_rule, update_function_times_d
   object_types, object_mapping, background, grid_size = object_decomposition 
   object_ids = sort(collect(keys(update_function_times_dict)))
   @show object_ids
+
+  atomic_events = gen_event_bool_human_prior(object_decomposition, "x", ["nothing"], global_var_dict)
+  small_event_vector_dict = deepcopy(event_vector_dict)    
+  for e in keys(event_vector_dict)
+    if !(e in atomic_events)
+      delete!(small_event_vector_dict, e)
+    end
+  end
 
   # initialize state_update_times
   if length(collect(keys(state_update_times))) == 0 || length(intersect(collect(keys(update_function_times_dict)), collect(keys(state_update_times)))) == 0
@@ -2013,7 +2149,6 @@ function generate_new_object_specific_state(update_rule, update_function_times_d
     end
     ranges_dict[object_id] = ranges
   end
-
   # add ranges that interface between global_var_value and lower values
   if max_state_value > 1
     custom_field_index = findall(field_tuple -> field_tuple[1] == "field1", filter(obj -> !isnothing(obj), object_mapping[object_ids[1]])[1].type.custom_fields)[1]
@@ -2073,7 +2208,7 @@ function generate_new_object_specific_state(update_rule, update_function_times_d
     events_in_range = []
     if events_in_range == [] # if no global events are found, try object-specific events 
       # events_in_range = find_state_update_events(event_vector_dict, augmented_positive_times, time_ranges, start_value, end_value, global_var_dict, global_var_value)
-      events_in_range = find_state_update_events_object_specific(event_vector_dict, augmented_positive_times_dict, grouped_range, object_ids, object_mapping, max_state_value)
+      events_in_range = find_state_update_events_object_specific(small_event_vector_dict, augmented_positive_times_dict, grouped_range, object_ids, object_mapping, max_state_value)
     end
     
     if length(events_in_range) > 0 # only handling perfect matches currently 
@@ -2091,7 +2226,7 @@ function generate_new_object_specific_state(update_rule, update_function_times_d
         for time in object_event_times
           println(id)
           println(time)
-          println(end_value) 
+          println(end_value)
           state_update_times[id][time] = (state_update_function, end_value)
         end
       end
@@ -2167,8 +2302,8 @@ function is_no_change_rule(update_rule)
   !foldl(|, map(x -> occursin(x, update_rule), update_functions))
 end 
 
-function full_program(observations, user_events, grid_size=16)
-  matrix, unformatted_matrix, object_decomposition, _ = singletimestepsolution_matrix(observations, user_events, grid_size)
+function full_program(observations, user_events, grid_size=16; singlecell=false, pedro=false, upd_func_space=1)
+  matrix, unformatted_matrix, object_decomposition, _ = singletimestepsolution_matrix(observations, user_events, grid_size, singlecell=singlecell, pedro=pedro, upd_func_space=upd_func_space)
 
   object_types, object_mapping, background, _ = object_decomposition
   
