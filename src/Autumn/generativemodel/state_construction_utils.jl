@@ -76,7 +76,7 @@ function find_state_update_events_false_positives(orig_event_vector_dict, augmen
         end
         num_false_positives_with_effects = count(x -> x != end_value && x != -1, desired_end_values)
         false_positive_with_effects_times = [false_positive_times[i] for i in findall(v -> v != end_value && v != -1, desired_end_values)]
-        no_effect_times = [false_positive_times[i] for i in findall(v -> v == end_value , desired_end_values)] # || v == -1
+        no_effect_times = [false_positive_times[i] for i in findall(v -> v == end_value || v == -1, desired_end_values)] # || v == -1
         push!(co_occurring_events, (event, 
                                     num_false_positives_with_effects, 
                                     [co_occurring_times..., no_effect_times...], 
@@ -88,7 +88,7 @@ function find_state_update_events_false_positives(orig_event_vector_dict, augmen
         false_positives_with_effects_state_times = [false_positive_times[i] for i in findall(x -> !(x[2] in [end_value, -1]) && (x[1] == start_value), zipped_values)]
         push!(co_occurring_events, ("(& $(event) (== (prev globalVar$(global_var_id)) $(start_value)))", 
                                     num_false_positives_with_effects_state, 
-                                    [co_occurring_times..., [false_positive_times[i] for i in findall(x -> (x[2] in [end_value]) && (x[1] == start_value), zipped_values)]...], # [end_value, -1]
+                                    [co_occurring_times..., [false_positive_times[i] for i in findall(x -> (x[2] in [end_value, -1]) && (x[1] == start_value), zipped_values)]...], # [end_value, -1]
                                     false_positives_with_effects_state_times))
       end  
     end
