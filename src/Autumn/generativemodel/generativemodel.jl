@@ -262,7 +262,7 @@ function gen_event_bool_human_prior(object_decomposition, object_id, user_events
 
       # ----- TEMP ADDITION: REMOVE LATER ----- #
       ## used in Grow example
-      push!(choices, "(== (.. (.. (prev obj$(object_1.id)) origin) x) $(filter(obj -> !isnothing(obj), collect(keys(object_mapping)))[1].position[1]))")
+      push!(choices, unique(map(obj -> "(== (.. (.. (prev obj$(object_1.id)) origin) x) $(obj.position[1]))", filter(x -> !isnothing(x), object_mapping[object_1.id])))...)
       # --------------------------------------- #      
 
       for object_2 in non_list_objects 
