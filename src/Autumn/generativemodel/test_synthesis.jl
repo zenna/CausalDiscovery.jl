@@ -6,7 +6,6 @@ autumn_input_params = (
                        particles = (singlecell=true, pedro=false), 
                        ants = (singlecell=true, pedro=false),
                        lights = (singlecell=true, pedro=false),
-                       water_plug = (singlecell=true, pedro=false),
                        ice = (singlecell=false, pedro=false),
                        magnets_i = (singlecell=false, pedro=false),
                        disease = (singlecell=false, pedro=false),
@@ -22,6 +21,7 @@ autumn_input_params = (
                        wind = (singlecell=false, pedro=false),
                        paint = (singlecell=false, pedro=false),
                        chase = (singlecell=true, pedro=false),
+                       water_plug = (singlecell=true, pedro=false),
                       )
 
 function test_synthesis_autumn()
@@ -36,7 +36,8 @@ function test_synthesis_autumn()
       solutions_dict[model_name] = solutions
       save(string(directory_name, "/", String(model_name), ".jld"), String(model_name), solutions_dict)
     catch e
-      solutions_dict[model_name] = []
+      @show e
+      solutions_dict[model_name] = [e]
     end
   end
   solutions_dict

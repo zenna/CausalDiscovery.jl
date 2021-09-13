@@ -201,3 +201,66 @@ function num_false_positives(event_vector, update_function_times, object_traject
   event_times = findall(x -> x == 1, event_vector)
   length([ time for time in event_times if !(time in update_function_times) && !isnothing(object_trajectory[time]) && !isnothing(object_trajectory[time + 1]) ])
 end
+
+function recompute_ranges(augmented_positive_times, new_state_update_times_dict, global_var_id, global_var_value, true_positive_times, extra_global_var_values) 
+  # compute new ranges and find state update events
+  new_ranges = [] 
+  for i in 1:(length(augmented_positive_times)-1)
+    prev_time, prev_value = augmented_positive_times[i]
+    next_time, next_value = augmented_positive_times[i + 1]
+    if prev_value != next_value
+      if length(unique(new_state_update_times_dict[global_var_id][prev_time:next_time-1])) == 1 && unique(new_state_update_times_dict[global_var_id][prev_time:next_time-1])[1] == ""
+        # if there are no state update functions within this range, add it to new_ranges
+        push!(new_ranges, (augmented_positive_times[i], augmented_positive_times[i + 1]))
+      elseif intersect(true_positive_times, collect(prev_time:next_time-1)) == []
+        # if the state_update_function in this range is not among those just added (which are correct), add range to new_ranges
+        # @show prev_time 
+        # @show prev_value 
+        # @show next_time 
+        # @show next_value 
+        
+        on_clause_index = findall(x -> x != "", new_state_update_times_dict[global_var_id][prev_time:next_time-1])[1]
+        new_state_update_times_dict[global_var_id][on_clause_index + prev_time - 1] = ""
+        push!(new_ranges, (augmented_positive_times[i], augmented_positive_times[i + 1]))
+      end
+    end
+  end
+
+  # add ranges that interface between global_var_value and lower values to new_ranges 
+  if global_var_value > 1
+    for time in 1:(length(new_state_update_times_dict[global_var_id]) - 1)
+      prev_val = global_var_dict[global_var_id][time]
+      next_val = global_var_dict[global_var_id][time + 1]
+
+      if ((prev_val < global_var_value) && (next_val == global_var_value) || (prev_val == global_var_value) && (next_val < global_var_value))
+        if intersect([time], true_positive_times) == [] 
+          push!(new_ranges, ((time, prev_val), (time + 1, next_val)))
+        end
+      end
+    end
+  end
+
+  # filter ranges where both the range's start and end times are already included
+  filtered_ranges = []
+  for range in new_ranges
+    start_tuples = map(range -> range[1], filter(r -> r != range, new_ranges))
+    end_tuples = map(range -> range[2], filter(r -> r != range, new_ranges))
+    if !((range[1] in start_tuples) && (range[2] in end_tuples))
+      push!(filtered_ranges, range)      
+    end
+  end
+
+  # reset any functions inside these new ranges in new_state_update_times
+  for range in filtered_ranges 
+    start_time = range[1][1]
+    end_time = range[2][1] - 1
+
+    for t in start_time:end_time
+      new_state_update_times_dict[global_var_id][t] = ""
+    end
+  end
+
+  grouped_ranges = group_ranges(filtered_ranges)
+
+  deepcopy(grouped_ranges), deepcopy(augmented_positive_times), deepcopy(new_state_update_times_dict)
+end

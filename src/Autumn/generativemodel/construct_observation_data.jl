@@ -767,6 +767,75 @@ function generate_observations_sokoban_2(m::Module)
 
 end
 
+function generate_observations_mario(m::Module)
+  state = Base.invokelatest(m.init, nothing, nothing, nothing, nothing, nothing)
+  observations = []
+  user_events = []
+  push!(observations, Base.invokelatest(m.render, state.scene))
+
+  events = Dict([1 => "left",
+                 2 => "right",
+                 4 => "up",
+                 5 => "left",
+                 10 => "up",
+                 11 => "left",
+                 15 => "click 4 4",
+                 16 => "click 5 5",
+                 17 => "click 4 5",
+                 18 => "left",
+                 20 => "right",
+                 21 => "up",
+                 22 => "right",
+                 23 => "right",
+                 25 => "right",
+                 26 => "right",
+                 27 => "up",
+                 28 => "right",
+                 31 => "up",
+                 32 => "right",
+                 36 => "left",
+                 37 => "click 15 15",
+                 38 => "click 14 13",
+                 40 => "up",
+                 41 => "left",
+                 42 => "left",
+                 43 => "left",
+                 46 => "up",
+                 50 => "click 0 5",
+                 51 => "click 0 7",
+                 52 => "click 0 9",
+                ])
+
+  for i in 0:53
+    if i in collect(keys(events))
+      event = events[i]
+      if event == "left"
+        state = Base.invokelatest(m.next, state, nothing, Base.invokelatest(m.Left), nothing, nothing, nothing)
+        push!(user_events, event)
+      elseif event == "right"
+        state = Base.invokelatest(m.next, state, nothing, nothing, Base.invokelatest(m.Right), nothing, nothing)
+        push!(user_events, event)
+      elseif event == "up"
+        state = Base.invokelatest(m.next, state, nothing, nothing, nothing, Base.invokelatest(m.Up), nothing)
+        push!(user_events, event)
+      elseif event == "down"
+        state = Base.invokelatest(m.next, state, nothing, nothing, nothing, nothing, Base.invokelatest(m.Down))
+        push!(user_events, event)
+      elseif occursin("click", event)
+        x = parse(Int, split(event, " ")[2])
+        y = parse(Int, split(event, " ")[3])
+        state = Base.invokelatest(m.next, state, Base.invokelatest(m.Click, x, y), nothing, nothing, nothing, nothing)
+        push!(user_events, event)
+      end
+    else
+      state = Base.invokelatest(m.next, state, nothing, nothing, nothing, nothing, nothing)
+      push!(user_events, nothing)
+    end
+    push!(observations, Base.invokelatest(m.render, state.scene))
+  end
+  observations, user_events, 16
+end
+
 
 # PEDRO 
 pedro_output_folder = "/Users/riadas/Documents/urop/RC_RL/autumn_renders/"
