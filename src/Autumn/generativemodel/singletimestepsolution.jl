@@ -517,7 +517,7 @@ function parse_and_map_objects(observations, gridsize=16; singlecell=false, pedr
               # # # @show curr_objects_with_type
               # # # @show next_objects_with_type
               curr_objects_with_type = filter(o -> o.id != object.id, curr_objects_with_type)
-              if distance(object.position, next_object.position) < 5 * unitSize
+              if distance(object.position, next_object.position) < 4 * unitSize
                 next_objects_with_type = filter(o -> o.id != next_object.id, next_objects_with_type)
                 next_object.id = object.id
                 push!(object_mapping[object.id], next_object)
