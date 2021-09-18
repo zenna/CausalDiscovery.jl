@@ -900,26 +900,26 @@ function generate_on_clauses(matrix, unformatted_matrix, object_decomposition, u
   push!(filtered_matrices, filtered_non_random_matrices[1:1]...)
   
 
-  # # add direction-bias-filtered matrix to filtered_matrices 
-  # pre_filtered_matrix = pre_filter_with_direction_biases(deepcopy(matrix), user_events, object_decomposition) 
-  # push!(filtered_matrices, filter_update_function_matrix_multiple(pre_filtered_matrix, object_decomposition, multiple=false)...)
+  # add direction-bias-filtered matrix to filtered_matrices 
+  pre_filtered_matrix = pre_filter_with_direction_biases(deepcopy(matrix), user_events, object_decomposition) 
+  push!(filtered_matrices, filter_update_function_matrix_multiple(pre_filtered_matrix, object_decomposition, multiple=false)...)
 
-  # # add random filtered matrices to filtered_matrices 
-  # random_matrix = deepcopy(matrix)
-  # for row in 1:size(random_matrix)[1]
-  #   for col in 1:size(random_matrix)[2]
-  #     if filter(x -> occursin("uniformChoice", x) || occursin("randomPositions", x), random_matrix[row, col]) != []
-  #       random_matrix[row, col] = filter(x -> occursin("uniformChoice", x) || occursin("randomPositions", x), random_matrix[row, col])
-  #     end
-  #   end
-  # end
-  # filtered_random_matrices = filter_update_function_matrix_multiple(random_matrix, object_decomposition, multiple=true)
-  # filtered_random_matrices = filtered_random_matrices[1:min(4, length(filtered_random_matrices))]
-  # push!(filtered_matrices, filtered_random_matrices...)
+  # add random filtered matrices to filtered_matrices 
+  random_matrix = deepcopy(matrix)
+  for row in 1:size(random_matrix)[1]
+    for col in 1:size(random_matrix)[2]
+      if filter(x -> occursin("uniformChoice", x) || occursin("randomPositions", x), random_matrix[row, col]) != []
+        random_matrix[row, col] = filter(x -> occursin("uniformChoice", x) || occursin("randomPositions", x), random_matrix[row, col])
+      end
+    end
+  end
+  filtered_random_matrices = filter_update_function_matrix_multiple(random_matrix, object_decomposition, multiple=true)
+  filtered_random_matrices = filtered_random_matrices[1:min(4, length(filtered_random_matrices))]
+  push!(filtered_matrices, filtered_random_matrices...)
 
-  # # add "chaos" solution to filtered_matrices 
-  # filtered_unformatted_matrix = filter_update_function_matrix_multiple(unformatted_matrix, object_decomposition, multiple=false)[1]
-  # push!(filtered_matrices, filter_update_function_matrix_multiple(construct_chaos_matrix(filtered_unformatted_matrix, object_decomposition), object_decomposition, multiple=false)...)
+  # add "chaos" solution to filtered_matrices 
+  filtered_unformatted_matrix = filter_update_function_matrix_multiple(unformatted_matrix, object_decomposition, multiple=false)[1]
+  push!(filtered_matrices, filter_update_function_matrix_multiple(construct_chaos_matrix(filtered_unformatted_matrix, object_decomposition), object_decomposition, multiple=false)...)
 
   # # add non-random filtered matrices to filtered_matrices
   # non_random_matrix = deepcopy(matrix)
