@@ -1,5 +1,5 @@
-function find_state_update_events(event_vector_dict, augmented_positive_times, time_ranges, start_value, end_value, global_var_dict, global_var_id, global_var_value) 
-  co_occurring_events = find_state_update_events_false_positives(event_vector_dict, augmented_positive_times, time_ranges, start_value, end_value, global_var_dict, global_var_id, global_var_value)
+function find_state_update_events(event_vector_dict, augmented_positive_times, time_ranges, start_value, end_value, global_var_dict, global_var_id, global_var_value, object_specific) 
+  co_occurring_events = find_state_update_events_false_positives(event_vector_dict, augmented_positive_times, time_ranges, start_value, end_value, global_var_dict, global_var_id, global_var_value, object_specific)
   matches = map(x -> (x[1], x[3]), filter(tuple -> tuple[2] == 0, co_occurring_events))
   sort(matches, by=x -> length(x))
 end
@@ -48,7 +48,7 @@ function find_state_update_events_false_positives(orig_event_vector_dict, augmen
         desired_start_values = []
         for time in false_positive_times 
           # handle end value
-          if ((time == length(global_var_dict[global_var_id])) && (global_var_dict[global_var_id][time] < global_var_value)) || ((time < length(global_var_dict[global_var_id])) && (global_var_dict[global_var_id][time + 1] < global_var_value))
+          if (((time == length(global_var_dict[global_var_id])) && (global_var_dict[global_var_id][time] < global_var_value)) || ((time < length(global_var_dict[global_var_id])) && (global_var_dict[global_var_id][time + 1] < global_var_value)))
             desired_end_value = ((time + 1) > length(global_var_dict[global_var_id])) ? global_var_dict[global_var_id][time] : global_var_dict[global_var_id][time + 1]
             push!(desired_end_values, desired_end_value)
           elseif (time >= maximum(map(tuple -> tuple[1], augmented_positive_times)))
@@ -166,7 +166,7 @@ function find_state_update_events_object_specific(event_vector_dict, augmented_p
     # @show time_ranges 
     # @show start_value 
     # @show end_value 
-    update_events = find_state_update_events(object_event_vector_dict, augmented_positive_times, time_ranges, start_value, end_value, object_var_dict, 1, object_var_value)
+    update_events = find_state_update_events(object_event_vector_dict, augmented_positive_times, time_ranges, start_value, end_value, object_var_dict, 1, object_var_value, true)
     
     update_events_dict[object_id] = update_events
   end

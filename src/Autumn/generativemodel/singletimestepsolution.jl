@@ -42,7 +42,7 @@ function singletimestepsolution_matrix(observations, user_events, grid_size; sin
   
   # SEED PREV USED RULES FOR EFFIENCY AT THE MOMENT 
     prev_used_rules = [ "(= objX objX)",
-                        "(= objX (nextLiquid objX))",
+                        # "(= objX (nextLiquid objX))",
                         "(= objX (moveDown objX))",
                         "(= objX (moveUp objX))",
                         "(= objX (moveLeft objX))",
@@ -976,7 +976,7 @@ function generate_on_clauses(matrix, unformatted_matrix, object_decomposition, u
                                    deepcopy(init_object_specific_state_update_on_clauses),
                                    deepcopy(init_state_update_on_clauses) ))
 
-    while length(problem_contexts) > 0 && solutions_per_matrix_count < 1 # desired_per_matrix_solution_count
+    while length(problem_contexts) > 0 && solutions_per_matrix_count < desired_per_matrix_solution_count
       println("NEW PROBLEM CONTEXT")
       failed = false
       problem_context = problem_contexts[1]
@@ -1231,8 +1231,8 @@ function generate_on_clauses(matrix, unformatted_matrix, object_decomposition, u
         push!(solutions, ([], [], [], Dict()))
       else
         push!(solutions, ([deepcopy(on_clauses)..., deepcopy(state_update_on_clauses)...], deepcopy(global_object_decomposition), deepcopy(global_var_dict)))
+        solutions_per_matrix_count += 1 
       end
-      solutions_per_matrix_count += 1 
     end
   end
   @show solutions 
@@ -1667,7 +1667,7 @@ function generate_event(anonymized_update_rule, object_id, object_ids, matrix, f
     for event in events_to_try 
       event_is_global = !occursin(".. obj id)", event)
       anonymized_event = event # replace(event, ".. obj id) $(object_ids[1])" => ".. obj id) x")
-      if !(occursin("first", anonymized_event) && (nothing in vcat(map(k -> object_mapping[k], keys(object_mapping))...)))
+      if !(occursin("first", anonymized_event) && (nothing in vcat(map(k -> object_mapping[k], collect(keys(object_mapping)))...)))
         
       
         if !(anonymized_event in keys(event_vector_dict)) || !(event_vector_dict[anonymized_event] isa AbstractArray) && intersect(object_ids, collect(keys(event_vector_dict[anonymized_event]))) == [] # event values are not stored
@@ -2289,7 +2289,7 @@ function generate_new_object_specific_state(update_rule, update_function_times_d
     end
     max_state_value = 1
   else
-    max_state_value = maximum(vcat(map(id -> map(x -> x[2], state_update_times[id]), object_ids)...))
+    max_state_value = maximum(vcat(map(id -> map(x -> x.custom_field_values[end], filter(y -> !isnothing(y), object_mapping[id])), object_ids)...)) # maximum(vcat(map(id -> map(x -> x[2], state_update_times[id]), object_ids)...)) 
   end
 
   # compute co-occurring event 
@@ -2455,23 +2455,23 @@ function generate_new_object_specific_state(update_rule, update_function_times_d
     "", [], object_decomposition, state_update_times  
   else
     # construct field values for each object 
-    object_field_values = Dict()
-    for object_id in object_ids
-      init_value = length(augmented_positive_times_dict[object_id]) == 0 ? (max_state_value + 1) : augmented_positive_times_dict[object_id][1][2]
-      object_field_values[object_id] = [init_value for i in 1:(length(state_update_times[object_id]) + 1)]
-      
-      curr_value = -1
-      for time in 1:length(state_update_times[object_id])
-        if curr_value != -1
-          object_field_values[object_id][time] = curr_value
-        end
+      object_field_values = Dict()
+      for object_id in object_ids
+        init_value = length(augmented_positive_times_dict[object_id]) == 0 ? (max_state_value + 1) : augmented_positive_times_dict[object_id][1][2]
+        object_field_values[object_id] = [init_value for i in 1:(length(state_update_times[object_id]) + 1)]
         
-        if state_update_times[object_id][time] != ("", -1)
-          curr_value = state_update_times[object_id][time][2]
+        curr_value = -1
+        for time in 1:length(state_update_times[object_id])
+          if curr_value != -1
+            object_field_values[object_id][time] = curr_value
+          end
+          
+          if state_update_times[object_id][time] != ("", -1)
+            curr_value = state_update_times[object_id][time][2]
+          end
         end
+        object_field_values[object_id][length(object_field_values[object_id])] = curr_value != -1 ? curr_value : init_value
       end
-      object_field_values[object_id][length(object_field_values[object_id])] = curr_value != -1 ? curr_value : init_value
-    end
 
     # construct new object decomposition
     ## add field to correct ObjType in object_types
@@ -2504,6 +2504,8 @@ function generate_new_object_specific_state(update_rule, update_function_times_d
       end
     end
     new_object_decomposition = new_object_types, new_object_mapping, background, grid_size
+
+    @show new_object_decomposition
 
     formatted_co_occurring_event = replace(co_occurring_event, "(filter (--> obj (== (.. obj id) x)) (prev addedObjType$(type_id)List))" => "(list (prev obj))")
     on_clause = "(on true\n$(replace(update_rule, "(== (.. obj id) x)" => "(& $(formatted_co_occurring_event) (== (.. obj field1) $(max_state_value)))")))"
@@ -2549,6 +2551,9 @@ function full_program_given_on_clauses(on_clauses, new_object_decomposition, glo
   # end
 
   on_clauses = unique(on_clauses)
+  # format on_clauses with fields
+  
+
   # true_on_clauses = filter(on_clause -> occursin("on true", on_clause), on_clauses)
   # user_event_on_clauses = filter(on_clause -> !(on_clause in true_on_clauses) && foldl(|, map(event -> occursin(event, on_clause) , ["clicked", "left", "right", "down", "up"])), on_clauses)
   # other_on_clauses = filter(on_clause -> !((on_clause in true_on_clauses) || (on_clause in user_event_on_clauses)), on_clauses)

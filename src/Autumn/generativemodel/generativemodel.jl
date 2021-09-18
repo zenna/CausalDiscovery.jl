@@ -248,7 +248,7 @@ function gen_event_bool_human_prior(object_decomposition, object_id, type_id, us
   user_events = filter(e -> (e != "") && (e != "nothing") && !isnothing(e), user_events)
 
   object_color = ""
-  if occursin("addObj", update_rule) && filter(t -> t.id == type_id, object_types)[1].custom_fields != []
+  if occursin("addObj", update_rule) && ("color" in map(x -> x[1], filter(t -> t.id == type_id, object_types)[1].custom_fields))
     update_rule_parts = split(update_rule, "\"")
     object_color = strip(update_rule_parts[2])
   end
@@ -326,8 +326,8 @@ function gen_event_bool_human_prior(object_decomposition, object_id, type_id, us
           end
         end
 
-        # object_id-based
-        # push!(choices, """(intersects (unfold (map (--> obj (adjacentObjs obj)) (filter (--> obj (== (.. obj id) $(object_id))) (prev addedObjType$(type.id)List)))) (filter (--> obj (== (.. obj color) "$(color)")) (prev addedObjType$(type.id)List)))""")  
+        # object_id-based: this causes Mario to break, but is necessary for Sand
+        push!(choices, """(intersects (unfold (map (--> obj (adjacentObjs obj)) (filter (--> obj (== (.. obj id) $(object_id))) (prev addedObjType$(type.id)List)))) (filter (--> obj (== (.. obj color) "$(color)")) (prev addedObjType$(type.id)List)))""")  
       end
     end
     # more object_id-based  
