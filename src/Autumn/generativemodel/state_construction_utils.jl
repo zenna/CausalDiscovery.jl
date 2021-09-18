@@ -208,6 +208,8 @@ function recompute_ranges(augmented_positive_times, new_state_update_times_dict,
   for i in 1:(length(augmented_positive_times)-1)
     prev_time, prev_value = augmented_positive_times[i]
     next_time, next_value = augmented_positive_times[i + 1]
+    @show prev_time 
+    @show next_time
     if prev_value != next_value
       if length(unique(new_state_update_times_dict[global_var_id][prev_time:next_time-1])) == 1 && unique(new_state_update_times_dict[global_var_id][prev_time:next_time-1])[1] == ""
         # if there are no state update functions within this range, add it to new_ranges

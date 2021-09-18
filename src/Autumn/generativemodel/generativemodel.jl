@@ -236,11 +236,23 @@ function generate_hypothesis_string_program(hypothesis_string, actual_string, ob
                    ")")
 end
 
-function gen_event_bool_human_prior(object_decomposition, object_id, user_events, global_var_dict) 
+function gen_event_bool_human_prior(object_decomposition, object_id, type_id, user_events, global_var_dict, update_rule) 
   object_types, object_mapping, _, _ = object_decomposition
   start_objects = map(k -> object_mapping[k][1], filter(key -> !isnothing(object_mapping[key][1]), collect(keys(object_mapping))))
   non_list_objects = filter(x -> (count(y -> y.type.id == x.type.id, start_objects) == 1) && (count(obj_id -> filter(z -> !isnothing(z), object_mapping[obj_id])[1].type.id == x.type.id, collect(keys(object_mapping))) == 1), start_objects)
+  if type_id in map(o -> o.type.id, non_list_objects)
+    in_a_list = false
+  else
+    in_a_list = true
+  end
   user_events = filter(e -> (e != "") && (e != "nothing") && !isnothing(e), user_events)
+
+  object_color = ""
+  if occursin("addObj", update_rule) && filter(t -> t.id == type_id, object_types)[1].custom_fields != []
+    update_rule_parts = split(update_rule, "\"")
+    object_color = strip(update_rule_parts[2])
+  end
+
   # USER EVENTS
   choices = ["true", "up", "down", "left", "right",  "(& clicked (isFree click))", "clicked"] # "clicked"
 
@@ -257,43 +269,46 @@ function gen_event_bool_human_prior(object_decomposition, object_id, user_events
 
 
   # OBJECT CONTACT: INTERSECTING OBJECTS + ADJACENT OBJECTS 
-  if length(non_list_objects) > 1 
-    for object_1 in non_list_objects
-
-      # ----- TEMP ADDITION: REMOVE LATER ----- #
-      ## used in Grow example
-      push!(choices, unique(map(obj -> "(== (.. (.. (prev obj$(object_1.id)) origin) x) $(obj.position[1]))", filter(x -> !isnothing(x), object_mapping[object_1.id])))...)
-      # --------------------------------------- #      
-
-      for object_2 in non_list_objects 
-        if object_1.id != object_2.id 
+  if !in_a_list
+    if length(non_list_objects) > 0 
+      for object_1 in non_list_objects
+  
+        # ----- TEMP ADDITION: REMOVE LATER ----- #
+        ## used in Grow example
+        push!(choices, unique(map(obj -> "(== (.. (.. (prev obj$(object_1.id)) origin) x) $(obj.position[1]))", filter(x -> !isnothing(x), object_mapping[object_1.id])))...)
+        # --------------------------------------- #      
+  
+        for object_2 in non_list_objects 
+          if object_1.id != object_2.id 
+            push!(choices, [
+              "(! (intersects (prev obj$(object_1.id)) (prev obj$(object_2.id))))",
+              "(intersects (adjacentObjs (prev obj$(object_1.id))) (prev obj$(object_2.id)))",
+            ]...)
+          end
+        end
+      end
+    end
+  
+    if non_list_objects != [] 
+      for object in non_list_objects 
+        push!(choices, "(clicked (prev obj$(object.id)))")
+                      
+        for type in object_types 
           push!(choices, [
-            "(! (intersects (prev obj$(object_1.id)) (prev obj$(object_2.id))))",
-            "(intersects (adjacentObjs (prev obj$(object_1.id))) (prev obj$(object_2.id)))",
-          ]...)
+            "(intersects (prev obj$(object.id)) (prev addedObjType$(type.id)List))",
+            "(intersects (adjacentObjs (prev obj$(object.id))) (prev addedObjType$(type.id)List))", # can add things with `.. id)` x here
+            "(intersects (prev obj$(object.id)) (filter (--> obj (== (.. obj id) $(object_id))) (prev addedObjType$(type.id)List)))",
+            ]...)
+          for object2 in non_list_objects 
+            if object.id != object2.id 
+              push!(choices, "(intersects (prev obj$(object.id)) (prev obj$(object2.id)))")
+              push!(choices, "(! (intersects (prev obj$(object.id)) (prev obj$(object2.id))))")
+            end    
+          end
         end
       end
     end
-  end
-
-  if non_list_objects != [] 
-    for object in non_list_objects 
-      push!(choices, "(clicked (prev obj$(object.id)))")
-                    
-      for type in object_types 
-        push!(choices, [
-          "(intersects (prev obj$(object.id)) (prev addedObjType$(type.id)List))",
-          "(intersects (adjacentObjs (prev obj$(object.id))) (prev addedObjType$(type.id)List))", # can add things with `.. id)` x here
-          "(intersects (prev obj$(object.id)) (filter (--> obj (== (.. obj id) $(object_id))) (prev addedObjType$(type.id)List)))",
-          ]...)
-        for object2 in non_list_objects 
-          if object.id != object2.id 
-            push!(choices, "(intersects (prev obj$(object.id)) (prev obj$(object2.id)))")
-            push!(choices, "(! (intersects (prev obj$(object.id)) (prev obj$(object2.id))))")
-          end    
-        end
-      end
-    end
+  
   end
 
   for type in object_types 
@@ -301,12 +316,18 @@ function gen_event_bool_human_prior(object_decomposition, object_id, user_events
     
     # color-related events 
     if (length(type.custom_fields) > 0) && type.custom_fields[1][1] == "color" 
-      color_values = type.custom_fields[1][3]
+      color_values = filter(x -> x != object_color, type.custom_fields[1][3])
       for color in color_values 
         push!(choices, """(clicked (filter (--> obj (== (.. obj color) "$(color)")) (prev addedObjType$(type.id)List)))""")
 
+        for color2 in color_values 
+          if color != color2 
+            push!(choices, """(intersects (filter (--> obj (== (.. obj color) "$(color)")) (prev addedObjType$(type.id)List)) (filter (--> obj (== (.. obj color) "$(color2)")) (prev addedObjType$(type.id)List)))""")
+          end
+        end
+
         # object_id-based
-        push!(choices, """(intersects (unfold (map (--> obj (adjacentObjs obj)) (filter (--> obj (== (.. obj id) $(object_id))) (prev addedObjType$(type.id)List)))) (filter (--> obj (== (.. obj color) "$(color)")) (prev addedObjType$(type.id)List)))""")  
+        # push!(choices, """(intersects (unfold (map (--> obj (adjacentObjs obj)) (filter (--> obj (== (.. obj id) $(object_id))) (prev addedObjType$(type.id)List)))) (filter (--> obj (== (.. obj color) "$(color)")) (prev addedObjType$(type.id)List)))""")  
       end
     end
     # more object_id-based  
@@ -325,14 +346,14 @@ function gen_event_bool_human_prior(object_decomposition, object_id, user_events
   sort(unique(choices), by=length) 
 end
 
-function gen_event_bool(object_decomposition, object_id, user_events, global_var_dict)
+function gen_event_bool(object_decomposition, object_id, type_id, update_rule, user_events, global_var_dict)
   object_types, object_mapping, _, _ = object_decomposition
   start_objects = map(k -> object_mapping[k][1], filter(key -> !isnothing(object_mapping[key][1]), collect(keys(object_mapping))))
   non_list_objects = filter(x -> (count(y -> y.type.id == x.type.id, start_objects) == 1) && (count(obj_id -> filter(z -> !isnothing(z), object_mapping[obj_id])[1].type.id == x.type.id, collect(keys(object_mapping))) == 1), start_objects)
   user_events = filter(e -> (e != "") && (e != "nothing") && !isnothing(e), user_events)
 
   # ----- add global events, unrelated to objects -----
-  choices = gen_event_bool_human_prior(object_decomposition, object_id, user_events, global_var_dict)
+  choices = gen_event_bool_human_prior(object_decomposition, object_id, type_id, user_events, global_var_dict, update_rule)
 
   ## time-related
   push!(choices, "(== (% (prev time) 10) 5)")
@@ -364,10 +385,11 @@ function gen_event_bool(object_decomposition, object_id, user_events, global_var
       for type in object_types 
         push!(choices, [
           "(intersects (prev obj$(object.id)) (prev addedObjType$(type.id)List))",
+          "(! (intersects (prev obj$(object.id)) (prev addedObjType$(type.id)List)))",
           "(intersects (adjacentObjs (prev obj$(object.id))) (prev addedObjType$(type.id)List))", # can add things with `.. id)` x here
           "(intersects (prev obj$(object.id)) (filter (--> obj (== (.. obj id) $(object_id))) (prev addedObjType$(type.id)List)))",
-          "(& (isWithinBounds (moveLeft (prev obj$(object.id)))) (| (! (intersects (moveLeft (prev obj$(object.id))) (prev addedObjType$(type.id)List))) (& (! (intersects (move (prev obj$(object.id)) (Position -2 0)) (prev addedObjType$(type.id)List))) (isWithinBounds (move (prev obj$(object.id)) (Position -2 0))))))",
-          "(& (isWithinBounds (moveUp (prev obj$(object.id)))) (| (! (intersects (moveUp (prev obj$(object.id))) (prev addedObjType$(type.id)List))) (& (! (intersects (move (prev obj$(object.id)) (Position 0 -2)) (prev addedObjType$(type.id)List))) (isWithinBounds (move (prev obj$(object.id)) (Position 0 -2))))))",
+          # "(& (isWithinBounds (moveLeft (prev obj$(object.id)))) (| (! (intersects (moveLeft (prev obj$(object.id))) (prev addedObjType$(type.id)List))) (& (! (intersects (move (prev obj$(object.id)) (Position -2 0)) (prev addedObjType$(type.id)List))) (isWithinBounds (move (prev obj$(object.id)) (Position -2 0))))))",
+          # "(& (isWithinBounds (moveUp (prev obj$(object.id)))) (| (! (intersects (moveUp (prev obj$(object.id))) (prev addedObjType$(type.id)List))) (& (! (intersects (move (prev obj$(object.id)) (Position 0 -2)) (prev addedObjType$(type.id)List))) (isWithinBounds (move (prev obj$(object.id)) (Position 0 -2))))))",
           ]...)
         for object2 in non_list_objects 
           if object.id != object2.id 
@@ -375,12 +397,18 @@ function gen_event_bool(object_decomposition, object_id, user_events, global_var
             push!(choices, "(! (intersects (prev obj$(object.id)) (prev obj$(object2.id))))")
             # sokoban
             ## left 
-            push!(choices, "(& left (& (in true (map (--> obj (& (isWithinBounds obj) (isFree (.. obj origin)))) (map (--> obj (moveLeft obj)) (filter (--> obj (== (.. obj id) $(object_id))) (prev addedObjType$(type.id)List))))) (in (Position 1 0) (map (--> obj (displacement (.. obj origin) (.. (prev obj$(object.id)) origin))) (filter (--> obj (== (.. obj id) $(object_id))) (prev addedObjType$(type.id)List))))))")
+            push!(choices, "(& (in true (map (--> obj (& (isWithinBounds obj) (isFree (.. obj origin)))) (map (--> obj (moveLeft obj)) (filter (--> obj (== (.. obj id) $(object_id))) (prev addedObjType$(type.id)List))))) (in (Position 1 0) (map (--> obj (displacement (.. obj origin) (.. (prev obj$(object.id)) origin))) (filter (--> obj (== (.. obj id) $(object_id))) (prev addedObjType$(type.id)List)))))")
+            push!(choices, "(& (intersects (prev obj$(object2.id)) (filter (--> obj (== (.. obj id) $(object_id)) (prev addedObjType$(type.id)List)))) (in (Position 1 0) (map (--> obj (displacement obj (prev obj$(object.id)))) (filter (--> obj (== (.. obj id) $(object_id))) (prev addedObjType$(type.id)List)))))")
+            # OLD: TWO BELOW, BUT THE SECOND CAUSES A BREAK IN SOMETHING ELSE
+            # push!(choices, "(& left (& (in true (map (--> obj (& (isWithinBounds obj) (isFree (.. obj origin)))) (map (--> obj (moveLeft obj)) (filter (--> obj (== (.. obj id) $(object_id))) (prev addedObjType$(type.id)List))))) (in (Position 1 0) (map (--> obj (displacement (.. obj origin) (.. (prev obj$(object.id)) origin))) (filter (--> obj (== (.. obj id) $(object_id))) (prev addedObjType$(type.id)List))))))")
             # push!(choices, "(& left (& (intersects (prev obj$(object2.id)) (filter (--> obj (== (.. obj id) $(object_id)) (prev addedObjType$(type.id)List)))) (in (Position 1 0) (map (--> obj (displacement obj (prev obj$(object.id)))) (filter (--> obj (== (.. obj id) $(object_id))) (prev addedObjType$(type.id)List))))))")
             
             ## up
-            push!(choices, "(& up (& (intersects (prev obj$(object2.id)) (map (--> obj (moveUp obj)) (filter (--> obj (== (.. obj id) $(object_id))) (prev addedObjType$(type.id)List)))) (in (Position 0 1) (map (--> obj (displacement (.. obj origin) (.. (prev obj$(object.id)) origin))) (filter (--> obj (== (.. obj id) $(object_id))) (prev addedObjType$(type.id)List))))))")
-            push!(choices, "(& up (& (in true (map (--> obj (& (isWithinBounds obj) (isFree (.. obj origin)))) (map (--> obj (moveUp obj)) (filter (--> obj (== (.. obj id) $(object_id))) (prev addedObjType$(type.id)List))))) (in (Position 0 1) (map (--> obj (displacement (.. obj origin) (.. (prev obj$(object.id)) origin))) (filter (--> obj (== (.. obj id) $(object_id))) (prev addedObjType$(type.id)List))))))")
+            # OLD: TWO BELOW
+            # push!(choices, "(& up (& (intersects (prev obj$(object2.id)) (map (--> obj (moveUp obj)) (filter (--> obj (== (.. obj id) $(object_id))) (prev addedObjType$(type.id)List)))) (in (Position 0 1) (map (--> obj (displacement (.. obj origin) (.. (prev obj$(object.id)) origin))) (filter (--> obj (== (.. obj id) $(object_id))) (prev addedObjType$(type.id)List))))))")
+            # push!(choices, "(& up (& (in true (map (--> obj (& (isWithinBounds obj) (isFree (.. obj origin)))) (map (--> obj (moveUp obj)) (filter (--> obj (== (.. obj id) $(object_id))) (prev addedObjType$(type.id)List))))) (in (Position 0 1) (map (--> obj (displacement (.. obj origin) (.. (prev obj$(object.id)) origin))) (filter (--> obj (== (.. obj id) $(object_id))) (prev addedObjType$(type.id)List))))))")
+            push!(choices, "(& (intersects (prev obj$(object2.id)) (map (--> obj (moveUp obj)) (filter (--> obj (== (.. obj id) $(object_id))) (prev addedObjType$(type.id)List)))) (in (Position 0 1) (map (--> obj (displacement (.. obj origin) (.. (prev obj$(object.id)) origin))) (filter (--> obj (== (.. obj id) $(object_id))) (prev addedObjType$(type.id)List)))))")
+            push!(choices, "(& (in true (map (--> obj (& (isWithinBounds obj) (isFree (.. obj origin)))) (map (--> obj (moveUp obj)) (filter (--> obj (== (.. obj id) $(object_id))) (prev addedObjType$(type.id)List))))) (in (Position 0 1) (map (--> obj (displacement (.. obj origin) (.. (prev obj$(object.id)) origin))) (filter (--> obj (== (.. obj id) $(object_id))) (prev addedObjType$(type.id)List)))))")
           end    
         end
       end
@@ -397,6 +425,16 @@ function gen_event_bool(object_decomposition, object_id, user_events, global_var
     if (length(type.custom_fields) > 0) && type.custom_fields[1][1] == "color" 
       color_values = type.custom_fields[1][3]
       for color in color_values 
+
+        # ------- MARIO ADDS ------- # 
+        push!(choices, """(& up (intersects (map (--> obj (.. (moveDownNoCollision obj) origin)) (filter (--> obj (== (.. obj id) $(object_id))) (prev addedObjType$(type.id)List))) (map (--> obj (.. obj origin)) (filter (--> obj (== (.. obj id) $(object_id))) (prev addedObjType$(type.id)List)))))""")
+
+        push!(choices, """(intersects (map (--> obj (moveDown obj)) (filter (--> obj (== (.. obj id) $(object_id))) (prev addedObjType$(type.id)List))) (filter (--> obj (== (.. obj color) "$(color)")) (prev addedObjType$(type.id)List)))""")
+        push!(choices, """(intersects (map (--> obj (moveLeft obj)) (filter (--> obj (== (.. obj id) $(object_id))) (prev addedObjType$(type.id)List))) (filter (--> obj (== (.. obj color) "$(color)")) (prev addedObjType$(type.id)List)))""")        
+        push!(choices, """(intersects (map (--> obj (moveRight obj)) (filter (--> obj (== (.. obj id) $(object_id))) (prev addedObjType$(type.id)List))) (filter (--> obj (== (.. obj color) "$(color)")) (prev addedObjType$(type.id)List)))""")                
+        push!(choices, """(intersects (map (--> obj (moveUp obj)) (filter (--> obj (== (.. obj id) $(object_id))) (prev addedObjType$(type.id)List))) (filter (--> obj (== (.. obj color) "$(color)")) (prev addedObjType$(type.id)List)))""")                
+
+
         push!(choices, """(clicked (filter (--> obj (== (.. obj color) "$(color)")) (prev addedObjType$(type.id)List)))""")
         push!(choices, """(intersects (list "$(color)") (map (--> obj (.. obj color)) (prev addedObjType$(type.id)List)))""")
         push!(choices, """(clicked (filter (--> obj (== (.. obj color) "$(color)")) (prev addedObjType$(type.id)List)))""")
@@ -408,12 +446,32 @@ function gen_event_bool(object_decomposition, object_id, user_events, global_var
         push!(choices, """(intersects (filter (--> obj (== (.. obj id) $(object_id))) (prev addedObjType$(type.id)List)) (filter (--> obj (== (.. obj color) "$(color)")) (prev addedObjType$(type.id)List)))""")
         for color2 in color_values 
           if color != color2  
+            # GROW
             push!(choices, """(& (intersects (filter (--> obj (== (.. obj color) "$(color2)")) (prev addedObjType$(type.id)List)) (map (--> obj (moveDown obj)) (filter (--> obj (== (.. obj id) $(object_id))) (prev addedObjType$(type.id)List)))) (intersects (list "$(color)") (map (--> obj (.. obj color)) (filter (--> obj (== (.. obj id) $(object_id))) (prev addedObjType$(type.id)List)))))""")
             push!(choices, """(& (intersects (filter (--> obj (& (== (.. (.. obj origin) y) 5) (== (.. obj color) "$(color2)"))) (prev addedObjType$(type.id)List)) (map (--> obj (moveDown obj)) (filter (--> obj (== (.. obj id) $(object_id))) (prev addedObjType$(type.id)List)))) (intersects (list "$(color)") (map (--> obj (.. obj color)) (filter (--> obj (== (.. obj id) $(object_id))) (prev addedObjType$(type.id)List)))))""")
+          
+            # ------- MARIO ADDS ------- #
+            for color3 in color_values 
+              if !(color3 in [color, color2])
+                # push!(choices, """(| (& (intersects (filter (--> obj (== (.. obj id) $(object_id))) (prev addedObjType$(type.id)List)) (prev obj8)) (intersects (list "$(color)") (map (--> obj (.. obj color)) (filter (--> obj (== (.. obj id) $(object_id))) (prev addedObjType$(type.id)List))))) (& (intersects (filter (--> obj (== (.. obj id) $(object_id))) (prev addedObjType$(type.id)List)) (filter (--> obj (== (.. obj color) "$(color2)")) (prev addedObjType$(type.id)List))) (intersects (list "$(color3)") (map (--> obj (.. obj color)) (filter (--> obj (== (.. obj id) $(object_id))) (prev addedObjType$(type.id)List))))))""")                
+                if non_list_objects != [] 
+                  non_list_object = non_list_objects[1]
+                  push!(choices, """(& (intersects (filter (--> obj (== (.. obj id) $(object_id))) (prev addedObjType$(type.id)List)) (prev obj$(non_list_object.id))) (intersects (list "$(color)") (map (--> obj (.. obj color)) (filter (--> obj (== (.. obj id) $(object_id))) (prev addedObjType$(type.id)List)))))""")
+                end
+                push!(choices, """(& (intersects (filter (--> obj (== (.. obj id) $(object_id))) (prev addedObjType$(type.id)List)) (filter (--> obj (== (.. obj color) "$(color2)")) (prev addedObjType$(type.id)List))) (intersects (list "$(color3)") (map (--> obj (.. obj color)) (filter (--> obj (== (.. obj id) $(object_id))) (prev addedObjType$(type.id)List)))))""")
+              end
+            end
+      
           end
         end
       end
     end
+
+    # (| (& (intersects (filter (--> obj (== (.. obj id) $(object_id))) (prev addedObjType$(type.id)List)) (prev obj8)) 
+    #       (intersects (list "$(color)") (map (--> obj (.. obj color)) (filter (--> obj (== (.. obj id) $(object_id))) (prev addedObjType$(type.id)List))))) 
+    #    (& (intersects (filter (--> obj (== (.. obj id) $(object_id))) (prev addedObjType$(type.id)List)) (filter (--> obj (== (.. obj color) "$(color2)")) (prev addedObjType$(type.id)List))) 
+    #       (intersects (list $(color3)) (map (--> obj (.. obj color)) (filter (--> obj (== (.. obj id) $(object_id))) (prev addedObjType$(type.id)List))))))
+
     # more object_id-based  
     push!(choices, "(& (clicked (prev addedObjType$(type.id)List)) (in (objClicked click (prev addedObjType$(type.id)List)) (filter (--> obj (== (.. obj id) $(object_id))) (prev addedObjType$(type.id)List))))")
     push!(choices, "(& (clicked (prev addedObjType$(type.id)List)) (! (in (objClicked click (prev addedObjType$(type.id)List)) (filter (--> obj (== (.. obj id) $(object_id))) (prev addedObjType$(type.id)List)))))")  
@@ -422,7 +480,10 @@ function gen_event_bool(object_decomposition, object_id, user_events, global_var
     push!(choices, "(in false (map (--> obj (== (.. obj id) $(object_id))) (filter (--> obj (== (.. obj id) $(object_id))) (prev addedObjType$(type.id)List))))")
     for i in 0:3
       for i2 in 0:3 
-        push!(choices, "(| (& (== (% (prev time) 10) 5) (in $(i) (map (--> obj (.. (.. obj origin) y)) (filter (--> obj (== (.. obj id) $(object_id))) (prev addedObjType$(type.id)List))))) (& (== (% (prev time) 10) 0) (in $(i2) (map (--> obj (.. (.. obj origin) y)) (filter (--> obj (== (.. obj id) $(object_id))) (prev addedObjType$(type.id)List))))))")
+        # push!(choices, "(| (& (== (% (prev time) 10) 5) (in $(i) (map (--> obj (.. (.. obj origin) y)) (filter (--> obj (== (.. obj id) $(object_id))) (prev addedObjType$(type.id)List))))) (& (== (% (prev time) 10) 0) (in $(i2) (map (--> obj (.. (.. obj origin) y)) (filter (--> obj (== (.. obj id) $(object_id))) (prev addedObjType$(type.id)List))))))")
+        # push!(choices, "(| (& (== (% (prev time) 10) 5) (in $(i) (map (--> obj (.. (.. obj origin) y)) (filter (--> obj (== (.. obj id) $(object_id))) (prev addedObjType$(type.id)List))))) (& (== (% (prev time) 10) 0) (in $(i2) (map (--> obj (.. (.. obj origin) y)) (filter (--> obj (== (.. obj id) $(object_id))) (prev addedObjType$(type.id)List))))))")
+        push!(choices, "(& (== (% (prev time) 10) 5) (in $(i) (map (--> obj (.. (.. obj origin) y)) (filter (--> obj (== (.. obj id) $(object_id))) (prev addedObjType$(type.id)List)))))")
+        push!(choices, "(& (== (% (prev time) 10) 0) (in $(i2) (map (--> obj (.. (.. obj origin) y)) (filter (--> obj (== (.. obj id) $(object_id))) (prev addedObjType$(type.id)List)))))")
       end
       push!(choices, "(in $(i) (map (--> obj (.. (.. obj origin) y)) (filter (--> obj (== (.. obj id) $(object_id))) (prev addedObjType$(type.id)List))))")
       push!(choices, "(& (== (% (prev time) 10) 5) (in $(i) (map (--> obj (.. (.. obj origin) y)) (filter (--> obj (== (.. obj id) $(object_id))) (prev addedObjType$(type.id)List)))))")
@@ -449,10 +510,10 @@ function gen_event_bool(object_decomposition, object_id, user_events, global_var
             filtered_list = "(filter (--> obj (== (.. obj id) $(object_id))) (prev addedObjType$(type.id)List))" 
             push!(choices, "(& (intersects (list $(value2)) (map (--> obj2 (.. obj2 field1)) (filter (--> obj (== (.. obj id) $(object_id))) (prev addedObjType$(type.id)List)))) (! (& (!= (length $(filtered_list)) 0) (in (Position $(xCoord) $(yCoord)) (map (--> obj2 (displacement (.. obj2 origin) (.. (first $(filtered_list)) origin))) (filter (--> obj2 (== (.. obj2 field1) $(value))) (prev addedObjType$(type.id)List)))))))")
             push!(choices, "(& (intersects (list $(value2)) (map (--> obj2 (.. obj2 field1)) (filter (--> obj (== (.. obj id) $(object_id))) (prev addedObjType$(type.id)List)))) (& (!= (length $(filtered_list)) 0) (in (Position $(xCoord) $(yCoord)) (map (--> obj2 (displacement (.. obj2 origin) (.. (first $(filtered_list)) origin))) (filter (--> obj2 (== (.. obj2 field1) $(value))) (prev addedObjType$(type.id)List))))))")
-            for user_event in ["left", "right", "up", "down"]
-              push!(choices, "(& $(user_event) (& (intersects (list $(value2)) (map (--> obj2 (.. obj2 field1)) (filter (--> obj (== (.. obj id) $(object_id))) (prev addedObjType$(type.id)List)))) (! (& (!= (length $(filtered_list)) 0) (in (Position $(xCoord) $(yCoord)) (map (--> obj2 (displacement (.. obj2 origin) (.. (first $(filtered_list)) origin))) (filter (--> obj2 (== (.. obj2 field1) $(value))) (prev addedObjType$(type.id)List))))))))")
-              push!(choices, "(& $(user_event) (& (intersects (list $(value2)) (map (--> obj2 (.. obj2 field1)) (filter (--> obj (== (.. obj id) $(object_id))) (prev addedObjType$(type.id)List)))) (& (!= (length $(filtered_list)) 0) (in (Position $(xCoord) $(yCoord)) (map (--> obj2 (displacement (.. obj2 origin) (.. (first $(filtered_list)) origin))) (filter (--> obj2 (== (.. obj2 field1) $(value))) (prev addedObjType$(type.id)List)))))))")
-            end          
+            # for user_event in ["left", "right", "up", "down"]
+            #   push!(choices, "(& $(user_event) (& (intersects (list $(value2)) (map (--> obj2 (.. obj2 field1)) (filter (--> obj (== (.. obj id) $(object_id))) (prev addedObjType$(type.id)List)))) (! (& (!= (length $(filtered_list)) 0) (in (Position $(xCoord) $(yCoord)) (map (--> obj2 (displacement (.. obj2 origin) (.. (first $(filtered_list)) origin))) (filter (--> obj2 (== (.. obj2 field1) $(value))) (prev addedObjType$(type.id)List))))))))")
+            #   push!(choices, "(& $(user_event) (& (intersects (list $(value2)) (map (--> obj2 (.. obj2 field1)) (filter (--> obj (== (.. obj id) $(object_id))) (prev addedObjType$(type.id)List)))) (& (!= (length $(filtered_list)) 0) (in (Position $(xCoord) $(yCoord)) (map (--> obj2 (displacement (.. obj2 origin) (.. (first $(filtered_list)) origin))) (filter (--> obj2 (== (.. obj2 field1) $(value))) (prev addedObjType$(type.id)List)))))))")
+            # end          
           end
         end
       end
@@ -471,7 +532,7 @@ function gen_event_bool(object_decomposition, object_id, user_events, global_var
   sort(unique(choices), by=length)
 end
 
-function construct_compound_events(choices, event_vector_dict, redundant_events_set)
+function construct_compound_events(choices, event_vector_dict, redundant_events_set, object_decomposition)
   println("START construct_compound_events")
   @show event_vector_dict
   object_specific_events = filter(k -> (k in keys(event_vector_dict)) && !(event_vector_dict[k] isa AbstractArray), choices)
@@ -567,15 +628,69 @@ function construct_compound_events(choices, event_vector_dict, redundant_events_
         push!(compound_events, or_event)
         event_vector_dict[or_event] = or_event_values
       end
-
     end
   end
+
+  # # compute depth-3 events just with color selector events, to get around limitation of parsing (i.e. in non-singlecell mode, objects with same shape
+  # # but different colors are the same type, even though we may like them to be different types)
+  # object_types, _, _, _ = object_decomposition 
+  # object_types_with_color = filter(t -> t.custom_fields != [] && t.custom_fields[1][1] == "color", object_types)
+  # color_selector_events = vcat(map(t -> map(color -> """(intersects (list "$(color)") (map (--> obj (.. obj color)) (filter (--> obj (== (.. obj id) x)) (prev addedObjType$(t.id)List))))""", 
+  #                                           filter(f -> f[1] == "color", t.custom_fields)[1][3]), 
+  #                                  object_types_with_color)...) 
+
+  # color_compound_events = []
+  # for color_event in color_selector_events
+  #   color_event_values = event_vector_dict[color_event]
+  #   object_ids = collect(keys(color_event_values))
+  #   for compound_event in compound_events 
+  #     if event_vector_dict[compound_event] isa AbstractArray 
+  #       compound_event_value = event_vector_dict[compound_event] 
+  
+  #       and_event = "(& $(color_event) $(compound_event))" 
+  #       or_event = "(| $(color_event) $(compound_event))"
+  
+  #       and_values = Dict()
+  #       or_values = Dict() 
+        
+  #       for object_id in object_ids
+  #         and_values[object_id] = compound_event_value .& color_event_values[object_id]
+  #         or_values[object_id] = compound_event_value .| color_event_values[object_id]
+  #       end  
+  #     else 
+  #       compound_event_values = event_vector_dict[compound_event] 
+  
+  #       and_event = "(& $(color_event) $(compound_event))" 
+  #       or_event = "(| $(color_event) $(compound_event))"
+  
+  #       and_values = Dict()
+  #       or_values = Dict() 
+        
+  #       for object_id in object_ids
+  #         and_values[object_id] = compound_event_values[object_id] .& color_event_values[object_id]
+  #         or_values[object_id] = compound_event_values[object_id] .| color_event_values[object_id]
+  #       end  
+  #     end
+
+  #     if unique(vcat(map(id -> and_values[id], object_ids)...)) != [0]
+  #       push!(color_compound_events, and_event)
+  #       event_vector_dict[and_event] = and_values
+  #     end
+
+  #     if unique(vcat(map(id -> or_values[id], object_ids)...)) != [0]
+  #       push!(color_compound_events, or_event)
+  #       event_vector_dict[or_event] = or_values
+  #     end
+
+  #   end
+  # end
+  # push!(compound_events, color_compound_events)
 
   # remove duplicate events that are observationally equivalent
   event_vector_dict, redundant_events_set = prune_by_observational_equivalence(event_vector_dict, redundant_events_set)
 
   println("END construct_compound_events")
-  sort(compound_events, by=length)
+  sort(collect(keys(event_vector_dict)), by=length)
 end
 
 function prune_by_observational_equivalence(event_vector_dict, redundant_events_set)

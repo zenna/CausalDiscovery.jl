@@ -774,11 +774,15 @@ function generate_observations_mario(m::Module)
   push!(observations, Base.invokelatest(m.render, state.scene))
 
   events = Dict([1 => "left",
-                 2 => "right",
+                 2 => "click 0 11",
+                 3 => "right",
                  4 => "up",
                  5 => "left",
+                 6 => "up",
                  10 => "up",
-                 11 => "left",
+                 11 => "right",
+                 12 => "left",
+                 13 => "left",
                  15 => "click 4 4",
                  16 => "click 5 5",
                  17 => "click 4 5",
@@ -791,22 +795,25 @@ function generate_observations_mario(m::Module)
                  26 => "right",
                  27 => "up",
                  28 => "right",
-                 31 => "up",
-                 32 => "right",
-                 36 => "left",
-                 37 => "click 15 15",
-                 38 => "click 14 13",
-                 40 => "up",
-                 41 => "left",
-                 42 => "left",
-                 43 => "left",
-                 46 => "up",
-                 50 => "click 0 5",
-                 51 => "click 0 7",
-                 52 => "click 0 9",
+                 37 => "right",
+                 
+                 40 => "click 15 15",
+                 45 => "click 14 13",
+                 46 => "click 14 14",
+                 55 => "up",
+                 56 => "left",
+                 57 => "left",
+                 58 => "left",
+                 59 => "left",
+                 64 => "up",
+                 69 => "click 0 5",
+                 73 => "right",
+                 75 => "up",
+                 76 => "click 0 7",
+                 77 => "click 0 9",                 
                 ])
 
-  for i in 0:53
+  for i in 0:79
     if i in collect(keys(events))
       event = events[i]
       if event == "left"

@@ -4,7 +4,7 @@ function synthesize_program(model_name::String;
                             singlecell = false,
                             pedro = false,
                             desired_solution_count = 1,
-                            desired_per_matrix_solution_count = 1, # 2
+                            desired_per_matrix_solution_count = 5, # 2
                             )
   if pedro 
     observations, user_events, grid_size = generate_observations_pedro(model_name)
@@ -15,7 +15,7 @@ function synthesize_program(model_name::String;
   program_strings = []
   global_event_vector_dict = Dict()
   redundant_events_set = Set()
-  for upd_func_space in [1, 2, 3]
+  for upd_func_space in [2] # 1, 2, 3
     matrix, unformatted_matrix, object_decomposition, prev_used_rules = singletimestepsolution_matrix(observations, user_events, grid_size, singlecell=singlecell, pedro=pedro, upd_func_space=upd_func_space)
     solutions = generate_on_clauses(matrix, unformatted_matrix, object_decomposition, user_events, global_event_vector_dict, redundant_events_set, grid_size, desired_solution_count, desired_per_matrix_solution_count)
     for solution in solutions 
@@ -428,49 +428,54 @@ programs = Dict("particles"                                 => """(program
                                                                   (on (clicked (prev sun)) (= sun (if (.. (prev sun) movingLeft) then (moveLeft (prev sun)) else (moveRight (prev sun)))))
                                                                 )"""
                 ,"mario"                                       => """(program
-                                                                    (= GRID_SIZE 16)
+                                                                      (= GRID_SIZE 16)
+                                                                      (= background "skyblue")
+                                                                      
+                                                                      (object Mario (: bullets Int) (Cell 0 0 "red"))
+                                                                      (object Step (list (Cell -1 0 "darkorange") (Cell 0 0 "darkorange") (Cell 1 0 "darkorange")))
+                                                                      (object Coin (Cell 0 0 "gold"))
+                                                                      (object Enemy (: movingLeft Bool) (: lives Int) (list (Cell -1 0 "blue") (Cell 0 0 "blue") (Cell 1 0 "blue")
+                                                                                                          (Cell -1 1 "blue") (Cell 0 1 "blue") (Cell 1 1 "blue")))
+                                                                      (object Bullet (Cell 0 0 "mediumpurple"))
+                                                                      
+                                                                      (: mario Mario)
+                                                                      (= mario (initnext (Mario 0 (Position 7 15)) (if (intersects (moveDown (prev mario)) (prev coins)) then (moveDown (prev mario)) else (moveDownNoCollision (prev mario)))))
                                                                     
-                                                                    (object Mario (: bullets Int) (Cell 0 0 "red"))
-                                                                    (object Step (list (Cell -1 0 "darkorange") (Cell 0 0 "darkorange") (Cell 1 0 "darkorange")))
-                                                                    (object Coin (Cell 0 0 "gold"))
-                                                                    (object Enemy (: movingLeft Bool) (: lives Int) (list (Cell -1 0 "blue") (Cell 0 0 "blue") (Cell 1 0 "blue")
-                                                                                                        (Cell -1 1 "blue") (Cell 0 1 "blue") (Cell 1 1 "blue")))
-                                                                    (object Bullet (Cell 0 0 "mediumpurple"))
+                                                                      (: steps (List Step))
+                                                                      (= steps (initnext (list (Step (Position 4 13)) (Step (Position 8 10)) (Step (Position 11 7))) (prev steps)))
                                                                     
-                                                                    (: mario Mario)
-                                                                    (= mario (initnext (Mario 0 (Position 7 15)) (if (intersects (moveDown (prev mario)) (prev coins)) then (moveDown (prev mario)) else (moveDownNoCollision (prev mario)))))
-                                                                  
-                                                                    (: steps (List Step))
-                                                                    (= steps (initnext (list (Step (Position 4 13)) (Step (Position 8 10)) (Step (Position 11 7))) (prev steps)))
-                                                                  
-                                                                    (: coins (List Coin))
-                                                                    (= coins (initnext (list (Coin (Position 4 12)) (Coin (Position 7 4)) (Coin (Position 11 6))) (prev coins)))
-                                                                  
-                                                                    (: enemy Enemy)
-                                                                    (= enemy (initnext (Enemy true 2 (Position 7 0)) (if (.. (prev enemy) movingLeft) then (moveLeft (prev enemy)) else (moveRight (prev enemy)))))
-                                                                  
-                                                                    (: bullets (List Bullet))
-                                                                    (= bullets (initnext (list) (updateObj (prev bullets) (--> obj (if (intersects (moveUp obj) (prev steps)) then (removeObj obj) else (moveUp obj))))))
-                                                                  
-                                                                    (on (== (.. (.. (prev enemy) origin) x) 1) (= enemy (moveRight (updateObj (prev enemy) "movingLeft" false))))
-                                                                    (on (== (.. (.. (prev enemy) origin) x) 14) (= enemy (moveLeft (updateObj (prev enemy) "movingLeft" true))))
-                                                                  
-                                                                    (on left (= mario (if (intersects (moveLeft (prev mario)) (prev coins)) then (moveLeft (prev mario)) else (moveLeftNoCollision (prev mario)))))
-                                                                    (on right (= mario (if (intersects (moveRight (prev mario)) (prev coins)) then (moveRight (prev mario)) else (moveRightNoCollision (prev mario)))))
-                                                                    (on (& up (== (moveDownNoCollision (prev mario)) (prev mario))) (= mario (moveNoCollision (prev mario) 0 -4)))
-                                                                  
-                                                                    (on (intersects (prev mario) (prev coins)) 
-                                                                      (let ((= coins (removeObj (prev coins) (--> obj (intersects obj (prev mario))))) 
-                                                                            (= mario (updateObj (prev mario) "bullets" (+ (.. (prev mario) bullets) 1))))) )
-                                                                  
-                                                                    (on (& clicked (> (.. (prev mario) bullets) 0)) 
-                                                                      (let ((= bullets (addObj (prev bullets) (Bullet (.. (prev mario) origin)))) 
-                                                                            (= mario (updateObj (prev mario) "bullets" (- (.. (prev mario) bullets) 1))))))
-                                                                  
-                                                                    (on (intersects (prev enemy) (prev bullets))
-                                                                      (let ((= bullets (removeObj (prev bullets) (--> obj (intersects obj (prev enemy))))) 
-                                                                            (= enemy (if (== (.. (prev enemy) lives) 1) then (removeObj (prev enemy)) else (updateObj (prev enemy) "lives" (- (.. (prev enemy) lives) 1)))))))
-                                                                  )"""
+                                                                      (: coins (List Coin))
+                                                                      (= coins (initnext (list (Coin (Position 4 12)) (Coin (Position 7 4)) (Coin (Position 11 6))) (prev coins)))
+                                                                    
+                                                                      (: enemy Enemy)
+                                                                      (= enemy (initnext (Enemy true 1 (Position 7 0)) (if (.. (prev enemy) movingLeft) then (moveLeft (prev enemy)) else (moveRight (prev enemy)))))
+                                                                    
+                                                                      (: bullets (List Bullet))
+                                                                      (= bullets (initnext (list) (updateObj (prev bullets) (--> obj (if (intersects (moveUp obj) (prev steps)) then (removeObj obj) else (moveUp obj))))))
+                                                                      
+                                                                      (: enemyLives Int)
+                                                                      (= enemyLives (initnext 1 (prev enemyLives)))
+                                                                    
+                                                                      (on (== (.. (.. (prev enemy) origin) x) 1) (= enemy (moveRight (updateObj (prev enemy) "movingLeft" false))))
+                                                                      (on (== (.. (.. (prev enemy) origin) x) 14) (= enemy (moveLeft (updateObj (prev enemy) "movingLeft" true))))
+                                                                    
+                                                                      (on left (= mario (if (intersects (moveLeft (prev mario)) (prev coins)) then (moveLeft (prev mario)) else (moveLeftNoCollision (prev mario)))))
+                                                                      (on right (= mario (if (intersects (moveRight (prev mario)) (prev coins)) then (moveRight (prev mario)) else (moveRightNoCollision (prev mario)))))
+                                                                      (on (& up (== (moveDownNoCollision (prev mario)) (prev mario))) (= mario (moveNoCollision (prev mario) 0 -4)))
+                                                                    
+                                                                      (on (intersects (prev mario) (prev coins)) 
+                                                                        (let ((= coins (removeObj (prev coins) (--> obj (intersects obj (prev mario))))) 
+                                                                              (= mario (moveDownNoCollision (updateObj (prev mario) "bullets" (+ (.. (prev mario) bullets) 1)))))) )
+                                                                    
+                                                                      (on (& clicked (> (.. (prev mario) bullets) 0)) 
+                                                                        (let ((= bullets (addObj (prev bullets) (Bullet (.. (prev mario) origin)))) 
+                                                                              (= mario (moveDownNoCollision (updateObj (prev mario) "bullets" (- (.. (prev mario) bullets) 1)))))))
+                                                                    
+                                                                      (on (intersects (prev enemy) (prev bullets))
+                                                                        (let ((= bullets (removeObj (prev bullets) (--> obj (intersects obj (prev enemy))))) 
+                                                                              (= enemy (if (== (prev enemyLives) 1) then (removeObj (prev enemy)) else (if (.. (prev enemy) movingLeft) then (moveLeft (prev enemy)) else (moveRight (prev enemy))) ))
+                                                                              (= enemyLives (- (prev enemyLives) 1)))))
+                                                                    )"""
                 ,"sand"                                      => """(program
                                                                   (= GRID_SIZE 10)
                                                                   
