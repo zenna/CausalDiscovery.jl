@@ -897,7 +897,7 @@ function generate_on_clauses(matrix, unformatted_matrix, object_decomposition, u
   end
   filtered_non_random_matrices = filter_update_function_matrix_multiple(non_random_matrix, object_decomposition, multiple=true)
   # filtered_non_random_matrices = filtered_non_random_matrices[1:min(4, length(filtered_non_random_matrices))]
-  push!(filtered_matrices, filtered_non_random_matrices[1:1]...)
+  push!(filtered_matrices, filtered_non_random_matrices...)
   
 
   # add direction-bias-filtered matrix to filtered_matrices 
