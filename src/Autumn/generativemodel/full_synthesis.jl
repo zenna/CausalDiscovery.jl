@@ -15,7 +15,7 @@ function synthesize_program(model_name::String;
   program_strings = []
   global_event_vector_dict = Dict()
   redundant_events_set = Set()
-  for upd_func_space in [3] # 1, 2, 3
+  for upd_func_space in [1, 2, 3] # 1, 2, 3
     matrix, unformatted_matrix, object_decomposition, prev_used_rules = singletimestepsolution_matrix(observations, user_events, grid_size, singlecell=singlecell, pedro=pedro, upd_func_space=upd_func_space)
     solutions = generate_on_clauses(matrix, unformatted_matrix, object_decomposition, user_events, global_event_vector_dict, redundant_events_set, grid_size, desired_solution_count, desired_per_matrix_solution_count)
     for solution in solutions 
