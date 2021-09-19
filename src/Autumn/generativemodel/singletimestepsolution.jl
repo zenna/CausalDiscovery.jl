@@ -42,7 +42,7 @@ function singletimestepsolution_matrix(observations, user_events, grid_size; sin
   
   # SEED PREV USED RULES FOR EFFIENCY AT THE MOMENT 
     prev_used_rules = [ "(= objX objX)",
-                        # "(= objX (nextLiquid objX))",
+                        "(= objX (nextLiquid objX))",
                         "(= objX (moveDown objX))",
                         "(= objX (moveUp objX))",
                         "(= objX (moveLeft objX))",
@@ -156,7 +156,7 @@ function synthesize_update_functions(object_id, time, object_decomposition, user
       update_rules = vcat(update_rules..., "(= addedObjType$(next_object.type.id)List (addObj addedObjType$(next_object.type.id)List (map (--> pos (ObjType$(next_object.type.id) $(join(map(v -> """ "$(v)" """, next_object.custom_field_values), " ")) pos)) (randomPositions GRID_SIZE 1))))")
       
       # perform string abstraction 
-      abstracted_strings = [] # abstract_string(next_object.custom_field_values[1], (object_types, prev_objects, background, grid_size))
+      abstracted_strings = abstract_string(next_object.custom_field_values[1], (object_types, sort(prev_objects_not_listed, by = x -> x.id), background, grid_size))
       if abstracted_strings != []
         abstracted_string = abstracted_strings[1]
         update_rules = vcat(update_rules..., """(= addedObjType$(next_object.type.id)List (addObj addedObjType$(next_object.type.id)List (ObjType$(next_object.type.id) $(abstracted_string) (Position $(next_object.position[1]) $(next_object.position[2])))))""")
@@ -306,7 +306,7 @@ function synthesize_update_functions(object_id, time, object_decomposition, user
           start_objects = filter(obj -> !isnothing(obj), [object_mapping[id][1] for id in collect(keys(object_mapping))])
           prev_objects_maybe_listed = filter(obj -> !isnothing(obj) && !isnothing(object_mapping[obj.id][1]), [object_mapping[id][time - 1] for id in 1:length(collect(keys(object_mapping)))])
           curr_objects = filter(obj -> (count(id -> (filter(x -> !isnothing(x), object_mapping[id]))[1].type.id == obj.type.id, collect(keys(object_mapping))) == 1), prev_objects_maybe_listed)      
-          abstracted_strings = [] # abstract_string(next_object.custom_field_values[1], (object_types, curr_objects, background, grid_size))
+          abstracted_strings = abstract_string(next_object.custom_field_values[1], (object_types, curr_objects, background, grid_size))
           
           if abstracted_strings != []
             abstracted_string = abstracted_strings[1]
@@ -2126,6 +2126,7 @@ function generate_new_state(update_rule, update_function_times, event_vector_dic
                                                                                                                                          deepcopy(new_state_update_times_dict),
                                                                                                                                          global_var_id, 
                                                                                                                                          global_var_value,
+                                                                                                                                         deepcopy(global_var_dict),
                                                                                                                                          deepcopy(true_positive_times), 
                                                                                                                                          deepcopy(extra_global_var_values))
             # new_context_grouped_ranges = deepcopy(curr_max_grouped_ranges)
@@ -2154,6 +2155,7 @@ function generate_new_state(update_rule, update_function_times, event_vector_dic
                                                                                                                                            deepcopy(init_state_update_times_dict),
                                                                                                                                            global_var_id, 
                                                                                                                                            global_var_value,
+                                                                                                                                           deepcopy(global_var_dict),
                                                                                                                                            true_positive_times, 
                                                                                                                                            extra_global_var_values)
             end
@@ -2222,7 +2224,7 @@ function generate_new_state(update_rule, update_function_times, event_vector_dic
         augmented_positive_times = map(t -> (t[1], t[2]), filter(tuple -> tuple[3] == "update_function", augmented_positive_times_labeled))      
   
         # compute new ranges and find state update events
-        grouped_ranges, augmented_positive_times, new_state_update_times_dict = recompute_ranges(augmented_positive_times, new_state_update_times_dict, global_var_id, global_var_value, true_positive_times, extra_global_var_values)
+        grouped_ranges, augmented_positive_times, new_state_update_times_dict = recompute_ranges(augmented_positive_times, new_state_update_times_dict, global_var_id, global_var_value, global_var_dict, true_positive_times, extra_global_var_values)
       end
     end
   

@@ -116,7 +116,7 @@ programs = Dict("particles"                                 => """(program
                                                                     (object Agent (Cell 0 0 "green"))
                                                                   
                                                                     (: ants (List Ant))
-                                                                    (= ants (initnext (list (Ant (Position 6 9)) ) 
+                                                                    (= ants (initnext (list (Ant (Position 3 10)) ) 
                                                                                       (prev ants)))
                                                                   
                                                                     (: agent Agent)
@@ -126,7 +126,7 @@ programs = Dict("particles"                                 => """(program
                                                                     (= time (initnext 0 (+ (prev time) 1)))                                                                                                                   
                                                                                                     
                                                                     (on true (= ants (updateObj (prev ants) (--> obj (move obj (unitVector obj (closest obj Agent)))) )))
-                                                                    (on (== (% time 4) 2) (= ants (addObj ants (map Ant (randomPositions GRID_SIZE 1)))))
+                                                                    (on (== (% time 10) 5) (= ants (addObj ants (map Ant (randomPositions GRID_SIZE 1)))))
                                                                     
                                                                     (on left (= agent (moveLeft (prev agent))))
                                                                     (on right (= agent (moveRight (prev agent))))

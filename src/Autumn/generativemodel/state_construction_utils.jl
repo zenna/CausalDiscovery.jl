@@ -202,7 +202,7 @@ function num_false_positives(event_vector, update_function_times, object_traject
   length([ time for time in event_times if !(time in update_function_times) && !isnothing(object_trajectory[time]) && !isnothing(object_trajectory[time + 1]) ])
 end
 
-function recompute_ranges(augmented_positive_times, new_state_update_times_dict, global_var_id, global_var_value, true_positive_times, extra_global_var_values) 
+function recompute_ranges(augmented_positive_times, new_state_update_times_dict, global_var_id, global_var_value, global_var_dict, true_positive_times, extra_global_var_values) 
   # compute new ranges and find state update events
   new_ranges = [] 
   for i in 1:(length(augmented_positive_times)-1)

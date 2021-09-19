@@ -4,8 +4,8 @@ function generate_observations_ice(m::Module)
   user_events = []
   push!(observations, Base.invokelatest(m.render, state.scene))
 
-  for i in 0:20
-    if i in [2, 7, 12] # 17
+  for i in 0:25
+    if i in [2, 8, 12] # 17
       # state = Base.invokelatest(m.next(state, nothing, nothing, nothing, nothing, nothing)
       state = Base.invokelatest(m.next, state, nothing, nothing, nothing, nothing, Base.invokelatest(m.Down))
       push!(user_events, "down")
@@ -15,7 +15,7 @@ function generate_observations_ice(m::Module)
     elseif i == 14
       state = Base.invokelatest(m.next, state, nothing, Base.invokelatest(m.Left), nothing, nothing, nothing)
       push!(user_events, "left")
-    elseif i == 5 || i == 16
+    elseif i == 6 || i == 17
       x = rand(1:6)
       y = rand(1:6)
       state = Base.invokelatest(m.next, state, Base.invokelatest(m.Click, x, y), nothing, nothing, nothing, nothing)
@@ -653,6 +653,10 @@ function generate_observations_chase(m::Module)
   push!(observations, Base.invokelatest(m.render, state.scene))
 
   events = Dict([1 => "down",
+                 2 => "up",
+                 3 => "left",
+                 4 => "right",
+                 1 => "down",
                  2 => "up",
                  3 => "left",
                  4 => "right",
