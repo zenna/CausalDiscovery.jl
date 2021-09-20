@@ -327,7 +327,7 @@ function gen_event_bool_human_prior(object_decomposition, object_id, type_id, us
         end
 
         # object_id-based: this causes Mario to break, but is necessary for Sand
-        push!(choices, """(intersects (unfold (map (--> obj (adjacentObjs obj)) (filter (--> obj (== (.. obj id) $(object_id))) (prev addedObjType$(type.id)List)))) (filter (--> obj (== (.. obj color) "$(color)")) (prev addedObjType$(type.id)List)))""")  
+        # push!(choices, """(intersects (unfold (map (--> obj (adjacentObjs obj)) (filter (--> obj (== (.. obj id) $(object_id))) (prev addedObjType$(type.id)List)))) (filter (--> obj (== (.. obj color) "$(color)")) (prev addedObjType$(type.id)List)))""")  
       end
     end
     # more object_id-based  
@@ -605,30 +605,35 @@ function construct_compound_events(choices, event_vector_dict, redundant_events_
 
   for i in 1:length(nonzero_object_specific_events)
     event_i = nonzero_object_specific_events[i]
-    object_ids = collect(keys(event_vector_dict[event_i]))
-    for j in (i+1):length(nonzero_object_specific_events) 
-      event_j = nonzero_object_specific_events[j]
-      and_event = "(& $(event_i) $(event_j))"
-      or_event = "(| $(event_i) $(event_j))"
-      and_event_values = Dict()
-      or_event_values = Dict()
+    object_ids_i = collect(keys(event_vector_dict[event_i]))
+    for j in (i+1):length(nonzero_object_specific_events)
+      event_j = nonzero_object_specific_events[j] 
+      object_ids_j = collect(keys(event_vector_dict[event_j]))
 
-      for object_id in object_ids 
-        and_value = event_vector_dict[event_i][object_id] .& event_vector_dict[event_j][object_id]
-        or_value = event_vector_dict[event_i][object_id] .| event_vector_dict[event_j][object_id]
-        
-        and_event_values[object_id] = and_value 
-        or_event_values[object_id] = or_value
-      end
-
-      if unique(vcat(map(id -> and_event_values[id], object_ids)...)) != [0]
-        push!(compound_events, and_event)
-        event_vector_dict[and_event] = and_event_values
-      end
-
-      if unique(vcat(map(id -> or_event_values[id], object_ids)...)) != [0]
-        push!(compound_events, or_event)
-        event_vector_dict[or_event] = or_event_values
+      if Set(object_ids_i) == Set(object_ids_j)
+        object_ids = object_ids_i
+        and_event = "(& $(event_i) $(event_j))"
+        or_event = "(| $(event_i) $(event_j))"
+        and_event_values = Dict()
+        or_event_values = Dict()
+  
+        for object_id in object_ids 
+          and_value = event_vector_dict[event_i][object_id] .& event_vector_dict[event_j][object_id]
+          or_value = event_vector_dict[event_i][object_id] .| event_vector_dict[event_j][object_id]
+          
+          and_event_values[object_id] = and_value 
+          or_event_values[object_id] = or_value
+        end
+  
+        if unique(vcat(map(id -> and_event_values[id], object_ids)...)) != [0]
+          push!(compound_events, and_event)
+          event_vector_dict[and_event] = and_event_values
+        end
+  
+        if unique(vcat(map(id -> or_event_values[id], object_ids)...)) != [0]
+          push!(compound_events, or_event)
+          event_vector_dict[or_event] = or_event_values
+        end
       end
     end
   end

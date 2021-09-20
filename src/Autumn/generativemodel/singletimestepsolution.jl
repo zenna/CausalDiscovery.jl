@@ -141,10 +141,10 @@ function synthesize_update_functions(object_id, time, object_decomposition, user
       # matching object is in a list!
 
       first_matching_object = matching_objects[1]
+      push!(abstracted_positions, "(.. (uniformChoice (vcat (prev addedObjType$(first_matching_object.type.id)List) (prev addedObjType$(first_matching_object.type.id)List) (prev addedObjType$(first_matching_object.type.id)List) (prev addedObjType$(first_matching_object.type.id)List) (prev addedObjType$(first_matching_object.type.id)List) (prev addedObjType$(first_matching_object.type.id)List))) origin)")
       for matching_object in matching_objects 
         push!(abstracted_positions, "(uniformChoice (map (--> obj (.. obj origin)) (filter (--> obj (== (.. obj id) $(matching_object.id))) (prev addedObjType$(matching_object.type.id)List))))")
       end      
-      push!(abstracted_positions, "(.. (uniformChoice (vcat (prev addedObjType$(first_matching_object.type.id)List) (prev addedObjType$(first_matching_object.type.id)List) (prev addedObjType$(first_matching_object.type.id)List) (prev addedObjType$(first_matching_object.type.id)List) (prev addedObjType$(first_matching_object.type.id)List) (prev addedObjType$(first_matching_object.type.id)List))) origin)")
     end
 
     if length(next_object.custom_field_values) > 0
@@ -1231,6 +1231,7 @@ function generate_on_clauses(matrix, unformatted_matrix, object_decomposition, u
         push!(solutions, ([], [], [], Dict()))
       else
         push!(solutions, ([deepcopy(on_clauses)..., deepcopy(state_update_on_clauses)...], deepcopy(global_object_decomposition), deepcopy(global_var_dict)))
+        save("solution_$(Dates.now()).jld", "solution", solutions[end])
         solutions_per_matrix_count += 1 
       end
     end
@@ -1667,14 +1668,16 @@ function generate_event(anonymized_update_rule, object_id, object_ids, matrix, f
     for event in events_to_try 
       event_is_global = !occursin(".. obj id)", event)
       anonymized_event = event # replace(event, ".. obj id) $(object_ids[1])" => ".. obj id) x")
-      if !(occursin("first", anonymized_event) && (nothing in vcat(map(k -> object_mapping[k], collect(keys(object_mapping)))...)))
-        
       
-        if !(anonymized_event in keys(event_vector_dict)) || !(event_vector_dict[anonymized_event] isa AbstractArray) && intersect(object_ids, collect(keys(event_vector_dict[anonymized_event]))) == [] # event values are not stored
+      is_event_object_specific_with_correct_type = event_is_global || parse(Int, split(match(r".. obj id x prev addedObjType\dList", replace(replace(anonymized_event, ")" => ""), "(" => "")).match, "addedObjType")[2][1]) == type_id
+      
+      if !(occursin("first", anonymized_event) && (nothing in vcat(map(k -> object_mapping[k], collect(keys(object_mapping)))...))) && is_event_object_specific_with_correct_type
+        
+        if !(anonymized_event in keys(event_vector_dict)) # || !(event_vector_dict[anonymized_event] isa AbstractArray) && intersect(object_ids, collect(keys(event_vector_dict[anonymized_event]))) == [] # event values are not stored
           if event_is_global # if the event is global, only need to evaluate the event on one object_id 
             event_object_ids = object_ids[1]
           else # otherwise, need to evaluate the event on all object_ids
-            event_object_ids = collect(keys(object_mapping)) # object_ids; evaluate even for ids not with the current rule's type, for uniformity!!
+            event_object_ids = object_ids # collect(keys(object_mapping)) # object_ids; evaluate even for ids not with the current rule's type, for uniformity!!
             event_vector_dict[anonymized_event] = Dict()
           end
     
@@ -1800,10 +1803,7 @@ function generate_event(anonymized_update_rule, object_id, object_ids, matrix, f
             push!(event_values_dicts, (object_specific_event, object_specific_event_values_dict))
           end
         end
-  
-        # remove duplicate events that are observationally equivalent
-        event_vector_dict, redundant_events_set = prune_by_observational_equivalence(event_vector_dict, redundant_events_set)
-    
+      
         # check if event_values match true_times/false_times 
         # # @show observation_data_dict
         # # @show event_values_dicts
@@ -1844,6 +1844,9 @@ function generate_event(anonymized_update_rule, object_id, object_ids, matrix, f
       end
   
     end
+
+    # remove duplicate events that are observationally equivalent
+    event_vector_dict, redundant_events_set = prune_by_observational_equivalence(event_vector_dict, redundant_events_set)
 
     if length(found_events) < min_events && !tried_compound_events
       events_to_try = sort(unique(construct_compound_events(new_choices, event_vector_dict, redundant_events_set, object_decomposition)), by=length)
