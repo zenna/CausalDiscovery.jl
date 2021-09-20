@@ -1776,8 +1776,9 @@ function generate_event(anonymized_update_rule, object_id, object_ids, matrix, f
           end
         end
       end
-      if anonymized_event in keys(event_vector_dict)
-        # if this is not true, then there was a failure above (the event contained "first" but had nothing's in object_mapping)
+      if (anonymized_event in keys(event_vector_dict)) && is_event_object_specific_with_correct_type
+        # if this is not true, then there was a failure above (the event contained "first" but had nothing's in object_mapping),
+        # or the event is object-specific with the wrong type 
         event_values_dicts = []
         if event_vector_dict[anonymized_event] isa AbstractArray 
           event_values_dict = Dict()
