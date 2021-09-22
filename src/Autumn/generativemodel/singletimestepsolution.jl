@@ -2316,7 +2316,7 @@ function generate_new_object_specific_state(update_rule, update_function_times_d
         false_positive_count = foldl(+, map(k -> num_false_positives(event_vector, update_function_times_dict[k], object_mapping[k]), collect(keys(update_function_times_dict))), init=0)
         push!(co_occurring_events, (event, false_positive_count))
       end
-    elseif (Set(collect(keys(event_vector_dict[e]))) == Set(collect(keys(update_function_times_dict))))
+    elseif (Set(collect(keys(event_vector_dict[event]))) == Set(collect(keys(update_function_times_dict))))
       event_vector = event_vector_dict[event]
       co_occurring = foldl(&, map(id -> is_co_occurring(event, event_vector[id], update_function_times_dict[id]), collect(keys(update_function_times_dict))), init=true)
       
