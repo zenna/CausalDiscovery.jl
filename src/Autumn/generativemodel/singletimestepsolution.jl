@@ -41,34 +41,54 @@ function singletimestepsolution_matrix(observations, user_events, grid_size; sin
   unformatted_matrix = [[] for object_id in 1:num_objects, time in 1:(length(observations) - 1)]
   
   # SEED PREV USED RULES FOR EFFIENCY AT THE MOMENT 
-    prev_used_rules = [ "(= objX objX)",
-                        # # "(= objX (nextLiquid objX))",
-                        # "(= objX (moveDown objX))",
-                        # "(= objX (moveUp objX))",
-                        # "(= objX (moveLeft objX))",
-                        # "(= objX (moveRight objX))",
-                      ]
+  prev_used_rules = [ "(= objX objX)",
+                      "(= objX (moveDown objX))",
+                      "(= objX (moveUp objX))",
+                      "(= objX (moveLeft objX))",
+                      "(= objX (moveRight objX))",
+                    ]
 
   if upd_func_space == 2 
-    push!(prev_used_rules, [
-                            # "(= objX (moveLeftNoCollision objX))",
-                            # "(= objX (moveLeftNoCollision (moveUpNoCollision objX)))",
-                            # "(= objX (moveLeftNoCollision (moveDownNoCollision objX)))",
-                            # "(= objX (moveRightNoCollision objX))",
-                            # "(= objX (moveRightNoCollision (moveUpNoCollision objX)))",
-                            # "(= objX (moveRightNoCollision (moveDownNoCollision objX)))",
-                            # "(= objX (moveUpNoCollision objX))",
+    prev_used_rules = ["(= objX objX)",
+                       "(= objX (moveUpNoCollision objX))",
+                       "(= objX (moveDownNoCollision objX))",
+                       "(= objX (moveLeftNoCollision objX))",
+                       "(= objX (moveRightNoCollision objX))",]
+  end
 
-                            "(= objX (moveUpNoCollision objX))",
-                            "(= objX (moveDownNoCollision objX))",
-                            "(= objX (moveLeftNoCollision objX))",
-                            "(= objX (moveRightNoCollision objX))",
-                            ]...)
+  if upd_func_space == 3 
+    prev_used_rules = ["(= objX objX)",
+                       "(= objX (nextLiquid objX))",
+                       "(= objX (moveUpNoCollision objX))",
+                       "(= objX (moveDownNoCollision objX))",
+                       "(= objX (moveLeftNoCollision objX))",
+                       "(= objX (moveRightNoCollision objX))",
+                       ]
+  end
+
+  if upd_func_space in [4, 5] 
+    prev_used_rules = ["(= objX objX)",
+                        "(= objX (moveDown objX))",
+                        "(= objX (moveUp objX))",
+                        "(= objX (moveLeft objX))",
+                        "(= objX (moveRight objX))",
+                        "(= objX (moveLeftNoCollision objX))",
+                        "(= objX (moveLeftNoCollision (moveUpNoCollision objX)))",
+                        "(= objX (moveLeftNoCollision (moveDownNoCollision objX)))",
+                        "(= objX (moveRightNoCollision objX))",
+                        "(= objX (moveRightNoCollision (moveUpNoCollision objX)))",
+                        "(= objX (moveRightNoCollision (moveDownNoCollision objX)))",
+                        "(= objX (moveUpNoCollision objX))",
+                        "(= objX (moveUpNoCollision objX))",
+                        "(= objX (moveDownNoCollision objX))",
+                        "(= objX (moveLeftNoCollision objX))",
+                        "(= objX (moveRightNoCollision objX))",
+                      ]
   end
 
   max_iters = length(prev_used_rules)
 
-  if upd_func_space == 3 
+  if upd_func_space in [5, 6] 
     max_iters += 1
   end
   
