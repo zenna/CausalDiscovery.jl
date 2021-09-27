@@ -135,7 +135,7 @@ end
 
 function find_state_update_events_object_specific(event_vector_dict, augmented_positive_times_dict, grouped_range, object_ids, object_mapping, max_state_value)
   # extract object-specific events 
-  events = filter(e -> !(event_vector_dict[e] isa AbstractArray) && sort(collect(keys(event_vector_dict[e]))) == sort(object_ids), collect(keys(event_vector_dict))) 
+  events = filter(e -> !occursin("field1", e) && !(event_vector_dict[e] isa AbstractArray) && sort(collect(keys(event_vector_dict[e]))) == sort(object_ids), collect(keys(event_vector_dict))) 
   global_events = filter(e -> event_vector_dict[e] isa Array, collect(keys(event_vector_dict)))
 
   update_events_dict = Dict()

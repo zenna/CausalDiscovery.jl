@@ -3,7 +3,7 @@ include("singletimestepsolution.jl");
 function synthesize_program(model_name::String; 
                             singlecell = false,
                             pedro = false,
-                            desired_solution_count = 1,
+                            desired_solution_count = 5,
                             desired_per_matrix_solution_count = 1, # 5
                             )
   if pedro 
@@ -116,7 +116,7 @@ programs = Dict("particles"                                 => """(program
                                                                     (object Agent (Cell 0 0 "green"))
                                                                   
                                                                     (: ants (List Ant))
-                                                                    (= ants (initnext (list (Ant (Position 3 10)) ) 
+                                                                    (= ants (initnext (list ) 
                                                                                       (prev ants)))
                                                                   
                                                                     (: agent Agent)

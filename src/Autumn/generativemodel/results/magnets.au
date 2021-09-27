@@ -1,0 +1,56 @@
+(program
+  (= GRID_SIZE 16)
+  (= background "white")
+  (object ObjType1 (: color String) (: field1 Int) (list (Cell 0 0 color) (Cell 0 1 color)))
+
+  (: addedObjType1List (List ObjType1))
+
+  
+
+  (= addedObjType1List (initnext (list (ObjType1  "red"  2 (Position 7 7)) (ObjType1  "blue"  1 (Position 4 7))) (prev addedObjType1List)))
+  
+  
+
+
+  (: time Int)
+  (= time (initnext 0 (+ time 1)))
+
+  (on true
+(= addedObjType1List (updateObj addedObjType1List (--> obj (moveLeft (prev obj))) (--> obj (& left (== (.. obj field1) 1))))))
+  (on true (= addedObjType1List (updateObj addedObjType1List (--> obj (moveDown (prev obj))) (--> obj (& down (intersects (list 1) (map (--> obj (.. obj field1)) (list (prev obj)))))))))
+  (on true (= addedObjType1List (updateObj addedObjType1List (--> obj (moveUp (prev obj))) (--> obj (& up (intersects (list 1) (map (--> obj (.. obj field1)) (list (prev obj)))))))))
+  (on true (= addedObjType1List (updateObj addedObjType1List (--> obj (moveRight (prev obj))) (--> obj (& right (intersects (list 1) (map (--> obj (.. obj field1)) (list (prev obj)))))))))
+  (on true (= addedObjType1List (updateObj addedObjType1List (--> obj (moveRight (moveDown (prev obj)))) (--> obj (& down (& (intersects (list 1) (map (--> obj2 (.. obj2 field1)) (list (prev obj)))) (& (!= (length (list (prev obj))) 0) (in (Position -2 0) (map (--> obj2 (displacement (.. obj2 origin) (.. (first (list (prev obj))) origin))) (filter (--> obj2 (== (.. obj2 field1) 2)) (prev addedObjType1List)))))))))))
+  (on true (= addedObjType1List (updateObj addedObjType1List (--> obj (moveRight (moveUp (prev obj)))) (--> obj (& up (& (intersects (list 1) (map (--> obj2 (.. obj2 field1)) (list (prev obj)))) (& (!= (length (list (prev obj))) 0) (in (Position -2 0) (map (--> obj2 (displacement (.. obj2 origin) (.. (first (list (prev obj))) origin))) (filter (--> obj2 (== (.. obj2 field1) 2)) (prev addedObjType1List))))))))))))
+
+
+
+
+
+
+
+  (program
+  (= GRID_SIZE 16)
+  (= background "white")
+  (object ObjType1 (: color String) (: field1 Int) (list (Cell 0 0 color) (Cell 0 1 color)))
+
+  (: addedObjType1List (List ObjType1))
+
+  
+
+  (= addedObjType1List (initnext (list (ObjType1  "red"  2 (Position 7 7)) (ObjType1  "blue"  1 (Position 4 7))) (prev addedObjType1List)))
+  
+  
+
+
+  (: time Int)
+  (= time (initnext 0 (+ time 1)))
+
+  (on true
+(= addedObjType1List (updateObj addedObjType1List (--> obj (moveLeft (prev obj))) (--> obj (& left (== (.. obj field1) 1))))))
+  (on true (= addedObjType1List (updateObj addedObjType1List (--> obj (moveRight (prev obj))) (--> obj (& right (& (intersects (list 1) (map (--> obj2 (.. obj2 field1)) (list (prev obj)))) (! (& (!= (length (list (prev obj))) 0) (in (Position -2 0) (map (--> obj2 (displacement (.. obj2 origin) (.. (first (list (prev obj))) origin))) (filter (--> obj2 (== (.. obj2 field1) 2)) (prev addedObjType1List))))))))))))
+  (on true (= addedObjType1List (updateObj addedObjType1List (--> obj (moveDown (prev obj))) (--> obj (& down (& (intersects (list 1) (map (--> obj2 (.. obj2 field1)) (list (prev obj)))) (! (& (!= (length (list (prev obj))) 0) (in (Position 0 0) (map (--> obj2 (displacement (.. obj2 origin) (.. (first (list (prev obj))) origin))) (filter (--> obj2 (== (.. obj2 field1) 2)) (prev addedObjType1List))))))))))))
+  (on true (= addedObjType1List (updateObj addedObjType1List (--> obj (moveUp (prev obj))) (--> obj (& up (& (intersects (list 1) (map (--> obj2 (.. obj2 field1)) (list (prev obj)))) (! (& (!= (length (list (prev obj))) 0) (in (Position 0 0) (map (--> obj2 (displacement (.. obj2 origin) (.. (first (list (prev obj))) origin))) (filter (--> obj2 (== (.. obj2 field1) 2)) (prev addedObjType1List))))))))))))
+  (on true (= addedObjType1List (updateObj addedObjType1List (--> obj (moveRight (moveRight (prev obj)))) (--> obj (| (& right (& (intersects (list 1) (map (--> obj2 (.. obj2 field1)) (list (prev obj)))) (& (!= (length (list (prev obj))) 0) (in (Position -3 1) (map (--> obj2 (displacement (.. obj2 origin) (.. (first (list (prev obj))) origin))) (filter (--> obj2 (== (.. obj2 field1) 2)) (prev addedObjType1List))))))) (& right (& (intersects (list 1) (map (--> obj2 (.. obj2 field1)) (list (prev obj)))) (& (!= (length (list (prev obj))) 0) (in (Position -3 -1) (map (--> obj2 (displacement (.. obj2 origin) (.. (first (list (prev obj))) origin))) (filter (--> obj2 (== (.. obj2 field1) 2)) (prev addedObjType1List))))))))))))
+  (on true (= addedObjType1List (updateObj addedObjType1List (--> obj (moveRight (moveDown (prev obj)))) (--> obj (& down (& (intersects (list 1) (map (--> obj2 (.. obj2 field1)) (list (prev obj)))) (& (!= (length (list (prev obj))) 0) (in (Position -2 0) (map (--> obj2 (displacement (.. obj2 origin) (.. (first (list (prev obj))) origin))) (filter (--> obj2 (== (.. obj2 field1) 2)) (prev addedObjType1List)))))))))))
+  (on true (= addedObjType1List (updateObj addedObjType1List (--> obj (moveRight (moveUp (prev obj)))) (--> obj (& up (& (intersects (list 1) (map (--> obj2 (.. obj2 field1)) (list (prev obj)))) (& (!= (length (list (prev obj))) 0) (in (Position -2 0) (map (--> obj2 (displacement (.. obj2 origin) (.. (first (list (prev obj))) origin))) (filter (--> obj2 (== (.. obj2 field1) 2)) (prev addedObjType1List))))))))))))
