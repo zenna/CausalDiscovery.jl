@@ -88,7 +88,7 @@ function singletimestepsolution_matrix(observations, user_events, grid_size; sin
 
   max_iters = length(prev_used_rules)
 
-  if upd_func_space in [5, 6] 
+  if upd_func_space in [5] 
     max_iters += 1
   end
   
@@ -331,14 +331,14 @@ function synthesize_update_functions(object_id, time, object_decomposition, user
           if abstracted_strings != []
             abstracted_string = abstracted_strings[1]
             if contained_in_list # object was added later; contained in addedList
-              push!(solutions, """(= addedObjType$(prev_object.type.id)List (updateObj addedObjType$(prev_object.type.id)List (--> obj (updateObj (prev obj) "color" $(abstracted_string))) (--> obj (== (.. obj id) $(object_id)))))""")
+              push!(solutions, """(= addedObjType$(prev_object.type.id)List (updateObj addedObjType$(prev_object.type.id)List (--> obj (updateObj obj "color" $(abstracted_string))) (--> obj (== (.. obj id) $(object_id)))))""")
             else # object was present at the start of the program
               push!(solutions, """(= obj$(object_id) (updateObj (prev obj$(object_id)) "color" $(abstracted_string)))""")
             end  
           end
 
           if contained_in_list # object was added later; contained in addedList
-            push!(solutions, """(= addedObjType$(prev_object.type.id)List (updateObj addedObjType$(prev_object.type.id)List (--> obj (updateObj (prev obj) "color" "$(next_object.custom_field_values[1])")) (--> obj (== (.. obj id) $(object_id)))))""")
+            push!(solutions, """(= addedObjType$(prev_object.type.id)List (updateObj addedObjType$(prev_object.type.id)List (--> obj (updateObj obj "color" "$(next_object.custom_field_values[1])")) (--> obj (== (.. obj id) $(object_id)))))""")
           else # object was present at the start of the program
             push!(solutions, """(= obj$(object_id) (updateObj (prev obj$(object_id)) "color" "$(next_object.custom_field_values[1])"))""")
           end
@@ -1900,7 +1900,7 @@ function generate_new_state(update_rule, update_function_times, event_vector_dic
   atomic_events = gen_event_bool_human_prior(object_decomposition, "x", type_id, ["nothing"], init_global_var_dict, update_rule)
   small_event_vector_dict = deepcopy(event_vector_dict)    
   for e in keys(event_vector_dict)
-    if !(e in atomic_events)
+    if !(e in atomic_events) || !(event_vector_dict[e] isa AbstractArray)
       delete!(small_event_vector_dict, e)
     end
   end
