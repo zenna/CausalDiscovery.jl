@@ -2156,9 +2156,7 @@ function generate_new_state(update_rule, update_function_times, event_vector_dic
                                                                                                                                          deepcopy(global_var_dict),
                                                                                                                                          deepcopy(true_positive_times), 
                                                                                                                                          deepcopy(extra_global_var_values))
-            # new_context_grouped_ranges = deepcopy(curr_max_grouped_ranges)
-            # @show grouped_ranges
-            # @show new_context_grouped_ranges
+            # flip order of matching_range and grouped_range
             matching_idx = findall(r -> r[1][1][2] == matching_values[1] && r[1][2][2] == matching_values[2], new_context_grouped_ranges)[1]
             curr_idx = findall(r -> r[1][1][2] == current_values[1] && r[1][2][2] == current_values[2], new_context_grouped_ranges)[1]
             

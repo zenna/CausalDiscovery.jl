@@ -228,20 +228,6 @@ function recompute_ranges(augmented_positive_times, new_state_update_times_dict,
     end
   end
 
-  # add ranges that interface between global_var_value and lower values to new_ranges 
-  if global_var_value > 1
-    for time in 1:(length(new_state_update_times_dict[global_var_id]) - 1)
-      prev_val = global_var_dict[global_var_id][time]
-      next_val = global_var_dict[global_var_id][time + 1]
-
-      if ((prev_val < global_var_value) && (next_val == global_var_value) || (prev_val == global_var_value) && (next_val < global_var_value))
-        if intersect([time], true_positive_times) == [] 
-          push!(new_ranges, ((time, prev_val), (time + 1, next_val)))
-        end
-      end
-    end
-  end
-
   # filter ranges where both the range's start and end times are already included
   filtered_ranges = []
   for range in new_ranges
