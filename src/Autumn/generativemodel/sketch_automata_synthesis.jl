@@ -91,14 +91,8 @@ function generate_global_automaton_sketch(small_event_vector_dict, augmented_pos
                           return SM((int)0, nxt, state, more);
                       }
                         
-                      harness void main(){
-                        $(join(map(prefix -> """assert recognize("$(prefix)");\n  """, sketch_positive_prefixes), ""))
-                        $(join(map(prefix -> """assert !recognize("$(prefix)");\n  """, sketch_negative_prefixes), ""))
-                        // assert recognize("abab");
-                        // assert recognize("a");
-                        // assert recognize("aa");
-                        // assert !recognize("bbb");
-                      }
+                        $(join(map(i -> """harness void h$(i)() { assert recognize("$(sketch_positive_prefixes[i])");}\n  """, collect(1:length(sketch_positive_prefixes))), ""))
+                        $(join(map(i -> """harness void hb$(i)() { assert !recognize("$(sketch_negative_prefixes[i])");}\n  """, collect(1:length(sketch_negative_prefixes))), ""))
                       """
   # ----- STEP 4: run sketch program
   ## save sketch program as file 
@@ -107,7 +101,7 @@ function generate_global_automaton_sketch(small_event_vector_dict, augmented_pos
   end
 
   ## run sketch on file 
-  command = "$(sketch_directory)sketch automata_sketch.sk"
+  command = "$(sketch_directory)sketch --bnd-unroll-amnt $(length(event_string) + 2) automata_sketch.sk"
   sketch_output = readchomp(eval(Meta.parse("`$(command)`")))
 
   # ----- STEP 5: parse output of sketch program

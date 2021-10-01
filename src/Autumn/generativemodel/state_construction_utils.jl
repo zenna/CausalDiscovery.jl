@@ -202,7 +202,7 @@ function num_false_positives(event_vector, update_function_times, object_traject
   length([ time for time in event_times if !(time in update_function_times) && !isnothing(object_trajectory[time]) && !isnothing(object_trajectory[time + 1]) ])
 end
 
-function recompute_ranges(augmented_positive_times, new_state_update_times_dict, global_var_id, global_var_value, global_var_dict, true_positive_times, extra_global_var_values) 
+function recompute_ranges(augmented_positive_times, new_state_update_times_dict, global_var_id, global_var_value, global_var_dict, true_positive_times, extra_global_var_values, global_heuristic=false) 
   # compute new ranges and find state update events
   new_ranges = [] 
   for i in 1:(length(augmented_positive_times)-1)
@@ -224,6 +224,22 @@ function recompute_ranges(augmented_positive_times, new_state_update_times_dict,
         on_clause_index = findall(x -> x != "", new_state_update_times_dict[global_var_id][prev_time:next_time-1])[1]
         new_state_update_times_dict[global_var_id][on_clause_index + prev_time - 1] = ""
         push!(new_ranges, (augmented_positive_times[i], augmented_positive_times[i + 1]))
+      end
+    end
+  end
+
+  if !global_heuristic
+    # add ranges that interface between global_var_value and lower values to new_ranges 
+    if global_var_value > 1
+      for time in 1:(length(new_state_update_times_dict[global_var_id]) - 1)
+        prev_val = global_var_dict[global_var_id][time]
+        next_val = global_var_dict[global_var_id][time + 1]
+
+        if ((prev_val < global_var_value) && (next_val == global_var_value) || (prev_val == global_var_value) && (next_val < global_var_value))
+          if intersect([time], true_positive_times) == [] 
+            push!(new_ranges, ((time, prev_val), (time + 1, next_val)))
+          end
+        end
       end
     end
   end
