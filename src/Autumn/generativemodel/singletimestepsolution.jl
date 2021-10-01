@@ -899,7 +899,7 @@ function abstract_string(string, object_decomposition, max_iters=25)
   solutions
 end
 
-function generate_on_clauses(matrix, unformatted_matrix, object_decomposition, user_events, global_event_vector_dict, redundant_events_set, grid_size=16, desired_solution_count=1, desired_per_matrix_solution_count=1)
+function generate_on_clauses(matrix, unformatted_matrix, object_decomposition, user_events, global_event_vector_dict, redundant_events_set, grid_size=16, desired_solution_count=1, desired_per_matrix_solution_count=1, interval_painting_param=false)
   object_types, object_mapping, background, dim = object_decomposition
   solutions = []
 
@@ -917,40 +917,29 @@ function generate_on_clauses(matrix, unformatted_matrix, object_decomposition, u
   end
   filtered_non_random_matrices = filter_update_function_matrix_multiple(non_random_matrix, object_decomposition, multiple=true)
   # filtered_non_random_matrices = filtered_non_random_matrices[1:min(4, length(filtered_non_random_matrices))]
-  push!(filtered_matrices, filtered_non_random_matrices...)
+  push!(filtered_matrices, filtered_non_random_matrices[1:1]...)
   
 
   # add direction-bias-filtered matrix to filtered_matrices 
-  pre_filtered_matrix = pre_filter_with_direction_biases(deepcopy(matrix), user_events, object_decomposition) 
-  push!(filtered_matrices, filter_update_function_matrix_multiple(pre_filtered_matrix, object_decomposition, multiple=false)...)
+  # pre_filtered_matrix = pre_filter_with_direction_biases(deepcopy(matrix), user_events, object_decomposition) 
+  # push!(filtered_matrices, filter_update_function_matrix_multiple(pre_filtered_matrix, object_decomposition, multiple=false)...)
 
-  # add random filtered matrices to filtered_matrices 
-  random_matrix = deepcopy(matrix)
-  for row in 1:size(random_matrix)[1]
-    for col in 1:size(random_matrix)[2]
-      if filter(x -> occursin("uniformChoice", x) || occursin("randomPositions", x), random_matrix[row, col]) != []
-        random_matrix[row, col] = filter(x -> occursin("uniformChoice", x) || occursin("randomPositions", x), random_matrix[row, col])
-      end
-    end
-  end
-  filtered_random_matrices = filter_update_function_matrix_multiple(random_matrix, object_decomposition, multiple=true)
-  filtered_random_matrices = filtered_random_matrices[1:min(4, length(filtered_random_matrices))]
-  push!(filtered_matrices, filtered_random_matrices...)
-
-  # add "chaos" solution to filtered_matrices 
-  filtered_unformatted_matrix = filter_update_function_matrix_multiple(unformatted_matrix, object_decomposition, multiple=false)[1]
-  push!(filtered_matrices, filter_update_function_matrix_multiple(construct_chaos_matrix(filtered_unformatted_matrix, object_decomposition), object_decomposition, multiple=false)...)
-
-  # # add non-random filtered matrices to filtered_matrices
-  # non_random_matrix = deepcopy(matrix)
-  # for row in 1:size(non_random_matrix)[1]
-  #   for col in 1:size(non_random_matrix)[2]
-  #     non_random_matrix[row, col] = filter(x -> !occursin("randomPositions", x), non_random_matrix[row, col])
+  # # add random filtered matrices to filtered_matrices 
+  # random_matrix = deepcopy(matrix)
+  # for row in 1:size(random_matrix)[1]
+  #   for col in 1:size(random_matrix)[2]
+  #     if filter(x -> occursin("uniformChoice", x) || occursin("randomPositions", x), random_matrix[row, col]) != []
+  #       random_matrix[row, col] = filter(x -> occursin("uniformChoice", x) || occursin("randomPositions", x), random_matrix[row, col])
+  #     end
   #   end
   # end
-  # filtered_non_random_matrices = filter_update_function_matrix_multiple(non_random_matrix, object_decomposition, multiple=true)
-  # # filtered_non_random_matrices = filtered_non_random_matrices[1:min(4, length(filtered_non_random_matrices))] 
-  # push!(filtered_matrices, filtered_non_random_matrices[2]) # use 5 for water_plug
+  # filtered_random_matrices = filter_update_function_matrix_multiple(random_matrix, object_decomposition, multiple=true)
+  # filtered_random_matrices = filtered_random_matrices[1:min(4, length(filtered_random_matrices))]
+  # push!(filtered_matrices, filtered_random_matrices...)
+
+  # # add "chaos" solution to filtered_matrices 
+  # filtered_unformatted_matrix = filter_update_function_matrix_multiple(unformatted_matrix, object_decomposition, multiple=false)[1]
+  # push!(filtered_matrices, filter_update_function_matrix_multiple(construct_chaos_matrix(filtered_unformatted_matrix, object_decomposition), object_decomposition, multiple=false)...)
 
   # # @show length(filtered_matrices)
 
@@ -1111,7 +1100,7 @@ function generate_on_clauses(matrix, unformatted_matrix, object_decomposition, u
                   true_times = unique(findall(rule -> rule == update_rule, vcat(object_trajectory...)))
                 end
       
-                state_solutions = generate_new_state(update_rule, true_times, global_event_vector_dict, object_trajectory, global_var_dict, global_state_update_times_dict, object_decomposition, type_id, desired_per_matrix_solution_count)
+                state_solutions = generate_new_state(update_rule, true_times, global_event_vector_dict, object_trajectory, global_var_dict, global_state_update_times_dict, object_decomposition, type_id, desired_per_matrix_solution_count, interval_painting_param)
                 @show state_solutions 
                 
                 # # @show on_clause 
@@ -1884,7 +1873,7 @@ function generate_event(anonymized_update_rule, object_id, object_ids, matrix, f
 end
 
 # generation of new global state 
-function generate_new_state(update_rule, update_function_times, event_vector_dict, object_trajectory, init_global_var_dict, state_update_times_dict, object_decomposition, type_id, desired_per_matrix_solution_count)
+function generate_new_state(update_rule, update_function_times, event_vector_dict, object_trajectory, init_global_var_dict, state_update_times_dict, object_decomposition, type_id, desired_per_matrix_solution_count, interval_painting_param)
   println("GENERATE_NEW_STATE")
   @show update_rule 
   @show update_function_times
@@ -2225,6 +2214,7 @@ function generate_new_state(update_rule, update_function_times, event_vector_dic
             for prev_index in (tuple_index-1):-1:1
               prev_tuple = augmented_positive_times_labeled[prev_index]
   
+              # if we have reached a prev_tuple with global_var_value or extra value, then we stop the relabeling based on this event tuple
               if prev_tuple[2] == global_var_value || prev_tuple[2] in extra_global_var_values
                 println("HERE 2")
                 @show prev_tuple 
@@ -2240,8 +2230,27 @@ function generate_new_state(update_rule, update_function_times, event_vector_dic
                 end
               end
               
+              # relabel update function prev_tuple with label greater than global_var_value and not an extra value 
               if (prev_tuple[2] > global_var_value) && !(prev_tuple[2] in extra_global_var_values) && (prev_tuple[3] == "update_function")
-                augmented_positive_times_labeled[prev_index] = (prev_tuple[1], max_global_var_value + 1, prev_tuple[3])
+                if interval_painting_param 
+                  # before relabeling, check if there is a transition event between this prev_tuple's and tuple's time
+                  tuple_time = tuple[1]
+                  prev_tuple_time = prev_tuple[1]
+                  range_times = collect(prev_tuple_time:(tuple_time-1))
+                  events_in_range = find_matching_global_event(range_times, small_event_vector_dict)
+
+                  @show tuple_time 
+                  @show prev_tuple_time 
+                  @show range_times
+                  if events_in_range == [] 
+                    augmented_positive_times_labeled[prev_index] = (prev_tuple[1], max_global_var_value + 1, prev_tuple[3])
+                  else # exists such an in-between explaining event
+                    # stop relabeling, as in-between explaining transition event has been found 
+                    break
+                  end
+                else
+                  augmented_positive_times_labeled[prev_index] = (prev_tuple[1], max_global_var_value + 1, prev_tuple[3])
+                end
               end
             end
           end
@@ -2286,6 +2295,18 @@ function generate_new_state(update_rule, update_function_times, event_vector_dic
     end
   end
   sort(solutions, by=sol -> length(unique(sol[2][1])))
+end
+
+function find_matching_global_event(times, event_vector_dict) 
+  events = filter(e -> e != "true" && event_vector_dict[e] isa AbstractArray, collect(keys(event_vector_dict)))
+  matching_events = [] 
+  for event in events 
+    if intersect(findall(v -> v == 1, event_vector_dict[event]), times) != []
+      @show event
+      push!(matching_events, event)
+    end
+  end
+  matching_events 
 end
 
 function generate_new_object_specific_state(update_rule, update_function_times_dict, event_vector_dict, type_id, object_decomposition, state_update_times, global_var_dict)
