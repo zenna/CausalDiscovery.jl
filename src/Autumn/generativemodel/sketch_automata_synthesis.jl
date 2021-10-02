@@ -91,8 +91,8 @@ function generate_global_automaton_sketch(small_event_vector_dict, augmented_pos
                           return SM((int)0, nxt, state, more);
                       }
                         
-                        $(join(map(i -> """harness void h$(i)() { assert recognize("$(sketch_positive_prefixes[i])");}\n  """, collect(1:length(sketch_positive_prefixes))), ""))
-                        $(join(map(i -> """harness void hb$(i)() { assert !recognize("$(sketch_negative_prefixes[i])");}\n  """, collect(1:length(sketch_negative_prefixes))), ""))
+                        $(join(map(i -> """harness void h$(i)() { assert recognize({$(join(map(c -> "'$(c)'", split(sketch_positive_prefixes[i], "")), ", "))});}\n  """, collect(1:length(sketch_positive_prefixes))), ""))
+                        $(join(map(i -> """harness void hb$(i)() { assert !recognize({$(join(map(c -> "'$(c)'", split(sketch_negative_prefixes[i], "")), ", "))});}\n  """, collect(1:length(sketch_negative_prefixes))), ""))
                       """
   # ----- STEP 4: run sketch program
   ## save sketch program as file 
