@@ -662,7 +662,7 @@ function generate_observations_chase(m::Module)
                  4 => "right",
                 ])
 
-  for i in 0:20
+  for i in 0:40
     if i in collect(keys(events))
       event = events[i]
       if event == "left"
