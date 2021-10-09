@@ -16,29 +16,29 @@
   (= addedObjType2List (initnext (list) (prev addedObjType2List)))
 
 	 (: globalVar1 Int)
-	 (= globalVar1 (initnext 3 (prev globalVar1)))
+	 (= globalVar1 (initnext 2 (prev globalVar1)))
 
   (: time Int)
   (= time (initnext 0 (+ time 1)))
 
+  (on true
+(= addedObjType2List (updateObj addedObjType2List (--> obj (moveDown (prev obj))) (--> obj true))))
+  (on (& (== (prev globalVar1) 1) (!= (prev addedObjType2List) (list)))
+(= addedObjType2List (updateObj addedObjType2List (--> obj (move (prev obj) -1 1)) (--> obj true))))
+  (on (== (prev globalVar1) 3)
+(= addedObjType2List (updateObj addedObjType2List (--> obj (move (prev obj) 1 1)) (--> obj true))))
+  (on true
+(= addedObjType2List (removeObj addedObjType2List (--> obj (| (in true (map (--> obj (! (isWithinBounds (moveRight obj)))) (list (prev obj)))) (in true (map (--> obj (! (isWithinBounds (move obj -1 1)))) (list (prev obj)))))))))
   (on (== (% (prev time) 5) 2)
 (let ((= addedObjType2List (addObj addedObjType2List (ObjType2  (Position 2 2))))
 (= addedObjType2List (addObj addedObjType2List (ObjType2  (Position 6 2))))
 (= addedObjType2List (addObj addedObjType2List (ObjType2  (move (.. obj1 origin) (Position -1 1)))))
 (= addedObjType2List (addObj addedObjType2List (ObjType2  (Position 14 2)))))))
-  (on true
-(= addedObjType2List (updateObj addedObjType2List (--> obj (moveDown (prev obj))) (--> obj true))))
-  (on true
-(= addedObjType2List (removeObj addedObjType2List (--> obj (| (in true (map (--> obj (! (isWithinBounds (moveRight obj)))) (list (prev obj)))) (in true (map (--> obj (! (isWithinBounds (move obj -1 1)))) (list (prev obj)))))))))
-  (on (& (== (prev globalVar1) 1) true)
-(= addedObjType2List (updateObj addedObjType2List (--> obj (move (prev obj) 1 1)) (--> obj true))))
-  (on (& (== (prev globalVar1) 2) true)
-(= addedObjType2List (updateObj addedObjType2List (--> obj (move (prev obj) -1 1)) (--> obj true))))
-  (on (& right (== (prev globalVar1) 3))
-(= globalVar1 1))
-  (on (& left (== (prev globalVar1) 1))
+  (on (& right (== (prev globalVar1) 2))
 (= globalVar1 3))
   (on (& left (== (prev globalVar1) 3))
 (= globalVar1 2))
-  (on (& right (== (prev globalVar1) 2))
-(= globalVar1 3)))
+  (on (& left (== (prev globalVar1) 2))
+(= globalVar1 1))
+  (on (& right (== (prev globalVar1) 1))
+(= globalVar1 2)))

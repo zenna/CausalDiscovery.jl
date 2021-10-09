@@ -39,7 +39,7 @@ function synthesize_program(model_name::String;
   redundant_events_set = Set()
   for upd_func_space in upd_func_spaces # 1, 2, 3
     matrix, unformatted_matrix, object_decomposition, prev_used_rules = singletimestepsolution_matrix(observations, user_events, grid_size, singlecell=singlecell, pedro=pedro, upd_func_space=upd_func_space)
-    solutions = generate_on_clauses_GLOBAL(matrix, unformatted_matrix, object_decomposition, user_events, global_event_vector_dict, redundant_events_set, grid_size, desired_solution_count, desired_per_matrix_solution_count)
+    solutions = generate_on_clauses_GLOBAL(matrix, unformatted_matrix, object_decomposition, user_events, global_event_vector_dict, redundant_events_set, grid_size, desired_solution_count, desired_per_matrix_solution_count, interval_painting_param)
     for solution in solutions 
       if solution[1] != [] 
         on_clauses, new_object_decomposition, global_var_dict = solution

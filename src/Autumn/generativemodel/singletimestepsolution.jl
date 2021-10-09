@@ -940,9 +940,9 @@ function generate_on_clauses(matrix, unformatted_matrix, object_decomposition, u
   filtered_random_matrices = filtered_random_matrices[1:min(4, length(filtered_random_matrices))]
   push!(filtered_matrices, filtered_random_matrices...)
 
-  # add "chaos" solution to filtered_matrices 
-  filtered_unformatted_matrix = filter_update_function_matrix_multiple(unformatted_matrix, object_decomposition, multiple=false)[1]
-  push!(filtered_matrices, filter_update_function_matrix_multiple(construct_chaos_matrix(filtered_unformatted_matrix, object_decomposition), object_decomposition, multiple=false)...)
+  # # add "chaos" solution to filtered_matrices 
+  # filtered_unformatted_matrix = filter_update_function_matrix_multiple(unformatted_matrix, object_decomposition, multiple=false)[1]
+  # push!(filtered_matrices, filter_update_function_matrix_multiple(construct_chaos_matrix(filtered_unformatted_matrix, object_decomposition), object_decomposition, multiple=false)...)
 
   # @show length(filtered_matrices)
 
@@ -2259,6 +2259,7 @@ function generate_new_state(update_rule, update_function_times, event_vector_dic
               # relabel update function prev_tuple with label greater than global_var_value and not an extra value 
               if (prev_tuple[2] > global_var_value) && !(prev_tuple[2] in extra_global_var_values) && (prev_tuple[3] == "update_function")
                 if interval_painting_param 
+                  println("HERE 3")
                   # before relabeling, check if there is a transition event between this prev_tuple's and tuple's time
                   tuple_time = tuple[1]
                   prev_tuple_time = prev_tuple[1]
@@ -2336,14 +2337,15 @@ function find_matching_global_event(times, event_vector_dict)
   matching_events 
 end
 
-function generate_new_object_specific_state(update_rule, update_function_times_dict, event_vector_dict, type_id, object_decomposition, state_update_times, global_var_dict)
+function generate_new_object_specific_state(update_rule, update_function_times_dict, event_vector_dict, type_id, object_decomposition, init_state_update_times, global_var_dict)
   println("GENERATE_NEW_OBJECT_SPECIFIC_STATE")
   @show update_rule
   @show update_function_times_dict
   @show event_vector_dict
   @show type_id 
   @show object_decomposition
-  @show state_update_times  
+  @show init_state_update_times
+  state_update_times = deepcopy(init_state_update_times)  
   failed = false
   object_types, object_mapping, background, grid_size = object_decomposition 
   object_ids = sort(collect(keys(update_function_times_dict)))
@@ -2363,21 +2365,21 @@ function generate_new_object_specific_state(update_rule, update_function_times_d
       end
     end
   end
-  # for e in keys(event_vector_dict)
-  #   if occursin("|", e) && e in keys(small_event_vector_dict)
-  #     delete!(small_event_vector_dict, e)
-  #   end
-  # end
+  for e in keys(event_vector_dict)
+    if occursin("|", e) && e in keys(small_event_vector_dict)
+      delete!(small_event_vector_dict, e)
+    end
+  end
   # choices, event_vector_dict, redundant_events_set, object_decomposition
-  # small_events = construct_compound_events(collect(keys(small_event_vector_dict)), small_event_vector_dict, Set(), object_decomposition)
-  # for e in keys(event_vector_dict)
-  #   if occursin("|", e) && e in keys(small_event_vector_dict)
-  #     delete!(small_event_vector_dict, e)
-  #   end
-  # end
+  small_events = construct_compound_events(collect(keys(small_event_vector_dict)), small_event_vector_dict, Set(), object_decomposition)
+  for e in keys(event_vector_dict)
+    if (occursin("true", e) || occursin("|", e)) && e in keys(small_event_vector_dict)
+      delete!(small_event_vector_dict, e)
+    end
+  end
 
-  # # x =  "(& clicked (& true (! (in (objClicked click (prev addedObjType1List)) (filter (--> obj (== (.. obj id) x)) (prev addedObjType1List))))))"
-  # # small_event_vector_dict[x] = event_vector_dict[x]
+  x =  "(& clicked (& true (! (in (objClicked click (prev addedObjType1List)) (filter (--> obj (== (.. obj id) x)) (prev addedObjType1List))))))"
+  small_event_vector_dict[x] = event_vector_dict[x]
 
   @show length(collect(keys(event_vector_dict)))
   @show length(collect(keys(small_event_vector_dict)))
@@ -2387,13 +2389,13 @@ function generate_new_object_specific_state(update_rule, update_function_times_d
     for id in collect(keys(update_function_times_dict)) 
       state_update_times[id] = [("", -1) for i in 1:(length(object_mapping[object_ids[1]])-1)]
     end
-    max_state_value = 1
+    curr_state_value = 1
   else
     # check if update function times occur during a single field1 value 
-    max_state_value = maximum(vcat(map(id -> map(x -> x.custom_field_values[end], filter(y -> !isnothing(y), object_mapping[id])), object_ids)...)) # maximum(vcat(map(id -> map(x -> x[2], state_update_times[id]), object_ids)...)) 
+    curr_state_value = maximum(vcat(map(id -> map(x -> x.custom_field_values[end], filter(y -> !isnothing(y), object_mapping[id])), object_ids)...)) # maximum(vcat(map(id -> map(x -> x[2], state_update_times[id]), object_ids)...)) 
 
     unique_state_values = unique(vcat(map(id -> map(t -> object_mapping[id][t].custom_field_values[end], update_function_times_dict[id]), object_ids)...))
-    if unique_state_values != [max_state_value]
+    if unique_state_values != [curr_state_value]
       return ("", [], object_decomposition, state_update_times)  
     end
   end
@@ -2450,73 +2452,16 @@ function generate_new_object_specific_state(update_rule, update_function_times_d
     end
 
     # construct positive times list augmented by true/false value 
-    augmented_true_positive_times = map(t -> (t, max_state_value), true_positive_times)
-    augmented_false_positive_times = map(t -> (t, max_state_value + 1), false_positive_times)
+    augmented_true_positive_times = map(t -> (t, curr_state_value), true_positive_times)
+    augmented_false_positive_times = map(t -> (t, curr_state_value + 1), false_positive_times)
     augmented_positive_times = sort(vcat(augmented_true_positive_times, augmented_false_positive_times), by=x -> x[1])  
 
     augmented_positive_times_dict[object_id] = augmented_positive_times 
   end
 
   # compute ranges 
-  ranges_dict = Dict()
-  for object_id in object_ids
-    ranges = []
-    augmented_positive_times = augmented_positive_times_dict[object_id]
-    for i in 1:(length(augmented_positive_times)-1)
-      prev_time, prev_value = augmented_positive_times[i]
-      next_time, next_value = augmented_positive_times[i + 1]
-      if prev_value != next_value
-        push!(ranges, (augmented_positive_times[i], augmented_positive_times[i + 1]))
-      end
-    end
-    ranges_dict[object_id] = ranges
-  end
-  # add ranges that interface between global_var_value and lower values
-  if max_state_value > 1
-    custom_field_index = findall(field_tuple -> field_tuple[1] == "field1", filter(obj -> !isnothing(obj), object_mapping[object_ids[1]])[1].type.custom_fields)[1]
-    for object_id in object_ids
-      augmented_positive_times = augmented_positive_times_dict[object_id]
-      for time in 1:(length(object_mapping[object_ids[1]])-1)
-        if (length(intersect(map(t -> t[1], augmented_positive_times), [time, time + 1])) == 1) && !isnothing(object_mapping[object_id][time]) && !isnothing(object_mapping[object_id][time + 1])
-          prev_val = object_mapping[object_id][time].custom_field_values[custom_field_index]
-          next_val = object_mapping[object_id][time + 1].custom_field_values[custom_field_index]
-
-          if (prev_val < max_state_value) && (next_val == max_state_value)
-            if (filter(t -> t[1] == time + 1, augmented_positive_times) != []) && (filter(t -> t[1] == time + 1, augmented_positive_times)[1][2] != max_state_value)
-              new_value = filter(t -> t[1] == time + 1, augmented_positive_times)[1][2]
-              push!(ranges_dict[object_id], ((time, prev_val), (time + 1, new_value)))        
-            else
-              push!(ranges_dict[object_id], ((time, prev_val), (time + 1, next_val)))        
-            end
-  
-          elseif (prev_val == max_state_value) && (next_val < max_state_value)
-            if (filter(t -> t[1] == time, augmented_positive_times) != []) && (filter(t -> t[1] == time, augmented_positive_times)[1][2] != max_state_value)
-              new_value = filter(t -> t[1] == time, augmented_positive_times)[1][2]
-              push!(ranges_dict[object_id], ((time, new_value), (time + 1, next_val)))        
-            else
-              push!(ranges_dict[object_id], ((time, prev_val), (time + 1, next_val)))        
-            end
-          end
-        end
-      end
-    end
-  end
-
-  # filter ranges where both the range's start and end times are already included
-  new_ranges_dict = Dict()
-  for object_id in object_ids
-    new_ranges_dict[object_id] = []
-    ranges = ranges_dict[object_id]
-    for range in ranges
-      start_tuples = map(range -> range[1], filter(r -> r != range, ranges))
-      end_tuples = map(range -> range[2], filter(r -> r != range, ranges))
-      if !((range[1] in start_tuples) && (range[2] in end_tuples))
-        push!(new_ranges_dict[object_id], range)      
-      end
-    end
-  end
-
-  grouped_ranges = group_ranges(new_ranges_dict)
+  grouped_ranges = recompute_ranges_object_specific(augmented_positive_times_dict, curr_state_value, object_mapping, object_ids)
+  max_state_value = maximum(vcat(map(id -> map(tuple -> tuple[2], augmented_positive_times_dict[id]), collect(keys(augmented_positive_times_dict)))...))
 
   while length(grouped_ranges) > 0
     grouped_range = grouped_ranges[1]
@@ -2526,11 +2471,13 @@ function generate_new_object_specific_state(update_rule, update_function_times_d
     start_value = range[1][2]
     end_value = range[2][2]
 
+    max_state_value = maximum(vcat(map(id -> map(tuple -> tuple[2], augmented_positive_times_dict[id]), collect(keys(augmented_positive_times_dict)))...))
+
     # TODO: try global events too  
     events_in_range = []
     if events_in_range == [] # if no global events are found, try object-specific events 
       # events_in_range = find_state_update_events(event_vector_dict, augmented_positive_times, time_ranges, start_value, end_value, global_var_dict, global_var_value)
-      events_in_range = find_state_update_events_object_specific(small_event_vector_dict, augmented_positive_times_dict, grouped_range, object_ids, object_mapping, max_state_value)
+      events_in_range = find_state_update_events_object_specific(small_event_vector_dict, augmented_positive_times_dict, grouped_range, object_ids, object_mapping, curr_state_value)
     end
     @show events_in_range
     if length(events_in_range) > 0 # only handling perfect matches currently 
@@ -2553,10 +2500,119 @@ function generate_new_object_specific_state(update_rule, update_function_times_d
         end
       end
     else
-      
+      false_positive_events = find_state_update_events_object_specific_false_positives(small_event_vector_dict, augmented_positive_times_dict, grouped_range, object_ids, object_mapping, curr_state_value)      
+      false_positive_events_with_state = filter(e -> occursin("field1", e[1]), false_positive_events) # want the most specific events in the false positive case
+      @show false_positive_events
+      events_without_true = filter(tuple -> !occursin("true", tuple[1]) && tuple[2] == minimum(map(t -> t[2], false_positive_events_with_state)), false_positive_events_with_state)
+      if events_without_true != []
+          false_positive_event, _, true_positive_times, false_positive_times = events_without_true[1] 
+      else
+        # FAILURE CASE: only separating event with false positives is true-based 
+        # false_positive_event, _, true_positive_times, false_positive_times = false_positive_events_with_state[1]
+        failed = true 
+        break  
+      end
 
-      failed = true 
-      break
+      # construct state update on-clause
+      formatted_event = replace(false_positive_event, "(filter (--> obj (== (.. obj id) x)) (prev addedObjType$(type_id)List))" => "(list (prev obj))")
+      if occursin("clicked", formatted_event)
+        state_update_on_clause = """(on clicked\n(= addedObjType$(type_id)List (updateObj addedObjType$(type_id)List (--> obj (updateObj obj "field1" $(end_value))) (--> obj $(formatted_event)) )))"""
+      else
+        state_update_on_clause = """(on true\n(= addedObjType$(type_id)List (updateObj addedObjType$(type_id)List (--> obj (updateObj obj "field1" $(end_value))) (--> obj $(formatted_event)) )))"""
+      end
+
+      # add to state_update_times
+      for tuple in true_positive_times 
+        time, id = tuple
+        state_update_times[id][time] = (state_update_function, end_value)
+      end
+      
+      augmented_positive_times_dict_labeled = Dict(map(id -> id => map(tuple -> (tuple[1], tuple[2], "update_function"), augmented_positive_times_dict[id]), collect(keys(object_ids))))
+      for tuple in false_positive_times
+        time, id = tuple  
+        push!(augmented_positive_times_dict_labeled[id], (time, max_state_value + 1, "event"))
+      end
+      same_time_tuples = Dict()
+      for id in collect(keys(augmented_positive_times_dict_labeled))
+        same_time_tuples[id] = Dict()
+        for tuple in augmented_positive_times_dict_labeled[id]
+          time = tuple[1] 
+          if time in collect(keys((same_time_tuples[id]))) 
+            push!(same_time_tuples[id][time], tuple)
+          else
+            same_time_tuples[id][time] = [tuple]
+          end
+        end
+      end
+
+      for id in collect(keys(same_time_tuples_dict))
+        for time in collect(keys((same_time_tuples[id]))) 
+          same_time_tuples[id][time] = reverse(sort(same_time_tuples[id][time], by=x -> length(x[3]))) # ensure all event tuples come *after* the update_function tuples
+        end
+        augmented_positive_times_dict_labeled[id] = vcat(map(t -> same_time_tuples[id][t], sort(collect(keys(same_time_tuples[id]))))...)
+      end
+      # augmented_positive_times_labeled = sort(augmented_positive_times_labeled, by=x->x[1])
+
+      # relabel false positive times 
+      # based on relabeling, relabel other existing labels if necessary 
+      augmented_positive_times_dict = Dict()
+      for id in collect(keys(augmented_positive_times_dict_labeled))
+        augmented_positive_times_labeled = augmented_positive_times_dict_labeled[id]
+        for tuple_index in 1:length(augmented_positive_times_labeled)
+          tuple = augmented_positive_times_labeled[tuple_index]
+          if tuple[3] == "event"
+            for prev_index in (tuple_index-1):-1:1
+              prev_tuple = augmented_positive_times_labeled[prev_index]
+  
+              # if we have reached a prev_tuple with global_var_value or extra value, then we stop the relabeling based on this event tuple
+              if prev_tuple[2] == curr_state_value # || prev_tuple[2] in extra_global_var_values
+                break
+                # println("HERE 2")
+                # @show prev_tuple 
+                # @show tuple
+                # if prev_tuple[1] == tuple[1] # && !(prev_tuple[2] in extra_global_var_values) # if the false positive time is the same as the global_var_value time, change the value
+                #   println("HERE")
+  
+                #   augmented_positive_times_labeled[prev_index] = (prev_tuple[1], max_global_var_value + 1, prev_tuple[3])
+                #   push!(extra_global_var_values, max_global_var_value + 1)
+                #   break
+                # else # if the two times are different, stop the relabeling process w.r.t. to this false positive tuple 
+                #   break
+                # end
+              end
+              
+              # relabel update function prev_tuple with label greater than global_var_value and not an extra value 
+              if (prev_tuple[2] > curr_state_value) && (prev_tuple[3] == "update_function") #  && !(prev_tuple[2] in extra_global_var_values)
+                # if interval_painting_param 
+                #   # before relabeling, check if there is a transition event between this prev_tuple's and tuple's time
+                #   tuple_time = tuple[1]
+                #   prev_tuple_time = prev_tuple[1]
+                #   range_times = collect(prev_tuple_time:(tuple_time-1))
+                #   events_in_range = find_matching_global_event(range_times, small_event_vector_dict)
+  
+                #   @show tuple_time 
+                #   @show prev_tuple_time 
+                #   @show range_times
+                #   if events_in_range == [] 
+                #     augmented_positive_times_labeled[prev_index] = (prev_tuple[1], max_global_var_value + 1, prev_tuple[3])
+                #   else # exists such an in-between explaining event
+                #     # stop relabeling, as in-between explaining transition event has been found 
+                #     break
+                #   end
+                # else
+                  augmented_positive_times_labeled[prev_index] = (prev_tuple[1], max_global_var_value + 1, prev_tuple[3])
+                # end
+              end
+            end
+          end
+        end
+        augmented_positive_times = map(t -> (t[1], t[2]), filter(tuple -> tuple[3] == "update_function", augmented_positive_times_labeled))      
+        augmented_positive_times_dict[id] = augmented_positive_times
+      end
+
+      # compute new ranges 
+      grouped_ranges = recompute_ranges_object_specific(augmented_positive_times_dict, curr_state_value, object_mapping, object_ids)
+      state_update_times = init_state_update_times
     end
   end
 
@@ -2581,7 +2637,7 @@ function generate_new_object_specific_state(update_rule, update_function_times_d
             init_value = mode
             @show mode
           else 
-            init_value = max_state_value + 1
+            init_value = curr_state_value + 1
           end
         end
         # init_value = length(augmented_positive_times_dict[object_id]) == 0 ? (max_state_value + 1) : augmented_positive_times_dict[object_id][1][2]
@@ -2605,20 +2661,20 @@ function generate_new_object_specific_state(update_rule, update_function_times_d
     new_object_types = deepcopy(object_types)
     new_object_type = filter(type -> type.id == type_id, new_object_types)[1]
     if !("field1" in map(field_tuple -> field_tuple[1], new_object_type.custom_fields))
-      push!(new_object_type.custom_fields, ("field1", "Int", [1, 2]))
+      push!(new_object_type.custom_fields, ("field1", "Int", collect(1:max_state_value)))
     else
       custom_field_index = findall(field_tuple -> field_tuple[1] == "field1", filter(obj -> !isnothing(obj), object_mapping[object_ids[1]])[1].type.custom_fields)[1]
-      push!(new_object_type.custom_fields[custom_field_index][3], max_state_value + 1)
+      new_object_type.custom_fields[custom_field_index][3] = sort(unique(vcat(new_object_type.custom_fields[custom_field_index][3], collect(1:max_state_value))))
     end
     
     ## modify objects in object_mapping
     new_object_mapping = deepcopy(object_mapping)
     for id in collect(keys(new_object_mapping))
-      if id in collect(keys(update_function_times_dict))
+      if id in object_ids
         for time in 1:length(new_object_mapping[id])
           if !isnothing(object_mapping[id][time])
             values = new_object_mapping[id][time].custom_field_values
-            if !((values != []) && (values[end] isa Int) && (values[end] < max_state_value))
+            if !((values != []) && (values[end] isa Int) && (values[end] < curr_state_value))
               new_object_mapping[id][time].type = new_object_type
               if (values != []) && (values[end] isa Int)
                 new_object_mapping[id][time].custom_field_values = vcat(new_object_mapping[id][time].custom_field_values[1:end-1], object_field_values[id][time])
@@ -2636,7 +2692,7 @@ function generate_new_object_specific_state(update_rule, update_function_times_d
 
     formatted_co_occurring_event = replace(co_occurring_event, "(filter (--> obj (== (.. obj id) x)) (prev addedObjType$(type_id)List))" => "(list (prev obj))")
     if !occursin("field1", formatted_co_occurring_event)
-      on_clause = "(on true\n$(replace(update_rule, "(== (.. obj id) x)" => "(& $(formatted_co_occurring_event) (== (.. obj field1) $(max_state_value)))")))"
+      on_clause = "(on true\n$(replace(update_rule, "(== (.. obj id) x)" => "(& $(formatted_co_occurring_event) (== (.. obj field1) $(curr_state_value)))")))"
     else
       on_clause = "(on true\n$(replace(update_rule, "(== (.. obj id) x)" => formatted_co_occurring_event)))"
     end

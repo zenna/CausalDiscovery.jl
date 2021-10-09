@@ -1,10 +1,10 @@
-function find_state_update_events(event_vector_dict, augmented_positive_times, time_ranges, start_value, end_value, global_var_dict, global_var_id, global_var_value, object_specific=false) 
-  co_occurring_events = find_state_update_events_false_positives(event_vector_dict, augmented_positive_times, time_ranges, start_value, end_value, global_var_dict, global_var_id, global_var_value, object_specific)
+function find_state_update_events(event_vector_dict, augmented_positive_times, time_ranges, start_value, end_value, global_var_dict, global_var_id, global_var_value, object_specific=false, type=nothing) 
+  co_occurring_events = find_state_update_events_false_positives(event_vector_dict, augmented_positive_times, time_ranges, start_value, end_value, global_var_dict, global_var_id, global_var_value, object_specific, type)
   matches = map(x -> (x[1], x[3]), filter(tuple -> tuple[2] == 0, co_occurring_events))
   sort(matches, by=x -> length(x))
 end
 
-function find_state_update_events_false_positives(orig_event_vector_dict, augmented_positive_times, time_ranges, start_value, end_value, global_var_dict, global_var_id, global_var_value, object_specific=false)
+function find_state_update_events_false_positives(orig_event_vector_dict, augmented_positive_times, time_ranges, start_value, end_value, global_var_dict, global_var_id, global_var_value, object_specific=false, type=nothing)
   @show global_var_dict
 
   if object_specific
@@ -31,9 +31,17 @@ function find_state_update_events_false_positives(orig_event_vector_dict, augmen
     if time_ranges == []
       if event_times == [] || augmented_positive_times == [] || (end_value == augmented_positive_times[1][2])
         push!(co_occurring_events, (event, 0, [], []))
-        push!(co_occurring_events, ("(& $(event) (== globalVar$(global_var_id) $(start_value)))", 0, [], []))
+        if object_specific 
+          push!(co_occurring_events, ("(& $(event) (intersects (list $(start_value)) (map (--> obj (.. obj field1)) (filter (--> obj (== (.. obj id) x)) (prev addedObjType$(type.id)List)))))", 0, [], []))
+        else
+          push!(co_occurring_events, ("(& $(event) (== globalVar$(global_var_id) $(start_value)))", 0, [], []))
+        end
       elseif start_value != augmented_positive_times[1][2]
-        push!(co_occurring_events, ("(& $(event) (== globalVar$(global_var_id) $(start_value)))", 0, [], []))
+        if object_specific 
+          push!(co_occurring_events, ("(& $(event) (intersects (list $(start_value)) (map (--> obj (.. obj field1)) (filter (--> obj (== (.. obj id) x)) (prev addedObjType$(type.id)List)))))", 0, [], []))
+        else
+          push!(co_occurring_events, ("(& $(event) (== globalVar$(global_var_id) $(start_value)))", 0, [], []))
+        end
       end
     else
       if !(0 in map(time_range -> length(findall(time -> ((time >= time_range[1]) && (time <= time_range[2])), event_times)) > 0, time_ranges))
@@ -86,10 +94,17 @@ function find_state_update_events_false_positives(orig_event_vector_dict, augmen
         zipped_values = [(desired_start_values[i], desired_end_values[i]) for i in 1:length(desired_end_values)]
         num_false_positives_with_effects_state = count(x -> !(x[2] in [end_value, -1]) && (x[1] == start_value), zipped_values)
         false_positives_with_effects_state_times = [false_positive_times[i] for i in findall(x -> !(x[2] in [end_value, -1]) && (x[1] == start_value), zipped_values)]
-        push!(co_occurring_events, ("(& $(event) (== (prev globalVar$(global_var_id)) $(start_value)))", 
-                                    num_false_positives_with_effects_state, 
-                                    [co_occurring_times..., [false_positive_times[i] for i in findall(x -> (x[2] in [end_value, -1]) && (x[1] == start_value), zipped_values)]...], # [end_value, -1]
-                                    false_positives_with_effects_state_times))
+        if object_specific 
+          push!(co_occurring_events, ("(& $(event) (intersects (list $(start_value)) (map (--> obj (.. obj field1)) (filter (--> obj (== (.. obj id) x)) (prev addedObjType$(type.id)List)))))", 
+          num_false_positives_with_effects_state, 
+          [co_occurring_times..., [false_positive_times[i] for i in findall(x -> (x[2] in [end_value, -1]) && (x[1] == start_value), zipped_values)]...], # [end_value, -1]
+          false_positives_with_effects_state_times))
+        else
+          push!(co_occurring_events, ("(& $(event) (== (prev globalVar$(global_var_id)) $(start_value)))", 
+          num_false_positives_with_effects_state, 
+          [co_occurring_times..., [false_positive_times[i] for i in findall(x -> (x[2] in [end_value, -1]) && (x[1] == start_value), zipped_values)]...], # [end_value, -1]
+          false_positives_with_effects_state_times))
+        end
       end  
     end
   end
@@ -137,6 +152,7 @@ function find_state_update_events_object_specific(event_vector_dict, augmented_p
   # extract object-specific events 
   events = filter(e -> !occursin("field1", e) && !(event_vector_dict[e] isa AbstractArray) && sort(collect(keys(event_vector_dict[e]))) == sort(object_ids), collect(keys(event_vector_dict))) 
   global_events = filter(e -> event_vector_dict[e] isa Array, collect(keys(event_vector_dict)))
+  object_type = filter(obj -> !isnothing(obj), object_mapping[object_ids[1]])[1].type
 
   update_events_dict = Dict()
   for object_id in object_ids 
@@ -166,7 +182,7 @@ function find_state_update_events_object_specific(event_vector_dict, augmented_p
     # @show time_ranges 
     # @show start_value 
     # @show end_value 
-    update_events = find_state_update_events(object_event_vector_dict, augmented_positive_times, time_ranges, start_value, end_value, object_var_dict, 1, object_var_value, true)
+    update_events = find_state_update_events(object_event_vector_dict, augmented_positive_times, time_ranges, start_value, end_value, object_var_dict, 1, object_var_value, true, object_type)
     
     update_events_dict[object_id] = update_events
   end
@@ -187,6 +203,76 @@ function find_state_update_events_object_specific(event_vector_dict, augmented_p
   end
 
 end
+
+function find_state_update_events_object_specific_false_positives(event_vector_dict, augmented_positive_times_dict, grouped_range, object_ids, object_mapping, max_state_value)
+  # extract object-specific events 
+  events = filter(e -> !occursin("field1", e) && !(event_vector_dict[e] isa AbstractArray) && sort(collect(keys(event_vector_dict[e]))) == sort(object_ids), collect(keys(event_vector_dict))) 
+  global_events = filter(e -> event_vector_dict[e] isa Array, collect(keys(event_vector_dict)))
+  object_type = filter(obj -> !isnothing(obj), object_mapping[object_ids[1]])[1].type
+
+  update_events_dict = Dict()
+  for object_id in object_ids 
+    object_event_vector_dict = Dict()
+    for event in events 
+      object_event_vector_dict[event] = event_vector_dict[event][object_id]
+    end
+
+    augmented_positive_times = augmented_positive_times_dict[object_id]
+
+    time_ranges = map(range -> (range[1][1], range[2][1]), filter(r -> r[1][3] == object_id, grouped_range))
+
+    start_value = grouped_range[1][1][2]
+    end_value = grouped_range[1][2][2]
+
+    if "field1" in map(x -> x[1], filter(obj -> !isnothing(obj), object_mapping[object_id])[1].type.custom_fields)
+      custom_field_index = findall(field_tuple -> field_tuple[1] == "field1", filter(obj -> !isnothing(obj), object_mapping[object_ids[1]])[1].type.custom_fields)[1]
+      object_var_dict = Dict(1 => map(obj -> isnothing(obj) ? -1 : obj.custom_field_values[custom_field_index], object_mapping[object_id])[1:end-1])
+    else
+      object_var_dict = Dict(1 => ones(Int, length(event_vector_dict[global_events[1]])))
+    end
+    object_var_value = max_state_value
+    
+    # @show object_id
+    # @show object_event_vector_dict
+    # @show augmented_positive_times 
+    # @show time_ranges 
+    # @show start_value 
+    # @show end_value 
+    update_events = find_state_update_events_false_positives(object_event_vector_dict, augmented_positive_times, time_ranges, start_value, end_value, object_var_dict, 1, object_var_value, true, object_type)
+    
+    update_events_dict[object_id] = update_events
+  end
+  @show update_events_dict
+  common_events = intersect(map(id -> map(x -> x[1], update_events_dict[id]), object_ids)...)
+  if common_events == [] 
+    # FAILURE CASE
+    []
+  else
+    solutions = []
+    for common_event in common_events 
+      true_times = []
+      false_times = []
+      num_false_positives = 0
+      for object_id in object_ids
+        event_tuple = filter(event_tuple -> event_tuple[1] == common_event, update_events_dict[object_id])[1] 
+        object_false_positives = event_tuple[2]
+        object_true_times = event_tuple[3]
+        object_false_times = event_tuple[4]
+        augmented_true_times = map(time -> (time, object_id), object_true_times)
+        augmented_false_times = map(time -> (time, object_id), object_false_times)
+        true_times = vcat(true_times..., augmented_true_times...)
+        false_times = vcat(false_times..., augmented_false_times...)
+        num_false_positives = num_false_positives + object_false_positives
+      end
+      push!(solutions, (common_event, num_false_positives, true_times, false_times))  
+    end
+    # common_event = common_events[1]
+    # [(common_event, event_times)]
+    sort(solutions, by=s -> s[2])  
+  end
+
+end
+
 
 function is_co_occurring(event, event_vector, update_function_times)  
   event_times = findall(x -> x == 1, event_vector)
@@ -267,4 +353,67 @@ function recompute_ranges(augmented_positive_times, new_state_update_times_dict,
   grouped_ranges = group_ranges(filtered_ranges)
 
   deepcopy(grouped_ranges), deepcopy(augmented_positive_times), deepcopy(new_state_update_times_dict)
+end
+
+function recompute_ranges_object_specific(augmented_positive_times_dict, curr_state_value, object_mapping, object_ids)
+  ranges_dict = Dict()
+  for object_id in object_ids
+    ranges = []
+    augmented_positive_times = augmented_positive_times_dict[object_id]
+    for i in 1:(length(augmented_positive_times)-1)
+      prev_time, prev_value = augmented_positive_times[i]
+      next_time, next_value = augmented_positive_times[i + 1]
+      if prev_value != next_value
+        push!(ranges, (augmented_positive_times[i], augmented_positive_times[i + 1]))
+      end
+    end
+    ranges_dict[object_id] = ranges
+  end
+  # add ranges that interface between global_var_value and lower values
+  if curr_state_value > 1
+    custom_field_index = findall(field_tuple -> field_tuple[1] == "field1", filter(obj -> !isnothing(obj), object_mapping[object_ids[1]])[1].type.custom_fields)[1]
+    for object_id in object_ids
+      augmented_positive_times = augmented_positive_times_dict[object_id]
+      for time in 1:(length(object_mapping[object_ids[1]])-1)
+        if (length(intersect(map(t -> t[1], augmented_positive_times), [time, time + 1])) == 1) && !isnothing(object_mapping[object_id][time]) && !isnothing(object_mapping[object_id][time + 1])
+          prev_val = object_mapping[object_id][time].custom_field_values[custom_field_index]
+          next_val = object_mapping[object_id][time + 1].custom_field_values[custom_field_index]
+
+          if (prev_val < curr_state_value) && (next_val == curr_state_value)
+            if (filter(t -> t[1] == time + 1, augmented_positive_times) != []) && (filter(t -> t[1] == time + 1, augmented_positive_times)[1][2] != curr_state_value)
+              new_value = filter(t -> t[1] == time + 1, augmented_positive_times)[1][2]
+              push!(ranges_dict[object_id], ((time, prev_val), (time + 1, new_value)))        
+            else
+              push!(ranges_dict[object_id], ((time, prev_val), (time + 1, next_val)))        
+            end
+  
+          elseif (prev_val == curr_state_value) && (next_val < curr_state_value)
+            if (filter(t -> t[1] == time, augmented_positive_times) != []) && (filter(t -> t[1] == time, augmented_positive_times)[1][2] != curr_state_value)
+              new_value = filter(t -> t[1] == time, augmented_positive_times)[1][2]
+              push!(ranges_dict[object_id], ((time, new_value), (time + 1, next_val)))        
+            else
+              push!(ranges_dict[object_id], ((time, prev_val), (time + 1, next_val)))        
+            end
+          end
+        end
+      end
+    end
+  end
+
+  # filter ranges where both the range's start and end times are already included
+  new_ranges_dict = Dict()
+  for object_id in object_ids
+    new_ranges_dict[object_id] = []
+    ranges = ranges_dict[object_id]
+    for range in ranges
+      start_tuples = map(range -> range[1], filter(r -> r != range, ranges))
+      end_tuples = map(range -> range[2], filter(r -> r != range, ranges))
+      if !((range[1] in start_tuples) && (range[2] in end_tuples))
+        push!(new_ranges_dict[object_id], range)      
+      end
+    end
+  end
+
+  grouped_ranges = group_ranges(new_ranges_dict)
+  grouped_ranges
 end

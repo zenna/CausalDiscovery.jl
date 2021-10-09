@@ -17,15 +17,15 @@
   (= time (initnext 0 (+ time 1)))
 
   (on true
-(= addedObjType1List (updateObj addedObjType1List (--> obj (moveDownNoCollision (prev obj))) (--> obj (& down (== (.. obj field1) 1))))))
-  (on true
-(= addedObjType1List (updateObj addedObjType1List (--> obj (moveUpNoCollision (prev obj))) (--> obj (& up (intersects (list 1) (map (--> obj (.. obj field1)) (list (prev obj)))))))))
-  (on true
 (= addedObjType1List (updateObj addedObjType1List (--> obj (updateObj obj "color" "darkgreen")) (--> obj (intersects (unfold (map (--> obj (adjacentObjs obj)) (list (prev obj)))) (filter (--> obj (== (.. obj color) "darkgreen")) (prev addedObjType1List)))))))
   (on true
-(= addedObjType1List (updateObj addedObjType1List (--> obj (moveRightNoCollision (prev obj))) (--> obj (& right (intersects (list 1) (map (--> obj (.. obj field1)) (list (prev obj)))))))))
+(= addedObjType1List (updateObj addedObjType1List (--> obj (moveDownNoCollision (prev obj))) (--> obj (& up (== (.. obj field1) 1))))))
   (on true
 (= addedObjType1List (updateObj addedObjType1List (--> obj (moveLeftNoCollision (prev obj))) (--> obj (& left (intersects (list 1) (map (--> obj (.. obj field1)) (list (prev obj)))))))))
+  (on true
+(= addedObjType1List (updateObj addedObjType1List (--> obj (moveDownNoCollision (prev obj))) (--> obj (& down (intersects (list 1) (map (--> obj (.. obj field1)) (list (prev obj)))))))))
+  (on true
+(= addedObjType1List (updateObj addedObjType1List (--> obj (moveRightNoCollision (prev obj))) (--> obj (& right (intersects (list 1) (map (--> obj (.. obj field1)) (list (prev obj)))))))))
   (on clicked
 (= addedObjType1List (updateObj addedObjType1List (--> obj (updateObj obj "field1" 1)) (--> obj (clicked (list (prev obj)))) )))
   (on clicked
