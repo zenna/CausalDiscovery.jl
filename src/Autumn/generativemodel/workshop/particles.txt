@@ -1,0 +1,21 @@
+(program
+  (= GRID_SIZE 16)
+  (= background "white")
+  (object ObjType1  (list (Cell 0 0  "blue" )))
+
+  
+
+  (: addedObjType1List (List ObjType1))
+
+  
+  
+  (= addedObjType1List (initnext (list) (prev addedObjType1List)))
+
+
+  (: time Int)
+  (= time (initnext 0 (+ time 1)))
+
+  (on true
+(= addedObjType1List (updateObj addedObjType1List (--> obj (uniformChoice (list (moveRight (prev obj)) (moveDown (prev obj)) (moveLeft (prev obj)) (moveUp (prev obj))))))))
+  (on clicked
+(let ((= addedObjType1List (addObj addedObjType1List (ObjType1  (Position (.. click x) (.. click y)))))))))

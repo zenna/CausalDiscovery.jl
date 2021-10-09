@@ -1,0 +1,65 @@
+(program
+  (= GRID_SIZE 16)
+  (= background "white")
+  (object ObjType1 (: color String) (list (Cell 0 0 color)))
+  (object ObjType2  (list (Cell -1 0  "darkorange" ) (Cell 0 0  "darkorange" ) (Cell 1 0  "darkorange" )))
+  (object ObjType3  (list (Cell -1 -1  "blue" ) (Cell -1 0  "blue" ) (Cell 0 -1  "blue" ) (Cell 0 0  "blue" ) (Cell 1 -1  "blue" ) (Cell 1 0  "blue" )))
+
+  (: addedObjType1List (List ObjType1))
+  (: addedObjType2List (List ObjType2))
+  (: obj8 ObjType3)
+
+  (: addedObjType3List (List ObjType3))
+
+  (= addedObjType1List (initnext (list (ObjType1  "red"  (Position 7 15)) (ObjType1  "gold"  (Position 4 12)) (ObjType1  "gold"  (Position 7 4)) (ObjType1  "gold"  (Position 11 6))) (prev addedObjType1List)))
+  (= addedObjType2List (initnext (list (ObjType2  (Position 4 13)) (ObjType2  (Position 8 10)) (ObjType2  (Position 11 7))) (prev addedObjType2List)))
+  (= obj8 (initnext (ObjType3  (Position 7 1)) (prev obj8)))
+  
+  (= addedObjType3List (initnext (list) (prev addedObjType3List)))
+
+	 (: globalVar2 Int)
+	 (= globalVar2 (initnext 1 (prev globalVar2)))
+	 (: globalVar1 Int)
+	 (= globalVar1 (initnext 2 (prev globalVar1)))
+
+  (: time Int)
+  (= time (initnext 0 (+ time 1)))
+
+  (on true
+(= addedObjType1List (updateObj addedObjType1List (--> obj (moveDownNoCollision (prev obj))) (--> obj (intersects (list "red") (map (--> obj (.. obj color)) (list (prev obj))))))))
+  (on true
+(= addedObjType1List (updateObj addedObjType1List (--> obj (moveUp (prev obj))) (--> obj (intersects (list "mediumpurple") (map (--> obj (.. obj color)) (list (prev obj))))))))
+  (on true
+(= addedObjType1List (updateObj addedObjType1List (--> obj (moveRightNoCollision (prev obj))) (--> obj (& right (intersects (list "red") (map (--> obj (.. obj color)) (list (prev obj)))))))))
+  (on true
+(= addedObjType1List (updateObj addedObjType1List (--> obj (moveLeftNoCollision (prev obj))) (--> obj (& left (intersects (list "red") (map (--> obj (.. obj color)) (list (prev obj)))))))))
+  (on true
+(= addedObjType1List (updateObj addedObjType1List (--> obj (move (prev obj) 0 -4)) (--> obj (& (intersects (list "red") (map (--> obj (.. obj color)) (list (prev obj)))) (& up (intersects (map (--> obj (.. (moveDownNoCollision obj) origin)) (list (prev obj))) (map (--> obj (.. obj origin)) (list (prev obj))))))))))
+  (on true
+(= addedObjType1List (removeObj addedObjType1List (--> obj (| (intersects (prev obj8) (list (prev obj))) (& (intersects (list (prev obj)) (filter (--> obj (== (.. obj color) "red")) (prev addedObjType1List))) (intersects (list "gold") (map (--> obj (.. obj color)) (list (prev obj))))))))))
+  (on (& (in (prev globalVar1) (list 1 3)) clicked)
+(let ((= addedObjType1List (addObj addedObjType1List (ObjType1  "mediumpurple"  (uniformChoice (map (--> obj (.. obj origin)) (filter (--> obj (== (.. obj id) 1)) (prev addedObjType1List))))))))))
+  (on true
+(= addedObjType1List (updateObj addedObjType1List (--> obj (moveLeft (prev obj))) (--> obj (& left (intersects (map (--> obj (moveLeft obj)) (list (prev obj))) (filter (--> obj (== (.. obj color) "gold")) (prev addedObjType1List))))))))
+  (on true
+(= addedObjType1List (updateObj addedObjType1List (--> obj (moveRight (prev obj))) (--> obj (& right (intersects (map (--> obj (moveRight obj)) (list (prev obj))) (filter (--> obj (== (.. obj color) "gold")) (prev addedObjType1List))))))))
+  (on true
+(= addedObjType1List (updateObj addedObjType1List (--> obj (moveDown (prev obj))) (--> obj (intersects (map (--> obj (moveDown obj)) (list (prev obj))) (filter (--> obj (== (.. obj color) "gold")) (prev addedObjType1List)))))))
+  (on true
+(= obj8 (moveRight (prev obj8))))
+  (on (& (== (prev globalVar2) 1) (& (.. (prev obj8) alive) (! (intersects (prev obj8) (prev addedObjType1List)))))
+(= obj8 (moveLeft (prev obj8))))
+  (on (intersects (prev obj8) (prev addedObjType1List))
+(= obj8 (removeObj (prev obj8))))
+  (on (== (.. (.. (prev obj8) origin) x) 2)
+(= globalVar2 2))
+  (on (== (.. (.. (prev obj8) origin) x) 13)
+(= globalVar2 1))
+  (on (& (intersects (filter (--> obj (== (.. obj color) "gold")) (prev addedObjType1List)) (filter (--> obj (== (.. obj color) "red")) (prev addedObjType1List))) (== (prev globalVar1) 2))
+(= globalVar1 1))
+  (on (& (intersects (filter (--> obj (== (.. obj color) "gold")) (prev addedObjType1List)) (filter (--> obj (== (.. obj color) "red")) (prev addedObjType1List))) (== (prev globalVar1) 1))
+(= globalVar1 3))
+  (on (& clicked (== (prev globalVar1) 3))
+(= globalVar1 1))
+  (on (& clicked (== (prev globalVar1) 1))
+(= globalVar1 2)))

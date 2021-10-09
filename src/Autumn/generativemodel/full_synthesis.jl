@@ -1,9 +1,29 @@
 include("singletimestepsolution.jl");
+include("global_heuristic_automata_synthesis.jl")
+function workshop_evaluation() 
+  # sols = synthesize_program("wind", singlecell=false, interval_painting_param=true, upd_func_spaces=[1])
+  # sols = synthesize_program("disease", singlecell=false, upd_func_spaces=[2]) # remove lines 515, 516, 518, 519
+  # sols = synthesize_program("particles", singlecell=true, upd_func_spaces=[1])
+  # sols = synthesize_program("chase", singlecell=true, upd_func_spaces=[5])
+  # sols = synthesize_program("lights", singlecell=true, upd_func_spaces=[5])
+  # sols = synthesize_program("ants", singlecell=true, desired_solution_count=2, upd_func_spaces=[5]) # take second solution (random)
+  # sols = synthesize_program("ice", singlecell=false, desired_solution_count=1, upd_func_spaces=[3]) # remove "(== (% (prev time) 4) 2)"
+  # sols = synthesize_program("space_invaders", singlecell=true, upd_func_spaces=[1]) # no bullet intersection in obs. seq.
+  sols = synthesize_program("mario", singlecell=false, desired_per_matrix_solution_count=5, upd_func_spaces=[4]) # first out of 4 sols
+  # sols = synthesize_program("paint", singlecell=false, desired_solution_count=1, upd_func_spaces=[1])
+  # sols = synthesize_program("water_plug", singlecell=true, desired_solution_count=1, upd_func_spaces=[1]) # add "|"-based transition events to event space
+  # sols = synthesize_program("sokoban_i", singlecell=true, desired_solution_count=1, upd_func_spaces=[1])
+  # sols = synthesize_program("magnets_i", singlecell=false, desired_solution_count=1, upd_func_spaces=[1])
+  # sols = synthesize_program("gravity_i", singlecell=false, desired_solution_count=1, upd_func_spaces=[2])
+  # sols = synthesize_program("gravity_ii", singlecell=false, desired_solution_count=1, upd_func_spaces=[2]) # add special case, remove line 477 + single.jl line 1929 
+  # grow: not including
+end
+
 
 function synthesize_program(model_name::String; 
                             singlecell = false,
                             pedro = false,
-                            desired_solution_count = 2,
+                            desired_solution_count = 1,
                             desired_per_matrix_solution_count = 1, # 5
                             interval_painting_param = false, 
                             upd_func_spaces = [1]
@@ -19,7 +39,7 @@ function synthesize_program(model_name::String;
   redundant_events_set = Set()
   for upd_func_space in upd_func_spaces # 1, 2, 3
     matrix, unformatted_matrix, object_decomposition, prev_used_rules = singletimestepsolution_matrix(observations, user_events, grid_size, singlecell=singlecell, pedro=pedro, upd_func_space=upd_func_space)
-    solutions = generate_on_clauses(matrix, unformatted_matrix, object_decomposition, user_events, global_event_vector_dict, redundant_events_set, grid_size, desired_solution_count, desired_per_matrix_solution_count, interval_painting_param)
+    solutions = generate_on_clauses_GLOBAL(matrix, unformatted_matrix, object_decomposition, user_events, global_event_vector_dict, redundant_events_set, grid_size, desired_solution_count, desired_per_matrix_solution_count)
     for solution in solutions 
       if solution[1] != [] 
         on_clauses, new_object_decomposition, global_var_dict = solution
@@ -32,6 +52,15 @@ function synthesize_program(model_name::String;
     #   break
     # end    
   end
+  
+  open("/Users/riadas/Documents/urop/CausalDiscovery.jl/src/Autumn/generativemodel/workshop/$(model_name).txt","w") do io
+    if model_name != "ants" 
+      println(io, program_strings[1])
+    else
+      println(io, program_strings[2])
+    end
+  end
+
   program_strings
 end
 
@@ -94,6 +123,8 @@ function generate_observations(model_name::String)
     observations, user_events, grid_size = generate_observations_paint(m)
   elseif model_name == "chase"
     observations, user_events, grid_size = generate_observations_chase(m)
+  elseif model_name == "bullets"
+    observations, user_events, grid_size = generate_observations_bullets(m)
   else
     error("model $(model_name) does not exist")
   end
@@ -313,7 +344,6 @@ programs = Dict("particles"                                 => """(program
                                                             
                                                             (on true (= enemyBullets (updateObj enemyBullets (--> obj (moveDown obj)))))
                                                             (on true (= bullets (updateObj bullets (--> obj (moveUp obj)))))
-
                                                             (on left (= hero (moveLeftNoCollision (prev hero))))
                                                             (on right (= hero (moveRightNoCollision (prev hero))))
                                                             (on (& up (.. (prev hero) alive)) (= bullets (addObj bullets (Bullet (.. (prev hero) origin)))))  
@@ -325,13 +355,13 @@ programs = Dict("particles"                                 => """(program
                                                             (on (== (% time 10) 0) (= enemies2 (updateObj enemies2 (--> obj (moveLeft obj)))))
                                                             
                                                             (on (intersects (prev bullets) (prev enemies1))
-                                                              (let ((= bullets (removeObj bullets (--> obj (intersects obj (prev enemies1)))))
-                                                                    (= enemies1 (removeObj enemies1 (--> obj (intersects obj (prev bullets)))))))
+                                                              (let ((= bullets (removeObj bullets (--> obj (intersects (prev obj) (prev enemies1)))))
+                                                                    (= enemies1 (removeObj enemies1 (--> obj (intersects (prev obj) (prev bullets)))))))
                                                             )          
                                                                     
                                                             (on (intersects (prev bullets) (prev enemies2))
-                                                              (let ((= bullets (removeObj bullets (--> obj (intersects obj (prev enemies2)))))
-                                                                    (= enemies2 (removeObj enemies2 (--> obj (intersects obj (prev bullets)))))))
+                                                              (let ((= bullets (removeObj bullets (--> obj (intersects (prev obj) (prev enemies2)))))
+                                                                    (= enemies2 (removeObj enemies2 (--> obj (intersects (prev obj) (prev bullets)))))))
                                                             )
                                                                     
                                                             (on (== (% time 5) 2) (= enemyBullets (addObj enemyBullets (EnemyBullet (uniformChoice (map (--> obj (.. obj origin)) (prev enemies2)))))))         
@@ -339,8 +369,8 @@ programs = Dict("particles"                                 => """(program
                                                           
                                                             (on (intersects (prev bullets) (prev enemyBullets)) 
                                                               (let 
-                                                                ((= bullets (removeObj bullets (--> obj (intersects obj (prev enemyBullets))))) 
-                                                                  (= enemyBullets (removeObj enemyBullets (--> obj (intersects obj (prev bullets))))))))           
+                                                                ((= bullets (removeObj bullets (--> obj (intersects (prev obj) (prev enemyBullets))))) 
+                                                                  (= enemyBullets (removeObj enemyBullets (--> obj (intersects (prev obj) (prev bullets))))))))           
                                                           )"""
                 ,"gol" => ""
                 ,"sokoban_i" =>                               """(program
@@ -668,17 +698,16 @@ programs = Dict("particles"                                 => """(program
                 ,"balloon" => ""
               ,"wind"                                          => """(program
                                                                       (= GRID_SIZE 17)
-                                                                      (= background "darkblue")
-                                                            
+                                                                    
                                                                       (object Water (Cell 0 0 "lightblue"))
-                                                                      (object Cloud (map (--> pos (Cell (.. pos x) (.. pos y) "gray")) (rect (Position 0 0) (Position 16 1))) (prev cloud))
+                                                                      (object Cloud (map (--> pos (Cell (.. pos x) (.. pos y) "gray")) (rect (Position 0 0) (Position 16 1))))
                                                                       
                                                                       (: water (List Water))
-                                                                      (= water (initnext (list) (prev water))) 
+                                                                      (= water (initnext (list) (updateObj (prev water) (--> obj (removeObj obj)) (--> obj (! (isWithinBounds obj)))))) 
                                                                            
                                                                       (: cloud Cloud)
                                                                       (= cloud (initnext (Cloud (Position 0 0)) (prev cloud)))
-                                                            
+                                                                    
                                                                       (: wind Int)
                                                                       (= wind (initnext 0 (prev wind)))
                                                                       
@@ -689,6 +718,9 @@ programs = Dict("particles"                                 => """(program
                                                                       (on (== wind 1) (= water (updateObj (prev water) (--> obj (moveRight (moveDown obj))))))
                                                                       (on (== wind -1) (= water (updateObj (prev water) (--> obj (moveLeft (moveDown obj))))))
                                                                     
+                                                                      (on true (= water (updateObj water (--> obj (removeObj (prev obj))) (--> obj (! (isWithinBounds (prev obj)))))))
+                                                                    
+                                                                    
                                                                       (on left (= wind (if (== (prev wind) -1) then (prev wind) else (- (prev wind) 1))))
                                                                       (on right (= wind (if (== (prev wind) 1) then (prev wind) else (+ (prev wind) 1))))
                                                                       
@@ -698,11 +730,12 @@ programs = Dict("particles"                                 => """(program
                                                                                   water 
                                                                                   (map (--> pos (Water pos)) (list (Position 2 2)
                                                                                                                     
-                                                                                                                        (Position 6 2)
-                                                                                                                    
-                                                                                                                        (Position 10 2)
-                                                                                                                        
-                                                                                                                        (Position 14 2)))))))"""
+                                                                                                                  (Position 6 2)
+                                                                                                                  
+                                                                                                                  (Position 10 2)
+                                                                                                                  
+                                                                                                                  (Position 14 2))))))
+                                                                    )"""
                 ,"paint"                                         => """(program
                                                                       (= GRID_SIZE 16)
                                                                       
@@ -739,5 +772,39 @@ programs = Dict("particles"                                 => """(program
                                                                                                                            else obj)))))
                                                                     
                                                                       (on clicked (= foods (addObj foods (map Food (randomPositions GRID_SIZE 4)))))
+                                                                    )"""
+                ,"bullets" =>                                     """(program
+                                                                      (= GRID_SIZE 16)
+                                                                      (object Particle (Cell 0 0 "blue"))
+                                                                      (object Bullet (: dir String) (Cell 0 0 "red"))
+                                                                      
+                                                                      (: particle Particle)
+                                                                      (= particle (initnext (Particle (Position 8 8)) (prev particle)))
+                                                                      
+                                                                      (: bullets (List Bullet))
+                                                                      (= bullets (initnext (list) (prev bullets)))
+                                                                      
+                                                                      (: dir String)
+                                                                      (= dir (initnext "none" (prev dir)))
+                                                                      
+                                                                      (on true (= bullets (updateObj bullets (--> obj (moveLeft obj)) (--> obj (== (.. obj dir) "left")))))
+                                                                      (on true (= bullets (updateObj bullets (--> obj (moveRight obj)) (--> obj (== (.. obj dir) "right")))))
+                                                                      (on true (= bullets (updateObj bullets (--> obj (moveUp obj)) (--> obj (== (.. obj dir) "up")))))
+                                                                      (on true (= bullets (updateObj bullets (--> obj (moveDown obj)) (--> obj (== (.. obj dir) "down")))))
+                                                                      
+                                                                      (on left (let ((= dir "left")
+                                                                                    (= particle (moveLeft particle)))))
+                                                                      (on right (let ((= dir "right")
+                                                                                      (= particle (moveRight particle)))))
+                                                                      (on up (let ((= dir "up")
+                                                                                  (= particle (moveUp particle)))))
+                                                                      (on down (let ((= dir "down")
+                                                                                    (= particle (moveDown particle)))))
+                                                                    
+                                                                      
+                                                                      (on (& clicked (== dir "left")) (= bullets (addObj bullets (Bullet "left" (.. (moveLeft particle) origin)))))
+                                                                      (on (& clicked (== dir "right")) (= bullets (addObj bullets (Bullet "right" (.. (moveRight particle) origin)))))
+                                                                      (on (& clicked (== dir "up")) (= bullets (addObj bullets (Bullet "up" (.. (moveUp particle) origin)))))
+                                                                      (on (& clicked (== dir "down")) (= bullets (addObj bullets (Bullet "down" (.. (moveDown particle) origin)))))
                                                                     )"""
                 )

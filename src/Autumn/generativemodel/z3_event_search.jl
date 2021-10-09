@@ -1,20 +1,20 @@
 using Z3 
 
-ctx = Context()
-x = bv_const(ctx, "x", 32)
-y = bv_const(ctx, "y", 32)
+# ctx = Context()
+# x = bv_const(ctx, "x", 32)
+# y = bv_const(ctx, "y", 32)
 
-s = Solver(ctx, "QF_BV")
-add(s, x & y & 3 == 1)
+# s = Solver(ctx, "QF_BV")
+# add(s, x & y & 3 == 1)
 
-res = check(s)
-@assert res == Z3.sat
+# res = check(s)
+# @assert res == Z3.sat
 
-m = get_model(s)
+# m = get_model(s)
 
-for (k, v) in consts(m)
-    println("$(k) = $(get_numeral_int64(v))")
-end
+# for (k, v) in consts(m)
+#     println("$(k) = $(get_numeral_int64(v))")
+# end
 
 function bitarr_to_int(arr, val = 0)
   v = 2^(length(arr)-1)

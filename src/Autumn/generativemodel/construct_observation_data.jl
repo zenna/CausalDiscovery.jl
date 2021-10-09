@@ -1,3 +1,9 @@
+
+# remove out-of-bounds cells from frames 
+function filter_out_of_bounds_cells(observations, grid_size) 
+  map(obs -> filter(cell -> cell.position.x in collect(0:(grid_size - 1)) && cell.position.y in collect(0:(grid_size - 1)), obs), observations)
+end
+
 function generate_observations_ice(m::Module)
   state = Base.invokelatest(m.init, nothing, nothing, nothing, nothing, nothing)
   observations = []
@@ -122,7 +128,8 @@ function generate_observations_space_invaders(m::Module)
     end
     push!(observations, Base.invokelatest(m.render, state.scene))
   end
-  observations, user_events, 16
+  # observations, user_events, 16
+  filter_out_of_bounds_cells(observations, 16), user_events, 16
 end
 
 function generate_observations_disease(m::Module)
@@ -246,11 +253,11 @@ function generate_observations_wind(m::Module)
   user_events = []
   push!(observations, Base.invokelatest(m.render, state.scene))
 
-  for i in 0:17
+  for i in 0:19
     if i in [8, 11]
       state = Base.invokelatest(m.next, state, nothing, Base.invokelatest(m.Left), nothing, nothing, nothing)
       push!(user_events, "left")
-    elseif i in [4, 14]
+    elseif i in [4, 16]
       state = Base.invokelatest(m.next, state, nothing, nothing, Base.invokelatest(m.Right), nothing, nothing)
       push!(user_events, "right")
     else
@@ -259,7 +266,7 @@ function generate_observations_wind(m::Module)
     end
     push!(observations, Base.invokelatest(m.render, state.scene))
   end
-  observations, user_events, 17
+  filter_out_of_bounds_cells(observations, 17), user_events, 17
 end
 
 function generate_observations_gravity(m::Module)
@@ -272,9 +279,9 @@ function generate_observations_gravity(m::Module)
                  2 => (2, 3),
                  3 => (0, 7),
                  5 => (11, 8),
-                 7 => (15, 7),
-                 10 => (7, 0),
-                 14 => (7, 15),
+                 8 => (15, 7),
+                 11 => (7, 0),
+                 13 => (7, 15),
                 ])
 
   for i in 0:17
@@ -594,17 +601,32 @@ function generate_observations_gravity2(m::Module)
   user_events = []
   push!(observations, Base.invokelatest(m.render, state.scene))
 
-  clicks = Dict([1 => (15, 6),
-                 3 => (12, 3),
-                 5 => (18, 10),
-                 7 => (0, 14),
-                 9 => (20, 8),
-                 11 => (23, 3),
-                 13 => (17, 13),
+  # clicks = Dict([1 => (15, 6), # X
+  #                2 => (15, 6), # same click (no add)
+  #                3 => (12, 3), # Y
+  #                5 => (18, 10), # Z
+  #                7 => (0, 14), 
+  #                9 => (20, 8), # X
+  #                11 => (23, 3), # Y
+  #                13 => (17, 13), # Z
+  #                15 => (29, 14),
+  #                17 => (14, 0),
+  #                19 => (14, 29),
+  #                20 => (28, 5), # X
+  #                 ])
+
+  clicks = Dict([1 => (15, 6), # X
+                 2 => (15, 6), # same click (no add)
+                 3 => (12, 3), # Y
+                 5 => (18, 10), # Z
+                 7 => (20, 8), # X
+                 9 => (0, 14), 
+                 11 => (23, 3), # Y
+                 13 => (17, 13), # Z
                  15 => (29, 14),
-                 17 => (14, 0),
-                 19 => (14, 29),
-                 20 => (28, 5),
+                 17 => (14, 29),
+                 19 => (14, 0),
+                 21 => (28, 5), # X
                   ])
 
   for i in 0:22
@@ -726,24 +748,36 @@ function generate_observations_sokoban(m::Module)
                  6 => "down",
                  7 => "left",
                  8 => "left",
-                 9 => "left",
                  10 => "left",
                  11 => "left",
                  12 => "left",
-                 13 => "up",
+                 13 => "left",
                  14 => "up",
-                 15 => "left",
+                 15 => "up",
                  16 => "left",
                  17 => "left",
-                 18 => "down",
-                 19 => "left",
+                 18 => "left",
+                 19 => "down",
                  20 => "left",
-                 21 => "up",
+                 21 => "left",
                  22 => "up",
-                 23 => "up",
-                ])
+                 24 => "up",
+                 26 => "up",
+                 27 => "down",
+                 28 => "down",
+                 29 => "down",
+                 30 => "right",
+                 31 => "right",
+                 32 => "down",
+                 33 => "down",
+                 34 => "left",
+                 35 => "up",
+                 36 => "up",
+                 37 => "up",
+                 38 => "up",
+                 ])
 
-  for i in 0:23
+  for i in 0:40
     if i in collect(keys(events))
       event = events[i]
       if event == "left"
@@ -848,6 +882,62 @@ function generate_observations_mario(m::Module)
   observations, user_events, 16
 end
 
+function generate_observations_bullets(m::Module)
+  state = Base.invokelatest(m.init, nothing, nothing, nothing, nothing, nothing)
+  observations = []
+  user_events = []
+  push!(observations, Base.invokelatest(m.render, state.scene))
+
+  events = Dict([5 => "left",
+                 7 => "click 1 1",
+                 8 => "up",
+                 10 => "click 2 2",
+                 11 => "right",
+                 13 => "click 3 3",
+                 14 => "down",
+                 16 => "click 4 4",
+                 17 => "left",
+                 18 => "left",
+                 19 => "left",
+                 21 => "click 1 0",
+                 23 => "up",
+                 25 => "click 2 0",
+                 26 => "right",
+                 28 => "click 3 0",
+                 29 => "down",
+                 30 => "click 4 0", 
+                ])
+
+  for i in 5:32
+    if i in collect(keys(events))
+      event = events[i]
+      if event == "left"
+        state = Base.invokelatest(m.next, state, nothing, Base.invokelatest(m.Left), nothing, nothing, nothing)
+        push!(user_events, event)
+      elseif event == "right"
+        state = Base.invokelatest(m.next, state, nothing, nothing, Base.invokelatest(m.Right), nothing, nothing)
+        push!(user_events, event)
+      elseif event == "up"
+        state = Base.invokelatest(m.next, state, nothing, nothing, nothing, Base.invokelatest(m.Up), nothing)
+        push!(user_events, event)
+      elseif event == "down"
+        state = Base.invokelatest(m.next, state, nothing, nothing, nothing, nothing, Base.invokelatest(m.Down))
+        push!(user_events, event)
+      elseif occursin("click", event)
+        x = parse(Int, split(event, " ")[2])
+        y = parse(Int, split(event, " ")[3])
+        state = Base.invokelatest(m.next, state, Base.invokelatest(m.Click, x, y), nothing, nothing, nothing, nothing)
+        push!(user_events, event)
+      end
+    else
+      state = Base.invokelatest(m.next, state, nothing, nothing, nothing, nothing, nothing)
+      push!(user_events, nothing)
+    end
+    push!(observations, Base.invokelatest(m.render, state.scene))
+  end
+  observations, user_events, 16
+end
+
 
 # PEDRO 
 pedro_output_folder = "/Users/riadas/Documents/urop/RC_RL/autumn_renders/"
@@ -872,3 +962,4 @@ function generate_observations_pedro(game_name)
 
   observations, user_events, [900, 330]
 end
+

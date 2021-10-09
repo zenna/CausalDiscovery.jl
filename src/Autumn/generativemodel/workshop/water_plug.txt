@@ -1,4 +1,4 @@
-(program
+ (program
   (= GRID_SIZE 16)
   (= background "white")
   (object ObjType1 (: field1 Int) (list (Cell 0 0  "purple" )))
@@ -21,26 +21,30 @@
   (= addedObjType3List (initnext (list (ObjType3 2 (Position 8 0))) (prev addedObjType3List)))
   (= obj22 (initnext (ObjType4  (Position 11 0)) (prev obj22)))
   (= obj23 (initnext (ObjType5  (Position 14 0)) (prev obj23)))
-
+  
   (= addedObjType4List (initnext (list) (prev addedObjType4List)))
   (= addedObjType5List (initnext (list) (prev addedObjType5List)))
 
-         (: globalVar1 Int)
-         (= globalVar1 (initnext 1 (prev globalVar1)))
+	 (: globalVar1 Int)
+	 (= globalVar1 (initnext 1 (prev globalVar1)))
 
   (: time Int)
   (= time (initnext 0 (+ time 1)))
 
   (on true
 (= addedObjType1List (removeObj addedObjType1List (--> obj (& (clicked (prev obj23)) (== (.. obj field1) 1))))))
-  (on (& (== (prev globalVar1) 1) (& clicked (isFree click))) (let ((= addedObjType1List (addObj addedObjType1List (ObjType1  (Position (.. click x) (.. click y))))))))
+  (on (& (== (prev globalVar1) 1) (& clicked (isFree click)))
+(let ((= addedObjType1List (addObj addedObjType1List (ObjType1 1  (Position (.. click x) (.. click y))))))))
   (on true
 (= addedObjType2List (removeObj addedObjType2List (--> obj (& (| (clicked (prev obj22)) (clicked (prev obj23))) (== (.. obj field1) 1))))))
-  (on (& (== (prev globalVar1) 2) (& clicked (isFree click))) (let ((= addedObjType2List (addObj addedObjType2List (ObjType2  (Position (.. click x) (.. click y))))))))
+  (on (& (== (prev globalVar1) 2) (& clicked (isFree click)))
+(let ((= addedObjType2List (addObj addedObjType2List (ObjType2 1  (Position (.. click x) (.. click y))))))))
   (on true
 (= addedObjType3List (updateObj addedObjType3List (--> obj (nextLiquid (prev obj))) (--> obj (& true (== (.. obj field1) 1))))))
-  (on (& (== (prev globalVar1) 3) (& clicked (isFree click))) (let ((= addedObjType3List (addObj addedObjType3List (ObjType3  (Position (.. click x) (.. click y))))))))
-  (on true (= addedObjType3List (removeObj addedObjType3List (--> obj (& (clicked (prev obj23)) (intersects (list 1) (map (--> obj (.. obj field1)) (list (prev obj)))))))))
+  (on (& (== (prev globalVar1) 3) (& clicked (isFree click)))
+(let ((= addedObjType3List (addObj addedObjType3List (ObjType3 1  (Position (.. click x) (.. click y))))))))
+  (on true
+(= addedObjType3List (removeObj addedObjType3List (--> obj (& (clicked (prev obj23)) (intersects (list 1) (map (--> obj (.. obj field1)) (list (prev obj)))))))))
   (on (clicked (filter (--> obj (== (.. obj id) 20)) (prev addedObjType2List)))
 (= globalVar1 2))
   (on (clicked (filter (--> obj (== (.. obj id) 21)) (prev addedObjType3List)))
