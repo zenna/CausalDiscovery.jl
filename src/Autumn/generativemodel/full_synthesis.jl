@@ -1,33 +1,116 @@
 include("singletimestepsolution.jl");
 include("global_heuristic_automata_synthesis.jl")
 function workshop_evaluation() 
-  # sols = synthesize_program("wind", singlecell=false, interval_painting_param=true, upd_func_spaces=[1])
-  # sols = synthesize_program("disease", singlecell=false, upd_func_spaces=[2]) # remove lines 515, 516, 518, 519
-  # sols = synthesize_program("particles", singlecell=true, upd_func_spaces=[1])
-  # sols = synthesize_program("chase", singlecell=true, upd_func_spaces=[5])
-  # sols = synthesize_program("lights", singlecell=true, upd_func_spaces=[5])
-  # sols = synthesize_program("ants", singlecell=true, desired_solution_count=2, upd_func_spaces=[5]) # take second solution (random)
-  # sols = synthesize_program("ice", singlecell=false, desired_solution_count=1, upd_func_spaces=[3]) # remove "(== (% (prev time) 4) 2)"
-  # sols = synthesize_program("space_invaders", singlecell=true, upd_func_spaces=[1]) # no bullet intersection in obs. seq.
+  sols = synthesize_program("wind", singlecell=false, interval_painting_param=true, upd_func_spaces=[1])
+  sols = synthesize_program("disease", singlecell=false, upd_func_spaces=[2]) # remove lines 515, 516, 518, 519
+  sols = synthesize_program("particles", singlecell=true, upd_func_spaces=[1])
+  sols = synthesize_program("chase", singlecell=true, upd_func_spaces=[5])
+  sols = synthesize_program("lights", singlecell=true, upd_func_spaces=[5])
+  sols = synthesize_program("ants", singlecell=true, desired_solution_count=2, upd_func_spaces=[5]) # take second solution (random)
+  sols = synthesize_program("ice", singlecell=false, desired_solution_count=1, upd_func_spaces=[3]) # remove "(== (% (prev time) 4) 2)"
+  sols = synthesize_program("space_invaders", singlecell=true, upd_func_spaces=[1]) # no bullet intersection in obs. seq.
   sols = synthesize_program("mario", singlecell=false, desired_per_matrix_solution_count=5, upd_func_spaces=[4]) # first out of 4 sols
-  # sols = synthesize_program("paint", singlecell=false, desired_solution_count=1, upd_func_spaces=[1])
-  # sols = synthesize_program("water_plug", singlecell=true, desired_solution_count=1, upd_func_spaces=[1]) # add "|"-based transition events to event space
-  # sols = synthesize_program("sokoban_i", singlecell=true, desired_solution_count=1, upd_func_spaces=[1])
-  # sols = synthesize_program("magnets_i", singlecell=false, desired_solution_count=1, upd_func_spaces=[1])
-  # sols = synthesize_program("gravity_i", singlecell=false, desired_solution_count=1, upd_func_spaces=[2])
-  # sols = synthesize_program("gravity_ii", singlecell=false, desired_solution_count=1, upd_func_spaces=[2]) # add special case, remove line 477 + single.jl line 1929 
+  sols = synthesize_program("paint", singlecell=false, desired_solution_count=1, upd_func_spaces=[1])
+  sols = synthesize_program("water_plug", singlecell=true, desired_solution_count=1, upd_func_spaces=[1]) # add "|"-based transition events to event space
+  sols = synthesize_program("sokoban_i", singlecell=true, desired_solution_count=1, upd_func_spaces=[1])
+  sols = synthesize_program("magnets_i", singlecell=false, desired_solution_count=1, upd_func_spaces=[1])
+  sols = synthesize_program("gravity_i", singlecell=false, desired_solution_count=1, upd_func_spaces=[2])
+  sols = synthesize_program("gravity_ii", singlecell=false, desired_solution_count=1, upd_func_spaces=[2]) # add special case, remove line 477 + single.jl line 1929 
   # grow: not including
+end
+
+# sols = synthesize_program("wind", singlecell=false, interval_painting_param=true, upd_func_spaces=[1])
+# sols = synthesize_program("disease", singlecell=false, upd_func_spaces=[2]) # remove lines 515, 516, 518, 519
+# sols = synthesize_program("particles", singlecell=true, upd_func_spaces=[1])
+# sols = synthesize_program("chase", singlecell=true, upd_func_spaces=[5]) # TIME-BASED
+# sols = synthesize_program("lights", singlecell=true, upd_func_spaces=[5])
+# sols = synthesize_program("ants", singlecell=true, desired_solution_count=2, upd_func_spaces=[5]) # take second solution (random)
+# sols = synthesize_program("ice", singlecell=false, desired_solution_count=1, upd_func_spaces=[3]) # remove "(== (% (prev time) 4) 2)"
+# sols = synthesize_program("space_invaders", singlecell=true, upd_func_spaces=[1]) YAY # TIME-BASED
+# sols = synthesize_program("mario", singlecell=false, desired_per_matrix_solution_count=5, upd_func_spaces=[4]) # first out of 4 sols
+# sols = synthesize_program("paint", singlecell=false, desired_solution_count=1, upd_func_spaces=[1])
+# sols = synthesize_program("water_plug", singlecell=true, desired_solution_count=1, upd_func_spaces=[6]) # add "|"-based transition events to event space
+# sols = synthesize_program("sokoban_i", singlecell=true, desired_solution_count=1, upd_func_spaces=[1]) 
+# sols = synthesize_program("magnets_i", singlecell=false, desired_solution_count=1, upd_func_spaces=[1]) YAY
+# sols = synthesize_program("gravity_i", singlecell=false, desired_solution_count=1, upd_func_spaces=[2])
+# sols = synthesize_program("gravity_ii", singlecell=false, desired_solution_count=1, upd_func_spaces=[2]) # add special case
+
+
+function conf_evaluation() 
+  # for upd_func_space in [1,2,3,4,5,6]
+  #   sols = synthesize_program("wind", singlecell=false, interval_painting_param=true, upd_func_spaces=[upd_func_space], time_based=true)
+  # end
+
+  # for upd_func_space in [1,2,3,4,5,6]
+  #   sols = synthesize_program("disease", singlecell=false, upd_func_spaces=[upd_func_space]) # remove lines 515, 516, 518, 519
+  # end
+
+  # for upd_func_space in [1,2,3,4,5,6]
+  #   sols = synthesize_program("particles", singlecell=true, upd_func_spaces=[upd_func_space])
+  # end
+
+  for upd_func_space in [1,2,3,4,5,6]
+    sols = synthesize_program("chase", singlecell=true, upd_func_spaces=[upd_func_space], time_based=true) # TIME-BASED
+  end
+
+  for upd_func_space in [1,2,3,4,5,6]
+    sols = synthesize_program("lights", singlecell=true, upd_func_spaces=[upd_func_space])
+  end
+
+  for upd_func_space in [1,2,3,4,5,6]
+    sols = synthesize_program("ants", singlecell=true, desired_solution_count=2, upd_func_spaces=[upd_func_space]) # take second solution (random)
+  end
+
+  for upd_func_space in [1,2,3,4,5,6]
+    sols = synthesize_program("ice", singlecell=false, desired_solution_count=1, upd_func_spaces=[upd_func_space]) # remove "(== (% (prev time) 4) 2)"
+  end
+
+  for upd_func_space in [1,2,3,4,5,6]
+    sols = synthesize_program("space_invaders", singlecell=true, upd_func_spaces=[upd_func_space], time_based=true) # YAY # TIME-BASED
+  end
+
+  for upd_func_space in [1,2,3,4,5,6]
+    sols = synthesize_program("mario", singlecell=false, desired_per_matrix_solution_count=5, upd_func_spaces=[upd_func_space]) # first out of 4 sols
+  end
+
+  for upd_func_space in [1,2,3,4,5,6]
+    sols = synthesize_program("paint", singlecell=false, desired_solution_count=1, upd_func_spaces=[upd_func_space])
+  end
+
+  # for upd_func_space in [1,2,3,4,5,6]
+  #   sols = synthesize_program("water_plug", singlecell=true, desired_solution_count=1, upd_func_spaces=[upd_func_space]) # add "|"-based transition events to event space
+  # end
+
+  for upd_func_space in [1,2,3,4,5,6]
+    sols = synthesize_program("sokoban_i", singlecell=true, desired_solution_count=1, upd_func_spaces=[upd_func_space]) 
+  end
+
+  for upd_func_space in [1,2,3,4,5,6]
+    sols = synthesize_program("magnets_i", singlecell=false, desired_solution_count=1, upd_func_spaces=[upd_func_space]) # YAY
+  end
+
+  for upd_func_space in [1,2,3,4,5,6]
+    sols = synthesize_program("gravity_i", singlecell=false, desired_solution_count=1, upd_func_spaces=[upd_func_space])
+  end
+
+  for upd_func_space in [1,2,3,4,5,6]
+    sols = synthesize_program("gravity_ii", singlecell=false, desired_solution_count=1, upd_func_spaces=[upd_func_space]) # add special case
+  end
+
 end
 
 
 function synthesize_program(model_name::String; 
                             singlecell = false,
                             pedro = false,
-                            desired_solution_count = 1,
+                            desired_solution_count = 1, # 2
                             desired_per_matrix_solution_count = 1, # 5
                             interval_painting_param = false, 
-                            upd_func_spaces = [1]
+                            upd_func_spaces = [1],
+                            z3_option = "none",
+                            time_based=false,
                             )
+  println(string("CURRENTLY WORKING ON: ", model_name))
   if pedro 
     observations, user_events, grid_size = generate_observations_pedro(model_name)
   else
@@ -37,12 +120,19 @@ function synthesize_program(model_name::String;
   program_strings = []
   global_event_vector_dict = Dict()
   redundant_events_set = Set()
-  for upd_func_space in upd_func_spaces # 1, 2, 3
+  for upd_func_space in upd_func_spaces # 1, 2, 3 
     matrix, unformatted_matrix, object_decomposition, prev_used_rules = singletimestepsolution_matrix(observations, user_events, grid_size, singlecell=singlecell, pedro=pedro, upd_func_space=upd_func_space)
-    solutions = generate_on_clauses_GLOBAL(matrix, unformatted_matrix, object_decomposition, user_events, global_event_vector_dict, redundant_events_set, grid_size, desired_solution_count, desired_per_matrix_solution_count, interval_painting_param)
+    # generate_on_clauses_GLOBAL
+    # generate_on_clauses
+    # generate_on_clauses_SKETCH_SINGLE
+    # solutions = generate_on_clauses(matrix, unformatted_matrix, object_decomposition, user_events, global_event_vector_dict, redundant_events_set, grid_size, desired_solution_count, desired_per_matrix_solution_count, interval_painting_param, z3_option, time_based)
+    solutions = generate_on_clauses_GLOBAL(matrix, unformatted_matrix, object_decomposition, user_events, global_event_vector_dict, redundant_events_set, grid_size, desired_solution_count, desired_per_matrix_solution_count, interval_painting_param, false)
+    # solutions = generate_on_clauses_SKETCH_MULTI(matrix, unformatted_matrix, object_decomposition, user_events, global_event_vector_dict, redundant_events_set, grid_size, desired_solution_count, desired_per_matrix_solution_count, interval_painting_param)
     for solution in solutions 
       if solution[1] != [] 
         on_clauses, new_object_decomposition, global_var_dict = solution
+        @show on_clauses 
+        
         program = full_program_given_on_clauses(on_clauses, new_object_decomposition, global_var_dict, grid_size)
         push!(program_strings, program)
       end
@@ -53,13 +143,22 @@ function synthesize_program(model_name::String;
     # end    
   end
   
-  open("/Users/riadas/Documents/urop/CausalDiscovery.jl/src/Autumn/generativemodel/workshop/$(model_name).txt","w") do io
-    if model_name != "ants" 
-      println(io, program_strings[1])
-    else
-      println(io, program_strings[2])
-    end
-  end
+  # open("/Users/riadas/Documents/urop/CausalDiscovery.jl/src/Autumn/generativemodel/workshop/$(model_name).txt","w") do io
+  #   if model_name != "ants" 
+  #     println(io, program_strings[1])
+  #   else
+  #     println(io, program_strings[2])
+  #   end
+  # end
+
+  # open("/Users/riadas/Documents/urop/CausalDiscovery.jl/src/Autumn/generativemodel/conference/$(model_name).txt","a") do io
+  #   println(io, string("BEGIN UPDATE FUNC SPACE: ", upd_func_spaces[1], "\n\n\n"))
+  #   for program_string in program_strings
+  #     println(io, program_string)
+  #     println(io, "\n\n\n")
+  #   end
+  #   println(io, "END UPDATE FUNC SPACE: $(upd_func_spaces[1]) \n\n\n")
+  # end
 
   program_strings
 end
@@ -69,7 +168,11 @@ function synthesis_program_pedro(observations::AbstractArray)
 end
 
 function generate_observations(model_name::String)
-  program_expr = compiletojulia(parseautumn(programs[model_name]))
+  if occursin("count_", model_name)
+    program_expr = compiletojulia(parseautumn(programs["count"]))
+  else
+    program_expr = compiletojulia(parseautumn(programs[model_name]))  
+  end
   m = eval(program_expr)
   if model_name == "particles"
     observations, user_events, grid_size = generate_observations_particles(m)
@@ -125,6 +228,14 @@ function generate_observations(model_name::String)
     observations, user_events, grid_size = generate_observations_chase(m)
   elseif model_name == "bullets"
     observations, user_events, grid_size = generate_observations_bullets(m)
+  elseif model_name == "count_1"
+    observations, user_events, grid_size = generate_observations_count_1(m)
+  elseif model_name == "count_2"
+    observations, user_events, grid_size = generate_observations_count_2(m)
+  elseif model_name == "count_3"
+    observations, user_events, grid_size = generate_observations_count_3(m)
+  elseif model_name == "count_4"
+    observations, user_events, grid_size = generate_observations_count_4(m)
   else
     error("model $(model_name) does not exist")
   end
@@ -627,14 +738,14 @@ programs = Dict("particles"                                 => """(program
                                                                     (on (clicked downButton) (= gravity "down"))
                                                                   )"""
                 ,"gravity_iii"                                 => """(program
-                                                                    (= GRID_SIZE 19)
+                                                                    (= GRID_SIZE 40)
                                                                     (= background "black")
                                                                       
                                                                     (object Button (: color String) (Cell 0 0 color))
                                                                     (object Blob (list (Cell 0 0 "blue")))
                                                                     
                                                                     (: blobs (List Blob))
-                                                                    (= blobs (initnext (list (Blob (Position 9 9))) (prev blobs)))
+                                                                    (= blobs (initnext (list (Blob (Position 19 19))) (prev blobs)))
                                                                     
                                                                     (: xVel Int)
                                                                     (= xVel (initnext 0 (prev xVel)))
@@ -649,8 +760,8 @@ programs = Dict("particles"                                 => """(program
                                                                   
                                                                     (on (& up (!= (prev yVel) -1)) (= yVel (- (prev yVel) 1)))
                                                                     (on (& down (!= (prev yVel) 1)) (= yVel (+ (prev yVel) 1)))
-                                                                  
-                                                                    (on true (= blobs (updateObj blobs (--> obj (moveNoCollision obj (Position xVel yVel))))))
+                                                                    
+                                                                    (on true (= blobs (updateObj blobs (--> obj (moveNoCollision obj (Position (prev xVel) (prev yVel)))))))
                                                                   )"""
                 ,"egg"                                         => """(program
                                                                     (= GRID_SIZE 16)
@@ -807,4 +918,32 @@ programs = Dict("particles"                                 => """(program
                                                                       (on (& clicked (== dir "up")) (= bullets (addObj bullets (Bullet "up" (.. (moveUp particle) origin)))))
                                                                       (on (& clicked (== dir "down")) (= bullets (addObj bullets (Bullet "down" (.. (moveDown particle) origin)))))
                                                                     )"""
+                , "count" =>                                     """(program
+                                                                    (= GRID_SIZE 100)
+                                                                      
+                                                                    (object Button (: color String) (Cell 0 0 color))
+                                                                    (object Blob (list (Cell 0 0 "blue")))
+                                                                    
+                                                                    (: blobs (List Blob))
+                                                                    (= blobs (initnext (list (Blob (Position 50 50))) (prev blobs)))
+                                                                    
+                                                                    (: xVel Int)
+                                                                    (= xVel (initnext 0 (prev xVel)))
+                                                                    
+                                                                    (: yVel Int)
+                                                                    (= yVel (initnext 0 (prev yVel)))
+                                                                    
+                                                                    (: xActive Bool)
+                                                                    (= xActive (initnext true (prev xActive)))
+
+                                                                    (on clicked (= xActive (! xActive)))
+                                                                    
+                                                                    (on (& left xActive) (= xVel (- (prev xVel) 1)))
+                                                                    (on (& right xActive) (= xVel (+ (prev xVel) 1)))
+
+                                                                    (on (& up (! xActive)) (= yVel (- (prev yVel) 1)))
+                                                                    (on (& down (! xActive)) (= yVel (+ (prev yVel) 1)))
+
+                                                                    (on true (= blobs (updateObj blobs (--> obj (moveNoCollision obj (Position (sign (prev xVel)) (sign (prev yVel))))))))
+                                                                  )""",
                 )

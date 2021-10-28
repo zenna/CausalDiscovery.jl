@@ -15,22 +15,20 @@
   (= addedObjType1List (initnext (list) (prev addedObjType1List)))
   (= addedObjType2List (initnext (list) (prev addedObjType2List)))
 
-	 (: globalVar2 Int)
-	 (= globalVar2 (initnext 2 (prev globalVar2)))
 	 (: globalVar1 Int)
-	 (= globalVar1 (initnext 3 (prev globalVar1)))
+	 (= globalVar1 (initnext 4 (prev globalVar1)))
 
   (: time Int)
   (= time (initnext 0 (+ time 1)))
 
   (on left
 (= obj1 (moveLeft (prev obj1))))
-  (on down
-(= obj1 (moveDown (prev obj1))))
-  (on right
-(= obj1 (moveRight (prev obj1))))
   (on up
 (= obj1 (moveUp (prev obj1))))
+  (on right
+(= obj1 (moveRight (prev obj1))))
+  (on down
+(= obj1 (moveDown (prev obj1))))
   (on true
 (= addedObjType2List (updateObj addedObjType2List (--> obj (moveLeft (prev obj))) (--> obj true))))
   (on true
@@ -39,23 +37,23 @@
 (= addedObjType2List (updateObj addedObjType2List (--> obj (moveRight (prev obj))) (--> obj (& true (== (.. obj field1) 2))))))
   (on true
 (= addedObjType2List (updateObj addedObjType2List (--> obj (moveDown (prev obj))) (--> obj (& true (== (.. obj field1) 3))))))
-  (on (& (== (prev globalVar1) 1) clicked)
-(= addedObjType2List (addObj addedObjType2List (ObjType2 1  (move (.. obj1 origin) (Position 0 1))))))
-  (on (& (== (prev globalVar1) 2) clicked)
+  (on (& (== (prev globalVar1) 1) (& clicked (== (.. (.. (prev obj1) origin) y) 8)))
 (= addedObjType2List (addObj addedObjType2List (ObjType2 1  (move (.. obj1 origin) (Position 1 0))))))
-  (on (& (== (prev globalVar2) 1) clicked)
+  (on (& (== (prev globalVar1) 2) (& clicked (== (.. (.. (prev obj1) origin) y) 8)))
 (= addedObjType2List (addObj addedObjType2List (ObjType2 1  (move (.. obj1 origin) (Position 0 -1))))))
-  (on (& (== (prev globalVar2) 2) clicked)
+  (on (& (== (prev globalVar1) 3) (& clicked (== (.. (.. (prev obj1) origin) y) 8)))
+(= addedObjType2List (addObj addedObjType2List (ObjType2 1  (move (.. obj1 origin) (Position 0 1))))))
+  (on (& (== (prev globalVar1) 4) (& clicked (== (.. (.. (prev obj1) origin) y) 8)))
 (= addedObjType2List (addObj addedObjType2List (ObjType2 1  (move (.. obj1 origin) (Position -1 0))))))
+  (on (& clicked (== (prev globalVar1) 2))
+(= addedObjType2List (addObj addedObjType2List (ObjType2 1  (move (.. obj1 origin) (Position 0 -1))))))
+  (on (& clicked (== (prev globalVar1) 1))
+(= addedObjType2List (addObj addedObjType2List (ObjType2 1  (move (.. obj1 origin) (Position 1 0))))))
   (on left
-(= globalVar2 2))
+(= globalVar1 4))
   (on up
-(= globalVar2 1))
-  (on right
-(= globalVar2 2))
-  (on right
 (= globalVar1 2))
-  (on down
+  (on right
 (= globalVar1 1))
-  (on (& left (== (prev globalVar1) 1))
-(= globalVar1 2)))
+  (on down
+(= globalVar1 3)))

@@ -356,7 +356,7 @@ function generate_observations_sand_simple(m::Module)
   observations, user_events, 10
 end
 
-function generation_observations_gravity3(m::Module)
+function generate_observations_gravity3(m::Module)
   state = Base.invokelatest(m.init, nothing, nothing, nothing, nothing, nothing)
   observations = []
   user_events = []
@@ -388,6 +388,34 @@ function generation_observations_gravity3(m::Module)
                  24 => "up",
                 ])
 
+
+# events = Dict([1 => "left",
+# 3 => "up",
+# 5 => "down",
+# 7 => "down",
+# 9 => "up",
+# 11 => "right",
+# 13 => "right",
+# 15 => "up",
+# 17 => "down",
+# 19 => "down",
+# 21 => "up",
+# 23 => "left",
+# 25 => "up",
+# 27 => "left",
+# 29 => "right",
+# 31 => "right",
+# 33 => "left",
+# 35 => "down",
+# 37 => "down",
+# 39 => "left",
+# 41 => "right",
+# 43 => "right",
+# 45 => "left",
+# 47 => "up",
+# ]) 
+
+
   for i in 0:25
     if i in collect(keys(events))
       event = events[i]
@@ -407,7 +435,7 @@ function generation_observations_gravity3(m::Module)
     end
     push!(observations, Base.invokelatest(m.render, state.scene))
   end
-  observations, user_events, 16
+  observations, user_events, 40
 end
 
 function generate_observations_egg(m::Module)
@@ -806,6 +834,332 @@ function generate_observations_sokoban_2(m::Module)
 
 end
 
+function generate_observations_count_1(m::Module)
+  state = Base.invokelatest(m.init, nothing, nothing, nothing, nothing, nothing)
+  observations = []
+  user_events = []
+  push!(observations, Base.invokelatest(m.render, state.scene))
+
+  events = Dict([2 => "left",
+                 4 => "right",
+                 7 => "right",
+                 12 => "left",
+                ])
+
+  for i in 0:16
+    if i in collect(keys(events))
+      event = events[i]
+      if event == "left"
+        state = Base.invokelatest(m.next, state, nothing, Base.invokelatest(m.Left), nothing, nothing, nothing)
+        push!(user_events, event)
+      elseif event == "right"
+        state = Base.invokelatest(m.next, state, nothing, nothing, Base.invokelatest(m.Right), nothing, nothing)
+        push!(user_events, event)
+      elseif event == "up"
+        state = Base.invokelatest(m.next, state, nothing, nothing, nothing, Base.invokelatest(m.Up), nothing)
+        push!(user_events, event)
+      elseif event == "down"
+        state = Base.invokelatest(m.next, state, nothing, nothing, nothing, nothing, Base.invokelatest(m.Down))
+        push!(user_events, event)
+      elseif occursin("click", event)
+        x = parse(Int, split(event, " ")[2])
+        y = parse(Int, split(event, " ")[3])
+        state = Base.invokelatest(m.next, state, Base.invokelatest(m.Click, x, y), nothing, nothing, nothing, nothing)
+        push!(user_events, event)
+      end
+    else
+      state = Base.invokelatest(m.next, state, nothing, nothing, nothing, nothing, nothing)
+      push!(user_events, nothing)
+    end
+    push!(observations, Base.invokelatest(m.render, state.scene))
+  end
+  observations, user_events, 100
+end
+
+function generate_observations_count_2(m::Module)
+  state = Base.invokelatest(m.init, nothing, nothing, nothing, nothing, nothing)
+  observations = []
+  user_events = []
+  push!(observations, Base.invokelatest(m.render, state.scene))
+
+  events = Dict([
+                -6 => "left",
+                -3 => "right",
+                -1 => "right",
+                 1 => "left",
+    
+                 2 => "left",
+                 5 => "left",
+                 8 => "right",
+                 12 => "right",
+                 14 => "right",
+                 16 => "right",
+                 18 => "left",
+                 20 => "left",
+                 
+                ])
+
+  for i in -7:30
+    if i in collect(keys(events))
+      event = events[i]
+      if event == "left"
+        state = Base.invokelatest(m.next, state, nothing, Base.invokelatest(m.Left), nothing, nothing, nothing)
+        push!(user_events, event)
+      elseif event == "right"
+        state = Base.invokelatest(m.next, state, nothing, nothing, Base.invokelatest(m.Right), nothing, nothing)
+        push!(user_events, event)
+      elseif event == "up"
+        state = Base.invokelatest(m.next, state, nothing, nothing, nothing, Base.invokelatest(m.Up), nothing)
+        push!(user_events, event)
+      elseif event == "down"
+        state = Base.invokelatest(m.next, state, nothing, nothing, nothing, nothing, Base.invokelatest(m.Down))
+        push!(user_events, event)
+      elseif occursin("click", event)
+        x = parse(Int, split(event, " ")[2])
+        y = parse(Int, split(event, " ")[3])
+        state = Base.invokelatest(m.next, state, Base.invokelatest(m.Click, x, y), nothing, nothing, nothing, nothing)
+        push!(user_events, event)
+      end
+    else
+      state = Base.invokelatest(m.next, state, nothing, nothing, nothing, nothing, nothing)
+      push!(user_events, nothing)
+    end
+    push!(observations, Base.invokelatest(m.render, state.scene))
+  end
+  observations, user_events, 100
+end
+
+function generate_observations_count_3(m::Module)
+  state = Base.invokelatest(m.init, nothing, nothing, nothing, nothing, nothing)
+  observations = []
+  user_events = []
+  push!(observations, Base.invokelatest(m.render, state.scene))
+
+  events = Dict([
+                 -6 => "left",
+                 -3 => "right",
+                 -1 => "right",
+                 1 => "left",
+
+                 2 => "left",
+                 5 => "left",
+                 8 => "right",
+                 12 => "right",
+                 14 => "right",
+                 16 => "right",
+                 18 => "left",
+                 20 => "left",
+                
+                 22 => "left",
+                 25 => "left",
+                 28 => "left",
+                 31 => "right",
+                 35 => "right",
+                 39 => "right",
+                 43 => "right",
+                 45 => "right",
+                 47 => "right",
+                 50 => "left",
+                 52 => "left",
+                 54 => "left",
+                ])
+
+  for i in -7:60
+    if i in collect(keys(events))
+      event = events[i]
+      if event == "left"
+        state = Base.invokelatest(m.next, state, nothing, Base.invokelatest(m.Left), nothing, nothing, nothing)
+        push!(user_events, event)
+      elseif event == "right"
+        state = Base.invokelatest(m.next, state, nothing, nothing, Base.invokelatest(m.Right), nothing, nothing)
+        push!(user_events, event)
+      elseif event == "up"
+        state = Base.invokelatest(m.next, state, nothing, nothing, nothing, Base.invokelatest(m.Up), nothing)
+        push!(user_events, event)
+      elseif event == "down"
+        state = Base.invokelatest(m.next, state, nothing, nothing, nothing, nothing, Base.invokelatest(m.Down))
+        push!(user_events, event)
+      elseif occursin("click", event)
+        x = parse(Int, split(event, " ")[2])
+        y = parse(Int, split(event, " ")[3])
+        state = Base.invokelatest(m.next, state, Base.invokelatest(m.Click, x, y), nothing, nothing, nothing, nothing)
+        push!(user_events, event)
+      end
+    else
+      state = Base.invokelatest(m.next, state, nothing, nothing, nothing, nothing, nothing)
+      push!(user_events, nothing)
+    end
+    push!(observations, Base.invokelatest(m.render, state.scene))
+  end
+  observations, user_events, 100
+end
+
+function generate_observations_count_4(m::Module)
+  state = Base.invokelatest(m.init, nothing, nothing, nothing, nothing, nothing)
+  observations = []
+  user_events = []
+  push!(observations, Base.invokelatest(m.render, state.scene))
+
+  events = Dict([
+                -6 => "left",
+                -3 => "right",
+                -1 => "right",
+                 1 => "left",
+
+                 2 => "left",
+                 5 => "left",
+                 8 => "right",
+                12 => "right",
+                14 => "right",
+                16 => "right",
+                18 => "left",
+                20 => "left",
+              
+                22 => "left",
+                25 => "left",
+                28 => "left",
+                31 => "right",
+                35 => "right",
+                39 => "right",
+                43 => "right",
+                45 => "right",
+                47 => "right",
+                50 => "left",
+                52 => "left",
+                54 => "left",
+    
+                62 => "left",
+                65 => "left",
+                68 => "left",
+                70 => "left",
+                72 => "right",
+                75 => "right",
+                79 => "right",
+                83 => "right",
+                85 => "right",
+
+                87 => "right",
+                88 => "right",
+                90 => "right",
+                92 => "left",
+                94 => "left",
+                96 => "left",
+                97 => "left",
+                ])
+
+  for i in -7:100
+    if i in collect(keys(events))
+      event = events[i]
+      if event == "left"
+        state = Base.invokelatest(m.next, state, nothing, Base.invokelatest(m.Left), nothing, nothing, nothing)
+        push!(user_events, event)
+      elseif event == "right"
+        state = Base.invokelatest(m.next, state, nothing, nothing, Base.invokelatest(m.Right), nothing, nothing)
+        push!(user_events, event)
+      elseif event == "up"
+        state = Base.invokelatest(m.next, state, nothing, nothing, nothing, Base.invokelatest(m.Up), nothing)
+        push!(user_events, event)
+      elseif event == "down"
+        state = Base.invokelatest(m.next, state, nothing, nothing, nothing, nothing, Base.invokelatest(m.Down))
+        push!(user_events, event)
+      elseif occursin("click", event)
+        x = parse(Int, split(event, " ")[2])
+        y = parse(Int, split(event, " ")[3])
+        state = Base.invokelatest(m.next, state, Base.invokelatest(m.Click, x, y), nothing, nothing, nothing, nothing)
+        push!(user_events, event)
+      end
+    else
+      state = Base.invokelatest(m.next, state, nothing, nothing, nothing, nothing, nothing)
+      push!(user_events, nothing)
+    end
+    push!(observations, Base.invokelatest(m.render, state.scene))
+  end
+  observations, user_events, 100
+end
+
+function generate_observations_count_5(m::Module)
+  state = Base.invokelatest(m.init, nothing, nothing, nothing, nothing, nothing)
+  observations = []
+  user_events = []
+  push!(observations, Base.invokelatest(m.render, state.scene))
+
+  events = Dict([
+                -6 => "left",
+                -3 => "right",
+                -1 => "right",
+                1 => "left",
+
+                2 => "left",
+                5 => "left",
+                8 => "right",
+                12 => "right",
+                14 => "right",
+                16 => "right",
+                18 => "left",
+                20 => "left",
+              
+                22 => "left",
+                25 => "left",
+                28 => "left",
+                31 => "right",
+                35 => "right",
+                39 => "right",
+                43 => "right",
+                45 => "right",
+                47 => "right",
+                50 => "left",
+                52 => "left",
+                54 => "left",
+    
+                62 => "left",
+                65 => "left",
+                68 => "left",
+                70 => "left",
+                72 => "right",
+                75 => "right",
+                79 => "right",
+                83 => "right",
+                85 => "right",
+                
+                87 => "right",
+                88 => "right",
+                90 => "right",
+                92 => "left",
+                94 => "left",
+                96 => "left",
+                97 => "left",
+                ])
+
+  for i in -7:100
+    if i in collect(keys(events))
+      event = events[i]
+      if event == "left"
+        state = Base.invokelatest(m.next, state, nothing, Base.invokelatest(m.Left), nothing, nothing, nothing)
+        push!(user_events, event)
+      elseif event == "right"
+        state = Base.invokelatest(m.next, state, nothing, nothing, Base.invokelatest(m.Right), nothing, nothing)
+        push!(user_events, event)
+      elseif event == "up"
+        state = Base.invokelatest(m.next, state, nothing, nothing, nothing, Base.invokelatest(m.Up), nothing)
+        push!(user_events, event)
+      elseif event == "down"
+        state = Base.invokelatest(m.next, state, nothing, nothing, nothing, nothing, Base.invokelatest(m.Down))
+        push!(user_events, event)
+      elseif occursin("click", event)
+        x = parse(Int, split(event, " ")[2])
+        y = parse(Int, split(event, " ")[3])
+        state = Base.invokelatest(m.next, state, Base.invokelatest(m.Click, x, y), nothing, nothing, nothing, nothing)
+        push!(user_events, event)
+      end
+    else
+      state = Base.invokelatest(m.next, state, nothing, nothing, nothing, nothing, nothing)
+      push!(user_events, nothing)
+    end
+    push!(observations, Base.invokelatest(m.render, state.scene))
+  end
+  observations, user_events, 100
+end
+
 function generate_observations_mario(m::Module)
   state = Base.invokelatest(m.init, nothing, nothing, nothing, nothing, nothing)
   observations = []
@@ -908,7 +1262,7 @@ function generate_observations_bullets(m::Module)
                  30 => "click 4 0", 
                 ])
 
-  for i in 5:32
+  for i in 4:32
     if i in collect(keys(events))
       event = events[i]
       if event == "left"

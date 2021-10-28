@@ -1,3 +1,4 @@
+ 
 (program
   (= GRID_SIZE 16)
   (= background "white")
@@ -24,10 +25,10 @@
   (: time Int)
   (= time (initnext 0 (+ time 1)))
 
-  (on (| (== (% (prev time) 10) 5) (== (% (prev time) 10) 0))
+  (on (| (== (% (prev time) 10) 0) (== (% (prev time) 10) 5))
 (= addedObjType1List (updateObj addedObjType1List (--> obj (moveLeft (prev obj))) (--> obj true))))
   (on true
-(= addedObjType1List (updateObj addedObjType1List (--> obj (moveRight (prev obj))) (--> obj (| (& (== (% (prev time) 10) 0) (in 1 (map (--> obj (.. (.. obj origin) y)) (list (prev obj))))) (& (== (% (prev time) 10) 5) (in 3 (map (--> obj (.. (.. obj origin) y)) (list (prev obj))))))))))
+(= addedObjType1List (updateObj addedObjType1List (--> obj (moveRight (prev obj))) (--> obj (| (& (== (% (prev time) 10) 0) (in 1 (map (--> obj (.. (.. obj origin) y)) (list (prev obj))))) (& (in 3 (map (--> obj (.. (.. obj origin) y)) (list (prev obj)))) (== (% (prev time) 10) 5)))))))
   (on true
 (= addedObjType1List (removeObj addedObjType1List (--> obj (intersects (list (prev obj)) (prev addedObjType3List))))))
   (on right
@@ -39,10 +40,10 @@
   (on up
 (let ((= addedObjType3List (addObj addedObjType3List (ObjType3  (.. obj17 origin)))))))
   (on true
-(= addedObjType3List (removeObj addedObjType3List (--> obj (| (in 0 (map (--> obj (.. (.. obj origin) y)) (list (prev obj)))) (| (intersects (prev addedObjType4List) (list (prev obj))) (intersects (prev addedObjType1List) (list (prev obj)))))))))
+(= addedObjType3List (removeObj addedObjType3List (--> obj (| (in 0 (map (--> obj (.. (.. obj origin) y)) (list (prev obj)))) (intersects (list (prev obj)) (prev addedObjType1List)))))))
   (on true
 (= addedObjType4List (updateObj addedObjType4List (--> obj (moveDown (prev obj))) (--> obj true))))
   (on (== (% (prev time) 5) 2)
 (let ((= addedObjType4List (addObj addedObjType4List (ObjType4  (.. (uniformChoice (vcat (prev addedObjType1List) (prev addedObjType1List) (prev addedObjType1List) (prev addedObjType1List) (prev addedObjType1List) (prev addedObjType1List))) origin)))))))
   (on true
-(= addedObjType4List (removeObj addedObjType4List (--> obj (| (intersects (list (prev obj)) (prev addedObjType3List)) (in true (map (--> obj (! (isWithinBounds (moveDown obj)))) (list (prev obj))))))))))
+(= addedObjType4List (removeObj addedObjType4List (--> obj (in true (map (--> obj (! (isWithinBounds (moveDown obj)))) (list (prev obj)))))))))

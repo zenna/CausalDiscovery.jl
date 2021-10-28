@@ -2,6 +2,7 @@ using Autumn
 using MacroTools: striplines
 using StatsBase
 using Random
+using Pickle
 include("generativemodel.jl")
 include("state_construction_utils.jl")
 include("construct_observation_data.jl")
@@ -48,6 +49,15 @@ function singletimestepsolution_matrix(observations, user_events, grid_size; sin
                       "(= objX (moveLeft objX))",
                       "(= objX (moveRight objX))",
                     ]
+  if upd_func_space == 6 
+    prev_used_rules = [ "(= objX objX)",
+                        "(= objX (nextLiquid objX))",
+                        "(= objX (moveDown objX))",
+                        "(= objX (moveUp objX))",
+                        "(= objX (moveLeft objX))",
+                        "(= objX (moveRight objX))",
+                      ]
+  end
 
   if upd_func_space == 2 
     prev_used_rules = ["(= objX objX)",
@@ -73,13 +83,11 @@ function singletimestepsolution_matrix(observations, user_events, grid_size; sin
                         "(= objX (moveUp objX))",
                         "(= objX (moveLeft objX))",
                         "(= objX (moveRight objX))",
-                        "(= objX (moveLeftNoCollision objX))",
                         "(= objX (moveLeftNoCollision (moveUpNoCollision objX)))",
                         "(= objX (moveLeftNoCollision (moveDownNoCollision objX)))",
                         "(= objX (moveRightNoCollision objX))",
                         "(= objX (moveRightNoCollision (moveUpNoCollision objX)))",
                         "(= objX (moveRightNoCollision (moveDownNoCollision objX)))",
-                        "(= objX (moveUpNoCollision objX))",
                         "(= objX (moveUpNoCollision objX))",
                         "(= objX (moveDownNoCollision objX))",
                         "(= objX (moveLeftNoCollision objX))",
@@ -902,7 +910,7 @@ function abstract_string(string, object_decomposition, max_iters=25)
   solutions
 end
 
-function generate_on_clauses(matrix, unformatted_matrix, object_decomposition, user_events, global_event_vector_dict, redundant_events_set, grid_size=16, desired_solution_count=1, desired_per_matrix_solution_count=1, interval_painting_param=false)
+function generate_on_clauses(matrix, unformatted_matrix, object_decomposition, user_events, global_event_vector_dict, redundant_events_set, grid_size=16, desired_solution_count=1, desired_per_matrix_solution_count=1, interval_painting_param=false, z3_option="none", time_based=true)
   object_types, object_mapping, background, dim = object_decomposition
   solutions = []
 
@@ -941,8 +949,8 @@ function generate_on_clauses(matrix, unformatted_matrix, object_decomposition, u
   push!(filtered_matrices, filtered_random_matrices...)
 
   # # add "chaos" solution to filtered_matrices 
-  # filtered_unformatted_matrix = filter_update_function_matrix_multiple(unformatted_matrix, object_decomposition, multiple=false)[1]
-  # push!(filtered_matrices, filter_update_function_matrix_multiple(construct_chaos_matrix(filtered_unformatted_matrix, object_decomposition), object_decomposition, multiple=false)...)
+  filtered_unformatted_matrix = filter_update_function_matrix_multiple(unformatted_matrix, object_decomposition, multiple=false)[1]
+  push!(filtered_matrices, filter_update_function_matrix_multiple(construct_chaos_matrix(filtered_unformatted_matrix, object_decomposition), object_decomposition, multiple=false)...)
 
   # @show length(filtered_matrices)
 
@@ -1048,29 +1056,31 @@ function generate_on_clauses(matrix, unformatted_matrix, object_decomposition, u
         end
         
         no_change_rules = filter(x -> is_no_change_rule(x), unique(all_update_rules))
-        # all_update_rules = reverse(sort(filter(x -> !is_no_change_rule(x), all_update_rules), by=x -> count(y -> y == x, update_rule_set)))
-        # all_update_rules = unique(all_update_rules)
-        all_update_rules = filter(x -> !is_no_change_rule(x), unique(all_update_rules))
+        all_update_rules = reverse(sort(filter(x -> !is_no_change_rule(x), all_update_rules), by=x -> count(y -> y == x, update_rule_set)))
+        all_update_rules = unique(all_update_rules)
 
-        # sort all_update_rules 
-        freq_dict = Dict()
-        for u in all_update_rules 
-          c = count(x -> x == u, update_rule_set)
-          if c in keys(freq_dict) 
-            push!(freq_dict[c], u) 
-          else
-            freq_dict[c] = [u]
-          end
-        end
+        # all_update_rules = filter(x -> !is_no_change_rule(x), unique(all_update_rules))
 
-        for freq in collect(keys(freq_dict))
-          freq_dict[freq] = sort(freq_dict[freq], by=u -> sort(findall(x -> x == [u], anonymized_filtered_matrix), by=y -> y[2])[1][2])
-        end
-        all_update_rules = vcat(map(freq -> freq_dict[freq], reverse(sort(collect(keys(freq_dict)))))...)
+        # # sort all_update_rules 
+        # freq_dict = Dict()
+        # for u in all_update_rules 
+        #   c = count(x -> x == u, update_rule_set)
+        #   if c in keys(freq_dict) 
+        #     push!(freq_dict[c], u) 
+        #   else
+        #     freq_dict[c] = [u]
+        #   end
+        # end
+
+        # for freq in collect(keys(freq_dict))
+        #   freq_dict[freq] = sort(freq_dict[freq], by=u -> sort(findall(x -> x == [u], anonymized_filtered_matrix), by=y -> y[2])[1][2])
+        # end
+        # all_update_rules = vcat(map(freq -> freq_dict[freq], reverse(sort(collect(keys(freq_dict)))))...)
 
         all_update_rules = [no_change_rules..., all_update_rules...]
   
-
+        @show type_id 
+        @show all_update_rules
         for update_rule_index in context_update_rule_index:length(all_update_rules)
           # @show update_rule_index 
           # @show length(all_update_rules)
@@ -1079,7 +1089,7 @@ function generate_on_clauses(matrix, unformatted_matrix, object_decomposition, u
           if update_rule != "" && !is_no_change_rule(update_rule)
             println("UPDATE_RULEEE")
             println(update_rule)
-            events, event_is_globals, event_vector_dict, observation_data_dict = generate_event(update_rule, all_update_rules, object_ids[1], object_ids, matrix, filtered_matrix, global_object_decomposition, user_events, state_update_on_clauses, global_var_dict, global_event_vector_dict, grid_size, redundant_events_set)
+            events, event_is_globals, event_vector_dict, observation_data_dict = generate_event(update_rule, all_update_rules, object_ids[1], object_ids, matrix, filtered_matrix, global_object_decomposition, user_events, state_update_on_clauses, global_var_dict, global_event_vector_dict, grid_size, redundant_events_set, 1, 400, z3_option, time_based)
             global_event_vector_dict = event_vector_dict
             println("EVENTS")
             println(events)
@@ -1310,19 +1320,26 @@ function format_on_clause(update_rule, event, object_id, object_ids, object_type
   on_clause 
 end
 
+function check_matrix_complete(matrix)
+  complete = true
+  for row in 1:size(matrix)[1]
+    for col in 1:size(matrix)[2]
+      if length(matrix[row, col]) == 0 
+        complete = false 
+        break
+      end
+    end
+  end
+  complete
+end
+
 "Select one update function from each matrix cell's update function set, which may contain multiple update functions"
 function filter_update_function_matrix_multiple(matrix, object_decomposition; multiple = true)
   object_types, object_mapping, _, _ = object_decomposition
 
-  for row in 1:size(matrix)[1]
-    for col in 1:size(matrix)[2]
-        if length(matrix[row, col]) == 0 
-            # # @show matrix
-            println("MATRIX BAD :(")
-            # # @show row
-            # # @show col
-        end
-    end
+  matrix_complete = check_matrix_complete(matrix)
+  if !matrix_complete 
+    return []
   end
 
   new_matrices = []
@@ -1623,7 +1640,7 @@ end
 # generate_event, generate_hypothesis_position, generate_hypothesis_position_program 
 ## tricky things: add user events, and fix environment 
 global hypothesis_state = nothing
-function generate_event(anonymized_update_rule, distinct_update_rules, object_id, object_ids, matrix, filtered_matrix, object_decomposition, user_events, state_update_on_clauses, global_var_dict, event_vector_dict, grid_size, redundant_events_set, min_events=1, max_iters=400)
+function generate_event(anonymized_update_rule, distinct_update_rules, object_id, object_ids, matrix, filtered_matrix, object_decomposition, user_events, state_update_on_clauses, global_var_dict, event_vector_dict, grid_size, redundant_events_set, min_events=1, max_iters=400, z3_option = "none", time_based=true)
   println("GENERATE EVENT")
   # # @show object_decomposition
   object_types, object_mapping, background, dim = object_decomposition 
@@ -1694,7 +1711,7 @@ function generate_event(anonymized_update_rule, distinct_update_rules, object_id
 
   found_events = []
   final_event_globals = []
-  new_choices = filter(e -> !(e in redundant_events_set), gen_event_bool(object_decomposition, "x", type_id, anonymized_update_rule, filter(e -> e != "", unique(user_events)), global_var_dict))
+  new_choices = filter(e -> !(e in redundant_events_set), gen_event_bool(object_decomposition, "x", type_id, anonymized_update_rule, filter(e -> e != "", unique(user_events)), global_var_dict, time_based))
   # @show length(new_choices)
   # @show length(collect(keys(event_vector_dict)))
   events_to_try = sort(unique(vcat(new_choices, collect(keys(event_vector_dict)))), by=length)
@@ -1883,16 +1900,146 @@ function generate_event(anonymized_update_rule, distinct_update_rules, object_id
     # remove duplicate events that are observationally equivalent
     event_vector_dict, redundant_events_set = prune_by_observational_equivalence(event_vector_dict, redundant_events_set)
 
-    if length(found_events) < min_events && !tried_compound_events
-      events_to_try = sort(unique(construct_compound_events(new_choices, event_vector_dict, redundant_events_set, object_decomposition)), by=length)
-      tried_compound_events = true
-    else
-     break
+    if z3_option in ["none", "partial"]
+      if length(found_events) < min_events && !tried_compound_events
+        events_to_try = sort(unique(construct_compound_events(new_choices, event_vector_dict, redundant_events_set, object_decomposition)), by=length)
+        tried_compound_events = true
+      else
+        if (z3_option == "partial") && length(found_events) < min_events
+          solution_event = z3_event_search_partial(observation_data_dict, event_vector_dict)
+          if solution_event != "" 
+            push!(found_events, solution_event)
+            if occursin("obj id) x", solution_event)
+              push!(final_event_globals, false)
+            else
+              push!(final_event_globals, true)
+            end
+  
+          end
+        end
+
+        break
+      end
+    elseif z3_option == "full"
+      @show anonymized_update_rule
+      if length(found_events) < min_events 
+        solution_event = z3_event_search_full(observation_data_dict, event_vector_dict)
+        if solution_event != "" 
+          push!(found_events, solution_event)
+          if occursin("obj id) x", solution_event)
+            push!(final_event_globals, false)
+          else
+            push!(final_event_globals, true)
+          end
+
+        end
+        _ = construct_compound_events(new_choices, event_vector_dict, redundant_events_set, object_decomposition)
+      end
+      break
     end
   end
   # # @show found_events
   found_events, final_event_globals, event_vector_dict, observation_data_dict    
 end
+
+function z3_event_search_partial(observed_data_dict, event_vector_dict)
+  println("Z3_EVENT_SEARCH_PARTIAL")
+  Pickle.store("./observed_data_dict.pkl", observed_data_dict)
+  Pickle.store("./event_vector_dict.pkl", event_vector_dict)
+  @show observed_data_dict 
+  @show event_vector_dict
+
+  # activate autumn environment containing z3
+  # command = "conda activate autumn"
+  # output = readchomp(eval(Meta.parse("`$(command)`")))
+  event = ""
+  # run python command for z3 event search 
+  for option in [1, 2]
+    command = "python z3_event_search.py $(option)"
+    z3_output = readchomp(eval(Meta.parse("`$(command)`")))
+  
+    # parse output 
+    lines = split(z3_output, "\n")
+    if lines[1] == "sat"
+      event_1 = lines[3]
+      event_2 = lines[4]
+      # check which of four possible event combinations matches observed_data_dict 
+      if option == 1
+        event = "(& $(event_1) $(event_2))"
+      elseif option == 2 
+        event = "(| $(event_1) $(event_2))"
+      end
+      break
+    end
+  end
+  event
+end
+
+function z3_event_search_full(observed_data_dict, event_vector_dict)
+  println("Z3_EVENT_SEARCH_FULL")
+  @show observed_data_dict 
+  @show event_vector_dict
+  Pickle.store("./observed_data_dict.pkl", observed_data_dict)
+  Pickle.store("./event_vector_dict.pkl", event_vector_dict)
+
+  # activate autumn environment containing z3
+  # command = "conda activate autumn"
+  # output = readchomp(eval(Meta.parse("`$(command)`")))
+  event = ""
+  # run python command for z3 event search 
+  for option in collect(1:10)
+    command = "python z3_event_search_full.py $(option)"
+    z3_output = readchomp(eval(Meta.parse("`$(command)`")))
+  
+    # parse output
+    @show command  
+    @show option
+    @show z3_output 
+    lines = split(z3_output, "\n")
+    @show lines
+    if lines[1] == "sat"
+      if option in [1, 2]
+        event_1 = lines[3]
+        event_2 = lines[4]
+        if option == 1
+          event = "(& $(event_1) $(event_2))"
+        elseif option == 2 
+          event = "(| $(event_1) $(event_2))"
+        end
+      elseif option in [3, 4, 5]
+        event_1 = lines[3]
+        event_2 = lines[4]
+        event_3 = lines[5]
+        if option == 3
+          event = "(& (& $(event_1) $(event_2)) $(event_3))"
+        elseif option == 4 
+          event = "(| (& $(event_1) $(event_2)) $(event_3))"
+        elseif option == 5 
+          event = "(| (| $(event_1) $(event_2)) $(event_3))"
+        end
+      elseif option in [6, 7, 8, 9, 10]    
+        event_1 = lines[3]
+        event_2 = lines[4]
+        event_3 = lines[5]
+        event_4 = lines[6]
+        if option == 6
+          event = "(& (& $(event_1) $(event_2)) (& $(event_3) $(event_4)))"
+        elseif option == 7 
+          event = "(| (& (& $(event_1) $(event_2)) $(event_3)) $(event_4))"
+        elseif option == 8 
+          event = "(| (& $(event_1) $(event_2)) (& $(event_3) $(event_4)))"
+        elseif option == 9 
+          event = "(| (& $(event_1) $(event_2)) (| $(event_3) $(event_4)))"
+        elseif option == 10 
+          event = "(| (| $(event_1) $(event_2)) (| $(event_3) $(event_4)))"
+        end
+      end
+      break
+    end
+  end
+  event
+end
+
 
 # generation of new global state 
 function generate_new_state(update_rule, update_function_times, event_vector_dict, object_trajectory, init_global_var_dict, state_update_times_dict, object_decomposition, type_id, desired_per_matrix_solution_count, interval_painting_param)
@@ -2378,8 +2525,8 @@ function generate_new_object_specific_state(update_rule, update_function_times_d
     end
   end
 
-  x =  "(& clicked (& true (! (in (objClicked click (prev addedObjType1List)) (filter (--> obj (== (.. obj id) x)) (prev addedObjType1List))))))"
-  small_event_vector_dict[x] = event_vector_dict[x]
+  # x =  "(& clicked (& true (! (in (objClicked click (prev addedObjType1List)) (filter (--> obj (== (.. obj id) x)) (prev addedObjType1List))))))"
+  # small_event_vector_dict[x] = event_vector_dict[x]
 
   @show length(collect(keys(event_vector_dict)))
   @show length(collect(keys(small_event_vector_dict)))
