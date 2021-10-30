@@ -1786,8 +1786,9 @@ function generate_event(anonymized_update_rule, distinct_update_rules, object_id
   found_events = []
   final_event_globals = []
   new_choices = filter(e -> !(e in redundant_events_set), gen_event_bool(object_decomposition, "x", type_id, anonymized_update_rule, filter(e -> e != "", unique(user_events)), global_var_dict, time_based))
-  # @show length(new_choices)
-  # @show length(collect(keys(event_vector_dict)))
+  println("STRANGE BEHAVIOR")
+  @show length(new_choices)
+  @show length(collect(keys(event_vector_dict)))
   events_to_try = sort(unique(vcat(new_choices, collect(keys(event_vector_dict)))), by=length)
   while true
     for event in events_to_try 
@@ -1972,7 +1973,13 @@ function generate_event(anonymized_update_rule, distinct_update_rules, object_id
     end
 
     # remove duplicate events that are observationally equivalent
+    println("PRE PRUNING")
+    @show length(collect(keys(event_vector_dict)))
+
     event_vector_dict, redundant_events_set = prune_by_observational_equivalence(event_vector_dict, redundant_events_set)
+
+    println("POST PRUNING")
+    @show length(collect(keys(event_vector_dict)))
 
     if z3_option in ["none", "partial"]
       if length(found_events) < min_events && !tried_compound_events
@@ -2041,9 +2048,9 @@ function generate_event(anonymized_update_rule, distinct_update_rules, object_id
           else
             push!(final_event_globals, true)
           end
-
+        else
+          _ = construct_compound_events(new_choices, event_vector_dict, redundant_events_set, object_decomposition)
         end
-        _ = construct_compound_events(new_choices, event_vector_dict, redundant_events_set, object_decomposition)
       end
       break
     end
