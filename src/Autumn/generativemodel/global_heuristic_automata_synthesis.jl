@@ -159,7 +159,7 @@ function generate_on_clauses_GLOBAL(matrix, unformatted_matrix, object_decomposi
 
       # compute co-occurring event for each state-based update function 
       co_occurring_events_dict = Dict() # keys are tuples (type_id, co-occurring event), values are lists of update_functions with that co-occurring event
-      events = ["left", "right", "up", "down", "clicked", "true"] #collect(keys(global_event_vector_dict)) # ["left", "right", "up", "down", "clicked", "true"]
+      events = collect(keys(global_event_vector_dict)) # ["left", "right", "up", "down", "clicked", "true"]
       for type_id in collect(keys(state_based_update_functions_dict)) 
         for update_function in state_based_update_functions_dict[type_id]
           # compute co-occurring event 
