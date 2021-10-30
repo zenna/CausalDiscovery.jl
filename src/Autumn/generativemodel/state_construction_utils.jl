@@ -192,14 +192,17 @@ function find_state_update_events_object_specific(event_vector_dict, augmented_p
     # FAILURE CASE
     []
   else
-    common_event = common_events[1]
-    event_times = []
-    for object_id in object_ids 
-      object_event_times = filter(event_tuple -> event_tuple[1] == common_event, update_events_dict[object_id])[1][2]
-      augmented_times = map(time -> (time, object_id), object_event_times)
-      event_times = vcat(event_times..., augmented_times...)
+    solutions = []
+    for common_event in common_events 
+      event_times = []
+      for object_id in object_ids 
+        object_event_times = filter(event_tuple -> event_tuple[1] == common_event, update_events_dict[object_id])[1][2]
+        augmented_times = map(time -> (time, object_id), object_event_times)
+        event_times = vcat(event_times..., augmented_times...)
+      end
+      push!(solutions, (common_event, event_times))  
     end
-    [(common_event, event_times)]  
+    sort(filter(s -> !occursin("field1", s[1]), solutions), by=s -> length(s[2]))
   end
 
 end

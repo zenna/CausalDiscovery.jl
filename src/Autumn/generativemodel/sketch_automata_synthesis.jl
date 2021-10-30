@@ -1,6 +1,6 @@
 const sketch_directory = "/Users/riadas/Documents/urop/sketch-1.7.6/sketch-frontend/"
 
-function generate_on_clauses_SKETCH_SINGLE(matrix, unformatted_matrix, object_decomposition, user_events, global_event_vector_dict, redundant_events_set, grid_size=16, desired_solution_count=1, desired_per_matrix_solution_count=1, interval_painting_param=false)   
+function generate_on_clauses_SKETCH_SINGLE(matrix, unformatted_matrix, object_decomposition, user_events, global_event_vector_dict, redundant_events_set, grid_size=16, desired_solution_count=1, desired_per_matrix_solution_count=1, interval_painting_param=false, z3_option="none", time_based=false, z3_timeout=0, sketch_timeout=0)   
   object_types, object_mapping, background, dim = object_decomposition
   solutions = []
 
@@ -85,7 +85,7 @@ function generate_on_clauses_SKETCH_SINGLE(matrix, unformatted_matrix, object_de
     end
 
     # return values: state_based_update_functions_dict has form type_id => [unsolved update functions]
-    new_on_clauses, state_based_update_functions_dict, observation_vectors_dict, addObj_params_dict, global_event_vector_dict, ordered_update_functions_dict = generate_stateless_on_clauses(update_functions_dict, matrix, filtered_matrix, anonymized_filtered_matrix, object_decomposition, user_events, state_update_on_clauses, global_var_dict, global_event_vector_dict, redundant_events_set)
+    new_on_clauses, state_based_update_functions_dict, observation_vectors_dict, addObj_params_dict, global_event_vector_dict, ordered_update_functions_dict = generate_stateless_on_clauses(update_functions_dict, matrix, filtered_matrix, anonymized_filtered_matrix, object_decomposition, user_events, state_update_on_clauses, global_var_dict, global_event_vector_dict, redundant_events_set, z3_option, time_based, z3_timeout, sketch_timeout)
     push!(on_clauses, new_on_clauses...)
  
     # check if all update functions were solved; if not, proceed with state generation procedure
@@ -174,7 +174,7 @@ function generate_on_clauses_SKETCH_SINGLE(matrix, unformatted_matrix, object_de
               object_trajectory = anonymized_filtered_matrix[object_id, :]
               true_times = unique(findall(rule -> rule == update_function, vcat(object_trajectory...)))
             end
-            state_solutions = generate_global_automaton_sketch(update_function, true_times, global_event_vector_dict, object_trajectory, init_global_var_dict, state_update_times_dict, object_decomposition, type_id, desired_per_matrix_solution_count, interval_painting_param)
+            state_solutions = generate_global_automaton_sketch(update_function, true_times, global_event_vector_dict, object_trajectory, init_global_var_dict, state_update_times_dict, object_decomposition, type_id, desired_per_matrix_solution_count, interval_painting_param, sketch_timeout)
             global_state_solutions_dict[update_function] = state_solutions 
           end
         end
@@ -227,7 +227,7 @@ function generate_on_clauses_SKETCH_SINGLE(matrix, unformatted_matrix, object_de
               update_function_times_dict[object_id] = findall(x -> x == 1, observation_vectors_dict[update_function][object_id])
             end
 
-            state_solutions = generate_object_specific_automaton_sketch(update_function, update_function_times_dict, global_event_vector_dict, type_id, global_object_decomposition, object_specific_state_update_times_dict, global_var_dict)            
+            state_solutions = generate_object_specific_automaton_sketch(update_function, update_function_times_dict, global_event_vector_dict, type_id, global_object_decomposition, object_specific_state_update_times_dict, global_var_dict, sketch_timeout)            
             object_specific_state_solutions_dict[update_function] = state_solutions
           end
         end
@@ -309,7 +309,7 @@ function generate_on_clauses_SKETCH_SINGLE(matrix, unformatted_matrix, object_de
   solutions
 end
 
-function generate_global_automaton_sketch(update_rule, update_function_times, event_vector_dict, object_trajectory, init_global_var_dict, state_update_times_dict, object_decomposition, type_id, desired_per_matrix_solution_count, interval_painting_param)
+function generate_global_automaton_sketch(update_rule, update_function_times, event_vector_dict, object_trajectory, init_global_var_dict, state_update_times_dict, object_decomposition, type_id, desired_per_matrix_solution_count, interval_painting_param, sketch_timeout=0)
   println("GENERATE_NEW_STATE_SKETCH")
   @show update_rule 
   @show update_function_times
@@ -611,11 +611,24 @@ function generate_global_automaton_sketch(update_rule, update_function_times, ev
       extra_global_var_values = deepcopy(init_extra_global_var_values)
   
       # run Sketch query
-      command = "$(sketch_directory)sketch --bnd-unroll-amnt $(length(sketch_event_trajectory) + 2) --fe-output-code automata_sketch.sk"
-      sketch_output = readchomp(eval(Meta.parse("`$(command)`")))
-  
+      if sketch_timeout == 0 
+        command = "$(sketch_directory)sketch --bnd-unroll-amnt $(length(sketch_event_trajectory) + 2) --fe-output-code automata_sketch.sk"
+      else
+        if Sys.islinux() 
+          command = "timeout $(sketch_timeout) $(sketch_directory)sketch --bnd-unroll-amnt $(length(sketch_event_trajectory) + 2) --fe-output-code automata_sketch.sk"
+        else
+          command = "gtimeout $(sketch_timeout) $(sketch_directory)sketch --bnd-unroll-amnt $(length(sketch_event_trajectory) + 2) --fe-output-code automata_sketch.sk"
+        end
+      end
+      
+      sketch_output = try 
+                        readchomp(eval(Meta.parse("`$(command)`")))
+                      catch e
+                        ""
+                      end
+
       @show sketch_output
-      if occursin("The sketch could not be resolved.", sketch_output)
+      if sketch_output == "" || occursin("The sketch could not be resolved.", sketch_output)
         break
       else
         # update intAsChar and add main function to output cpp file 
@@ -1130,7 +1143,15 @@ function generate_object_specific_automaton_sketch(update_rule, update_function_
   end
 
   # run Sketch query
-  command = "$(sketch_directory)sketch --bnd-unroll-amnt $(length(sketch_update_function_arr[object_ids[1]]) + 2) --fe-output-code automata_sketch.sk"
+  if sketch_timeout == 0 
+    command = "$(sketch_directory)sketch --bnd-unroll-amnt $(length(sketch_update_function_arr[object_ids[1]]) + 2) --fe-output-code automata_sketch.sk"
+  else
+    if Sys.islinux() 
+      command = "timeout $(sketch_timeout) $(sketch_directory)sketch --bnd-unroll-amnt $(length(sketch_update_function_arr[object_ids[1]]) + 2) --fe-output-code automata_sketch.sk"
+    else
+      command = "gtimeout $(sketch_timeout) $(sketch_directory)sketch --bnd-unroll-amnt $(length(sketch_update_function_arr[object_ids[1]]) + 2) --fe-output-code automata_sketch.sk"
+    end
+  end
   sketch_output = readchomp(eval(Meta.parse("`$(command)`")))
 
   if !occursin("The sketch could not be resolved.", sketch_output)

@@ -1,5 +1,5 @@
 """On-clause generation, where we collect all unsolved (latent state dependent) on-clauses at the end"""
-function generate_on_clauses_GLOBAL(matrix, unformatted_matrix, object_decomposition, user_events, global_event_vector_dict, redundant_events_set, grid_size=16, desired_solution_count=1, desired_per_matrix_solution_count=1, interval_painting_param=false, sketch=false) 
+function generate_on_clauses_GLOBAL(matrix, unformatted_matrix, object_decomposition, user_events, global_event_vector_dict, redundant_events_set, grid_size=16, desired_solution_count=1, desired_per_matrix_solution_count=1, interval_painting_param=false, sketch=false, z3_option="none", time_based=false, z3_timeout=0, sketch_timeout=0) 
   object_types, object_mapping, background, dim = object_decomposition
   solutions = []
 
@@ -7,6 +7,32 @@ function generate_on_clauses_GLOBAL(matrix, unformatted_matrix, object_decomposi
   # filtered_matrix = filter_update_function_matrix_multiple(pre_filtered_matrix, object_decomposition)[1]
   
   filtered_matrices = []
+
+  pre_filtered_matrix_1 = pre_filter_remove_NoCollision(matrix)
+  if pre_filtered_matrix_1 != false 
+    pre_filtered_non_random_matrix_1 = deepcopy(matrix)
+    for row in 1:size(pre_filtered_non_random_matrix_1)[1]
+      for col in 1:size(pre_filtered_non_random_matrix_1)[2]
+        pre_filtered_non_random_matrix_1[row, col] = filter(x -> !occursin("randomPositions", x), pre_filtered_non_random_matrix_1[row, col])
+      end
+    end
+    filtered_non_random_matrices = filter_update_function_matrix_multiple(pre_filtered_non_random_matrix_1, object_decomposition, multiple=true)
+    push!(filtered_matrices, filtered_non_random_matrices...)
+  end
+
+  # pre filter by removing non-NoCollision update functions 
+  pre_filtered_matrix_1 = pre_filter_remove_non_NoCollision(matrix)
+  if pre_filtered_matrix_1 != false 
+    pre_filtered_non_random_matrix_1 = deepcopy(matrix)
+    for row in 1:size(pre_filtered_non_random_matrix_1)[1]
+      for col in 1:size(pre_filtered_non_random_matrix_1)[2]
+        pre_filtered_non_random_matrix_1[row, col] = filter(x -> !occursin("randomPositions", x), pre_filtered_non_random_matrix_1[row, col])
+      end
+    end
+    filtered_non_random_matrices = filter_update_function_matrix_multiple(pre_filtered_non_random_matrix_1, object_decomposition, multiple=true)
+    push!(filtered_matrices, filtered_non_random_matrices...)
+  end
+
 
   # add non-random filtered matrices to filtered_matrices
   non_random_matrix = deepcopy(matrix)
@@ -41,13 +67,29 @@ function generate_on_clauses_GLOBAL(matrix, unformatted_matrix, object_decomposi
   filtered_unformatted_matrix = filter_update_function_matrix_multiple(unformatted_matrix, object_decomposition, multiple=false)[1]
   push!(filtered_matrices, filter_update_function_matrix_multiple(construct_chaos_matrix(filtered_unformatted_matrix, object_decomposition), object_decomposition, multiple=false)...)
 
-  filtered_matrices = filtered_matrices[1:1]
+  unique!(filtered_matrices)
+  # filtered_matrices = filtered_matrices[5:5]
 
   for filtered_matrix_index in 1:length(filtered_matrices)
-    # @show filtered_matrix_index
+    @show filtered_matrix_index
     # @show length(filtered_matrices)
     # @show solutions
     filtered_matrix = filtered_matrices[filtered_matrix_index]
+    
+    # reset global_event_vector_dict and redundant_events_set for each new context:
+    # remove events dealing with global or object-specific state
+    for event in keys(global_event_vector_dict)
+      if occursin("globalVar", event) || occursin("field1", event)
+        delete!(global_event_vector_dict, event)
+      end
+    end
+
+    for event in redundant_events_set 
+      if occursin("globalVar", event) || occursin("field1", event)
+        delete!(redundant_events_set, event)
+      end
+    end
+
 
     if (length(filter(x -> x[1] != [], solutions)) >= desired_solution_count) # || ((length(filter(x -> x[1] != [], solutions)) > 0) && length(filter(x -> occursin("randomPositions", x), vcat(vcat(filtered_matrix...)...))) > 0) 
       # if we have reached a sufficient solution count or have found a solution before trying random solutions, exit
@@ -86,12 +128,20 @@ function generate_on_clauses_GLOBAL(matrix, unformatted_matrix, object_decomposi
     end
 
     # return values: state_based_update_functions_dict has form type_id => [unsolved update functions]
-    new_on_clauses, state_based_update_functions_dict, observation_vectors_dict, addObj_params_dict, global_event_vector_dict, ordered_update_functions_dict = generate_stateless_on_clauses(update_functions_dict, matrix, filtered_matrix, anonymized_filtered_matrix, object_decomposition, user_events, state_update_on_clauses, global_var_dict, global_event_vector_dict, redundant_events_set)
+    new_on_clauses, state_based_update_functions_dict, observation_vectors_dict, addObj_params_dict, global_event_vector_dict, ordered_update_functions_dict = generate_stateless_on_clauses(update_functions_dict, matrix, filtered_matrix, anonymized_filtered_matrix, object_decomposition, user_events, state_update_on_clauses, global_var_dict, global_event_vector_dict, redundant_events_set, z3_option, time_based, z3_timeout, sketch_timeout)
+    
+    println("I AM HERE NOW")
+    @show new_on_clauses
+    @show state_based_update_functions_dict
     push!(on_clauses, new_on_clauses...)
  
     # check if all update functions were solved; if not, proceed with state generation procedure
     if length(collect(keys(state_based_update_functions_dict))) == 0 
-      push!(solutions, ([deepcopy(on_clauses)..., deepcopy(state_update_on_clauses)...], deepcopy(global_object_decomposition), deepcopy(global_var_dict)))
+
+      # re-order on_clauses
+      ordered_on_clauses = re_order_on_clauses(on_clauses, ordered_update_functions_dict)
+
+      push!(solutions, ([deepcopy(ordered_on_clauses)..., deepcopy(state_update_on_clauses)...], deepcopy(global_object_decomposition), deepcopy(global_var_dict)))
     else # GENERATE NEW STATE 
       type_ids = collect(keys(state_based_update_functions_dict))
 
@@ -109,7 +159,7 @@ function generate_on_clauses_GLOBAL(matrix, unformatted_matrix, object_decomposi
 
       # compute co-occurring event for each state-based update function 
       co_occurring_events_dict = Dict() # keys are tuples (type_id, co-occurring event), values are lists of update_functions with that co-occurring event
-      events = collect(keys(global_event_vector_dict)) # ["left", "right", "up", "down", "clicked", "true"]
+      events = ["left", "right", "up", "down", "clicked", "true"] #collect(keys(global_event_vector_dict)) # ["left", "right", "up", "down", "clicked", "true"]
       for type_id in collect(keys(state_based_update_functions_dict)) 
         for update_function in state_based_update_functions_dict[type_id]
           # compute co-occurring event 
@@ -158,15 +208,15 @@ function generate_on_clauses_GLOBAL(matrix, unformatted_matrix, object_decomposi
       problem_contexts = []
       solutions_per_matrix_count = 0 
 
-      problem_context = (co_occurring_events_dict, 
-                         on_clauses,
-                         global_var_dict,
-                         global_object_decomposition, 
-                         global_state_update_times_dict,
-                         object_specific_state_update_times_dict,
-                         global_state_update_on_clauses,
-                         object_specific_state_update_on_clauses,
-                         state_update_on_clauses)
+      problem_context = (deepcopy(co_occurring_events_dict), 
+                         deepcopy(on_clauses),
+                         deepcopy(global_var_dict),
+                         deepcopy(global_object_decomposition), 
+                         deepcopy(global_state_update_times_dict),
+                         deepcopy(object_specific_state_update_times_dict),
+                         deepcopy(global_state_update_on_clauses),
+                         deepcopy(object_specific_state_update_on_clauses),
+                         deepcopy(state_update_on_clauses))
 
       push!(problem_contexts, problem_context)
       first_context = true
@@ -183,6 +233,20 @@ function generate_on_clauses_GLOBAL(matrix, unformatted_matrix, object_decomposi
         state_update_on_clauses = problem_contexts[1]
 
         problem_contexts = problem_contexts[2:end]
+
+        # reset global_event_vector_dict and redundant_events_set for each new context:
+        # remove events dealing with global or object-specific state
+        for event in keys(global_event_vector_dict)
+          if occursin("globalVar", event) || occursin("field1", event)
+            delete!(global_event_vector_dict, event)
+          end
+        end
+
+        for event in redundant_events_set 
+          if occursin("globalVar", event) || occursin("field1", event)
+            delete!(redundant_events_set, event)
+          end
+        end
         
         # generate new state until all unmatched update functions are matched 
         while length(collect(keys(co_occurring_events_dict))) != 0
@@ -191,6 +255,9 @@ function generate_on_clauses_GLOBAL(matrix, unformatted_matrix, object_decomposi
           
           update_functions = co_occurring_events_dict[(type_id, co_occurring_event)]
           delete!(co_occurring_events_dict, (type_id, co_occurring_event))
+
+          println("DID DELETE WORK?")
+          @show co_occurring_events_dict
 
           # construct update_function_times_dict for this type_id/co_occurring_event pair 
           times_dict = Dict() # form: update function => object_id => times when update function occurred for object_id
@@ -272,7 +339,7 @@ function generate_on_clauses_GLOBAL(matrix, unformatted_matrix, object_decomposi
               
               # formatting 
               group_addObj_rules, addObj_rules, addObj_count = addObj_params_dict[type_id]
-              formatted_on_clauses = map(on_clause -> format_on_clause(split(replace(on_clause, ".. obj id) x" => ".. obj id) $(object_ids_with_type[1])"), "\n")[2][1:end-1], replace(replace(split(on_clause, "\n")[1], "(on " => ""), ".. obj id) x" => ".. obj id) $(object_ids_with_type[1])"), object_ids_with_type[1], object_ids_with_type, object_type, group_addObj_rules, addObj_rules, object_mapping, true, grid_size, addObj_count), new_on_clauses)
+              formatted_on_clauses = map(on_clause -> (format_on_clause(split(replace(on_clause[1], ".. obj id) x" => ".. obj id) $(object_ids_with_type[1])"), "\n")[2][1:end-1], replace(replace(split(on_clause[1], "\n")[1], "(on " => ""), ".. obj id) x" => ".. obj id) $(object_ids_with_type[1])"), object_ids_with_type[1], object_ids_with_type, object_type, group_addObj_rules, addObj_rules, object_mapping, true, grid_size, addObj_count), on_clause[2]), new_on_clauses)
               push!(on_clauses, formatted_on_clauses...)
               
               global_var_dict = deepcopy(new_global_var_dict) 
@@ -291,9 +358,9 @@ function generate_on_clauses_GLOBAL(matrix, unformatted_matrix, object_decomposi
 
               for state_solution in state_solutions[2:end]
                 # add new problem contexts 
-                new_context_on_clauses, new_context_new_global_var_dict, new_context_new_state_update_times_dict = state_solution
+                new_on_clauses, new_context_new_global_var_dict, new_context_new_state_update_times_dict = state_solution
 
-                new_context_on_clauses = vcat(new_context_on_clauses..., deepcopy(old_on_clauses)...)
+                new_context_on_clauses = deepcopy(old_on_clauses)
                 new_context_global_object_decomposition = deepcopy(old_global_object_decomposition)
                 new_context_global_state_update_times_dict = deepcopy(old_global_state_update_times_dict)
                 new_context_object_specific_state_update_times_dict = deepcopy(old_object_specific_state_update_times_dict)
@@ -301,7 +368,7 @@ function generate_on_clauses_GLOBAL(matrix, unformatted_matrix, object_decomposi
                 new_context_object_specific_state_update_on_clauses = deepcopy(old_object_specific_state_update_on_clauses)
                 new_context_state_update_on_clauses = deepcopy(old_state_update_on_clauses)
 
-                formatted_new_context_on_clauses = map(on_clause -> format_on_clause(split(replace(on_clause, ".. obj id) x" => ".. obj id) $(object_ids_with_type[1])"), "\n")[2][1:end-1], replace(replace(split(on_clause, "\n")[1], "(on " => ""), ".. obj id) x" => ".. obj id) $(object_ids_with_type[1])"), object_ids_with_type[1], object_ids_with_type, object_type, group_addObj_rules, addObj_rules, object_mapping, true, grid_size, addObj_count), new_context_on_clauses)
+                formatted_new_context_on_clauses = map(on_clause -> (format_on_clause(split(replace(on_clause[1], ".. obj id) x" => ".. obj id) $(object_ids_with_type[1])"), "\n")[2][1:end-1], replace(replace(split(on_clause[1], "\n")[1], "(on " => ""), ".. obj id) x" => ".. obj id) $(object_ids_with_type[1])"), object_ids_with_type[1], object_ids_with_type, object_type, group_addObj_rules, addObj_rules, object_mapping, true, grid_size, addObj_count), on_clause[2]), new_on_clauses)
                 push!(new_context_on_clauses, formatted_new_context_on_clauses...)
                 new_context_global_var_dict = new_context_new_global_var_dict
                 new_context_global_state_update_on_clauses = vcat(map(k -> filter(x -> x != "", new_context_new_state_update_times_dict[k]), collect(keys(new_context_new_state_update_times_dict)))...) # vcat(state_update_on_clauses..., filter(x -> x != "", new_state_update_times)...)
@@ -333,10 +400,17 @@ function generate_on_clauses_GLOBAL(matrix, unformatted_matrix, object_decomposi
             else
               new_on_clauses, new_state_update_on_clauses, new_object_decomposition, new_object_specific_state_update_times_dict = generate_new_object_specific_state_GLOBAL(co_occurring_event, update_functions, times_dict, global_event_vector_dict, type_id, global_object_decomposition, object_specific_state_update_times_dict, global_var_dict)
             end
+
             if new_on_clauses == []
               failed = true 
               break
             else
+              println("BAD NAME CHOSEN")
+              @show new_on_clauses 
+              @show new_state_update_on_clauses 
+              @show new_object_decomposition 
+              @show new_object_specific_state_update_times_dict
+
               # # @show new_object_specific_state_update_times_dict
               object_specific_state_update_times_dict = new_object_specific_state_update_times_dict
   
@@ -350,8 +424,8 @@ function generate_on_clauses_GLOBAL(matrix, unformatted_matrix, object_decomposi
               # # @show global_object_decomposition
   
               # new_state_update_on_clauses = map(x -> format_on_clause(split(x, "\n")[2][1:end-1], replace(split(x, "\n")[1], "(on " => ""), object_ids[1], object_ids, object_type, group_addObj_rules, addObj_rules, object_mapping, false), new_state_update_on_clauses)
-              object_specific_state_update_on_clauses = unique(vcat(object_specific_state_update_on_clauses..., new_state_update_on_clauses...))
-              state_update_on_clauses = vcat(global_state_update_on_clauses, object_specific_state_update_on_clauses)
+              object_specific_state_update_on_clauses = unique(vcat(deepcopy(object_specific_state_update_on_clauses)..., deepcopy(new_state_update_on_clauses)...))
+              state_update_on_clauses = vcat(deepcopy(global_state_update_on_clauses), deepcopy(object_specific_state_update_on_clauses))
               for event in collect(keys(global_event_vector_dict))
                 if occursin("field1", event)
                   delete!(global_event_vector_dict, event)
@@ -363,12 +437,17 @@ function generate_on_clauses_GLOBAL(matrix, unformatted_matrix, object_decomposi
             end
           end
 
+          println("NOW HERE")
+          @show length(on_clauses)
+          @show on_clauses
+          @show co_occurring_events_dict
+
           # check if some update functions are actually solved by previously generated new state 
           # construct new update_functions_dict from co_occurring_events_dict 
           update_functions_dict = Dict() 
           for key in keys(co_occurring_events_dict)
             type_id, _ = key 
-            update_functions = co_occurring_events_dict[key]
+            update_functions = deepcopy(co_occurring_events_dict[key])
             if type_id in keys(update_functions_dict)
               push!(update_functions_dict[type_id], update_functions...)
             else
@@ -376,13 +455,28 @@ function generate_on_clauses_GLOBAL(matrix, unformatted_matrix, object_decomposi
             end
           end
 
-          new_on_clauses, state_based_update_functions_dict, _, _, global_event_vector_dict = generate_stateless_on_clauses(update_functions_dict, matrix, filtered_matrix, anonymized_filtered_matrix, global_object_decomposition, user_events, state_update_on_clauses, global_var_dict, global_event_vector_dict, redundant_events_set)          
+          new_on_clauses, state_based_update_functions_dict, _, _, global_event_vector_dict = generate_stateless_on_clauses(update_functions_dict, matrix, filtered_matrix, anonymized_filtered_matrix, global_object_decomposition, user_events, state_update_on_clauses, global_var_dict, global_event_vector_dict, redundant_events_set, z3_option, time_based, z3_timeout, sketch_timeout)          
+          println("WHATS GOING ON NOW")
+          @show new_on_clauses 
+          @show state_based_update_functions_dict
+
+          println("NOW HERE 2")
+          @show length(on_clauses)
+          @show on_clauses
+
+          @show collect(keys(co_occurring_events_dict))
+          @show co_occurring_events_dict
+          
           # if some other update functions are solved, add their on-clauses + remove them from co_occurring_events_dict 
           if new_on_clauses != [] 
             push!(on_clauses, new_on_clauses...)
             # update co_occurring_events_dict by removing 
             co_occurring_events_dict = update_co_occurring_events_dict(co_occurring_events_dict, state_based_update_functions_dict)
           end
+          println("WBU")
+          @show on_clauses
+          @show collect(keys(co_occurring_events_dict))
+          @show co_occurring_events_dict
 
         end
 
@@ -393,8 +487,12 @@ function generate_on_clauses_GLOBAL(matrix, unformatted_matrix, object_decomposi
           @show filtered_matrix_index
           println("HERE I AM")
           @show on_clauses 
-          @show state_update_on_clauses
-          push!(solutions, ([deepcopy(on_clauses)..., deepcopy(state_update_on_clauses)...], deepcopy(global_object_decomposition), deepcopy(global_var_dict)))
+          # @show state_update_on_clauses
+
+          # re-order on_clauses
+          ordered_on_clauses = re_order_on_clauses(on_clauses, ordered_update_functions_dict)
+
+          push!(solutions, ([deepcopy(ordered_on_clauses)..., deepcopy(state_update_on_clauses)...], deepcopy(global_object_decomposition), deepcopy(global_var_dict)))
           # save("solution_$(Dates.now()).jld", "solution", solutions[end])
           solutions_per_matrix_count += 1 
         end
@@ -404,6 +502,23 @@ function generate_on_clauses_GLOBAL(matrix, unformatted_matrix, object_decomposi
   end
   @show solutions 
   solutions 
+end
+
+function re_order_on_clauses(on_clauses, ordered_update_functions_dict) 
+  state_update_on_clauses = filter(x -> !(x isa Tuple), on_clauses)
+  regular_on_clauses = filter(x -> x isa Tuple, on_clauses)
+
+  @show on_clauses 
+  ordered_on_clauses = []
+  for type_id in keys(ordered_update_functions_dict)
+    ordered_update_functions_list = ordered_update_functions_dict[type_id]
+    for update_function in ordered_update_functions_list 
+      @show update_function
+      matching_on_clause = filter(tup -> tup[2] == update_function, regular_on_clauses)[1][1]
+      push!(ordered_on_clauses, matching_on_clause)
+    end
+  end
+  vcat(ordered_on_clauses..., state_update_on_clauses)
 end
 
 function update_co_occurring_events_dict(co_occurring_events_dict, state_based_update_functions_dict) 
@@ -431,7 +546,7 @@ function generate_new_state_GLOBAL(co_occurring_event, times_dict, event_vector_
   @show event_vector_dict 
   @show object_trajectory    
   @show init_global_var_dict 
-  @show state_update_times_dict  
+  # @show state_update_times_dict  
   @show object_decomposition 
   @show type_id
   @show desired_per_matrix_solution_count 
@@ -584,7 +699,7 @@ function generate_new_state_GLOBAL(co_occurring_event, times_dict, event_vector_
         
         # add to state_update_times 
         # # @show event_times
-        # # @show state_update_on_clause  
+        # # # @show state_update_on_clause  
         for time in event_times 
           new_state_update_times_dict[global_var_id][time] = state_update_on_clause
         end
@@ -847,7 +962,7 @@ function generate_new_state_GLOBAL(co_occurring_event, times_dict, event_vector_
         else 
           on_clause = "(on (& (in (prev globalVar$(global_var_id)) (list $(join([update_function_index, extra_global_var_values[update_function_index]...], " ")))) $(occursin("globalVar$(global_var_id)", co_occurring_event) ? replace(replace(co_occurring_event, "(== globalVar$(global_var_id) $(update_function_index))" => ""), "(&" => "")[1:end-1] : co_occurring_event))\n$(update_function))"
         end
-        push!(on_clauses, on_clause)
+        push!(on_clauses, (on_clause, update_function))
       end
 
       println("LOOK AT ME")
@@ -946,7 +1061,7 @@ function relabel_via_interval_painting(augmented_positive_times_labeled, global_
   (augmented_positive_times, extra_global_var_values)
 end
 
-function generate_stateless_on_clauses(update_functions_dict, matrix, filtered_matrix, anonymized_filtered_matrix, global_object_decomposition, user_events, state_update_on_clauses, global_var_dict, global_event_vector_dict, redundant_events_set)
+function generate_stateless_on_clauses(update_functions_dict, matrix, filtered_matrix, anonymized_filtered_matrix, global_object_decomposition, user_events, state_update_on_clauses, global_var_dict, global_event_vector_dict, redundant_events_set, z3_option="none", time_based=false, z3_timeout=0, sketch_timeout=0)
   object_types, object_mapping, background, grid_size = global_object_decomposition
   new_on_clauses = []
   observation_vectors_dict = Dict() 
@@ -999,7 +1114,7 @@ function generate_stateless_on_clauses(update_functions_dict, matrix, filtered_m
       if update_rule != "" && !is_no_change_rule(update_rule)
         println("UPDATE_RULEEE")
         println(update_rule)
-        events, event_is_globals, event_vector_dict, observation_data_dict = generate_event(update_rule, all_update_rules, object_ids[1], object_ids, matrix, filtered_matrix, global_object_decomposition, user_events, state_update_on_clauses, global_var_dict, global_event_vector_dict, grid_size, redundant_events_set)
+        events, event_is_globals, event_vector_dict, observation_data_dict = generate_event(update_rule, all_update_rules, object_ids[1], object_ids, matrix, filtered_matrix, global_object_decomposition, user_events, state_update_on_clauses, global_var_dict, global_event_vector_dict, grid_size, redundant_events_set, 1, 400, z3_option, time_based, z3_timeout, sketch_timeout)
         global_event_vector_dict = event_vector_dict
         observation_vectors_dict[update_rule] = observation_data_dict
 
@@ -1011,7 +1126,7 @@ function generate_stateless_on_clauses(update_functions_dict, matrix, filtered_m
           event = events[1]
           event_is_global = event_is_globals[1]
           on_clause = format_on_clause(replace(update_rule, ".. obj id) x" => ".. obj id) $(object_ids[1])"), replace(event, ".. obj id) x" => ".. obj id) $(object_ids[1])"), object_ids[1], object_ids, object_type, group_addObj_rules, addObj_rules, object_mapping, event_is_global, grid_size, addObj_count)
-          push!(new_on_clauses, on_clause)
+          push!(new_on_clauses, (on_clause, update_rule))
           new_on_clauses = unique(new_on_clauses)
           println("ADDING EVENT WITHOUT NEW STATE")
           @show event 
@@ -1044,6 +1159,7 @@ function generate_new_object_specific_state_GLOBAL(co_occurring_event, update_fu
   @show type_id 
   @show object_decomposition
   @show init_state_update_times
+  @show global_var_dict
   state_update_times = deepcopy(init_state_update_times)  
   failed = false
   object_types, object_mapping, background, grid_size = object_decomposition 
@@ -1062,21 +1178,29 @@ function generate_new_object_specific_state_GLOBAL(co_occurring_event, update_fu
       end
     end
   end
-  # for e in keys(event_vector_dict)
-  #   if occursin("|", e) && e in keys(small_event_vector_dict)
-  #     delete!(small_event_vector_dict, e)
-  #   end
-  # end
-  # # choices, event_vector_dict, redundant_events_set, object_decomposition
+  println("LETS GO NOW")
+  @show small_event_vector_dict 
+  # choices, event_vector_dict, redundant_events_set, object_decomposition
+  
+  for e in keys(event_vector_dict)
+    if (occursin("true", e) || occursin("|", e)) && e in keys(small_event_vector_dict)
+      delete!(small_event_vector_dict, e)
+    end
+  end
+
   # small_events = construct_compound_events(collect(keys(small_event_vector_dict)), small_event_vector_dict, Set(), object_decomposition)
+
+  # # x =  "(& clicked (! (in (objClicked click (prev addedObjType1List)) (filter (--> obj (== (.. obj id) x)) (prev addedObjType1List)))))"
+  # # if x in keys(event_vector_dict)
+  # #   small_event_vector_dict[x] = event_vector_dict[x]
+  # # end
+
   # for e in keys(event_vector_dict)
   #   if (occursin("true", e) || occursin("|", e)) && e in keys(small_event_vector_dict)
   #     delete!(small_event_vector_dict, e)
   #   end
   # end
 
-  x =  "(& clicked (& true (! (in (objClicked click (prev addedObjType1List)) (filter (--> obj (== (.. obj id) x)) (prev addedObjType1List))))))"
-  small_event_vector_dict[x] = event_vector_dict[x]
 
   @show length(collect(keys(event_vector_dict)))
   @show length(collect(keys(small_event_vector_dict)))
@@ -1084,7 +1208,7 @@ function generate_new_object_specific_state_GLOBAL(co_occurring_event, update_fu
 
   # initialize state_update_times
   curr_state_value = -1
-  @show state_update_times 
+  # @show state_update_times 
   @show object_ids
   if length(collect(keys(state_update_times))) == 0 || length(intersect(object_ids, collect(keys(state_update_times)))) == 0
     for id in object_ids
@@ -1093,9 +1217,10 @@ function generate_new_object_specific_state_GLOBAL(co_occurring_event, update_fu
     curr_state_value = 1
   else
     println("WEIRD")
-    return ("", [], object_decomposition, state_update_times)  
+    return ([], [], object_decomposition, state_update_times)
   end
-
+  println("# check state_update_times again 3")
+  # @show state_update_times 
   co_occurring_event_trajectory = event_vector_dict[co_occurring_event]
 
   update_function_indices = Dict(map(u -> u => findall(x -> x == u, update_functions)[1], update_functions))
@@ -1127,10 +1252,13 @@ function generate_new_object_specific_state_GLOBAL(co_occurring_event, update_fu
 
     augmented_positive_times_dict[object_id] = augmented_positive_times 
   end
-
+  println("# check state_update_times again 4")
+  # @show state_update_times 
   # compute ranges 
   grouped_ranges = recompute_ranges_object_specific(augmented_positive_times_dict, 1, object_mapping, object_ids)
 
+  println("# check state_update_times again 5")
+  # @show state_update_times 
   while length(grouped_ranges) > 0
     grouped_range = grouped_ranges[1]
     grouped_ranges = grouped_ranges[2:end]
@@ -1143,11 +1271,15 @@ function generate_new_object_specific_state_GLOBAL(co_occurring_event, update_fu
 
     # TODO: try global events too  
     events_in_range = []
+    println("# check state_update_times again 6")
+    # @show state_update_times
     if events_in_range == [] # if no global events are found, try object-specific events 
       # events_in_range = find_state_update_events(event_vector_dict, augmented_positive_times, time_ranges, start_value, end_value, global_var_dict, global_var_value)
       events_in_range = find_state_update_events_object_specific(small_event_vector_dict, augmented_positive_times_dict, grouped_range, object_ids, object_mapping, curr_state_value)
     end
     @show events_in_range
+    println("# check state_update_times again")
+    # @show state_update_times
     if length(events_in_range) > 0 # only handling perfect matches currently 
       event, event_times = events_in_range[1]
       formatted_event = replace(event, "(filter (--> obj (== (.. obj id) x)) (prev addedObjType$(type_id)List))" => "(list (prev obj))")
@@ -1168,6 +1300,8 @@ function generate_new_object_specific_state_GLOBAL(co_occurring_event, update_fu
         end
       end
     else
+      println("# check state_update_times")
+      # @show state_update_times 
       false_positive_events = find_state_update_events_object_specific_false_positives(small_event_vector_dict, augmented_positive_times_dict, grouped_range, object_ids, object_mapping, curr_state_value)      
       false_positive_events_with_state = filter(e -> occursin("field1", e[1]), false_positive_events) # want the most specific events in the false positive case
       @show false_positive_events
@@ -1190,34 +1324,35 @@ function generate_new_object_specific_state_GLOBAL(co_occurring_event, update_fu
       end
 
       # add to state_update_times
+      # @show state_update_times
       for tuple in true_positive_times 
         time, id = tuple
-        state_update_times[id][time] = (state_update_function, end_value)
+        state_update_times[id][time] = (state_update_on_clause, end_value)
       end
       
-      augmented_positive_times_dict_labeled = Dict(id -> (map(tuple -> (tuple[1], tuple[2], "update_function"), augmented_positive_times_dict[id]), collect(keys(object_ids)))) 
+      augmented_positive_times_dict_labeled = Dict(map(id -> id => map(tuple -> (tuple[1], tuple[2], "update_function"), augmented_positive_times_dict[id]), collect(keys(object_ids)))) 
       for tuple in false_positive_times
         time, id = tuple  
         push!(augmented_positive_times_dict_labeled[id], (time, max_state_value + 1, "event"))
       end
-      same_time_tuples = Dict()
+      same_time_tuples_dict = Dict()
       for id in collect(keys(augmented_positive_times_dict_labeled))
-        same_time_tuples[id] = Dict()
+        same_time_tuples_dict[id] = Dict()
         for tuple in augmented_positive_times_dict_labeled[id]
           time = tuple[1] 
-          if time in collect(keys((same_time_tuples[id]))) 
-            push!(same_time_tuples[id][time], tuple)
+          if time in collect(keys((same_time_tuples_dict[id]))) 
+            push!(same_time_tuples_dict[id][time], tuple)
           else
-            same_time_tuples[id][time] = [tuple]
+            same_time_tuples_dict[id][time] = [tuple]
           end
         end
       end
 
       for id in collect(keys(same_time_tuples_dict))
-        for time in collect(keys((same_time_tuples[id]))) 
-          same_time_tuples[id][time] = reverse(sort(same_time_tuples[id][time], by=x -> length(x[3]))) # ensure all event tuples come *after* the update_function tuples
+        for time in collect(keys((same_time_tuples_dict[id]))) 
+          same_time_tuples_dict[id][time] = reverse(sort(same_time_tuples_dict[id][time], by=x -> length(x[3]))) # ensure all event tuples come *after* the update_function tuples
         end
-        augmented_positive_times_dict_labeled[id] = vcat(map(t -> same_time_tuples[id][t], sort(collect(keys(same_time_tuples[id]))))...)
+        augmented_positive_times_dict_labeled[id] = vcat(map(t -> same_time_tuples_dict[id][t], sort(collect(keys(same_time_tuples_dict[id]))))...)
       end
       # augmented_positive_times_labeled = sort(augmented_positive_times_labeled, by=x->x[1])
 
@@ -1263,6 +1398,17 @@ function generate_new_object_specific_state_GLOBAL(co_occurring_event, update_fu
       # compute new ranges 
       grouped_ranges = recompute_ranges_object_specific(augmented_positive_times_dict, curr_state_value, object_mapping, object_ids)
       state_update_times = init_state_update_times
+
+      if length(collect(keys(state_update_times))) == 0 || length(intersect(object_ids, collect(keys(state_update_times)))) == 0
+        for id in object_ids
+          state_update_times[id] = [("", -1) for i in 1:(length(object_mapping[object_ids[1]])-1)]
+        end
+        curr_state_value = 1
+      else
+        println("WEIRD")
+        return ([], [], object_decomposition, state_update_times)
+      end
+
     end
   end
 
@@ -1275,10 +1421,10 @@ function generate_new_object_specific_state_GLOBAL(co_occurring_event, update_fu
         if length(augmented_positive_times_dict[object_id]) != 0 
           init_value = augmented_positive_times_dict[object_id][1][2]
         else
-          @show state_update_times
+          # @show state_update_times
           no_state_updates = length(unique(collect(Base.values(state_update_times)))) == 1
           @show no_state_updates 
-          @show state_update_times
+          # @show state_update_times
           @show augmented_positive_times_dict 
           @show type_id 
           if no_state_updates 
@@ -1311,10 +1457,10 @@ function generate_new_object_specific_state_GLOBAL(co_occurring_event, update_fu
     new_object_types = deepcopy(object_types)
     new_object_type = filter(type -> type.id == type_id, new_object_types)[1]
     if !("field1" in map(field_tuple -> field_tuple[1], new_object_type.custom_fields))
-      push!(new_object_type.custom_fields, ("field1", "Int", collect(1:max_state_value)))
+      push!(new_object_type.custom_fields, ("field1", "Int", collect(1:2)))
     else
       custom_field_index = findall(field_tuple -> field_tuple[1] == "field1", filter(obj -> !isnothing(obj), object_mapping[object_ids[1]])[1].type.custom_fields)[1]
-      new_object_type.custom_fields[custom_field_index][3] = sort(unique(vcat(new_object_type.custom_fields[custom_field_index][3], collect(1:max_state_value))))
+      new_object_type.custom_fields[custom_field_index][3] = sort(unique(vcat(new_object_type.custom_fields[custom_field_index][3], collect(1:2))))
     end
     
     ## modify objects in object_mapping
@@ -1349,7 +1495,7 @@ function generate_new_object_specific_state_GLOBAL(co_occurring_event, update_fu
       else
         on_clause = "(on true\n$(replace(update_function, "(== (.. obj id) x)" => formatted_co_occurring_event)))"
       end
-      push!(on_clauses, on_clause)
+      push!(on_clauses, (on_clause, update_function))
     end    
     state_update_on_clauses = map(x -> x[1], unique(filter(r -> r != ("", -1), vcat([state_update_times[k] for k in collect(keys(state_update_times))]...))))
     on_clauses, state_update_on_clauses, new_object_decomposition, state_update_times  

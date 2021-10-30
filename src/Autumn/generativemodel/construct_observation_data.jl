@@ -10,6 +10,7 @@ function generate_observations_ice(m::Module)
   user_events = []
   push!(observations, Base.invokelatest(m.render, state.scene))
 
+  clicks = [(1, 4), (2, 6)]
   for i in 0:25
     if i in [2, 8, 12] # 17
       # state = Base.invokelatest(m.next(state, nothing, nothing, nothing, nothing, nothing)
@@ -22,8 +23,7 @@ function generate_observations_ice(m::Module)
       state = Base.invokelatest(m.next, state, nothing, Base.invokelatest(m.Left), nothing, nothing, nothing)
       push!(user_events, "left")
     elseif i == 6 || i == 17
-      x = rand(1:6)
-      y = rand(1:6)
+      x, y = clicks[i == 6 ? 1 : 2]
       state = Base.invokelatest(m.next, state, Base.invokelatest(m.Click, x, y), nothing, nothing, nothing, nothing)
       push!(user_events, "clicked $(x) $(y)")
     else
@@ -528,14 +528,6 @@ function generate_observations_grow(m::Module)
   observations, user_events, 8
 end
 
-function generate_observations_sokoban(m::Module)
-
-end
-
-function generate_observations_sokoban2(m::Module)
-
-end
-
 function generate_observations_magnets(m::Module)
   state = Base.invokelatest(m.init, nothing, nothing, nothing, nothing, nothing)
   observations = []
@@ -787,7 +779,7 @@ function generate_observations_sokoban(m::Module)
                  18 => "left",
                  19 => "down",
                  20 => "left",
-                 21 => "left",
+                #  21 => "left",
                  22 => "up",
                  24 => "up",
                  26 => "up",

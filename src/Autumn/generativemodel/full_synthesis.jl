@@ -1,5 +1,7 @@
 include("singletimestepsolution.jl");
 include("global_heuristic_automata_synthesis.jl")
+include("sketch_automata_synthesis.jl")
+include("sketch_multi_automata_synthesis.jl")
 function workshop_evaluation() 
   sols = synthesize_program("wind", singlecell=false, interval_painting_param=true, upd_func_spaces=[1])
   sols = synthesize_program("disease", singlecell=false, upd_func_spaces=[2]) # remove lines 515, 516, 518, 519
@@ -126,7 +128,7 @@ function synthesize_program(model_name::String;
     # generate_on_clauses
     # generate_on_clauses_SKETCH_SINGLE
     # solutions = generate_on_clauses(matrix, unformatted_matrix, object_decomposition, user_events, global_event_vector_dict, redundant_events_set, grid_size, desired_solution_count, desired_per_matrix_solution_count, interval_painting_param, z3_option, time_based)
-    solutions = generate_on_clauses_GLOBAL(matrix, unformatted_matrix, object_decomposition, user_events, global_event_vector_dict, redundant_events_set, grid_size, desired_solution_count, desired_per_matrix_solution_count, interval_painting_param, false)
+    solutions = generate_on_clauses_GLOBAL(matrix, unformatted_matrix, object_decomposition, user_events, global_event_vector_dict, redundant_events_set, grid_size, desired_solution_count, desired_per_matrix_solution_count, interval_painting_param, false, z3_option, time_based)
     # solutions = generate_on_clauses_SKETCH_MULTI(matrix, unformatted_matrix, object_decomposition, user_events, global_event_vector_dict, redundant_events_set, grid_size, desired_solution_count, desired_per_matrix_solution_count, interval_painting_param)
     for solution in solutions 
       if solution[1] != [] 
