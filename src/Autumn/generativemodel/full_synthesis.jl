@@ -172,7 +172,9 @@ function synthesis_program_pedro(observations::AbstractArray)
 end
 
 function generate_observations(model_name::String)
-  if occursin("count_", model_name)
+  if occursin("double_count_", model_name)
+    program_expr = compiletojulia(parseautumn(programs["double_count"]))
+  elseif occursin("count_", model_name)
     program_expr = compiletojulia(parseautumn(programs["count"]))
   else
     program_expr = compiletojulia(parseautumn(programs[model_name]))  
@@ -240,6 +242,10 @@ function generate_observations(model_name::String)
     observations, user_events, grid_size = generate_observations_count_3(m)
   elseif model_name == "count_4"
     observations, user_events, grid_size = generate_observations_count_4(m)
+  elseif model_name == "double_count_1"
+    observations, user_events, grid_size = generate_observations_double_count_1(m)
+  elseif model_name == "double_count_2"
+    observations, user_events, grid_size = generate_observations_double_count_2(m)
   else
     error("model $(model_name) does not exist")
   end
@@ -949,5 +955,28 @@ programs = Dict("particles"                                 => """(program
                                                                     (on (& down (! xActive)) (= yVel (+ (prev yVel) 1)))
 
                                                                     (on true (= blobs (updateObj blobs (--> obj (moveNoCollision obj (Position (sign (prev xVel)) (sign (prev yVel))))))))
-                                                                  )""",
+                                                                  )"""
+                , "double_count" =>                            """(program
+                                                                  (= GRID_SIZE 100)
+                                                                    
+                                                                  (object Button (: color String) (Cell 0 0 color))
+                                                                  (object Blob (list (Cell 0 0 "blue")))
+                                                                  
+                                                                  (: blobs (List Blob))
+                                                                  (= blobs (initnext (list (Blob (Position 49 49))) (prev blobs)))
+                                                                  
+                                                                  (: xVel Int)
+                                                                  (= xVel (initnext 0 (prev xVel)))
+                                                                  
+                                                                  (: yVel Int)
+                                                                  (= yVel (initnext 0 (prev yVel)))
+                                                                    
+                                                                  (on (& left (== (prev yVel) 0)) (= xVel (- (prev xVel) 1)))
+                                                                  (on (& right (== (prev yVel) 0)) (= xVel (+ (prev xVel) 1)))
+                                                                
+                                                                  (on (& up (== (prev xVel) 0)) (= yVel (- (prev yVel) 1)))
+                                                                  (on (& down (== (prev xVel) 0)) (= yVel (+ (prev yVel) 1)))
+                                                                
+                                                                  (on true (= blobs (updateObj blobs (--> obj (move obj (Position (sign (prev xVel)) (sign (prev yVel))))))))
+                                                                )""",
                 )
