@@ -48,16 +48,7 @@ function singletimestepsolution_matrix(observations, user_events, grid_size; sin
                       "(= objX (moveUp objX))",
                       "(= objX (moveLeft objX))",
                       "(= objX (moveRight objX))",
-                    ]
-  if upd_func_space == 6 
-    prev_used_rules = [ "(= objX objX)",
-                        "(= objX (nextLiquid objX))",
-                        "(= objX (moveDown objX))",
-                        "(= objX (moveUp objX))",
-                        "(= objX (moveLeft objX))",
-                        "(= objX (moveRight objX))",
-                      ]
-  end
+                    ] 
 
   if upd_func_space == 2 
     prev_used_rules = ["(= objX objX)",
@@ -1983,7 +1974,9 @@ function generate_event(anonymized_update_rule, distinct_update_rules, object_id
 
     if z3_option in ["none", "partial"]
       if length(found_events) < min_events && !tried_compound_events
+        println("entered here")
         events_to_try = sort(unique(construct_compound_events(collect(keys(event_vector_dict)), event_vector_dict, redundant_events_set, object_decomposition)), by=length)
+        println("exited here")
         tried_compound_events = true
       else
         if (z3_option == "partial") && length(found_events) < min_events

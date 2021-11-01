@@ -738,7 +738,7 @@ function generate_observations_ants(m::Module)
 
   clicks = Dict([1 => (4, 3),
                  4 => (13, 13),
-                 7 => (11, 11),
+                #  7 => (11, 11),
                 #  12 => (15, 14),
                 ])
 
@@ -1277,26 +1277,26 @@ function generate_observations_bullets(m::Module)
                  13 => "click 3 3",
                  14 => "down",
                  16 => "click 4 4",
-                 17 => "down",
-                 18 => "down",
-                 19 => "down",
-                 20 => "down",
-                 21 => "down",
-                 22 => "click 15 1",
-                 24 => "left",
-                 25 => "left",
-                 26 => "left",
-                 27 => "left",
-                 29 => "click 1 0",
-                 30 => "up",
-                 35 => "click 2 0",
-                 37 => "right",
-                 39 => "click 3 0",
-                 40 => "down",
-                 41 => "click 4 0", 
+                 27 => "down",
+                 28 => "down",
+                 29 => "down",
+                 30 => "down",
+                 31 => "down",
+                 32 => "click 15 1",
+                 34 => "left",
+                 35 => "left",
+                 36 => "left",
+                 37 => "left",
+                 39 => "click 1 0",
+                 40 => "up",
+                 45 => "click 2 0",
+                 47 => "right",
+                 49 => "click 3 0",
+                 50 => "down",
+                 51 => "click 4 0", 
                 ])
 
-  for i in 1:45
+  for i in 1:53
     if i in collect(keys(events))
       event = events[i]
       if event == "left"

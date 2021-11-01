@@ -664,6 +664,7 @@ function construct_compound_events(choices, event_vector_dict, redundant_events_
 
   # construct global/global compound events and global/object-specific compound events 
   @show length(nonzero_global_events)
+  @show length(nonzero_object_specific_events)
   nonzero_global_events = sort(nonzero_global_events, by=length)
   # @show nonzero_global_events 
   for i in 1:length(nonzero_global_events) 
@@ -720,7 +721,10 @@ function construct_compound_events(choices, event_vector_dict, redundant_events_
 
   end
 
+  @show length(nonzero_object_specific_events)
   for i in 1:length(nonzero_object_specific_events)
+    @show i 
+    # @show event_i
     event_i = nonzero_object_specific_events[i]
     object_ids_i = collect(keys(event_vector_dict[event_i]))
     for j in (i+1):length(nonzero_object_specific_events)
@@ -811,8 +815,9 @@ function construct_compound_events(choices, event_vector_dict, redundant_events_
   # push!(compound_events, color_compound_events)
 
   # remove duplicate events that are observationally equivalent
+  println("here i am!")
   event_vector_dict, redundant_events_set = prune_by_observational_equivalence(event_vector_dict, redundant_events_set)
-
+  println("and here?")
   println("END construct_compound_events")
   sort(collect(keys(event_vector_dict)), by=length)
 end
