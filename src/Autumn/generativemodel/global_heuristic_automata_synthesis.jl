@@ -744,6 +744,12 @@ function generate_new_state_GLOBAL(co_occurring_event, times_dict, event_vector_
   problem_contexts = [(deepcopy(init_grouped_ranges), deepcopy(init_augmented_positive_times), deepcopy(init_state_update_times_dict), deepcopy(init_global_var_dict), deepcopy(init_extra_global_var_values))]
   split_orders = []
   old_augmented_positive_times = []
+  
+  @show problem_contexts 
+  @show split_orders 
+  @show old_augmented_positive_times
+  @show global_var_id 
+  @show small_event_vector_dict 
   while (length(problem_contexts) > 0) && length(solutions) < desired_per_matrix_solution_count 
     grouped_ranges, augmented_positive_times, new_state_update_times_dict, global_var_dict, extra_global_var_values = problem_contexts[1]
     problem_contexts = problem_contexts[2:end]
