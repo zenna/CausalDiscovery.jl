@@ -244,7 +244,7 @@ function generate_on_clauses_SKETCH_MULTI(matrix, unformatted_matrix, object_dec
 
           # determine if state is global or object-specific 
           state_is_global = true 
-          if foldl(&, map(u -> occursin("addObj", u), update_functions), init=true) || length(object_ids_with_type) == 1
+          if length(object_ids_with_type) == 1 # foldl(&, map(u -> occursin("addObj", u), update_functions), init=true) ||
             state_is_global = true
           else
             for update_function in update_functions 
@@ -261,6 +261,11 @@ function generate_on_clauses_SKETCH_MULTI(matrix, unformatted_matrix, object_dec
                 break
               end
             end
+          end
+
+          if foldl(&, map(u -> occursin("addObj", u), update_functions), init=true) && !state_is_global 
+            failed = true
+            break
           end
 
           if state_is_global 

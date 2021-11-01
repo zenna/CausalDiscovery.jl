@@ -886,7 +886,7 @@ programs = Dict("particles"                                 => """(program
                                                                                                                            then (removeObj obj)
                                                                                                                            else obj)))))
                                                                     
-                                                                      (on clicked (= foods (addObj foods (map Food (randomPositions GRID_SIZE 4)))))
+                                                                      (on clicked (= foods (addObj foods (map Food (randomPositions GRID_SIZE 2)))))
                                                                     )"""
                 ,"bullets" =>                                     """(program
                                                                       (= GRID_SIZE 16)
