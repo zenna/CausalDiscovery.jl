@@ -102,7 +102,7 @@ function generate_on_clauses_SKETCH_MULTI(matrix, unformatted_matrix, object_dec
 
       # pull out "addObj" update rules into their own key/value pair within state_based_update_functions_dict
       addObj_tuples = vcat(map(t -> map(u -> (t, u), filter(r -> occursin("addObj", r), state_based_update_functions_dict[t])), collect(keys(state_based_update_functions_dict)))...)
-      addObj_types = map(tup -> tup[1], addObj_tuples)
+      addObj_types = unique(map(tup -> tup[1], addObj_tuples))
       addObj_update_functions = map(tup -> tup[2], addObj_tuples)
       state_based_update_functions_dict[Tuple(sort(addObj_types))] = addObj_update_functions
       # remove addObj update functions from original locations 
@@ -115,10 +115,31 @@ function generate_on_clauses_SKETCH_MULTI(matrix, unformatted_matrix, object_dec
       # compute co-occurring event for each state-based update function 
       co_occurring_events_dict = Dict() # keys are tuples (type_id, co-occurring event), values are lists of update_functions with that co-occurring event
       events = collect(keys(global_event_vector_dict)) # ["left", "right", "up", "down", "clicked", "true"]
-      for type_id in collect(keys(state_based_update_functions_dict)) 
-        for update_function in state_based_update_functions_dict[type_id]
+      for type_id in collect(keys(state_based_update_functions_dict))
+        update_functions = state_based_update_functions_dict[type_id]
+        for update_function in update_functions 
+          if type_id isa Tuple 
+            object_ids_with_type = filter(k -> filter(obj -> !isnothing(obj), object_mapping[k])[1].type.id in collect(type_id), collect(keys(object_mapping)))
+          else 
+            object_ids_with_type = filter(k -> filter(obj -> !isnothing(obj), object_mapping[k])[1].type.id == type_id, collect(keys(object_mapping)))
+          end
+  
+          state_is_global = true 
+          if occursin("addObj", update_function) || length(object_ids_with_type) == 1
+            state_is_global = true
+          else
+            for time in 1:length(user_events)
+              observation_values = map(id -> observation_vectors_dict[update_function][id][time], object_ids_with_type)
+              if (0 in observation_values) && (1 in observation_values)
+                @show update_function 
+                @show time 
+                state_is_global = false
+                break
+              end
+            end
+          end
+  
           # compute co-occurring event 
-          object_ids_with_type = filter(k -> filter(obj -> !isnothing(obj), object_mapping[k])[1].type.id == type_id, collect(keys(object_mapping)))
           update_function_times_dict = Dict(map(obj_id -> obj_id => findall(r -> r == [update_function], anonymized_filtered_matrix[obj_id, :]), object_ids_with_type))
           co_occurring_events = []
           for event in events
@@ -140,7 +161,21 @@ function generate_on_clauses_SKETCH_MULTI(matrix, unformatted_matrix, object_dec
               end
             end
           end
-          co_occurring_events = sort(filter(x -> !occursin("|", x[1]), co_occurring_events), by=x -> x[2]) # [1][1]
+          println("BEFORE")
+          @show co_occurring_events
+          if co_occurring_param 
+            co_occurring_events = sort(co_occurring_events, by=x -> x[2]) # [1][1]
+          else
+            co_occurring_events = sort(filter(x -> !occursin("|", x[1]) && !occursin("(move ", x[1]) && !occursin("intersects (list", x[1]) && (!occursin("&", x[1]) || occursin("click", x[1])), co_occurring_events), by=x -> x[2]) # [1][1]
+          end
+  
+          if state_is_global 
+            co_occurring_events = filter(x -> !occursin("obj id) x)", x[1]), co_occurring_events)
+          end 
+  
+          println("THIS IS WEIRD HUH")
+          @show type_id 
+          @show update_function
           @show co_occurring_events
           if filter(x -> !occursin("globalVar", x[1]), co_occurring_events) != []
             co_occurring_events = filter(x -> !occursin("globalVar", x[1]), co_occurring_events)
@@ -148,12 +183,13 @@ function generate_on_clauses_SKETCH_MULTI(matrix, unformatted_matrix, object_dec
           best_co_occurring_events = sort(filter(e -> e[2] == minimum(map(x -> x[2], co_occurring_events)), co_occurring_events), by=z -> length(z[1]))
           # # @show best_co_occurring_events
           co_occurring_event = best_co_occurring_events[1][1]        
-
+  
           if (type_id, co_occurring_event) in keys(co_occurring_events_dict)
             push!(co_occurring_events_dict[(type_id, co_occurring_event)], update_function)
           else
             co_occurring_events_dict[(type_id, co_occurring_event)] = [update_function]
           end
+  
         end
       end
 
@@ -198,7 +234,6 @@ function generate_on_clauses_SKETCH_MULTI(matrix, unformatted_matrix, object_dec
         # sort (type_id, co_occurring_event) pairs into global-state-requiring and object-specific-state-requiring
         for tuple in sort(collect(keys(co_occurring_events_dict)))
           type_id, co_occurring_event = tuple
-          object_type = filter(t -> t.id == type_id, object_types)
           
           update_functions = co_occurring_events_dict[(type_id, co_occurring_event)]
           if type_id isa Tuple 
@@ -256,12 +291,12 @@ function generate_on_clauses_SKETCH_MULTI(matrix, unformatted_matrix, object_dec
             end
 
             if foldl(&, map(update_rule -> occursin("addObj", update_rule), update_functions))
-              object_trajectories = map(id -> anonymized_filtered_matrix[id, :], filter(k -> filter(obj -> !isnothing(obj), object_mapping[k])[1].type.id == filter(obj -> !isnothing(obj), object_mapping[object_ids_with_type[1]])[1].type.id, collect(keys(object_mapping))))
+              object_trajectories = map(id -> anonymized_filtered_matrix[id, :], filter(k -> filter(obj -> !isnothing(obj), object_mapping[k])[1].type.id in collect(type_id), collect(keys(object_mapping))))
               true_times = unique(vcat(map(trajectory -> findall(rule -> rule in update_functions, vcat(trajectory...)), object_trajectories)...))
               object_trajectory = []
             else 
               ids_with_rule = map(idx -> object_ids_with_type[idx], findall(idx_set -> idx_set != [], map(id -> findall(rule -> rule[1] in update_functions, anonymized_filtered_matrix[id, :]), object_ids_with_type)))
-              trajectory_lengths = map(id -> length(unique(filter(x -> x != "", anonymized_filtered_matrix[id, :]))), ids_with_rule)
+              trajectory_lengths = map(id -> length(filter(x -> x != [""], anonymized_filtered_matrix[id, :])), ids_with_rule)
               max_index = findall(x -> x == maximum(trajectory_lengths) , trajectory_lengths)[1]
               object_id = ids_with_rule[max_index]
               object_trajectory = anonymized_filtered_matrix[object_id, :]

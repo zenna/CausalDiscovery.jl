@@ -738,8 +738,8 @@ function generate_observations_ants(m::Module)
 
   clicks = Dict([1 => (4, 3),
                  4 => (13, 13),
-                #  7 => (11, 11),
-                #  12 => (15, 14),
+                 7 => (11, 11),
+                 12 => (15, 14),
                 ])
 
   for i in 0:15

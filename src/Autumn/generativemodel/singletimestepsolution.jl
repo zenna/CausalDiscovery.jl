@@ -1972,7 +1972,7 @@ function generate_event(anonymized_update_rule, distinct_update_rules, object_id
     println("POST PRUNING")
     @show length(collect(keys(event_vector_dict)))
 
-    if z3_option in ["none", "partial"]
+    if z3_option in ["none"] # , "partial"
       if length(found_events) < min_events && !tried_compound_events
         println("entered here")
         events_to_try = sort(unique(construct_compound_events(collect(keys(event_vector_dict)), event_vector_dict, redundant_events_set, object_decomposition)), by=length)
@@ -2011,7 +2011,7 @@ function generate_event(anonymized_update_rule, distinct_update_rules, object_id
 
         break
       end
-    elseif z3_option == "full"
+    elseif z3_option in ["full", "partial"]
 
       # ensure that event_vector_dict does not contain BitArray type
       for event in keys(event_vector_dict)
@@ -2040,7 +2040,8 @@ function generate_event(anonymized_update_rule, distinct_update_rules, object_id
       @show anonymized_update_rule
       @show observation_data_dict
       if length(found_events) < min_events 
-        solution_event = z3_event_search_full(observation_data_dict, z3_event_vector_dict, z3_timeout)
+        partial_param = (z3_option == "partial")
+        solution_event = z3_event_search_full(observation_data_dict, z3_event_vector_dict, partial_param, z3_timeout)
         if solution_event != "" 
           push!(found_events, solution_event)
           if occursin("obj id) x", solution_event)
@@ -2106,7 +2107,7 @@ function z3_event_search_partial(observed_data_dict, event_vector_dict, timeout=
   event
 end
 
-function z3_event_search_full(observed_data_dict, event_vector_dict, timeout=0)
+function z3_event_search_full(observed_data_dict, event_vector_dict, partial=false, timeout=0)
   println("Z3_EVENT_SEARCH_FULL")
   @show length(collect(keys(event_vector_dict)))
   @show observed_data_dict 
@@ -2119,7 +2120,8 @@ function z3_event_search_full(observed_data_dict, event_vector_dict, timeout=0)
   # output = readchomp(eval(Meta.parse("`$(command)`")))
   event = ""
   # run python command for z3 event search 
-  for option in collect(1:14)
+  options = partial ? [1, 2] : collect(1:14)
+  for option in options
     if timeout == 0 
       command = "python3 z3_event_search_full.py $(option)"
     else
