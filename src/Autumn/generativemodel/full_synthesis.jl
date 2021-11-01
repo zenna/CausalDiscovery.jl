@@ -876,7 +876,7 @@ programs = Dict("particles"                                 => """(program
                                                                       (object Food (Cell 0 0 "red"))
                                                                     
                                                                       (: ants (List Ant))
-                                                                      (= ants (initnext (map Ant (randomPositions GRID_SIZE 1)) (prev ants)))
+                                                                      (= ants (initnext (list (Ant (Position 5 5)) (Ant (Position 1 14))) (prev ants)))
                                                                     
                                                                       (: foods (List Food))
                                                                       (= foods (initnext (list) (prev foods)))

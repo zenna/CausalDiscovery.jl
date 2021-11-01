@@ -20,7 +20,15 @@ observed_bv_vals_dict = {} # dictionary of object_id's to int value of bit vecto
 for object_id in object_ids:
   ambig_positions_dict[object_id] = [i for i, x in enumerate(observed_data_dict[object_id]) if x == -1]
   observed_bv_dict[object_id] = list(filter(lambda x: x != -1, observed_data_dict[object_id]))
-  observed_bv_vals_dict[object_id] = BitArray(observed_bv_dict[object_id]).uint
+  if len(observed_bv_dict[object_id]) != 0:
+    observed_bv_vals_dict[object_id] = BitArray(observed_bv_dict[object_id]).uint
+
+# remove empty lists from observed_bv_dict, and remove corresponding ids from object_ids 
+empty_ids = set(filter(lambda k: len(observed_bv_dict[k]) == 0, list(observed_bv_dict.keys())))
+for id in empty_ids:
+  del observed_bv_dict[id]
+  del ambig_positions_dict[id]
+object_ids = sorted(list(filter(lambda id: id not in empty_ids, object_ids)))
 
 atom_dict = {} # dictionary of events to event values with ambig positions filtered out
 for event in event_vector_dict:

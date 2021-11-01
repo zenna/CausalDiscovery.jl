@@ -2080,12 +2080,12 @@ function z3_event_search_partial(observed_data_dict, event_vector_dict, timeout=
   # run python command for z3 event search 
   for option in [1, 2]
     if timeout == 0 
-      command = "python z3_event_search.py $(option)"
+      command = "python3 z3_event_search.py $(option)"
     else
       if Sys.islinux() 
-        command = "gtimeout $(timeout) python z3_event_search.py $(option)"
+        command = "gtimeout $(timeout) python3 z3_event_search.py $(option)"
       else
-        command = "timeout $(timeout) python z3_event_search.py $(option)"
+        command = "timeout $(timeout) python3 z3_event_search.py $(option)"
       end
     end
     z3_output = try 
@@ -2128,12 +2128,12 @@ function z3_event_search_full(observed_data_dict, event_vector_dict, timeout=0)
   # run python command for z3 event search 
   for option in collect(1:14)
     if timeout == 0 
-      command = "python z3_event_search_full.py $(option)"
+      command = "python3 z3_event_search_full.py $(option)"
     else
       if Sys.islinux() 
-        command = "gtimeout $(timeout) python z3_event_search_full.py $(option)"
+        command = "gtimeout $(timeout) python3 z3_event_search_full.py $(option)"
       else
-        command = "timeout $(timeout) python z3_event_search_full.py $(option)"
+        command = "timeout $(timeout) python3 z3_event_search_full.py $(option)"
       end
     end
     z3_output = try 
