@@ -1342,7 +1342,7 @@ function generate_observations_double_count_1(m::Module)
                  24 => "up"
                 ])
 
-  for i in 0:16
+  for i in 0:26
     if i in collect(keys(events))
       event = events[i]
       if event == "left"
