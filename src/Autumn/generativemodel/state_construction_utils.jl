@@ -292,6 +292,14 @@ function num_false_positives(event_vector, update_function_times, object_traject
 end
 
 function recompute_ranges(augmented_positive_times, new_state_update_times_dict, global_var_id, global_var_value, global_var_dict, true_positive_times, extra_global_var_values, global_heuristic=false) 
+  println("RECOMPUTE RANGES")
+  @show augmented_positive_times 
+  @show new_state_update_times_dict 
+  @show global_var_id 
+  @show global_var_value 
+  @show global_var_dict 
+  @show true_positive_times 
+  @show extra_global_var_values
   # compute new ranges and find state update events
   new_ranges = [] 
   for i in 1:(length(augmented_positive_times)-1)

@@ -742,7 +742,7 @@ function generate_observations_ants(m::Module)
                 #  12 => (15, 14),
                 ])
 
-  for i in 0:30
+  for i in 0:15
     if i in collect(keys(clicks))
       click_x, click_y = clicks[i]
       state = Base.invokelatest(m.next, state, Base.invokelatest(m.Click, click_x, click_y), nothing, nothing, nothing, nothing)
