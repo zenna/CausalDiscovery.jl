@@ -84,6 +84,11 @@ for i in range(len(object_ids)):
   w_and_x_or_y_or_z = w & x | y | z == matching_value # 9
   w_or_x_or_y_or_z = w | x | y | z == matching_value # 10
 
+  parens_1 = x & (y | z) == matching_value # 11
+  parens_2 = w & x & (y | z) == matching_value # 12
+  parens_3 = w & (x | y | z) == matching_value # 13
+  parens_4 = w & (x | y & z) == matching_value # 14
+
   if option == 1:
     s.add(x_and_y)
   elif option == 2:
@@ -104,6 +109,14 @@ for i in range(len(object_ids)):
     s.add(w_and_x_or_y_or_z)
   elif option == 10:
     s.add(w_or_x_or_y_or_z)
+  elif option == 11:
+    s.add(parens_1)
+  elif option == 12:
+    s.add(parens_2)
+  elif option == 13:
+    s.add(parens_3)
+  elif option == 14:
+    s.add(parens_4)
 
 res = s.check()
 index_1 = -1
@@ -123,11 +136,11 @@ if index_1 != -1 and index_2 != -1 and index_3 != -1 and index_4 != -1:
   if option in [1, 2]:
     print(sorted_atom_events[index_2])
     print(sorted_atom_events[index_3])
-  elif option in [3, 4, 5]:
+  elif option in [3, 4, 5, 11]:
     print(sorted_atom_events[index_2])
     print(sorted_atom_events[index_3])
     print(sorted_atom_events[index_4])
-  elif option in [6, 7, 8, 9, 10]:
+  elif option in [6, 7, 8, 9, 10, 12, 13, 14]:
     print(sorted_atom_events[index_1])
     print(sorted_atom_events[index_2])
     print(sorted_atom_events[index_3])

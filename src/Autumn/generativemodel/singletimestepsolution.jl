@@ -1332,7 +1332,7 @@ function generate_on_clauses(matrix, unformatted_matrix, object_decomposition, u
   solutions 
 end
 
-function format_on_clause(update_rule, event, object_id, object_ids, object_type, group_addObj_rules, addObj_rules, object_mapping, event_is_global, grid_size, addObj_count)
+function format_on_clause(update_rule, event, object_id, object_ids, type_id, group_addObj_rules, addObj_rules, object_mapping, event_is_global, grid_size, addObj_count)
   if occursin("addObj", update_rule) # handle addition of object rules 
     if group_addObj_rules # several objects are added simultaneously
       println("DID I MAKE IT")
@@ -1356,7 +1356,7 @@ function format_on_clause(update_rule, event, object_id, object_ids, object_type
       end
     else # event is object-specific
       if occursin("(--> obj (== (.. obj id) $(object_id)))", update_rule) # update rule is object-specific
-        reformatted_event = replace(event, "(filter (--> obj (== (.. obj id) $(object_id))) (prev addedObjType$(object_type.id)List))" => "(list (prev obj))")
+        reformatted_event = replace(event, "(filter (--> obj (== (.. obj id) $(object_id))) (prev addedObjType$(type_id)List))" => "(list (prev obj))")
         reformatted_rule = replace(update_rule, "(--> obj (== (.. obj id) $(object_id)))" => "(--> obj $(reformatted_event))")
         
         # second_reformatted_event = replace(event, "(filter (--> obj (== (.. obj id) $(object_id))) (prev addedObjType$(object_type.id)List))" => "(prev addedObjType$(object_type.id)List)")
@@ -1595,7 +1595,7 @@ function filter_update_function_matrix_multiple(matrix, object_decomposition; mu
       # # @show new_matrix[object_id, :]
       new_matrix[object_id, :] = map(list -> [replace(list[1], " id) $(object_id)" => " id) x")], new_matrix[object_id, :])
     end
-    push!(new_matrices, new_matrix)
+    push!(new_matrices, deepcopy(new_matrix))
     
     # construct standard_update_function_lengths_dict (used to determine if 2nd-most-frequent update functions should be tried)
     if length(new_matrices) == 1
@@ -1630,7 +1630,7 @@ end
 
 function pre_filter_remove_NoCollision(matrix)
   new_matrix = deepcopy(matrix)
-  new_matrix = map(cell -> filter(x -> !occursin("NoCollision", x), cell), new_matrix)
+  new_matrix = map(cell -> filter(x -> !occursin("NoCollision", x) && !occursin("unitVector", x) && !occursin("nextLiquid", x), cell), new_matrix)
   if findall(cell -> cell == [], new_matrix) != []
     false 
   else
@@ -2035,12 +2035,19 @@ function generate_event(anonymized_update_rule, distinct_update_rules, object_id
           end
         end
       end
-      
+
+      # create event_vector_dict copy for Z3, which is missing compound events 
+      z3_event_vector_dict = deepcopy(event_vector_dict)
+      for event in collect(keys(z3_event_vector_dict))
+        if !(event in new_choices)
+          delete!(z3_event_vector_dict, event)
+        end
+      end
 
       @show anonymized_update_rule
       @show observation_data_dict
       if length(found_events) < min_events 
-        solution_event = z3_event_search_full(observation_data_dict, event_vector_dict, z3_timeout)
+        solution_event = z3_event_search_full(observation_data_dict, z3_event_vector_dict, z3_timeout)
         if solution_event != "" 
           push!(found_events, solution_event)
           if occursin("obj id) x", solution_event)
@@ -2119,7 +2126,7 @@ function z3_event_search_full(observed_data_dict, event_vector_dict, timeout=0)
   # output = readchomp(eval(Meta.parse("`$(command)`")))
   event = ""
   # run python command for z3 event search 
-  for option in collect(1:10)
+  for option in collect(1:14)
     if timeout == 0 
       command = "python z3_event_search_full.py $(option)"
     else
@@ -2151,7 +2158,7 @@ function z3_event_search_full(observed_data_dict, event_vector_dict, timeout=0)
           elseif option == 2 
             event = "(| $(event_1) $(event_2))"
           end
-        elseif option in [3, 4, 5]
+        elseif option in [3, 4, 5, 11]
           event_1 = lines[3]
           event_2 = lines[4]
           event_3 = lines[5]
@@ -2161,8 +2168,10 @@ function z3_event_search_full(observed_data_dict, event_vector_dict, timeout=0)
             event = "(| (& $(event_1) $(event_2)) $(event_3))"
           elseif option == 5 
             event = "(| (| $(event_1) $(event_2)) $(event_3))"
+          elseif option == 11 
+            event = "(& $(event_1) (| $(event_2) $(event_3)))"
           end
-        elseif option in [6, 7, 8, 9, 10]    
+        elseif option in [6, 7, 8, 9, 10, 12, 13, 14]    
           event_1 = lines[3]
           event_2 = lines[4]
           event_3 = lines[5]
@@ -2172,11 +2181,17 @@ function z3_event_search_full(observed_data_dict, event_vector_dict, timeout=0)
           elseif option == 7 
             event = "(| (& (& $(event_1) $(event_2)) $(event_3)) $(event_4))"
           elseif option == 8 
-            event = "(| (& $(event_1) $(event_2)) (& $(event_3) $(event_4)))"
+            event = "(| (& $(event_1) $(event_2)) (& $(event_3) $(event_4)))" # "(& $(event_1) (| $(event_2) (& $(event_3) $(event_4))))" # 
           elseif option == 9 
             event = "(| (& $(event_1) $(event_2)) (| $(event_3) $(event_4)))"
           elseif option == 10 
             event = "(| (| $(event_1) $(event_2)) (| $(event_3) $(event_4)))"
+          elseif option == 12 
+            event = "(& $(event_1) (& $(event_2) (| $(event_3) $(event_4))))"
+          elseif option == 13 
+            event = "(& $(event_1) (| $(event_2) (| $(event_3) $(event_4))))"
+          elseif option == 14 
+            event = "(& $(event_1) (| $(event_2) (& $(event_3) $(event_4)) ))"
           end
         end
         break

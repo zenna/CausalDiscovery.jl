@@ -111,6 +111,8 @@ function synthesize_program(model_name::String;
                             upd_func_spaces = [1],
                             z3_option = "none",
                             time_based=false,
+                            co_occurring_param=false, 
+                            transition_param=false,
                             )
   println(string("CURRENTLY WORKING ON: ", model_name))
   if pedro 
@@ -128,7 +130,7 @@ function synthesize_program(model_name::String;
     # generate_on_clauses
     # generate_on_clauses_SKETCH_SINGLE
     # solutions = generate_on_clauses(matrix, unformatted_matrix, object_decomposition, user_events, global_event_vector_dict, redundant_events_set, grid_size, desired_solution_count, desired_per_matrix_solution_count, interval_painting_param, z3_option, time_based)
-    solutions = generate_on_clauses_GLOBAL(matrix, unformatted_matrix, object_decomposition, user_events, global_event_vector_dict, redundant_events_set, grid_size, desired_solution_count, desired_per_matrix_solution_count, interval_painting_param, false, z3_option, time_based)
+    solutions = generate_on_clauses_GLOBAL(matrix, unformatted_matrix, object_decomposition, user_events, global_event_vector_dict, redundant_events_set, grid_size, desired_solution_count, desired_per_matrix_solution_count, interval_painting_param, false, z3_option, time_based, co_occurring_param, transition_param)
     # solutions = generate_on_clauses_SKETCH_MULTI(matrix, unformatted_matrix, object_decomposition, user_events, global_event_vector_dict, redundant_events_set, grid_size, desired_solution_count, desired_per_matrix_solution_count, interval_painting_param)
     for solution in solutions 
       if solution[1] != [] 
@@ -487,7 +489,7 @@ programs = Dict("particles"                                 => """(program
                                                           )"""
                 ,"gol" => ""
                 ,"sokoban_i" =>                               """(program
-                                                                  (= GRID_SIZE 8)
+                                                                  (= GRID_SIZE 16)
                                                                   
                                                                   (object Agent (Cell 0 0 "blue"))
                                                                   (object Box (Cell 0 0 "black"))
@@ -497,7 +499,7 @@ programs = Dict("particles"                                 => """(program
                                                                   (= agent (initnext (Agent (Position 7 4)) (prev agent)))
                                                                     
                                                                   (: boxes (List Box))
-                                                                  (= boxes (initnext (list (Box (Position 1 2)) (Box (Position 0 4)) (Box (Position 4 4))) (prev boxes)))
+                                                                  (= boxes (initnext (list (Box (Position 1 2)) (Box (Position 0 4)) (Box (Position 4 4)) (Box (Position 9 9)) (Box (Position 10 9)) (Box (Position 0 11))) (prev boxes)))
                                                                 
                                                                   (: goal Goal)
                                                                   (= goal (initnext (Goal (Position 0 0)) (prev goal)))

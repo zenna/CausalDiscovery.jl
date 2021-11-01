@@ -641,12 +641,13 @@ function generate_observations_gravity2(m::Module)
                  5 => (18, 10), # Z
                  7 => (20, 8), # X
                  9 => (0, 14), 
-                 11 => (23, 3), # Y
-                 13 => (17, 13), # Z
-                 15 => (29, 14),
-                 17 => (14, 29),
+                 11 => (14, 29),
+                 13 => (23, 3), # Y
+                 15 => (17, 13), # Z
+                 17 => (29, 14),
                  19 => (14, 0),
-                 21 => (28, 5), # X
+                 21 => (14, 0),
+                 23 => (28, 5), # X
                   ])
 
   for i in 0:22
@@ -738,9 +739,10 @@ function generate_observations_ants(m::Module)
   clicks = Dict([1 => (4, 3),
                  4 => (13, 13),
                  7 => (11, 11),
+                #  12 => (15, 14),
                 ])
 
-  for i in 0:22
+  for i in 0:30
     if i in collect(keys(clicks))
       click_x, click_y = clicks[i]
       state = Base.invokelatest(m.next, state, Base.invokelatest(m.Click, click_x, click_y), nothing, nothing, nothing, nothing)
@@ -795,9 +797,40 @@ function generate_observations_sokoban(m::Module)
                  36 => "up",
                  37 => "up",
                  38 => "up",
+                 40 => "down",
+                 41 => "down",
+                 42 => "down",
+                 43 => "down",
+                 44 => "down",
+                 45 => "down",
+                 46 => "down",
+                #  47 => "down",
+                 48 => "down",
+                 49 => "down",
+                 50 => "down",
+                 52 => "left",
+                 53 => "left",
+                 55 => "right",
+                 56 => "right",
+                 57 => "right",
+                 58 => "right",
+                 59 => "right",
+                 60 => "right",
+                 61 => "right",
+                 62 => "right",
+                 63 => "right",
+                 64 => "right",
+                #  65 => "right",
+                #  66 => "right",
+                 67 => "right",
+                 68 => "up",
+                 69 => "up",
+                 70 => "left",
+                 71 => "left",
+                 72 => "left",
                  ])
 
-  for i in 0:40
+  for i in 0:74
     if i in collect(keys(events))
       event = events[i]
       if event == "left"
@@ -819,7 +852,7 @@ function generate_observations_sokoban(m::Module)
     end
     push!(observations, Base.invokelatest(m.render, state.scene))
   end
-  observations, user_events, 8
+  observations, user_events, 16
 end
 
 function generate_observations_sokoban_2(m::Module)
@@ -1234,7 +1267,9 @@ function generate_observations_bullets(m::Module)
   user_events = []
   push!(observations, Base.invokelatest(m.render, state.scene))
 
-  events = Dict([5 => "left",
+  events = Dict([3 => "click 15 0",
+                 4 => "click 0 0",
+                 5 => "left",
                  7 => "click 1 1",
                  8 => "up",
                  10 => "click 2 2",
@@ -1242,19 +1277,26 @@ function generate_observations_bullets(m::Module)
                  13 => "click 3 3",
                  14 => "down",
                  16 => "click 4 4",
-                 17 => "left",
-                 18 => "left",
-                 19 => "left",
-                 21 => "click 1 0",
-                 23 => "up",
-                 25 => "click 2 0",
-                 26 => "right",
-                 28 => "click 3 0",
-                 29 => "down",
-                 30 => "click 4 0", 
+                 17 => "down",
+                 18 => "down",
+                 19 => "down",
+                 20 => "down",
+                 21 => "down",
+                 22 => "click 15 1",
+                 24 => "left",
+                 25 => "left",
+                 26 => "left",
+                 27 => "left",
+                 29 => "click 1 0",
+                 30 => "up",
+                 35 => "click 2 0",
+                 37 => "right",
+                 39 => "click 3 0",
+                 40 => "down",
+                 41 => "click 4 0", 
                 ])
 
-  for i in 4:32
+  for i in 1:45
     if i in collect(keys(events))
       event = events[i]
       if event == "left"
