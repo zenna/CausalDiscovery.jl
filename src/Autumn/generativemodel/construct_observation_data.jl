@@ -1338,11 +1338,30 @@ function generate_observations_double_count_1(m::Module)
                  12 => "left",
                  15 => "up", 
                  17 => "down",
-                 20 => "down",
-                 24 => "up"
+                 24 => "down",
+                 27 => "up",
+
+                 32 => "left",
+                 34 => "right",
+                 37 => "right",
+                 42 => "left",
+                 45 => "up", 
+                 50 => "down",
+                 52 => "down",
+                 64 => "up",
+
+                 70 => "left",
+                 78 => "right",
+                 80 => "right",
+                 82 => "left",
+                 84 => "up", 
+                 86 => "down",
+                 88 => "down",
+                 90 => "up"
+
                 ])
 
-  for i in 0:26
+  for i in 0:92
     if i in collect(keys(events))
       event = events[i]
       if event == "left"
