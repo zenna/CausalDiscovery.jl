@@ -925,114 +925,111 @@ function generate_new_state_GLOBAL(co_occurring_event, times_dict, event_vector_
         end
         augmented_positive_times_labeled = vcat(map(t -> same_time_tuples[t], sort(collect(keys(same_time_tuples))))...)
         # augmented_positive_times_labeled = sort(augmented_positive_times_labeled, by=x->x[1])
-        if false # interval_painting_param  
-          println("INTERVAL PAINTING DEBUGGING")
-          @show augmented_positive_times_labeled
-          @show false_positive_times 
-          @show user_events 
-          @show max_global_var_value
-          @show global_var_value 
-          @show times_dict 
-          @show extra_global_var_values
-    
-          possible_interval_painting_stop_points_dict = Dict()
-          for false_positive_time in false_positive_times 
-            possible_interval_painting_stop_points_dict[false_positive_time] = []
-            tuple_index = findall(tup -> tup[1] == false_positive_time && tup[3] == "event", augmented_positive_times_labeled)[1]
-            same_time_values = filter(tup -> tup[1] == false_positive_time && tup[3] != "event", augmented_positive_times_labeled)
-            if same_time_values != [] 
-              same_time_value = same_time_values[1][2]
-              
-              for prev_index in (tuple_index-2):-1:1 
-                prev_tuple = augmented_positive_times_labeled[prev_index]
-                @show prev_tuple 
-                @show same_time_value 
-                if !(prev_tuple[2] in [same_time_value]) || prev_tuple[3] == "event"
-                  println("huh?")
-                  push!(possible_interval_painting_stop_points_dict[false_positive_time], prev_tuple[1])
-                  break
-                else
-                  println("huh 2?")
-                  prev_time = prev_tuple[1]
-                  if !isnothing(user_events[prev_time]) && user_events[prev_time] != "nothing"
-                    # possible stopping time! 
-                    push!(possible_interval_painting_stop_points_dict[false_positive_time], prev_time)
-                  end
-                end
-              end
-            end
-          end
+        println("INTERVAL PAINTING DEBUGGING")
+        @show augmented_positive_times_labeled
+        @show false_positive_times 
+        @show user_events 
+        @show max_global_var_value
+        @show global_var_value 
+        @show times_dict 
+        @show extra_global_var_values
   
-          curr_interval_painting_stop_points_dict = Dict(map(t -> t => [], false_positive_times))
-          
-          if count(x -> x > 1, map(v -> length(v), collect(values(possible_interval_painting_stop_points_dict)))) > 0 
-            # multiplicity handling: add new problem context corresponding to alternative interval painting options 
-            for false_positive_time in false_positive_times 
-              stop_points = possible_interval_painting_stop_points_dict[false_positive_time]
-              if stop_points != []
-                if length(stop_points) >= 2 
-                  curr_interval_painting_stop_points_dict[false_positive_time] = reverse(stop_points)[1:2]               
-                else 
-                  curr_interval_painting_stop_points_dict[false_positive_time] = reverse(stop_points)[1:1]
-                end
-                # if length(stop_points) >= 2 
-                #   curr_interval_painting_stop_points_dict[false_positive_time] = reverse(stop_points)[2:2]               
-                # else 
-                #   curr_interval_painting_stop_points_dict[false_positive_time] = reverse(stop_points)[1:1]
-                # end
-  
-                # curr_interval_painting_stop_points_dict[false_positive_time] = reverse(stop_points)[1:1]
-                possible_interval_painting_stop_points_dict[false_positive_time] = reverse(stop_points) # [2:end] 
-              end
-            end
+        possible_interval_painting_stop_points_dict = Dict()
+        for false_positive_time in false_positive_times 
+          possible_interval_painting_stop_points_dict[false_positive_time] = []
+          tuple_index = findall(tup -> tup[1] == false_positive_time && tup[3] == "event", augmented_positive_times_labeled)[1]
+          same_time_values = filter(tup -> tup[1] == false_positive_time && tup[3] != "event", augmented_positive_times_labeled)
+          if same_time_values != [] 
+            same_time_value = same_time_values[1][2]
             
-            # construct new problem_contexts 
-            for false_positive_time in false_positive_times 
-              if possible_interval_painting_stop_points_dict[false_positive_time] == [] 
-                delete!(possible_interval_painting_stop_points_dict, false_positive_time)
-              end
-            end
-  
-            sorted_times = sort(collect(keys(possible_interval_painting_stop_points_dict)))
-            orig_stop_times = map(t -> possible_interval_painting_stop_points_dict[t], sorted_times)
-  
-            # temporary debugging hack 
-            # for i in 1:length(orig_stop_times) 
-            #   l = orig_stop_times[i]
-            #   if length(l) > 1 
-            #     orig_stop_times[i] = vcat(l[2], l[1], l[3:end])
-            #   end
-            # end
-  
-            stop_times = vec(collect(Base.product(orig_stop_times...)))[2:end] # first stop time tuple is used in current thread 
-            for stop_time in stop_times 
-              new_context_stop_points_dict = Dict()
-              for time_index in 1:length(sorted_times)
-                time = sorted_times[time_index] 
-                new_context_stop_points_dict[time] = [stop_time[time_index]]
-              end
-  
-              new_context_augmented_positive_times, new_context_extra_global_var_values = relabel_via_interval_painting(deepcopy(augmented_positive_times_labeled), global_var_value, max_global_var_value, deepcopy(extra_global_var_values), times_dict, new_context_stop_points_dict, false_positive_times, update_function_indices)
-              
-              new_context_grouped_ranges, new_context_augmented_positive_times, new_context_new_state_update_times_dict = recompute_ranges(new_context_augmented_positive_times, 
-                                                                                                                                           deepcopy(init_state_update_times_dict),
-                                                                                                                                           global_var_id, 
-                                                                                                                                           global_var_value,
-                                                                                                                                           deepcopy(global_var_dict),
-                                                                                                                                           true_positive_times, 
-                                                                                                                                           new_context_extra_global_var_values,
-                                                                                                                                           true)
-              println("WHATS GOING ON")
-              if !(new_context_augmented_positive_times in old_augmented_positive_times)
-                push!(old_augmented_positive_times, deepcopy(new_context_augmented_positive_times))
-                @show new_context_extra_global_var_values
-                push!(problem_contexts, (new_context_grouped_ranges, new_context_augmented_positive_times, deepcopy(init_state_update_times_dict), deepcopy(global_var_dict), deepcopy(new_context_extra_global_var_values)))  
+            for prev_index in (tuple_index-2):-1:1 
+              prev_tuple = augmented_positive_times_labeled[prev_index]
+              @show prev_tuple 
+              @show same_time_value 
+              if !(prev_tuple[2] in [same_time_value]) || prev_tuple[3] == "event"
+                println("huh?")
+                push!(possible_interval_painting_stop_points_dict[false_positive_time], prev_tuple[1])
+                break
+              else
+                println("huh 2?")
+                prev_time = prev_tuple[1]
+                if !isnothing(user_events[prev_time]) && user_events[prev_time] != "nothing"
+                  # possible stopping time! 
+                  push!(possible_interval_painting_stop_points_dict[false_positive_time], prev_time)
+                end
               end
             end
           end
-  
         end
 
+        curr_interval_painting_stop_points_dict = Dict(map(t -> t => [], false_positive_times))
+        
+        if count(x -> x > 1, map(v -> length(v), collect(values(possible_interval_painting_stop_points_dict)))) > 0 
+          # multiplicity handling: add new problem context corresponding to alternative interval painting options 
+          for false_positive_time in false_positive_times 
+            stop_points = possible_interval_painting_stop_points_dict[false_positive_time]
+            if stop_points != []
+              if length(stop_points) >= 2 
+                curr_interval_painting_stop_points_dict[false_positive_time] = reverse(stop_points)[1:2]               
+              else 
+                curr_interval_painting_stop_points_dict[false_positive_time] = reverse(stop_points)[1:1]
+              end
+              # if length(stop_points) >= 2 
+              #   curr_interval_painting_stop_points_dict[false_positive_time] = reverse(stop_points)[2:2]               
+              # else 
+              #   curr_interval_painting_stop_points_dict[false_positive_time] = reverse(stop_points)[1:1]
+              # end
+
+              # curr_interval_painting_stop_points_dict[false_positive_time] = reverse(stop_points)[1:1]
+              possible_interval_painting_stop_points_dict[false_positive_time] = reverse(stop_points) # [2:end] 
+            end
+          end
+          
+          # construct new problem_contexts 
+          for false_positive_time in false_positive_times 
+            if possible_interval_painting_stop_points_dict[false_positive_time] == [] 
+              delete!(possible_interval_painting_stop_points_dict, false_positive_time)
+            end
+          end
+
+          sorted_times = sort(collect(keys(possible_interval_painting_stop_points_dict)))
+          orig_stop_times = map(t -> possible_interval_painting_stop_points_dict[t], sorted_times)
+
+          # temporary debugging hack 
+          # for i in 1:length(orig_stop_times) 
+          #   l = orig_stop_times[i]
+          #   if length(l) > 1 
+          #     orig_stop_times[i] = vcat(l[2], l[1], l[3:end])
+          #   end
+          # end
+
+          stop_times = vec(collect(Base.product(orig_stop_times...)))[2:end] # first stop time tuple is used in current thread 
+          for stop_time in stop_times 
+            new_context_stop_points_dict = Dict()
+            for time_index in 1:length(sorted_times)
+              time = sorted_times[time_index] 
+              new_context_stop_points_dict[time] = [stop_time[time_index]]
+            end
+
+            # new_context_augmented_positive_times, new_context_extra_global_var_values = relabel_via_interval_painting(deepcopy(augmented_positive_times_labeled), global_var_value, max_global_var_value, deepcopy(extra_global_var_values), times_dict, new_context_stop_points_dict, false_positive_times, update_function_indices)
+            
+            # new_context_grouped_ranges, new_context_augmented_positive_times, new_context_new_state_update_times_dict = recompute_ranges(new_context_augmented_positive_times, 
+            #                                                                                                                               deepcopy(init_state_update_times_dict),
+            #                                                                                                                               global_var_id, 
+            #                                                                                                                               global_var_value,
+            #                                                                                                                               deepcopy(global_var_dict),
+            #                                                                                                                               true_positive_times, 
+            #                                                                                                                               new_context_extra_global_var_values,
+            #                                                                                                                               true)
+            # println("WHATS GOING ON")
+            # if !(new_context_augmented_positive_times in old_augmented_positive_times)
+            #   push!(old_augmented_positive_times, deepcopy(new_context_augmented_positive_times))
+            #   @show new_context_extra_global_var_values
+            #   push!(problem_contexts, (new_context_grouped_ranges, new_context_augmented_positive_times, deepcopy(init_state_update_times_dict), deepcopy(global_var_dict), deepcopy(new_context_extra_global_var_values)))  
+            # end
+          end
+        end
+  
         augmented_positive_times, extra_global_var_values = relabel_via_interval_painting(augmented_positive_times_labeled, global_var_value, max_global_var_value, extra_global_var_values, times_dict, curr_interval_painting_stop_points_dict, false_positive_times, update_function_indices)
   
         if length(unique(map(x -> x[1], augmented_positive_times))) != length(augmented_positive_times)
