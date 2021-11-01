@@ -68,7 +68,7 @@ function generate_on_clauses_GLOBAL(matrix, unformatted_matrix, object_decomposi
   push!(filtered_matrices, filter_update_function_matrix_multiple(construct_chaos_matrix(filtered_unformatted_matrix, object_decomposition), object_decomposition, multiple=false)...)
 
   unique!(filtered_matrices)
-  filtered_matrices = filtered_matrices[22:22]
+  # filtered_matrices = filtered_matrices[22:22]
 
   for filtered_matrix_index in 1:length(filtered_matrices)
     @show filtered_matrix_index
