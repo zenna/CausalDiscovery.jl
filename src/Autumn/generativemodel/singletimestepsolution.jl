@@ -43,11 +43,11 @@ function singletimestepsolution_matrix(observations, user_events, grid_size; sin
   
   # SEED PREV USED RULES FOR EFFIENCY AT THE MOMENT 
   prev_used_rules = [ "(= objX objX)",
-                      # "(= objX (nextLiquid objX))",
-                      "(= objX (moveDown objX))",
-                      "(= objX (moveUp objX))",
-                      "(= objX (moveLeft objX))",
-                      "(= objX (moveRight objX))",
+                      "(= objX (nextLiquid objX))",
+                      # "(= objX (moveDown objX))",
+                      # "(= objX (moveUp objX))",
+                      # "(= objX (moveLeft objX))",
+                      # "(= objX (moveRight objX))",
                     ] 
 
   if upd_func_space == 2 
@@ -1923,8 +1923,11 @@ function generate_event(anonymized_update_rule, distinct_update_rules, object_id
         end
       
         # check if event_values match true_times/false_times 
-        # # @show observation_data_dict
-        # # @show event_values_dicts
+        println("INSIDE GENERATE_EVENT")
+        @show anonymized_event
+        @show observation_data_dict
+        @show event_values_dicts
+        @show event_vector_dict
         
         equals = true
         for tuple in event_values_dicts 

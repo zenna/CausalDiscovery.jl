@@ -129,8 +129,8 @@ function synthesize_program(model_name::String;
     # generate_on_clauses_GLOBAL
     # generate_on_clauses
     # generate_on_clauses_SKETCH_SINGLE
-    # solutions = generate_on_clauses(matrix, unformatted_matrix, object_decomposition, user_events, global_event_vector_dict, redundant_events_set, grid_size, desired_solution_count, desired_per_matrix_solution_count, interval_painting_param, z3_option, time_based)
-    solutions = generate_on_clauses_GLOBAL(matrix, unformatted_matrix, object_decomposition, user_events, global_event_vector_dict, redundant_events_set, grid_size, desired_solution_count, desired_per_matrix_solution_count, interval_painting_param, false, z3_option, time_based, co_occurring_param, transition_param)
+    # solutions = generate_on_clauses(matrix, unformatted_matrix, object_decomposition, user_events, global_event_vector_dict, redundant_events_set, grid_size, desired_solution_count, desired_per_matrix_solution_count, interval_painting_param, z3_option, time_based) z3_option="none", time_based=false, z3_timeout=0, sketch_timeout=0, co_occurring_param=false, transition_param=false
+    solutions = generate_on_clauses_GLOBAL(matrix, unformatted_matrix, object_decomposition, user_events, global_event_vector_dict, redundant_events_set, grid_size, desired_solution_count, desired_per_matrix_solution_count, interval_painting_param, false, z3_option, time_based, 0, 0, co_occurring_param, transition_param)
     # solutions = generate_on_clauses_SKETCH_MULTI(matrix, unformatted_matrix, object_decomposition, user_events, global_event_vector_dict, redundant_events_set, grid_size, desired_solution_count, desired_per_matrix_solution_count, interval_painting_param)
     for solution in solutions 
       if solution[1] != [] 
@@ -417,7 +417,7 @@ programs = Dict("particles"                                 => """(program
                                                                                                                                                                                 (--> obj (adjacent (.. obj origin) (.. (prev activeParticle) origin))))))   
                                                       
                                                                 (: activeParticle Particle)
-                                                                (= activeParticle (initnext (Particle false (Position 0 0)) (prev activeParticle))) 
+                                                                (= activeParticle (initnext (Particle false (Position 1 0)) (prev activeParticle))) 
                                                       
                                                                 (on (!= (length (filter (--> obj (! (.. obj health))) (adjacentObjs activeParticle))) 0) (= activeParticle (updateObj (prev activeParticle) "health" false)))
                                                                 (on (clicked (prev inactiveParticles)) 
