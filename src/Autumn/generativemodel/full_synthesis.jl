@@ -417,7 +417,7 @@ programs = Dict("particles"                                 => """(program
                                                                                                                                                                                 (--> obj (adjacent (.. obj origin) (.. (prev activeParticle) origin))))))   
                                                       
                                                                 (: activeParticle Particle)
-                                                                (= activeParticle (initnext (Particle false (Position 1 0)) (prev activeParticle))) 
+                                                                (= activeParticle (initnext (Particle false (Position 0 0)) (prev activeParticle))) 
                                                       
                                                                 (on (!= (length (filter (--> obj (! (.. obj health))) (adjacentObjs activeParticle))) 0) (= activeParticle (updateObj (prev activeParticle) "health" false)))
                                                                 (on (clicked (prev inactiveParticles)) 

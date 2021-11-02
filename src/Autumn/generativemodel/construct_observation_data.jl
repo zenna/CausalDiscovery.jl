@@ -138,46 +138,22 @@ function generate_observations_disease(m::Module)
   user_events = []
   push!(observations, Base.invokelatest(m.render, state.scene))
 
-  events = Dict([1 => "down",
-                 3 => "down",
-                 6 => (4, 4),
-                 7 => "down",
-                 9 => (1, 2),
-                 11 => "left",
-                 13 => (4, 5),
-                 14 => "left",
-                 16 => (0, 2),
-                 17 => "up",
-                 18 => "up",
-                 19 => (3, 5),
-                 20 => "up",
-                 21 => "up",
-                 22 => (0, 0),
-                 23 => "right",
-                 24 => (3, 3),
-                 25 => "right",
-                ])
-
-  for i in 0:26
-    if i in collect(keys(events))
-      event = events[i]
-      if event == "left"
-        state = Base.invokelatest(m.next, state, nothing, Base.invokelatest(m.Left), nothing, nothing, nothing)
-        push!(user_events, event)
-      elseif event == "right"
-        state = Base.invokelatest(m.next, state, nothing, nothing, Base.invokelatest(m.Right), nothing, nothing)
-        push!(user_events, event)
-      elseif event == "up"
-        state = Base.invokelatest(m.next, state, nothing, nothing, nothing, Base.invokelatest(m.Up), nothing)
-        push!(user_events, event)
-      elseif event == "down"
-        state = Base.invokelatest(m.next, state, nothing, nothing, nothing, nothing, Base.invokelatest(m.Down))
-        push!(user_events, event)
-      else 
-        click_x, click_y = events[i]
-        state = Base.invokelatest(m.next, state, Base.invokelatest(m.Click, click_x, click_y), nothing, nothing, nothing, nothing)
-        push!(user_events, "click $(click_x) $(click_y)")
-      end
+  for i in 0:20
+    if i in [1, 2, 18]
+      state = Base.invokelatest(m.next, state, nothing, nothing, nothing, nothing, Base.invokelatest(m.Down))
+      push!(user_events, "down")
+    elseif i in [6, 14]
+      state = Base.invokelatest(m.next, state, nothing, nothing, nothing, Base.invokelatest(m.Up), nothing)
+      push!(user_events, "up")
+    elseif i in [8, 12] 
+      state = Base.invokelatest(m.next, state, nothing, Base.invokelatest(m.Left), nothing, nothing, nothing)
+      push!(user_events, "left")
+    elseif i in [4, 16]
+      state = Base.invokelatest(m.next, state, nothing, nothing, Base.invokelatest(m.Right), nothing, nothing)
+      push!(user_events, "right")
+    elseif i in [10]
+      state = Base.invokelatest(m.next, state, Base.invokelatest(m.Click, 4, 4), nothing, nothing, nothing, nothing)
+      push!(user_events, "click 4 4")
     else
       state = Base.invokelatest(m.next, state, nothing, nothing, nothing, nothing, nothing)
       push!(user_events, nothing)
@@ -185,31 +161,6 @@ function generate_observations_disease(m::Module)
     push!(observations, Base.invokelatest(m.render, state.scene))
   end
   observations, user_events, 8
-
-
-  # for i in 0:20
-  #   if i in [4, 7, 15]
-  #     state = Base.invokelatest(m.next, state, nothing, nothing, nothing, nothing, Base.invokelatest(m.Down))
-  #     push!(user_events, "down")
-  #   elseif i in [2, 13, 16]
-  #     state = Base.invokelatest(m.next, state, nothing, nothing, nothing, Base.invokelatest(m.Up), nothing)
-  #     push!(user_events, "up")
-  #   elseif i in [1, 12] 
-  #     state = Base.invokelatest(m.next, state, nothing, Base.invokelatest(m.Left), nothing, nothing, nothing)
-  #     push!(user_events, "left")
-  #   elseif i in [6, 14]
-  #     state = Base.invokelatest(m.next, state, nothing, nothing, Base.invokelatest(m.Right), nothing, nothing)
-  #     push!(user_events, "right")
-  #   elseif i in [10]
-  #     state = Base.invokelatest(m.next, state, Base.invokelatest(m.Click, 4, 4), nothing, nothing, nothing, nothing)
-  #     push!(user_events, "click 4 4")
-  #   else
-  #     state = Base.invokelatest(m.next, state, nothing, nothing, nothing, nothing, nothing)
-  #     push!(user_events, nothing)
-  #   end
-  #   push!(observations, Base.invokelatest(m.render, state.scene))
-  # end
-  # observations, user_events, 8
 end
 
 function generate_observations_water_plug(m::Module)

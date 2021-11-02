@@ -70,6 +70,8 @@ function generate_on_clauses_GLOBAL(matrix, unformatted_matrix, object_decomposi
   unique!(filtered_matrices)
   # filtered_matrices = filtered_matrices[22:22]
   # filtered_matrices = filtered_matrices[5:5]
+  filtered_matrices = filtered_matrices[1:1]
+  
 
   for filtered_matrix_index in 1:length(filtered_matrices)
     @show filtered_matrix_index
@@ -701,8 +703,9 @@ function generate_new_state_GLOBAL(co_occurring_event, times_dict, event_vector_
       if foldl(&, map(update_rule -> occursin("addObj", update_rule), collect(keys(times_dict))))
         push!(false_positive_times, time)
       elseif (object_trajectory[time][1] != "") # && !(occursin("removeObj", object_trajectory[time][1]))
+        # push!(false_positive_times, time)
         rule = object_trajectory[time][1]
-        min_index = max(findall(r -> r in update_functions, ordered_update_functions))
+        min_index = minimum(findall(r -> r in update_functions, ordered_update_functions))
         if is_no_change_rule(rule) || findall(r -> r == rule, ordered_update_functions) < min_index 
           push!(false_positive_times, time)
         end
@@ -1450,7 +1453,7 @@ function generate_new_object_specific_state_GLOBAL(co_occurring_event, update_fu
       @show false_positive_events
       events_without_true = filter(tuple -> !occursin("true", tuple[1]) && tuple[2] == minimum(map(t -> t[2], false_positive_events_with_state)), false_positive_events_with_state)
       if events_without_true != []
-          false_positive_event, _, true_positive_times, false_positive_times = events_without_true[1] 
+        false_positive_event, _, true_positive_times, false_positive_times = events_without_true[1] 
       else
         # FAILURE CASE: only separating event with false positives is true-based 
         # false_positive_event, _, true_positive_times, false_positive_times = false_positive_events_with_state[1]

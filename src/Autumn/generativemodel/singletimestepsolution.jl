@@ -1924,10 +1924,10 @@ function generate_event(anonymized_update_rule, distinct_update_rules, object_id
       
         # check if event_values match true_times/false_times 
         println("INSIDE GENERATE_EVENT")
-        @show anonymized_event
-        @show observation_data_dict
-        @show event_values_dicts
-        @show event_vector_dict
+        # @show anonymized_event
+        # @show observation_data_dict
+        # @show event_values_dicts
+        # @show event_vector_dict
         
         equals = true
         for tuple in event_values_dicts 
