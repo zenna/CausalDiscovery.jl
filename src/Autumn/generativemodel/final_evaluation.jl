@@ -52,6 +52,7 @@ function run_model(model_name::String, desired_per_matrix_solution_count, desire
   found_enough = false
 
   all_sols = []
+  total_time = 0
   for transition_param in transition_param_vals
     for co_occurring_param in co_occurring_param_vals
       for z3_option in z3_option_vals 
@@ -82,10 +83,13 @@ function run_model(model_name::String, desired_per_matrix_solution_count, desire
               println(io, join(sols, "\n\n\n\n"))
             end
             push!(all_sols, sols...)
-    
+            total_time += timed_tuple.time
+            
             non_random_solutions = filter(x -> !occursin("randomPositions", x) && !occursin("uniformChoice", x), all_sols)
             if length(non_random_solutions) >= 1 
               found_enough = true 
+              println("FINAL TIME") 
+              @show total_time 
               break
             end
           end

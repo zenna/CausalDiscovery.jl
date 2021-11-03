@@ -633,39 +633,39 @@ programs = Dict("particles"                                 => """(program
                                                                               (= enemyLives (- (prev enemyLives) 1)))))
                                                                     )"""
                 ,"sand"                                      => """(program
-                                                                  (= GRID_SIZE 10)
-                                                                  
-                                                                  (object Button (: color String) (Cell 0 0 color))
-                                                                  (object Sand (: liquid Bool) (Cell 0 0 (if liquid then "sandybrown" else "tan")))
-                                                                  (object Water (Cell 0 0 "skyblue"))
-                                                                  
-                                                                  (: sandButton Button)
-                                                                  (= sandButton (initnext (Button "tan" (Position 2 0)) (prev sandButton)))
-                                                                  
-                                                                  (: waterButton Button)
-                                                                  (= waterButton (initnext (Button "skyblue" (Position 7 0)) (prev waterButton)))
-                                                                  
-                                                                  (: sand (List Sand))
-                                                                  (= sand (initnext (list) 
-                                                                            (updateObj (prev sand) (--> obj (if (.. obj liquid) 
-                                                                                      then (nextLiquid obj)
-                                                                                      else (nextSolid obj))))))
-                                                                  
-                                                                  (: water (List Water))
-                                                                  (= water (initnext (list) (updateObj (prev water) (--> obj (nextLiquid obj)))))
-                                                                  
+                                                                      (= GRID_SIZE 10)
                                                                     
-                                                                  (: clickType String)
-                                                                  (= clickType (initnext "sand" (prev clickType)))
-                                                                  
-                                                                  (on true (= sand (updateObj (prev sand) (--> obj (updateObj obj "liquid" true)) (--> obj (& (! (.. obj liquid)) (intersects (adjacentObjs obj) (prev water)))))))
-                                                                  
-                                                                  (on (clicked sandButton) (= clickType "sand"))
-                                                                  (on (clicked waterButton) (= clickType "water"))
-                                                                  (on (& (& clicked (isFree click)) (== clickType "sand"))  (= sand (addObj sand (Sand false (Position (.. click x) (.. click y))))))
-                                                                  (on (& (& clicked (isFree click)) (== clickType "water")) (= water (addObj water (Water (Position (.. click x) (.. click y))))))
-                                                                
-                                                                )"""
+                                                                      (object Button (: color String) (Cell 0 0 color))
+                                                                      (object Sand (: liquid Bool) (Cell 0 0 (if liquid then "sandybrown" else "tan")))
+                                                                      (object Water (Cell 0 0 "skyblue"))
+                                                                    
+                                                                      (: sandButton Button)
+                                                                      (= sandButton (initnext (Button "red" (Position 2 0)) (prev sandButton)))
+                                                                    
+                                                                      (: waterButton Button)
+                                                                      (= waterButton (initnext (Button "green" (Position 7 0)) (prev waterButton)))
+                                                                    
+                                                                      (: sand (List Sand))
+                                                                      (= sand (initnext (list) 
+                                                                                (updateObj (prev sand) (--> obj (if (.. obj liquid) 
+                                                                    then (nextLiquid obj)
+                                                                    else (nextSolid obj))))))
+                                                                    
+                                                                    (: water (List Water))
+                                                                    (= water (initnext (list) (updateObj (prev water) (--> obj (nextLiquid obj)))))
+                                                                    
+                                                                    
+                                                                    (: clickType String)
+                                                                    (= clickType (initnext "sand" (prev clickType)))
+                                                                    
+                                                                    (on true (= sand (updateObj (prev sand) (--> obj (updateObj obj "liquid" true)) (--> obj (& (! (.. obj liquid)) (intersects (adjacentObjs obj) (prev water)))))))
+                                                                    
+                                                                    (on (clicked sandButton) (= clickType "sand"))
+                                                                    (on (clicked waterButton) (= clickType "water"))
+                                                                    (on (& (& clicked (isFree click)) (== clickType "sand"))  (= sand (addObj sand (Sand false (Position (.. click x) (.. click y))))))
+                                                                    (on (& (& clicked (isFree click)) (== clickType "water")) (= water (addObj water (Water (Position (.. click x) (.. click y))))))
+                                                                    
+                                                                              )"""
                 ,"gravity_i"                                 => """(program
                                                                   (= GRID_SIZE 16)
                                                                     
