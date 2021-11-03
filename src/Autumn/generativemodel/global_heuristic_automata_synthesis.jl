@@ -69,7 +69,7 @@ function generate_on_clauses_GLOBAL(matrix, unformatted_matrix, object_decomposi
 
   unique!(filtered_matrices)
   # filtered_matrices = filtered_matrices[22:22]
-  filtered_matrices = filtered_matrices[5:5]
+  # filtered_matrices = filtered_matrices[5:5]
   # filtered_matrices = filtered_matrices[1:1]
   
 
