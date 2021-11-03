@@ -141,7 +141,7 @@ function run_model(model_name::String, desired_per_matrix_solution_count, desire
     open(string(subdirectory_name, "/final_time", ".txt"),"a") do io
       println(io, "-----------------------------------------")
       println(io, "FINAL TIME")
-      println(string(total_time))
+      println(io, string(total_time))
     end
 
   end
