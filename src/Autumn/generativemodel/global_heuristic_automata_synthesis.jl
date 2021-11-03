@@ -70,7 +70,7 @@ function generate_on_clauses_GLOBAL(matrix, unformatted_matrix, object_decomposi
   unique!(filtered_matrices)
   # filtered_matrices = filtered_matrices[22:22]
   # filtered_matrices = filtered_matrices[5:5]
-  filtered_matrices = filtered_matrices[1:1]
+  # filtered_matrices = filtered_matrices[1:1]
   
 
   for filtered_matrix_index in 1:length(filtered_matrices)
@@ -293,8 +293,14 @@ function generate_on_clauses_GLOBAL(matrix, unformatted_matrix, object_decomposi
         
         # generate new state until all unmatched update functions are matched 
         while length(collect(keys(co_occurring_events_dict))) != 0
-          type_id, co_occurring_event = sort(collect(keys(co_occurring_events_dict)), by=tuple -> length(tuple[2]))[1]
+          # type_id, co_occurring_event = sort(collect(keys(co_occurring_events_dict)), by=tuple -> length(tuple[2]))[1]
           
+          tuples = collect(keys(co_occurring_events_dict))
+          multi_id_tuples = sort(filter(t -> t[1] isa Tuple, tuples), by=x -> length(x[2]))
+          single_id_tuples = filter(t -> !(t[1] isa Tuple), tuples)
+          sorted_tuples = vcat(multi_id_tuples..., single_id_tuples...)
+          type_id, co_occurring_event = sorted_tuples[1]
+
           update_functions = co_occurring_events_dict[(type_id, co_occurring_event)]
           delete!(co_occurring_events_dict, (type_id, co_occurring_event))
 
@@ -628,7 +634,7 @@ function update_co_occurring_events_dict(co_occurring_events_dict, state_based_u
     type_id, co_occurring_event = tuple
     if (type_id isa Tuple)
       ids = collect(type_id)
-      state_based_update_functions = vcat(map(id -> state_based_update_functions_dict[id], ids)...)
+      state_based_update_functions = vcat(map(id -> id in keys(state_based_update_functions_dict) ? state_based_update_functions_dict[id] : [], ids)...)
       co_occurring_events_dict[tuple] = filter(upd_func -> upd_func in state_based_update_functions, 
                                                       co_occurring_events_dict[tuple])        
     else
@@ -703,10 +709,16 @@ function generate_new_state_GLOBAL(co_occurring_event, times_dict, event_vector_
       if foldl(&, map(update_rule -> occursin("addObj", update_rule), collect(keys(times_dict))))
         push!(false_positive_times, time)
       elseif (object_trajectory[time][1] != "") # && !(occursin("removeObj", object_trajectory[time][1]))
-        # push!(false_positive_times, time)
+        
         rule = object_trajectory[time][1]
         min_index = minimum(findall(r -> r in update_functions, ordered_update_functions))
-        if is_no_change_rule(rule) || findall(r -> r == rule, ordered_update_functions) < min_index 
+
+        @show time 
+        @show rule 
+        @show min_index
+        @show findall(r -> r == rule, ordered_update_functions) 
+
+        if is_no_change_rule(rule) || findall(r -> r == rule, ordered_update_functions)[1] < min_index 
           push!(false_positive_times, time)
         end
       end     
@@ -1338,8 +1350,9 @@ function generate_new_object_specific_state_GLOBAL(co_occurring_event, update_fu
     #   small_event_vector_dict[x] = event_vector_dict[x]
     # end
 
-    for e in keys(event_vector_dict)
-      if (occursin("true", e) || occursin("|", e)) && e in keys(small_event_vector_dict)
+    small_events = collect(keys(small_event_vector_dict))
+    for e in small_events
+      if (occursin("true", e) || occursin("|", e))
         delete!(small_event_vector_dict, e)
       end
     end

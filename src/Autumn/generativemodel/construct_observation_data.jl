@@ -257,7 +257,7 @@ function generate_observations_wind(m::Module)
     if i in [8, 11]
       state = Base.invokelatest(m.next, state, nothing, Base.invokelatest(m.Left), nothing, nothing, nothing)
       push!(user_events, "left")
-    elseif i in [4, 16]
+    elseif i in [4, 14]
       state = Base.invokelatest(m.next, state, nothing, nothing, Base.invokelatest(m.Right), nothing, nothing)
       push!(user_events, "right")
     else

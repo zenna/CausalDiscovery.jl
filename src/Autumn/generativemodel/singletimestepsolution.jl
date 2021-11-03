@@ -44,10 +44,10 @@ function singletimestepsolution_matrix(observations, user_events, grid_size; sin
   # SEED PREV USED RULES FOR EFFIENCY AT THE MOMENT 
   prev_used_rules = [ "(= objX objX)",
                       "(= objX (nextLiquid objX))",
-                      # "(= objX (moveDown objX))",
-                      # "(= objX (moveUp objX))",
-                      # "(= objX (moveLeft objX))",
-                      # "(= objX (moveRight objX))",
+                      "(= objX (moveDown objX))",
+                      "(= objX (moveUp objX))",
+                      "(= objX (moveLeft objX))",
+                      "(= objX (moveRight objX))",
                     ] 
 
   if upd_func_space == 2 
