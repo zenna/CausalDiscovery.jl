@@ -44,8 +44,8 @@ function run_model(model_name::String, desired_per_matrix_solution_count, desire
   mkdir(subdirectory_name)
 
   transition_param_vals = [false] # [false, true]
-  co_occurring_param_vals = [false] # [false, true]
-  z3_option_vals = ["partial", "full"]
+  co_occurring_param_vals = [false, true] # [false, true]
+  z3_option_vals = ["full"] # ["full", "partial"]
   time_based_vals = [false, true]
   singlecell_vals = [true, true]
 
@@ -53,9 +53,9 @@ function run_model(model_name::String, desired_per_matrix_solution_count, desire
 
   all_sols = []
   total_time = 0
-  for transition_param in transition_param_vals
+  for transition_param in transition_param_vals # this option exists because of ambiguity in one model :( -- should make this a primitive 
     for co_occurring_param in co_occurring_param_vals
-      for z3_option in z3_option_vals 
+      for z3_option in z3_option_vals # this option exists because of ambiguity in one model :( 
         for time_based in time_based_vals 
           for singlecell in singlecell_vals 
         
@@ -90,6 +90,9 @@ function run_model(model_name::String, desired_per_matrix_solution_count, desire
               found_enough = true 
               println("FINAL TIME") 
               @show total_time 
+              save(string(subdirectory_name, "/", "FINAL_TIME"), 
+                 "time", 
+                 total_time)
               break
             end
           end
@@ -161,7 +164,7 @@ function run_all_models(desired_per_matrix_solution_count, desired_solution_coun
     println("Task is done: ", istaskdone(task))
 
     total_time = 0
-    while !istaskdone(task) && total_time < 60*60*2 # 2 hours 
+    while !istaskdone(task) && total_time < 60*60*3 # 3 hours 
       sleep(10)
       total_time += 10
     end
@@ -172,7 +175,6 @@ function run_all_models(desired_per_matrix_solution_count, desired_solution_coun
     end
 
     println("all done with $(model_name).")
-  
   end
 end
 
