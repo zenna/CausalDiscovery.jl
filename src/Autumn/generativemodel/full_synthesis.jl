@@ -121,6 +121,8 @@ function synthesize_program(model_name::String;
     observations, user_events, grid_size = generate_observations(model_name)
   end
 
+  @show (observations, user_events, grid_size)
+
   program_strings = []
   global_event_vector_dict = Dict()
   redundant_events_set = Set()
