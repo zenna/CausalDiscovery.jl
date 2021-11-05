@@ -638,16 +638,17 @@ function generate_observations_gravity2(m::Module)
   clicks = Dict([1 => (15, 6), # X
                  2 => (15, 6), # same click (no add)
                  3 => (12, 3), # Y
+                 4 => (12, 3), # same click (no add)
                  5 => (18, 10), # Z
                  7 => (20, 8), # X
                  9 => (0, 14), 
                  11 => (14, 29),
                  13 => (23, 3), # Y
-                 15 => (17, 13), # Z
+                 15 => (7, 20), # Z
                  17 => (29, 14),
                  19 => (14, 0),
                  21 => (14, 0),
-                 23 => (28, 5), # X
+                 23 => (7, 20), # X
                   ])
 
   for i in 0:22
@@ -1482,6 +1483,44 @@ function generate_observations_double_count_2(m::Module)
   end
   observations, user_events, 100
 end
+
+function generate_observations_gravity4(m::Module)
+  state = Base.invokelatest(m.init, nothing, nothing, nothing, nothing, nothing)
+  observations = []
+  user_events = []
+  push!(observations, Base.invokelatest(m.render, state.scene))
+
+  clicks = Dict([1 => (25, 26),
+                 3 => (22, 23),
+                 6 => (20, 27),
+                 9 => (4, 0),
+                 11 => (8, 0),
+                 14 => (12, 0),
+                 17 => (49, 4),
+                 19 => (49, 8),
+                 21 => (49, 12),
+                 22 => (4, 49),
+                 25 => (8, 49),
+                 27 => (12, 49),
+                 29 => (0, 4),
+                 32 => (0, 8),
+                 35 => (0, 12),
+                ])
+
+  for i in 0:37
+    if i in collect(keys(clicks))
+      click_x, click_y = clicks[i]
+      state = Base.invokelatest(m.next, state, Base.invokelatest(m.Click, click_x, click_y), nothing, nothing, nothing, nothing)
+      push!(user_events, "click $(click_x) $(click_y)")
+    else
+      state = Base.invokelatest(m.next, state, nothing, nothing, nothing, nothing, nothing)
+      push!(user_events, nothing)
+    end
+    push!(observations, Base.invokelatest(m.render, state.scene))
+  end
+  observations, user_events, 50
+end
+
 
 
 # PEDRO 

@@ -1,6 +1,6 @@
 const sketch_directory = "/Users/riadas/Documents/urop/sketch-1.7.6/sketch-frontend/"
 
-function generate_on_clauses_SKETCH_SINGLE(matrix, unformatted_matrix, object_decomposition, user_events, global_event_vector_dict, redundant_events_set, grid_size=16, desired_solution_count=1, desired_per_matrix_solution_count=1, interval_painting_param=false, z3_option="none", time_based=false, z3_timeout=0, sketch_timeout=0)   
+function generate_on_clauses_SKETCH_SINGLE(matrix, unformatted_matrix, object_decomposition, user_events, global_event_vector_dict, redundant_events_set, grid_size=16, desired_solution_count=1, desired_per_matrix_solution_count=1, interval_painting_param=false, z3_option="none", time_based=false, z3_timeout=0, sketch_timeout=0, co_occurring_param=false, transition_param=false)   
   object_types, object_mapping, background, dim = object_decomposition
   solutions = []
 
@@ -8,6 +8,32 @@ function generate_on_clauses_SKETCH_SINGLE(matrix, unformatted_matrix, object_de
   # filtered_matrix = filter_update_function_matrix_multiple(pre_filtered_matrix, object_decomposition)[1]
   
   filtered_matrices = []
+
+  pre_filtered_matrix_1 = pre_filter_remove_NoCollision(matrix)
+  if pre_filtered_matrix_1 != false 
+    pre_filtered_non_random_matrix_1 = deepcopy(pre_filtered_matrix_1)
+    for row in 1:size(pre_filtered_non_random_matrix_1)[1]
+      for col in 1:size(pre_filtered_non_random_matrix_1)[2]
+        pre_filtered_non_random_matrix_1[row, col] = filter(x -> !occursin("randomPositions", x), pre_filtered_non_random_matrix_1[row, col])
+      end
+    end
+    filtered_non_random_matrices = filter_update_function_matrix_multiple(pre_filtered_non_random_matrix_1, object_decomposition, multiple=true)
+    push!(filtered_matrices, filtered_non_random_matrices...)
+  end
+
+  # pre filter by removing non-NoCollision update functions 
+  pre_filtered_matrix_1 = pre_filter_remove_non_NoCollision(matrix)
+  if pre_filtered_matrix_1 != false 
+    pre_filtered_non_random_matrix_1 = deepcopy(pre_filtered_matrix_1)
+    for row in 1:size(pre_filtered_non_random_matrix_1)[1]
+      for col in 1:size(pre_filtered_non_random_matrix_1)[2]
+        pre_filtered_non_random_matrix_1[row, col] = filter(x -> !occursin("randomPositions", x), pre_filtered_non_random_matrix_1[row, col])
+      end
+    end
+    filtered_non_random_matrices = filter_update_function_matrix_multiple(pre_filtered_non_random_matrix_1, object_decomposition, multiple=true)
+    push!(filtered_matrices, filtered_non_random_matrices...)
+  end
+
 
   # add non-random filtered matrices to filtered_matrices
   non_random_matrix = deepcopy(matrix)
@@ -42,11 +68,33 @@ function generate_on_clauses_SKETCH_SINGLE(matrix, unformatted_matrix, object_de
   filtered_unformatted_matrix = filter_update_function_matrix_multiple(unformatted_matrix, object_decomposition, multiple=false)[1]
   push!(filtered_matrices, filter_update_function_matrix_multiple(construct_chaos_matrix(filtered_unformatted_matrix, object_decomposition), object_decomposition, multiple=false)...)
 
+  unique!(filtered_matrices)
+  # filtered_matrices = filtered_matrices[22:22]
+  # filtered_matrices = filtered_matrices[5:5]
+  # filtered_matrices = filtered_matrices[2:2] # gravity
+  # filtered_matrices = filtered_matrices[1:1] 
+
   for filtered_matrix_index in 1:length(filtered_matrices)
-    # @show filtered_matrix_index
+    @show filtered_matrix_index
+    failed = false
     # @show length(filtered_matrices)
     # @show solutions
     filtered_matrix = filtered_matrices[filtered_matrix_index]
+    
+    # reset global_event_vector_dict and redundant_events_set for each new context:
+    # remove events dealing with global or object-specific state
+    for event in keys(global_event_vector_dict)
+      if occursin("globalVar", event) || occursin("field1", event)
+        delete!(global_event_vector_dict, event)
+      end
+    end
+
+    for event in redundant_events_set 
+      if occursin("globalVar", event) || occursin("field1", event)
+        delete!(redundant_events_set, event)
+      end
+    end
+
 
     if (length(filter(x -> x[1] != [], solutions)) >= desired_solution_count) # || ((length(filter(x -> x[1] != [], solutions)) > 0) && length(filter(x -> occursin("randomPositions", x), vcat(vcat(filtered_matrix...)...))) > 0) 
       # if we have reached a sufficient solution count or have found a solution before trying random solutions, exit
@@ -86,7 +134,13 @@ function generate_on_clauses_SKETCH_SINGLE(matrix, unformatted_matrix, object_de
 
     # return values: state_based_update_functions_dict has form type_id => [unsolved update functions]
     new_on_clauses, state_based_update_functions_dict, observation_vectors_dict, addObj_params_dict, global_event_vector_dict, ordered_update_functions_dict = generate_stateless_on_clauses(update_functions_dict, matrix, filtered_matrix, anonymized_filtered_matrix, object_decomposition, user_events, state_update_on_clauses, global_var_dict, global_event_vector_dict, redundant_events_set, z3_option, time_based, z3_timeout, sketch_timeout)
+    
+    println("I AM HERE NOW")
+    @show new_on_clauses
+    @show state_based_update_functions_dict
+    @show ordered_update_functions_dict
     push!(on_clauses, new_on_clauses...)
+    @show observation_vectors_dict
  
     # check if all update functions were solved; if not, proceed with state generation procedure
     if length(collect(keys(state_based_update_functions_dict))) == 0 
@@ -107,38 +161,32 @@ function generate_on_clauses_SKETCH_SINGLE(matrix, unformatted_matrix, object_de
         for update_function in update_functions 
           # determine if state is global or object-specific 
           state_is_global = true 
-          if foldl(&, map(u -> occursin("addObj", u), update_functions), init=true) || length(object_ids_with_type) == 1
+          if length(object_ids_with_type) == 1 || occursin("addObj", update_function)
             state_is_global = true
           else
-            for update_function in update_functions 
-              for time in 1:length(user_events)
-                observation_values = map(id -> observation_vectors_dict[update_function][id][time], object_ids_with_type)
-                if (0 in observation_values) && (1 in observation_values)
-                  @show update_function 
-                  @show time 
-                  state_is_global = false
-                  break
-                end
-              end
-              if !state_is_global
+            for time in 1:length(user_events)
+              observation_values = map(id -> observation_vectors_dict[update_function][id][time], object_ids_with_type)
+              if (0 in observation_values) && (1 in observation_values)
+                @show update_function 
+                @show time 
+                state_is_global = false
                 break
               end
             end
+          end
 
-            if state_is_global 
-              if type_id in keys(global_update_functions_dict)
-                push!(global_update_functions_dict[type_id], update_function)
-              else
-                global_update_functions_dict[type_id] = [update_function]
-              end
+          if state_is_global 
+            if type_id in keys(global_update_functions_dict)
+              push!(global_update_functions_dict[type_id], update_function)
             else
-              if type_id in keys(object_specific_update_functions_dict)
-                push!(object_specific_update_functions_dict[type_id], update_function)
-              else
-                object_specific_update_functions_dict[type_id] = [update_function]
-              end
+              global_update_functions_dict[type_id] = [update_function]
             end
-
+          else
+            if type_id in keys(object_specific_update_functions_dict)
+              push!(object_specific_update_functions_dict[type_id], update_function)
+            else
+              object_specific_update_functions_dict[type_id] = [update_function]
+            end
           end
         end
       end
@@ -146,14 +194,15 @@ function generate_on_clauses_SKETCH_SINGLE(matrix, unformatted_matrix, object_de
       println("DEBUGGING HERE NOW")
       @show global_update_functions_dict
       @show object_specific_update_functions_dict
-      @show type_id 
+      # @show type_id 
       @show object_mapping 
       @show anonymized_filtered_matrix
 
       # GLOBAL STATE HANDLING
       if length(collect(keys(global_update_functions_dict))) > 0 
+        global_update_functions = sort(vcat(collect(keys(global_update_functions_dict))...))
         # construct update_function_times_dict for this type_id/co_occurring_event pair 
-        for type_id in collect(keys(global_update_functions_dict)) 
+        for type_id in global_update_functions
           global_update_functions = global_update_functions_dict[type_id]
           for update_function in global_update_functions 
             times_dict = Dict() # form: update function => object_id => times when update function occurred for object_id
@@ -162,57 +211,79 @@ function generate_on_clauses_SKETCH_SINGLE(matrix, unformatted_matrix, object_de
               times_dict[update_function] = Dict(map(id -> id => findall(r -> r == u, vcat(anonymized_filtered_matrix[id, :]...)), object_ids_with_type))
             end
       
-            if foldl(&, map(update_rule -> occursin("addObj", update_rule), update_functions))
-              object_trajectories = map(id -> anonymized_filtered_matrix[id, :], filter(k -> filter(obj -> !isnothing(obj), object_mapping[k])[1].type.id == filter(obj -> !isnothing(obj), object_mapping[object_ids_with_type[1]])[1].type.id, collect(keys(object_mapping))))
-              true_times = unique(vcat(map(trajectory -> findall(rule -> rule in update_functions, vcat(trajectory...)), object_trajectories)...))
+            if occursin("addObj", update_function)
+              object_trajectories = map(id -> anonymized_filtered_matrix[id, :], filter(k -> filter(obj -> !isnothing(obj), object_mapping[k])[1].type.id == type_id, collect(keys(object_mapping))))
+              true_times = unique(vcat(map(trajectory -> findall(rule -> rule == update_function, vcat(trajectory...)), object_trajectories)...))
               object_trajectory = []
+              ordered_update_functions = []
             else 
-              ids_with_rule = map(idx -> object_ids_with_type[idx], findall(idx_set -> idx_set != [], map(id -> findall(rule -> rule[1] in update_functions, anonymized_filtered_matrix[id, :]), object_ids_with_type)))
-              trajectory_lengths = map(id -> length(unique(filter(x -> x != "", anonymized_filtered_matrix[id, :]))), ids_with_rule)
+              ids_with_rule = map(idx -> object_ids_with_type[idx], findall(idx_set -> idx_set != [], map(id -> findall(rule -> rule[1] == update_function, anonymized_filtered_matrix[id, :]), object_ids_with_type)))
+              trajectory_lengths = map(id -> length(filter(x -> x != [""], anonymized_filtered_matrix[id, :])), ids_with_rule)
               max_index = findall(x -> x == maximum(trajectory_lengths) , trajectory_lengths)[1]
               object_id = ids_with_rule[max_index]
               object_trajectory = anonymized_filtered_matrix[object_id, :]
               true_times = unique(findall(rule -> rule == update_function, vcat(object_trajectory...)))
+              ordered_update_functions = ordered_update_functions_dict[type_id]
             end
-            state_solutions = generate_global_automaton_sketch(update_function, true_times, global_event_vector_dict, object_trajectory, init_global_var_dict, state_update_times_dict, object_decomposition, type_id, desired_per_matrix_solution_count, interval_painting_param, sketch_timeout)
+            state_solutions = generate_global_automaton_sketch(update_function, true_times, global_event_vector_dict, object_trajectory, Dict(), global_state_update_times_dict, global_object_decomposition, type_id, desired_per_matrix_solution_count, interval_painting_param, sketch_timeout, ordered_update_functions, global_update_functions)
+            if state_solutions == [] 
+              failed = true 
+              break
+            end
+            
             global_state_solutions_dict[update_function] = state_solutions 
           end
+
+          if failed 
+            break
+          end
+
+        end
+
+        if !failed 
+          # GLOBAL AUTOMATON CONSTRUCTION 
+          @show global_state_solutions_dict
+          global_update_functions = sort(vcat(collect(keys(global_state_solutions_dict))...))
+    
+          # compute products of component automata to find simplest 
+          println("PRE-GENERALIZATION (GLOBAL)")
+          @show global_state_solutions_dict
+          global_state_solutions_dict = generalize_all_automata(global_state_solutions_dict, user_events, global_event_vector_dict, global_aut=true)
+          println("POST-GENERALIZATION (GLOBAL)")
+          @show global_state_solutions_dict
+
+          product_automata = compute_all_products(global_state_solutions_dict, global_aut=true, generalized=true)
+          best_automaton = optimal_automaton(product_automata)
+          best_prod_states, best_prod_transitions, best_start_state, best_accept_states, best_co_occurring_events = best_automaton 
+    
+          # re-label product states (tuples) to integers
+          old_to_new_state_values = Dict(map(tup -> tup => findall(x -> x == tup, sort(best_prod_states))[1], sort(best_prod_states)))
+    
+          # construct product transitions under relabeling 
+          new_transitions = map(old_trans -> (old_to_new_state_values[old_trans[1]], old_to_new_state_values[old_trans[2]], old_trans[3]), best_prod_transitions)
+    
+          # construct accept states for each update function under relabeling
+          new_accept_state_dict = Dict()
+          for update_function_index in 1:length(global_update_functions)
+            update_function = global_update_functions[update_function_index]
+            orig_accept_states = best_accept_states[update_function_index]
+            prod_accept_states = filter(tup -> tup[update_function_index] in orig_accept_states, best_prod_states)
+            final_accept_states = map(tup -> old_to_new_state_values[tup], prod_accept_states)
+            new_accept_state_dict[update_function] = final_accept_states
+          end 
+    
+          # construct start state under relabeling 
+          new_start_state = old_to_new_state_values[best_start_state]
+    
+          state_based_update_func_on_clauses = map(idx -> ("(on (& $(best_co_occurring_events[idx]) (in (prev globalVar1) (list $(join(new_accept_state_dict[global_update_functions[idx]], " ")))))\n$(replace(global_update_functions[idx], "(--> obj (== (.. obj id) x))" => "(--> obj true)")))", global_update_functions[idx]), collect(1:length(global_update_functions)))
+          # state_transition_on_clauses = map(trans -> "(on (& $(trans[3]) (== (prev globalVar1) $(trans[1])))\n(= globalVar1 $(trans[2])))", new_transitions)
+          state_transition_on_clauses = format_state_transition_functions(new_transitions, collect(values(old_to_new_state_values)), global_var_id=1)
+          fake_global_var_dict = Dict(1 => [new_start_state for i in 1:length(user_events)])
+          global_var_dict = fake_global_var_dict
+          push!(on_clauses, state_based_update_func_on_clauses...)
+          push!(on_clauses, state_transition_on_clauses...)  
         end
   
-        # GLOBAL AUTOMATON CONSTRUCTION 
-        @show global_state_solutions_dict
-        global_update_functions = sort(vcat(collect(keys(global_state_solutions_dict))...))
-  
-        # compute products of component automata to find simplest 
-        product_automata = compute_all_products(global_state_solutions_dict, global_aut=true)
-        best_automaton = optimal_automaton(product_automata)
-        best_prod_states, best_prod_transitions, best_start_state, best_accept_states, best_co_occurring_events = best_automaton 
-  
-        # re-label product states (tuples) to integers
-        old_to_new_state_values = Dict(map(tup -> tup => findall(x -> x == tup, sort(best_prod_states))[1], sort(best_prod_states)))
-  
-        # construct product transitions under relabeling 
-        new_transitions = map(old_trans -> (old_to_new_state_values[old_trans[1]], old_to_new_state_values[old_trans[2]], old_trans[3]), best_prod_transitions)
-  
-        # construct accept states for each update function under relabeling
-        new_accept_state_dict = Dict()
-        for update_function_index in 1:length(global_update_functions)
-          update_function = global_update_functions[update_function_index]
-          orig_accept_states = best_accept_states[update_function_index]
-          prod_accept_states = filter(tup -> tup[update_function_index] in orig_accept_states, best_prod_states)
-          final_accept_states = map(tup -> old_to_new_state_values[tup], prod_accept_states)
-          new_accept_state_dict[update_function] = final_accept_states
-        end 
-  
-        # construct start state under relabeling 
-        new_start_state = old_to_new_state_values[best_start_state]
-  
-        state_based_update_func_on_clauses = map(idx -> "(on (& $(best_co_occurring_events[idx]) (in (prev globalVar1) (list $(join(new_accept_state_dict[global_update_functions[idx]], " ")))))\n$(global_update_functions[idx]))", collect(1:length(global_update_functions)))
-        state_transition_on_clauses = map(trans -> "(on (& $(trans[3]) (== (prev globalVar1) $(trans[1])))\n(= globalVar1 $(trans[2])))", new_transitions)
-        fake_global_var_dict = Dict(1 => [new_start_state for i in 1:length(user_events)])
-        global_var_dict = fake_global_var_dict
-        push!(on_clauses, state_based_update_func_on_clauses...)
-        push!(on_clauses, state_transition_on_clauses...)  
       end
 
       # OBJECT-SPECIFIC STATE HANDLING 
@@ -220,96 +291,136 @@ function generate_on_clauses_SKETCH_SINGLE(matrix, unformatted_matrix, object_de
       @show observation_vectors_dict
       if length(collect(keys(object_specific_update_functions_dict))) > 0 
         for type_id in collect(keys(object_specific_update_functions_dict)) 
+          object_ids_with_type = filter(id -> filter(obj -> !isnothing(obj), object_mapping[id])[1].type.id == type_id, collect(keys(object_mapping)))
           object_specific_update_functions = object_specific_update_functions_dict[type_id]
           for update_function in object_specific_update_functions 
             update_function_times_dict = Dict()
-            for object_id in object_ids 
+            for object_id in object_ids_with_type 
               update_function_times_dict[object_id] = findall(x -> x == 1, observation_vectors_dict[update_function][object_id])
             end
 
             state_solutions = generate_object_specific_automaton_sketch(update_function, update_function_times_dict, global_event_vector_dict, type_id, global_object_decomposition, object_specific_state_update_times_dict, global_var_dict, sketch_timeout)            
-            object_specific_state_solutions_dict[update_function] = state_solutions
+            println("OUTPUT??")
+            @show state_solutions
+            if state_solutions[1] == [] 
+              println("SKETCH AUTOMATA SEARCH FAILED")
+              failed = true 
+              break
+            else 
+              object_specific_state_solutions_dict[update_function] = state_solutions
+            end
+          end
+
+          if failed 
+            break 
           end
         end
 
-        @show object_specific_state_solutions_dict
+        if !failed 
+          @show object_specific_state_solutions_dict
 
-        # OBJECT-SPECIFIC AUTOMATON CONSTRUCTION 
-        object_specific_update_functions = sort(vcat(collect(keys(object_specific_state_solutions_dict))...))
-
-        # compute products of component automata to find simplest 
-        product_automata = compute_all_products(object_specific_state_solutions_dict, global_aut=false)
-        best_automaton = optimal_automaton(product_automata)
-        best_prod_states, best_prod_transitions, best_start_state, best_accept_states, best_co_occurring_event = best_automaton 
-
-        # re-label product states (tuples) to integers
-        old_to_new_state_values = Dict(map(tup -> tup => findall(x -> x == tup, sort(best_prod_states))[1], sort(best_prod_states)))
-
-        # construct product transitions under relabeling 
-        new_transitions = map(old_trans -> (old_to_new_state_values[old_trans[1]], old_to_new_state_values[old_trans[2]], old_trans[3]), best_prod_transitions)
-
-        # construct accept states for each update function under relabeling
-        new_accept_state_dict = Dict()
-        for update_function_index in 1:length(object_specific_update_functions)
-          update_function = object_specific_update_functions[update_function_index]
-          orig_accept_states = best_accept_states[update_function_index]
-          prod_accept_states = filter(tup -> tup[update_function_index] in orig_accept_states, best_prod_states)
-          final_accept_states = map(tup -> old_to_new_state_values[tup], prod_accept_states)
-          new_accept_state_dict[update_function] = final_accept_states
-        end 
-
-        # construct start state under relabeling 
-        orig_start_states = best_start_state
-        new_start_states = map(tup -> old_to_new_state_values[tup], orig_start_states)
-
-        # TODO: something generalization-based needs to happen here 
-        state_based_update_func_on_clauses = map(idx -> "(on true\n$(replace(object_specific_update_functions[idx], "(== (.. obj id) x)" => "(& $(best_co_occurring_event[idx]) (in (.. (prev obj) field1) (list $(join(new_accept_state_dict[object_specific_update_functions[idx]], " ")))))")))", 1:length(object_specific_update_functions))
-        state_transition_on_clauses = map(trans -> """(on true\n(= addedObjType$(type_id)List (updateObj addedObjType$(type_id)List (--> obj (updateObj (prev obj) "field1" $(trans[2]))) (--> obj $(trans[3])))))""", new_transitions)
-
-        fake_object_field_values = Dict(map(idx -> sort(collect(keys(object_mapping)))[idx] => [new_start_states[idx] for i in 1:length(object_mapping[object_ids[1]])], sort(collect(keys(object_mapping)))))
-
-        new_object_types = deepcopy(object_types)
-        new_object_type = filter(type -> type.id == type_id, new_object_types)[1]
-        if !("field1" in map(field_tuple -> field_tuple[1], new_object_type.custom_fields))
-          push!(new_object_type.custom_fields, ("field1", "Int", collect(values(old_to_new_state_values))))
-        else
-          custom_field_index = findall(field_tuple -> field_tuple[1] == "field1", filter(obj -> !isnothing(obj), object_mapping[object_ids[1]])[1].type.custom_fields)[1]
-          new_object_type.custom_fields[custom_field_index][3] = sort(unique(vcat(new_object_type.custom_fields[custom_field_index][3], collect(values(old_to_new_state_values)))))
-        end
+          type_id = collect(keys(object_specific_update_functions_dict))[1]
+          object_ids = filter(id -> filter(obj -> !isnothing(obj), object_mapping[id])[1].type.id == type_id, collect(keys(object_mapping)))
+  
+          # OBJECT-SPECIFIC AUTOMATON CONSTRUCTION 
+          object_specific_update_functions = sort(vcat(collect(keys(object_specific_state_solutions_dict))...))
+  
+          # compute products of component automata to find simplest 
+          println("PRE-GENERALIZATION (OBJECT-SPECIFIC)")
+          @show object_specific_state_solutions_dict
+          object_specific_state_solutions_dict = generalize_all_automata(object_specific_state_solutions_dict, user_events, global_event_vector_dict, global_aut=false)
+          println("POST-GENERALIZATION (OBJECT-SPECIFIC)")
+          @show object_specific_state_solutions_dict 
+  
+          product_automata = compute_all_products(object_specific_state_solutions_dict, global_aut=false, generalized=true)
+          best_automaton = optimal_automaton(product_automata)
+          best_prod_states, best_prod_transitions, best_start_state, best_accept_states, best_co_occurring_event = best_automaton 
+  
+          @show best_prod_states 
+          @show best_prod_transitions 
+          @show best_start_state 
+          @show best_accept_states 
+          @show best_co_occurring_event 
+  
+          # re-label product states (tuples) to integers
+          old_to_new_state_values = Dict(map(tup -> tup => findall(x -> x == tup, sort(best_prod_states))[1], sort(best_prod_states)))
+  
+          # construct product transitions under relabeling 
+          new_transitions = map(old_trans -> (old_to_new_state_values[old_trans[1]], old_to_new_state_values[old_trans[2]], old_trans[3]), best_prod_transitions)
+  
+          # construct accept states for each update function under relabeling
+          new_accept_state_dict = Dict()
+          for update_function_index in 1:length(object_specific_update_functions)
+            update_function = object_specific_update_functions[update_function_index]
+            orig_accept_states = best_accept_states[update_function_index]
+            prod_accept_states = filter(tup -> tup[update_function_index] in orig_accept_states, best_prod_states)
+            final_accept_states = map(tup -> old_to_new_state_values[tup], prod_accept_states)
+            new_accept_state_dict[update_function] = final_accept_states
+          end 
+  
+          # construct start state under relabeling 
+          orig_start_states = best_start_state
+          new_start_states = map(tup -> old_to_new_state_values[tup], orig_start_states)
         
-        ## modify objects in object_mapping
-        new_object_mapping = deepcopy(object_mapping)
-        for id in collect(keys(new_object_mapping))
-          if id in object_ids
-            for time in 1:length(new_object_mapping[id])
-              if !isnothing(object_mapping[id][time])
-                values = new_object_mapping[id][time].custom_field_values
-                if !((values != []) && (values[end] isa Int) && (values[end] < curr_state_value))
-                  new_object_mapping[id][time].type = new_object_type
-                  if (values != []) && (values[end] isa Int)
-                    new_object_mapping[id][time].custom_field_values = vcat(new_object_mapping[id][time].custom_field_values[1:end-1], fake_object_field_values[id][time])
-                  else
-                    new_object_mapping[id][time].custom_field_values = vcat(new_object_mapping[id][time].custom_field_values, fake_object_field_values[id][time])
+          # TODO: something generalization-based needs to happen here 
+          state_based_update_func_on_clauses = map(idx -> ("(on true\n$(replace(object_specific_update_functions[idx], "(== (.. obj id) x)" => "(& $(best_co_occurring_event[idx]) (in (.. (prev obj) field1) (list $(join(new_accept_state_dict[object_specific_update_functions[idx]], " ")))))")))", object_specific_update_functions[idx]), 1:length(object_specific_update_functions))
+          new_transitions = map(trans -> (trans[1], trans[2], replace(trans[3], "(filter (--> obj (== (.. obj id) x)) (prev addedObjType$(type_id)List))" => "(list (prev obj))")), new_transitions)
+          # state_transition_on_clauses = map(trans -> """(on true\n(= addedObjType$(type_id)List (updateObj addedObjType$(type_id)List (--> obj (updateObj (prev obj) "field1" $(trans[2]))) (--> obj $(trans[3])))))""", new_transitions)
+          state_transition_on_clauses = map(x -> replace(x, "(filter (--> obj (== (.. obj id) x)) (prev addedObjType$(type_id)List))" => "(prev obj)"), format_state_transition_functions(new_transitions, collect(values(old_to_new_state_values)), type_id=type_id))
+  
+          fake_object_field_values = Dict(map(idx -> sort(collect(keys(object_mapping)))[idx] => [new_start_states[idx] for i in 1:length(object_mapping[object_ids[1]])], sort(collect(keys(object_mapping)))))
+  
+          new_object_types = deepcopy(object_types)
+          new_object_type = filter(type -> type.id == type_id, new_object_types)[1]
+          if !("field1" in map(field_tuple -> field_tuple[1], new_object_type.custom_fields))
+            push!(new_object_type.custom_fields, ("field1", "Int", collect(values(old_to_new_state_values))))
+          else
+            custom_field_index = findall(field_tuple -> field_tuple[1] == "field1", filter(obj -> !isnothing(obj), object_mapping[object_ids[1]])[1].type.custom_fields)[1]
+            new_object_type.custom_fields[custom_field_index][3] = sort(unique(vcat(new_object_type.custom_fields[custom_field_index][3], collect(values(old_to_new_state_values)))))
+          end
+          
+          ## modify objects in object_mapping
+          new_object_mapping = deepcopy(object_mapping)
+          for id in collect(keys(new_object_mapping))
+            if id in object_ids
+              for time in 1:length(new_object_mapping[id])
+                if !isnothing(object_mapping[id][time])
+                  values = new_object_mapping[id][time].custom_field_values
+                  if !((values != []) && (values[end] isa Int) && (values[end] < curr_state_value))
+                    new_object_mapping[id][time].type = new_object_type
+                    if (values != []) && (values[end] isa Int)
+                      new_object_mapping[id][time].custom_field_values = vcat(new_object_mapping[id][time].custom_field_values[1:end-1], fake_object_field_values[id][time])
+                    else
+                      new_object_mapping[id][time].custom_field_values = vcat(new_object_mapping[id][time].custom_field_values, fake_object_field_values[id][time])
+                    end
                   end
                 end
               end
             end
           end
+          object_decomposition = (new_object_types, new_object_mapping, background, grid_size)
+          
+          # TODO: formatting
+          push!(on_clauses, state_based_update_func_on_clauses...)
+          push!(on_clauses, reverse(state_transition_on_clauses)...)
         end
-        object_decomposition = (new_object_types, new_object_mapping, background, grid_size)
-        
-        # TODO: formatting
-        push!(on_clauses, state_based_update_func_on_clauses...)
-        push!(on_clauses, state_transition_on_clauses...)
       end
 
-      push!(solutions, (on_clauses, object_decomposition, global_var_dict))
+      if !failed 
+        @show on_clauses 
+        @show ordered_update_functions_dict
+        ordered_on_clauses = re_order_on_clauses(on_clauses, ordered_update_functions_dict)
+  
+        push!(solutions, (ordered_on_clauses, object_decomposition, global_var_dict))
+      else 
+        push!(solutions, ([], [], [], Dict()))  
+      end
     end
   end
   solutions
 end
 
-function generate_global_automaton_sketch(update_rule, update_function_times, event_vector_dict, object_trajectory, init_global_var_dict, state_update_times_dict, object_decomposition, type_id, desired_per_matrix_solution_count, interval_painting_param, sketch_timeout=0)
+function generate_global_automaton_sketch(update_rule, update_function_times, event_vector_dict, object_trajectory, init_global_var_dict, state_update_times_dict, object_decomposition, type_id, desired_per_matrix_solution_count, interval_painting_param, sketch_timeout=0, ordered_update_functions=[], global_update_functions = [])
   println("GENERATE_NEW_STATE_SKETCH")
   @show update_rule 
   @show update_function_times
@@ -321,6 +432,8 @@ function generate_global_automaton_sketch(update_rule, update_function_times, ev
   @show type_id 
   @show desired_per_matrix_solution_count
   @show interval_painting_param
+  @show ordered_update_functions 
+  @show global_update_functions
 
   init_state_update_times_dict = deepcopy(state_update_times_dict)
   failed = false
@@ -390,8 +503,20 @@ function generate_global_automaton_sketch(update_rule, update_function_times, ev
     if co_occurring_event_trajectory[time] == 1 && !(time in true_positive_times)
       if occursin("addObj", update_rule)
         push!(false_positive_times, time)
-      elseif (object_trajectory[time][1] != "") && !(occursin("addObj", object_trajectory[time][1]))
-        push!(false_positive_times, time)
+      elseif (object_trajectory[time][1] != "") # && !(occursin("addObj", object_trajectory[time][1]))
+                
+        rule = object_trajectory[time][1]
+        min_index = minimum(findall(r -> r == update_rule, ordered_update_functions))
+
+        @show time 
+        @show rule 
+        @show min_index 
+        @show findall(r -> r == rule, ordered_update_functions) 
+
+        if is_no_change_rule(rule) || findall(r -> r == rule, ordered_update_functions)[1] < min_index || rule in global_update_functions
+          push!(false_positive_times, time)
+        end
+
       end     
     end
   end
@@ -482,6 +607,10 @@ function generate_global_automaton_sketch(update_rule, update_function_times, ev
   # ----- STEP 1: construct input string of which to take prefixes -----  
   sketch_event_trajectory = map(x -> "true", zeros(length(collect(values(small_event_vector_dict))[1])))
 
+  println("HERE WE GO")
+  @show update_rule 
+  @show augmented_positive_times
+
   for grouped_range in grouped_ranges 
     grouped_range = grouped_ranges[1]
     grouped_ranges = grouped_ranges[2:end] # remove first range from ranges 
@@ -500,6 +629,7 @@ function generate_global_automaton_sketch(update_rule, update_function_times, ev
 
     # search for events within range
     events_in_range = find_state_update_events(small_event_vector_dict, augmented_positive_times, time_ranges, start_value, end_value, init_global_var_dict, global_var_id, global_var_value)
+    events_in_range = filter(tup -> !occursin("globalVar", tup[1]) && !occursin("field1", tup[1]), events_in_range)
     if events_in_range != [] 
       if filter(tuple -> !occursin("true", tuple[1]), events_in_range) != []
         if filter(tuple -> !occursin("globalVar", tuple[1]) && !occursin("true", tuple[1]), events_in_range) != []
@@ -534,7 +664,17 @@ function generate_global_automaton_sketch(update_rule, update_function_times, ev
   # ----- STEP 2: construct positive and negative prefixes 
 
   distinct_events = sort(unique(sketch_event_trajectory))
+
+  if length(distinct_events) > 9 
+    return solutions
+  end
+
   sketch_event_arr = map(e -> findall(x -> x == e, distinct_events)[1], sketch_event_trajectory)
+
+  true_char = "0"
+  if "true" in distinct_events 
+    true_char = string(findall(x -> x == "true", distinct_events)[1])
+  end
 
   # construct sketch update function input array
   sketch_update_function_arr = ["0" for i in 1:length(sketch_event_trajectory)]
@@ -543,21 +683,26 @@ function generate_global_automaton_sketch(update_rule, update_function_times, ev
     sketch_update_function_arr[time] = string(value)
   end
 
+  @show distinct_events 
+  @show sketch_event_arr 
+  @show sketch_update_function_arr
+
   solutions = []
-  for i in 1:20
+  for i in 1:1
     println("BEGIN HERE")
     @show i
     sketch_program = """ 
     include "/Users/riadas/Documents/urop/sketch-1.7.6/sketch-frontend/sketchlib/string.skh"; 
     include "/Users/riadas/Documents/urop/sketch-1.7.6/sketch-frontend/test/sk/numerical/mstatemachine.skh";
   
-    bit recognize([int n], char[n] events, int[n] functions){
-        return matches(MSM(events), functions);
+    bit recognize([int n], char[n] events, int[n] functions, char true_char){
+        return matches(MSM(events, true_char), functions);
     }
   
     harness void h() {
       assert recognize( { $(join(map(c -> "'$(c)'", sketch_event_arr), ", ")) }, 
-                        { $(join(sketch_update_function_arr, ", ")) });
+                        { $(join(sketch_update_function_arr, ", ")) }, 
+                        '$(true_char)');
     }
     """
   
@@ -589,14 +734,15 @@ function generate_global_automaton_sketch(update_rule, update_function_times, ev
         include "/Users/riadas/Documents/urop/sketch-1.7.6/sketch-frontend/sketchlib/string.skh"; 
         include "/Users/riadas/Documents/urop/sketch-1.7.6/sketch-frontend/test/sk/numerical/mstatemachine.skh";
   
-        bit recognize([int n, int m], char[n] events, int[n] functions, int[n][m] old_state_seqs) {
-            return matches(MSM_unique(events, old_state_seqs), functions);
+        bit recognize([int n, int m], char[n] events, int[n] functions, int[n][m] old_state_seqs, char true_char) {
+            return matches(MSM_unique(events, old_state_seqs, true_char), functions);
         }
   
         harness void h() {
           assert recognize( { $(join(map(c -> "'$(c)'", sketch_event_arr), ", ")) }, 
                             { $(join(sketch_update_function_arr, ", ")) },
-                            { $(join(map(old_seq -> "{ $(join(old_seq, ", ")) }", old_state_seqs), ", \n")) });
+                            { $(join(map(old_seq -> "{ $(join(old_seq, ", ")) }", old_state_seqs), ", \n")) }, 
+                            '$(true_char)');
         }
         """
   
@@ -742,22 +888,69 @@ function generate_global_automaton_sketch(update_rule, update_function_times, ev
     end
   end
   @show solutions 
-  transition_dict = Dict(map(s -> Tuple(map(t -> t[3], s[2])) => s, solutions))
-  map(t -> transition_dict[t], unique(collect(keys(transition_dict))))
+  solutions
+  # transition_dict = Dict(map(s -> Tuple(map(t -> t[3], s[2])) => s, solutions))
+  # map(t -> transition_dict[t], unique(collect(keys(transition_dict))))
 end
 
-function compute_all_products(state_solutions; global_aut=true)
-  update_functions = sort(collect(keys(state_solutions)))
+function format_state_transition_functions(transitions, distinct_states; global_var_id=nothing, type_id=nothing) 
+  formatted_transitions = []
+
+  # group transitions by same target and label 
+  # transition = (start, target, label)
+  transition_and_label_pairs = unique(map(trans -> (trans[2], trans[3]), transitions))
+  for transition_and_label in transition_and_label_pairs
+    target, label = transition_and_label
+    starts = map(t -> t[1], filter(trans -> (trans[2], trans[3]) == transition_and_label, transitions))
+    
+    # check if the self-loop transition is also valid 
+    other_pairs_with_same_label = filter(tup -> tup[2] == label, transition_and_label_pairs)
+    other_pairs_starts = map(t -> t[1], filter(trans -> (trans[2], trans[3]) == transition_and_label, transitions))
+    if !(target in other_pairs_starts)
+      push!(starts, target)
+    end
+
+    if !isnothing(global_var_id) # state variable is global
+      
+      if length(starts) == length(distinct_states) # from any state, this label causes a transition to the target!
+        push!(formatted_transitions, "(on $(label) (= globalVar$(global_var_id) $(target)))")
+      else 
+        push!(formatted_transitions, "(on (& $(label) (in (prev globalVar$(global_var_id)) (list $(join(filter(s -> s != target, starts), " "))))) (= globalVar$(global_var_id) $(target)))")
+      end
+
+    else # state variable is object-specific
+      
+      if length(starts) == length(distinct_states) # from any state, this label causes a transition to the target!
+        push!(formatted_transitions, """(on true (= addedObjType$(type_id)List (updateObj addedObjType$(type_id)List (--> obj (updateObj (prev obj) "field1" $(target))) (--> obj $(label)))))""")
+      else 
+        push!(formatted_transitions, """(on true (= addedObjType$(type_id)List (updateObj addedObjType$(type_id)List (--> obj (updateObj (prev obj) "field1" $(target))) (--> obj (& $(label) (in (.. (prev obj) field1) (list $(join(filter(s -> s != target, starts), " ")))))))))""")
+      end
+
+    end
+  end
+  formatted_transitions
+end
+
+function compute_all_products(state_solutions; global_aut=true, generalized=false)
+  update_functions = sort(collect(keys(state_solutions)), by=x -> x isa Tuple ? length(x) : x)
   product_automata = [] 
   for update_function in update_functions 
     component_automata_full = state_solutions[update_function]
     
     # (states, transitions, start state, accept states, co_occurring_event)
-    if global_aut 
-      component_automata = map(a -> (unique(a[3][1]), a[2], a[3][1][1], a[1], a[4]), component_automata_full)
-    else # start state is represented differently in object-specific case: list of start states for each object_id in order
-      # [(unique(accept_values), object_field_values, transitions, co_occurring_event)]
-      component_automata = map(a -> (unique(vcat(collect(values(a[2]))...)), a[3], map(id -> a[2][id][1], sort(collect(keys(a[2])))), a[1], a[4]), component_automata_full)
+    if !generalized 
+      if global_aut 
+        component_automata = map(a -> (unique(a[3][1]), a[2], a[3][1][1], a[1], a[4]), component_automata_full)
+      else # start state is represented differently in object-specific case: list of start states for each object_id in order
+        # [(unique(accept_values), object_field_values, transitions, co_occurring_event)]
+        component_automata = map(a -> (unique(vcat(collect(values(a[2]))...)), a[3], map(id -> a[2][id][1], sort(collect(keys(a[2])))), a[1], a[4]), component_automata_full)
+      end
+    else 
+      if global_aut 
+        component_automata = map(x -> (unique(x[1]), x[2], x[3], x[4], x[5]), component_automata_full)  
+      else 
+        component_automata = map(x -> (unique(vcat(collect(values(x[1]))...)), x[2], x[3], x[4], x[5]), component_automata_full)  
+      end
     end
     if product_automata == []
       product_automata = component_automata 
@@ -798,10 +991,6 @@ function optimal_automaton(product_automata)
   best_automaton = filter(k -> length(automata_string_dict[k]) == length(shortest_string), collect(keys(automata_string_dict)))[1]
 end
 
-function generalize_automata(aut) 
-
-end
-
 function automata_product(aut1, aut2; global_aut::Bool=true)
   state_seq1, transitions1, start_state1, accept_states1, co_occurring_event1 = aut1
   state_seq2, transitions2, start_state2, accept_states2, co_occurring_event2 = aut2
@@ -832,24 +1021,28 @@ function automata_product(aut1, aut2; global_aut::Bool=true)
         if length(unique(unlabeled_transition1)) == 1 # self-loop in 1st automaton in product
           matching_transitions = filter(tup -> (tup[1], tup[2]) == unlabeled_transition2, transitions2)
           if matching_transitions != [] 
-            _, _, label2 = matching_transitions[1]
+            for matching_transition in matching_transitions 
+              _, _, label2 = matching_transition
 
-            # check that aut1 does not change state on event `label2` when in state unlabeled_transition1[1]
-            unwanted_transitions = filter(tup -> (tup[1], tup[3]) == (unlabeled_transition1[1], label2), transitions1)
-            if unwanted_transitions == [] 
-              push!(product_transitions, (product_state_1, product_state_2, label2))
+              # check that aut1 does not change state on event `label2` when in state unlabeled_transition1[1]
+              unwanted_transitions = filter(tup -> (tup[1], tup[3]) == (unlabeled_transition1[1], label2), transitions1)
+              if unwanted_transitions == [] 
+                push!(product_transitions, (product_state_1, product_state_2, label2))
+              end
             end
           end
 
         elseif length(unique(unlabeled_transition2)) == 1 # self-loop in 2nd automaton in product
           matching_transitions = filter(tup -> (tup[1], tup[2]) == unlabeled_transition1, transitions1)
           if matching_transitions != [] 
-            _, _, label1 = matching_transitions[1]
+            for matching_transition in matching_transitions 
+              _, _, label1 = matching_transition
 
-            # check that aut2 does not change state on event `label1` when in state unlabeled_transition2[1]
-            unwanted_transitions = filter(tup -> (tup[1], tup[3]) == (unlabeled_transition2[1], label1), transitions2)
-            if unwanted_transitions == [] 
-              push!(product_transitions, (product_state_1, product_state_2, label1))
+              # check that aut2 does not change state on event `label1` when in state unlabeled_transition2[1]
+              unwanted_transitions = filter(tup -> (tup[1], tup[3]) == (unlabeled_transition2[1], label1), transitions2)
+              if unwanted_transitions == [] 
+                push!(product_transitions, (product_state_1, product_state_2, label1))
+              end
             end
           end
 
@@ -857,12 +1050,19 @@ function automata_product(aut1, aut2; global_aut::Bool=true)
           matching_transitions1 = filter(tup -> (tup[1], tup[2]) == unlabeled_transition1, transitions1)
           matching_transitions2 = filter(tup -> (tup[1], tup[2]) == unlabeled_transition2, transitions2)
           if matching_transitions1 != [] && matching_transitions2 != [] 
-            _, _, label1 = matching_transitions1[1]
-            _, _, label2 = matching_transitions2[1]
+            for matching_transition1 in matching_transitions1 
+              for matching_transition2 in matching_transitions2 
 
-            if label1 == label2 
-              push!(product_transitions, (product_state_1, product_state_2, label1))
+                _, _, label1 = matching_transition1
+                _, _, label2 = matching_transition2
+    
+                if label1 == label2 
+                  push!(product_transitions, (product_state_1, product_state_2, label1))
+                end
+
+              end
             end
+
           end
         end
       end
@@ -881,9 +1081,9 @@ function automata_product(aut1, aut2; global_aut::Bool=true)
       push!(visited_states, prod_state)
       # neighbors == target states of transitions emitting from prod_state
       neighbors_ = map(t -> t[2], filter(trans -> trans[1] == prod_state, product_transitions))
-      @show prod_state
-      @show neighbors_ 
-      @show visited_states
+      # @show prod_state
+      # @show neighbors_ 
+      # @show visited_states
       for n in neighbors_
         if !(n in visited_states) 
           enqueue!(queue, n)
@@ -901,9 +1101,9 @@ function automata_product(aut1, aut2; global_aut::Bool=true)
         push!(object_specific_visited_states, prod_state)
         # neighbors == target states of transitions emitting from prod_state
         neighbors_ = map(t -> t[2], filter(trans -> trans[1] == prod_state, product_transitions))
-        @show prod_state 
-        @show neighbors_
-        @show visited_states
+        # @show prod_state 
+        # @show neighbors_
+        # @show visited_states
         for n in neighbors_
           if !(n in object_specific_visited_states) 
             enqueue!(queue, n)
@@ -928,7 +1128,170 @@ function automata_product(aut1, aut2; global_aut::Bool=true)
   (final_states, final_transitions, final_start_state, final_accept_states, final_co_occurring_events)
 end
 
-function generate_object_specific_automaton_sketch(update_rule, update_function_times_dict, event_vector_dict, type_id, object_decomposition, init_state_update_times, global_var_dict)
+function generalize_all_automata(state_solutions, user_events, event_vector_dict; global_aut=true)
+  @show global_aut
+  update_functions = sort(collect(keys(state_solutions)), by= x -> x isa Tuple ? length(x) : x)
+  new_state_solutions = Dict()
+  for update_function in update_functions 
+    component_automata_full = state_solutions[update_function]
+
+    # (states, transitions, start state, accept states, co_occurring_event)
+    # NOTE: passing in state *sequence* instead of set of distinct states as first tuple element; this differs from product-taking, 
+    # where the first tuple element is the distinct state set
+    if global_aut 
+      component_automata = map(a -> (a[3][1], a[2], a[3][1][1], a[1], a[4]), component_automata_full)
+    else # start state is represented differently in object-specific case: list of start states for each object_id in order
+      # a format: 
+      # [(unique(accept_values), object_field_values, transitions, co_occurring_event)]
+      component_automata = map(a -> (a[2], a[3], map(id -> a[2][id][1], sort(collect(keys(a[2])))), a[1], a[4]), component_automata_full)
+    end
+
+    if update_function isa String # single-automaton case: compute all labels from other single update function automata with same co-occurring event
+      if global_aut 
+        all_labels = unique(vcat(map(x -> map(trans -> trans[3], x[2]), filter(s -> s[end] in map(z -> z[end], component_automata), vcat(collect(values(state_solutions))...)))...))
+      else
+        all_labels = unique(vcat(map(x -> map(trans -> trans[3], x[3]), filter(s -> s[end] in map(z -> z[end], component_automata), vcat(collect(values(state_solutions))...)))...))
+      end
+    else # multi-automaton case: compute all labels from other automata with ths same co-occurring event/type id pair
+      all_labels = vcat(map(a -> map(x -> x[3], a[2]), component_automata)...)
+    end
+
+    new_state_solutions[update_function] = map(aut -> generalize_automaton(aut, user_events, event_vector_dict, all_labels), component_automata)
+  end
+  new_state_solutions
+end
+
+function generalize_automaton(aut, user_events, event_vector_dict, all_labels) 
+  state_seq, transitions, start_state, accept_states, co_occurring_event = aut
+  is_global = state_seq isa AbstractArray 
+
+  @show state_seq 
+  @show transitions 
+  @show start_state 
+  @show accept_states 
+  @show co_occurring_event 
+  @show is_global
+
+  distinct_states = is_global ? unique(state_seq) : unique(vcat(collect(values(state_seq))...))
+
+  # construct dictionary mapping (target, label) to list of start states  
+  # transitions = (start, target, label)
+  target_and_label_to_starts = Dict()
+  target_and_label_list = unique(map(trans -> (trans[2], trans[3]), transitions))
+  for target_and_label in target_and_label_list 
+    target_and_label_to_starts[target_and_label] = map(t -> t[1], filter(trans -> (trans[2], trans[3]) == target_and_label, transitions))
+  end
+  
+  # add observed self-loops
+  for label in all_labels 
+    if label in keys(event_vector_dict)
+      event_values = event_vector_dict[label]
+    else # label was made global from originally object-specific event by specifying object_id
+      @show label
+      @show collect(keys(event_vector_dict))
+      object_id = parse(Int, split(split(label, "(== (.. obj id) ")[2], ")")[1])
+      anonymized_label = replace(label, " $(object_id)" => " x")
+      event_values = event_vector_dict[anonymized_label][object_id]
+    end
+
+    if event_values isa AbstractArray
+      event_times = filter(t -> t < length(state_seq), findall(x -> x == 1, event_values)) 
+      if is_global 
+        state_seq_tuples = unique(map(t -> (state_seq[t], state_seq[t + 1]), event_times))
+      else 
+        state_seq_tuples = unique((vcat(map(id -> map(t -> (state_seq[id][t], state_seq[id][t + 1]), event_times), collect(keys(state_seq)))...)))
+      end
+      self_loop_states = unique(map(x -> x[1], filter(tup -> tup[1] == tup[2], state_seq_tuples)))
+    else # event is object-specific; state is necessarily object-specific   
+      event_times_dict = Dict(map(id -> id => filter(t -> t < length(state_seq), findall(x -> x == 1, event_values[id])), collect(keys(event_values))))
+      
+      @show state_seq
+      @show event_values 
+      @show event_times_dict
+      state_seq_tuples = unique(vcat(map(id -> map(t -> (state_seq[id][t], state_seq[id][t + 1]), event_times_dict[id]), collect(keys(state_seq)))...))
+      self_loop_states = unique(map(x -> x[1], filter(tup -> tup[1] == tup[2], state_seq_tuples)))
+    end
+
+    for self_loop_state in self_loop_states 
+      if (self_loop_state, label) in keys(target_and_label_to_starts)
+        push!(target_and_label_to_starts[(self_loop_state, label)], self_loop_state)
+      else
+        target_and_label_to_starts[(self_loop_state, label)] = [self_loop_state]
+      end
+    end
+
+  end
+
+  labels = unique(map(trans -> trans[3], transitions))  
+  # if key presses form some of the transition labels, consider the effects of other key presses involved in self-loops
+  key_presses = ["left", "right", "up", "down"]
+  if !(length(intersect(labels, key_presses)) in [0, 4])
+    other_key_presses = filter(k -> !(k in labels), key_presses)
+    for other_press in other_key_presses 
+      if other_press in user_events 
+        times = findall(e -> e == other_press, user_events)
+         
+        self_loop_states = is_global ? unique(map(t -> state_seq[t], times)) : unique(vcat(map(id -> map(t -> state_seq[id][t], times), collect(keys(state_seq)))...))
+        for self_loop_state in self_loop_states 
+          target_and_label_to_starts[(self_loop_state, other_press)] = [self_loop_state]
+        end
+        
+      end
+    end
+  end
+
+  # construct set of possible new start states for each target/label pair 
+  target_and_label_to_starts_POSSIBLE = Dict()
+  for target_and_label in collect(keys(target_and_label_to_starts))
+    target, label = target_and_label
+    observed_starts = target_and_label_to_starts[target_and_label]
+    possible_other_starts = filter(s -> !(s in observed_starts), distinct_states)
+
+    other_tuples_with_same_label = filter(t -> (t != target_and_label) && (t[2] == label), collect(keys(target_and_label_to_starts)))
+    for start in possible_other_starts 
+      if !(start in vcat(map(x -> target_and_label_to_starts[x], other_tuples_with_same_label)...))
+        if target_and_label in keys(target_and_label_to_starts_POSSIBLE)
+          push!(target_and_label_to_starts_POSSIBLE[target_and_label], start)
+        else  
+          target_and_label_to_starts_POSSIBLE[target_and_label] = [start]
+        end
+      end
+    end
+  end 
+
+  # eliminate possible new start states with conflicts 
+  target_and_label_to_starts_NEW = Dict()
+  for target_and_label in keys(target_and_label_to_starts_POSSIBLE)
+    target, label = target_and_label
+    possible_starts = target_and_label_to_starts_POSSIBLE[target_and_label]
+    conflict_tuples = filter(tup -> (tup[2] == label) && (tup != target_and_label), collect(keys(target_and_label_to_starts_POSSIBLE)))
+    conflict_starts = unique(vcat(map(tup -> target_and_label_to_starts_POSSIBLE[tup], conflict_tuples)...))
+    for start in possible_starts 
+      if !(start in conflict_starts)
+        if target_and_label in keys(target_and_label_to_starts_NEW)
+          push!(target_and_label_to_starts_NEW[target_and_label], start)
+        else
+          target_and_label_to_starts_NEW[target_and_label] = [start]
+        end
+      end
+    end
+  end
+
+  # construct new transitions 
+  new_transitions = []
+  for target_and_label in collect(keys(target_and_label_to_starts_NEW))
+    target, label = target_and_label
+
+    # filter out self-loops (start is same as target)
+    target_and_label_to_starts_NEW[target_and_label] = filter(s -> s != target, target_and_label_to_starts_NEW[target_and_label])
+    push!(new_transitions, map(start -> (start, target, label), target_and_label_to_starts_NEW[target_and_label])...)
+  end
+  final_transitions = vcat(transitions..., new_transitions...)
+
+  state_seq, final_transitions, start_state, accept_states, co_occurring_event
+end
+
+function generate_object_specific_automaton_sketch(update_rule, update_function_times_dict, event_vector_dict, type_id, object_decomposition, init_state_update_times, global_var_dict, sketch_timeout)
   println("GENERATE_NEW_OBJECT_SPECIFIC_STATE")
   @show update_rule
   @show update_function_times_dict
@@ -1078,12 +1441,12 @@ function generate_object_specific_automaton_sketch(update_rule, update_function_
     events_in_range = filter(e -> !occursin("field1", e[1]) && !occursin("globalVar1", e[1]), events_in_range)
     if length(events_in_range) > 0 # only handling perfect matches currently 
       event, event_times = events_in_range[1]
-      formatted_event = replace(event, "(filter (--> obj (== (.. obj id) x)) (prev addedObjType$(type_id)List))" => "(list (prev obj))")
+      # formatted_event = replace(event, "(filter (--> obj (== (.. obj id) x)) (prev addedObjType$(type_id)List))" => "(list (prev obj))")
 
       for id in object_ids # collect(keys(state_update_times))
         object_event_times = map(t -> t[1], filter(time -> time[2] == id, event_times))
         for time in object_event_times
-          sketch_event_arrs_dict[id][time] = formatted_event
+          sketch_event_arrs_dict[id][time] = event
         end
       end
     else
@@ -1095,12 +1458,12 @@ function generate_object_specific_automaton_sketch(update_rule, update_function_
           false_positive_event, _, true_positive_times, false_positive_times = events_without_true[1] 
       
         # construct state update on-clause
-        formatted_event = replace(false_positive_event, "(filter (--> obj (== (.. obj id) x)) (prev addedObjType$(type_id)List))" => "(list (prev obj))")
+        # formatted_event = replace(false_positive_event, "(filter (--> obj (== (.. obj id) x)) (prev addedObjType$(type_id)List))" => "(list (prev obj))")
         
         for id in object_ids # collect(keys(state_update_times))
-          object_event_times = map(t -> t[1], filter(time -> time[2] == id, vcat(true_positive_event_times, false_positive_event_times)))
+          object_event_times = map(t -> t[1], filter(time -> time[2] == id, vcat(true_positive_times, false_positive_times)))
           for time in object_event_times
-            sketch_event_arrs_dict[id][time] = formatted_event
+            sketch_event_arrs_dict[id][time] = false_positive_event
           end
         end
           
@@ -1109,8 +1472,18 @@ function generate_object_specific_automaton_sketch(update_rule, update_function_
   end
 
   distinct_events = sort(unique(vcat(collect(values(sketch_event_arrs_dict))...)))  
+  
+  if length(distinct_events) > 9 
+    return solutions
+  end
+
   sketch_event_arrs_dict_formatted = Dict(map(id -> id => map(e -> findall(x -> x == e, distinct_events)[1], sketch_event_arrs_dict[id]) , collect(keys(sketch_event_arrs_dict)))) # map(e -> findall(x -> x == e, distinct_events)[1], sketch_event_trajectory)
   
+  true_char = "0"
+  if "true" in distinct_events 
+    true_char = string(findall(x -> x == "true", distinct_events)[1])
+  end
+
   # construct sketch update function input array
   sketch_update_function_arr = Dict(map(id -> id => ["0" for i in 1:length(sketch_event_arrs_dict_formatted[object_ids[1]])], object_ids))
   for id in object_ids 
@@ -1125,15 +1498,16 @@ function generate_object_specific_automaton_sketch(update_rule, update_function_
   include "/Users/riadas/Documents/urop/sketch-1.7.6/sketch-frontend/sketchlib/string.skh"; 
   include "/Users/riadas/Documents/urop/sketch-1.7.6/sketch-frontend/test/sk/numerical/mstatemachine.skh";
   
-  bit recognize_obj_specific([int n], char[n] events, int[n] functions, int start) {
-      return matches(MSM_obj_specific(events, start), functions);
+  bit recognize_obj_specific([int n], char[n] events, int[n] functions, int start, char true_char) {
+      return matches(MSM_obj_specific(events, start, true_char), functions);
   }
 
   $(join(map(i -> """harness void h$(i)() {
                         int start = ??;
                         assert recognize_obj_specific({ $(join(map(c -> "'$(c)'", sketch_event_arrs_dict_formatted[object_ids[i]]), ", ")) }, 
                                                       { $(join(sketch_update_function_arr[object_ids[i]], ", ")) }, 
-                                                      start);
+                                                      start, 
+                                                      '$(true_char)');
                       }""", collect(1:length(object_ids))), "\n\n"))
   """
 
@@ -1152,9 +1526,15 @@ function generate_object_specific_automaton_sketch(update_rule, update_function_
       command = "gtimeout $(sketch_timeout) $(sketch_directory)sketch --bnd-unroll-amnt $(length(sketch_update_function_arr[object_ids[1]]) + 2) --fe-output-code automata_sketch.sk"
     end
   end
-  sketch_output = readchomp(eval(Meta.parse("`$(command)`")))
 
-  if !occursin("The sketch could not be resolved.", sketch_output)
+    sketch_output = try 
+                    readchomp(eval(Meta.parse("`$(command)`")))
+                  catch e
+                    ""
+                  end
+
+
+  if !occursin("The sketch could not be resolved.", sketch_output) && sketch_output != ""
     # update intAsChar and add main function to output cpp file 
     f = open("automata_sketch.cpp", "r")
     cpp_content = read(f, String)
@@ -1232,6 +1612,8 @@ function generate_object_specific_automaton_sketch(update_rule, update_function_
       
       end
     end
+    println("OUTPUT?")
+    @show [(unique(accept_values), object_field_values, transitions, co_occurring_event)]
     [(unique(accept_values), object_field_values, transitions, co_occurring_event)]
   else
     # return default val

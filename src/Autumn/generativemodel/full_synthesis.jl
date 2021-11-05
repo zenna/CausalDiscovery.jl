@@ -110,7 +110,9 @@ function synthesize_program_given_decomp(decomp, observation_tuple, global_event
                                           z3_option = "none",
                                           time_based=false,
                                           co_occurring_param=false, 
-                                          transition_param=false,) 
+                                          transition_param=false,
+                                          algorithm="heuristic",
+                                          sketch_timeout=0) 
 
   program_strings = []
 
@@ -129,9 +131,17 @@ function synthesize_program_given_decomp(decomp, observation_tuple, global_event
   end
   observations, user_events, grid_size = observation_tuple                               
   matrix, unformatted_matrix, object_decomposition, prev_used_rules = decomp                                        
-  solutions = generate_on_clauses_GLOBAL(matrix, unformatted_matrix, object_decomposition, user_events, global_event_vector_dict, redundant_events_set, grid_size, desired_solution_count, desired_per_matrix_solution_count, interval_painting_param, false, z3_option, time_based, 0, 0, co_occurring_param, transition_param)
-  # solutions = generate_on_clauses_SKETCH_MULTI(matrix, unformatted_matrix, object_decomposition, user_events, global_event_vector_dict, redundant_events_set, grid_size, desired_solution_count, desired_per_matrix_solution_count, interval_painting_param, time_based, 0, 0, co_occurring_param, transition_param)
-  #                                              matrix, unformatted_matrix, object_decomposition, user_events, global_event_vector_dict, redundant_events_set, grid_size=16, desired_solution_count=1, desired_per_matrix_solution_count=1, interval_painting_param=false, z3_option="none", time_based=false, z3_timeout=0, sketch_timeout=0, co_occurring_param=false, transition_param=false
+
+  if algorithm == "heuristic"
+    solutions = generate_on_clauses_GLOBAL(matrix, unformatted_matrix, object_decomposition, user_events, global_event_vector_dict, redundant_events_set, grid_size, desired_solution_count, desired_per_matrix_solution_count, interval_painting_param, false, z3_option, time_based, 0, sketch_timeout, co_occurring_param, transition_param)
+  elseif algorithm == "sketch_single"
+    solutions = generate_on_clauses_SKETCH_SINGLE(matrix, unformatted_matrix, object_decomposition, user_events, global_event_vector_dict, redundant_events_set, grid_size, desired_solution_count, desired_per_matrix_solution_count, interval_painting_param, z3_option, time_based, 0, sketch_timeout, co_occurring_param, transition_param)
+  elseif algorithm == "sketch_multi"
+    solutions = generate_on_clauses_SKETCH_MULTI(matrix, unformatted_matrix, object_decomposition, user_events, global_event_vector_dict, redundant_events_set, grid_size, desired_solution_count, desired_per_matrix_solution_count, interval_painting_param, z3_option, time_based, 0, sketch_timeout, co_occurring_param, transition_param)
+  else 
+    error("algorithm $(algorithm) does not exist")
+  end
+
   for solution in solutions 
     if solution[1] != [] 
       on_clauses, new_object_decomposition, global_var_dict = solution
@@ -156,6 +166,8 @@ function synthesize_program(model_name::String;
                             time_based=false,
                             co_occurring_param=false, 
                             transition_param=false,
+                            algorithm="heuristic",
+                            sketch_timeout=0,
                             )
   println(string("CURRENTLY WORKING ON: ", model_name))
   if pedro 
@@ -173,11 +185,23 @@ function synthesize_program(model_name::String;
     matrix, unformatted_matrix, object_decomposition, prev_used_rules = singletimestepsolution_matrix(observations, user_events, grid_size, singlecell=singlecell, pedro=pedro, upd_func_space=upd_func_space)
     # generate_on_clauses_GLOBAL
     # generate_on_clauses
-    # generate_on_clauses_SKETCH_SINGLE
+    # solutions = generate_on_clauses_SKETCH_SINGLE(matrix, unformatted_matrix, object_decomposition, user_events, global_event_vector_dict, redundant_events_set, grid_size, desired_solution_count, desired_per_matrix_solution_count, interval_painting_param, z3_option, time_based, 0, 0, co_occurring_param, transition_param)
+    #                                            matrix, unformatted_matrix, object_decomposition, user_events, global_event_vector_dict, redundant_events_set, grid_size=16, desired_solution_count=1, desired_per_matrix_solution_count=1, interval_painting_param=false, z3_option="none", time_based=false, z3_timeout=0, sketch_timeout=0
     # solutions = generate_on_clauses(matrix, unformatted_matrix, object_decomposition, user_events, global_event_vector_dict, redundant_events_set, grid_size, desired_solution_count, desired_per_matrix_solution_count, interval_painting_param, z3_option, time_based) z3_option="none", time_based=false, z3_timeout=0, sketch_timeout=0, co_occurring_param=false, transition_param=false
-    solutions = generate_on_clauses_GLOBAL(matrix, unformatted_matrix, object_decomposition, user_events, global_event_vector_dict, redundant_events_set, grid_size, desired_solution_count, desired_per_matrix_solution_count, interval_painting_param, false, z3_option, time_based, 0, 0, co_occurring_param, transition_param)
-    # solutions = generate_on_clauses_SKETCH_MULTI(matrix, unformatted_matrix, object_decomposition, user_events, global_event_vector_dict, redundant_events_set, grid_size, desired_solution_count, desired_per_matrix_solution_count, interval_painting_param, time_based, 0, 0, co_occurring_param, transition_param)
-    #                                              matrix, unformatted_matrix, object_decomposition, user_events, global_event_vector_dict, redundant_events_set, grid_size=16, desired_solution_count=1, desired_per_matrix_solution_count=1, interval_painting_param=false, z3_option="none", time_based=false, z3_timeout=0, sketch_timeout=0, co_occurring_param=false, transition_param=false
+    # solutions = generate_on_clauses_GLOBAL(matrix, unformatted_matrix, object_decomposition, user_events, global_event_vector_dict, redundant_events_set, grid_size, desired_solution_count, desired_per_matrix_solution_count, interval_painting_param, false, z3_option, time_based, 0, 0, co_occurring_param, transition_param)
+    # solutions = generate_on_clauses_SKETCH_MULTI(matrix, unformatted_matrix, object_decomposition, user_events, global_event_vector_dict, redundant_events_set, grid_size, desired_solution_count, desired_per_matrix_solution_count, interval_painting_param, z3_option, time_based, 0, 0, co_occurring_param, transition_param)
+    #                                            matrix, unformatted_matrix, object_decomposition, user_events, global_event_vector_dict, redundant_events_set, grid_size=16, desired_solution_count=1, desired_per_matrix_solution_count=1, interval_painting_param=false, z3_option="none", time_based=false, z3_timeout=0, sketch_timeout=0, co_occurring_param=false, transition_param=false
+    
+    if algorithm == "heuristic"
+      solutions = generate_on_clauses_GLOBAL(matrix, unformatted_matrix, object_decomposition, user_events, global_event_vector_dict, redundant_events_set, grid_size, desired_solution_count, desired_per_matrix_solution_count, interval_painting_param, false, z3_option, time_based, 0, sketch_timeout, co_occurring_param, transition_param)
+    elseif algorithm == "sketch_single"
+      solutions = generate_on_clauses_SKETCH_SINGLE(matrix, unformatted_matrix, object_decomposition, user_events, global_event_vector_dict, redundant_events_set, grid_size, desired_solution_count, desired_per_matrix_solution_count, interval_painting_param, z3_option, time_based, 0, sketch_timeout, co_occurring_param, transition_param)
+    elseif algorithm == "sketch_multi"
+      solutions = generate_on_clauses_SKETCH_MULTI(matrix, unformatted_matrix, object_decomposition, user_events, global_event_vector_dict, redundant_events_set, grid_size, desired_solution_count, desired_per_matrix_solution_count, interval_painting_param, z3_option, time_based, 0, sketch_timeout, co_occurring_param, transition_param)
+    else 
+      error("algorithm $(algorithm) does not exist")
+    end
+    
     for solution in solutions 
       if solution[1] != [] 
         on_clauses, new_object_decomposition, global_var_dict = solution
@@ -288,6 +312,8 @@ function generate_observations(model_name::String)
     observations, user_events, grid_size = generate_observations_count_3(m)
   elseif model_name == "count_4"
     observations, user_events, grid_size = generate_observations_count_4(m)
+  elseif model_name == "gravity_iv"
+    observations, user_events, grid_size = generate_observations_gravity4(m)
   elseif model_name == "double_count_1"
     observations, user_events, grid_size = generate_observations_double_count_1(m)
   elseif model_name == "double_count_2"
@@ -1024,5 +1050,71 @@ programs = Dict("particles"                                 => """(program
                                                                   (on (& down (== (prev xVel) 0)) (= yVel (+ (prev yVel) 1)))
                                                                 
                                                                   (on true (= blobs (updateObj blobs (--> obj (move obj (Position (sign (prev xVel)) (sign (prev yVel))))))))
-                                                                )""",
+                                                                )"""
+                , "gravity_iv" =>                             """(program
+                                                                  (= GRID_SIZE 50)
+                                                                    
+                                                                  (object Button (: color String) (Cell 0 0 color))
+                                                                  (object Blob (list (Cell 0 0 "blue") (Cell 0 1 "blue") (Cell 1 0 "blue") (Cell 1 1 "blue")))
+                                                                
+                                                                  (: buttons (List Button))
+                                                                  (= buttons (initnext (list (Button "red" (Position 4 0)) 
+                                                                              (Button "gold" (Position 8 0))                             
+                                                                              (Button "darkorange" (Position 12 0))
+                                                                                        
+                                                                              (Button "lightgreen" (Position (- GRID_SIZE 1) 4))
+                                                                                            (Button "green" (Position (- GRID_SIZE 1) 8))
+                                                                                            (Button "lightseagreen" (Position (- GRID_SIZE 1) 12))
+                                                                                            
+                                                                                            (Button "lightblue" (Position 4 (- GRID_SIZE 1)))
+                                                                                            (Button "blue" (Position 8 (- GRID_SIZE 1)))
+                                                                                            (Button "darkblue" (Position 12 (- GRID_SIZE 1)))
+                                                                                            
+                                                                                            (Button "mediumpurple" (Position 0 4))
+                                                                                            (Button "magenta" (Position 0 8))
+                                                                                            (Button "purple" (Position 0 12))
+                                                                                        ) (prev buttons)))
+                                                                  
+                                                                  (: blobs (List Blob))
+                                                                  (= blobs (initnext (list) (prev blobs)))
+                                                                  
+                                                                  (: gravity String)
+                                                                  (= gravity (initnext "down" (prev gravity)))
+                                                                  
+                                                                  (on (& clicked (isFree click)) (= blobs (addObj blobs (Blob (Position (.. click x) (.. click y))))))
+                                                                  
+                                                                  (on (== gravity "ul") (= blobs (updateObj (prev blobs) (--> obj (move (prev obj) -1 -2)))))
+                                                                  (on (== gravity "uu") (= blobs (updateObj (prev blobs) (--> obj (move (prev obj) 0 -2)))))
+                                                                  (on (== gravity "ur") (= blobs (updateObj (prev blobs) (--> obj (move (prev obj) 1 -2)))))
+                                                                
+                                                                  (on (== gravity "ru") (= blobs (updateObj (prev blobs) (--> obj (move (prev obj) 2 -1)))))
+                                                                  (on (== gravity "rr") (= blobs (updateObj (prev blobs) (--> obj (move (prev obj) 2 0)))))
+                                                                  (on (== gravity "rd") (= blobs (updateObj (prev blobs) (--> obj (move (prev obj) 2 1)))))
+                                                                
+                                                                  (on (== gravity "dl") (= blobs (updateObj (prev blobs) (--> obj (move (prev obj) -1 2)))))
+                                                                  (on (== gravity "dd") (= blobs (updateObj (prev blobs) (--> obj (move (prev obj) 0 2)))))
+                                                                  (on (== gravity "dr") (= blobs (updateObj (prev blobs) (--> obj (move (prev obj) 1 2)))))
+                                                                
+                                                                  (on (== gravity "lu") (= blobs (updateObj (prev blobs) (--> obj (move (prev obj) -2 -1)))))
+                                                                  (on (== gravity "ll") (= blobs (updateObj (prev blobs) (--> obj (move (prev obj) -2 0)))))
+                                                                  (on (== gravity "ld") (= blobs (updateObj (prev blobs) (--> obj (move (prev obj) -2 1)))))
+                                                                
+                                                                
+                                                                  (on (clicked (filter (--> obj (== (.. obj color) "red")) (prev buttons))) (= gravity "ul"))
+                                                                  (on (clicked (filter (--> obj (== (.. obj color) "gold")) (prev buttons))) (= gravity "uu"))
+                                                                  (on (clicked (filter (--> obj (== (.. obj color) "darkorange")) (prev buttons))) (= gravity "ur"))
+                                                                
+                                                                  (on (clicked (filter (--> obj (== (.. obj color) "lightgreen")) (prev buttons))) (= gravity "ru"))
+                                                                  (on (clicked (filter (--> obj (== (.. obj color) "green")) (prev buttons))) (= gravity "rr"))
+                                                                  (on (clicked (filter (--> obj (== (.. obj color) "lightseagreen")) (prev buttons))) (= gravity "rd"))
+                                                                
+                                                                  (on (clicked (filter (--> obj (== (.. obj color) "lightblue")) (prev buttons))) (= gravity "dl"))
+                                                                  (on (clicked (filter (--> obj (== (.. obj color) "blue")) (prev buttons))) (= gravity "dd"))
+                                                                  (on (clicked (filter (--> obj (== (.. obj color) "darkblue")) (prev buttons))) (= gravity "dr"))
+                                                                
+                                                                  (on (clicked (filter (--> obj (== (.. obj color) "mediumpurple")) (prev buttons))) (= gravity "lu"))
+                                                                  (on (clicked (filter (--> obj (== (.. obj color) "magenta")) (prev buttons))) (= gravity "ll"))
+                                                                  (on (clicked (filter (--> obj (== (.. obj color) "purple")) (prev buttons))) (= gravity "ld"))
+                                                                
+                                                                )"""
                 )

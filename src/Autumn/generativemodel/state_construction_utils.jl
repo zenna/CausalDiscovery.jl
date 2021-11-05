@@ -69,7 +69,7 @@ function find_state_update_events_false_positives(orig_event_vector_dict, augmen
           end
   
           # handle start value 
-          if (time < minimum(map(tuple -> tuple[1], augmented_positive_times))) || global_var_dict[global_var_id][time] < global_var_value 
+          if (time < minimum(map(tuple -> tuple[1], augmented_positive_times))) || (time <= length(global_var_dict[global_var_id])) && global_var_dict[global_var_id][time] < global_var_value 
             desired_start_value = global_var_dict[global_var_id][time]
             push!(desired_start_values, desired_start_value)
           elseif (time < minimum(map(tuple -> tuple[1], augmented_positive_times)))

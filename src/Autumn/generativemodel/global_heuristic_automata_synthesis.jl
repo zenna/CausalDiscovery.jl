@@ -70,7 +70,7 @@ function generate_on_clauses_GLOBAL(matrix, unformatted_matrix, object_decomposi
   unique!(filtered_matrices)
   # filtered_matrices = filtered_matrices[22:22]
   # filtered_matrices = filtered_matrices[5:5]
-  # filtered_matrices = filtered_matrices[1:1]
+  filtered_matrices = filtered_matrices[1:1]
   
 
   for filtered_matrix_index in 1:length(filtered_matrices)
@@ -667,6 +667,7 @@ function generate_new_state_GLOBAL(co_occurring_event, times_dict, event_vector_
   @show desired_per_matrix_solution_count 
   @show interval_painting_param 
   @show user_events 
+  @show ordered_update_functions
   init_state_update_times_dict = deepcopy(state_update_times_dict)
   update_functions = collect(keys(times_dict))
   failed = false
@@ -828,9 +829,13 @@ function generate_new_state_GLOBAL(co_occurring_event, times_dict, event_vector_
         # @show events_in_range 
         if filter(tuple -> !occursin("true", tuple[1]), events_in_range) != []
           if filter(tuple -> !occursin("globalVar", tuple[1]) && !occursin("true", tuple[1]), events_in_range) != []
-            state_update_event, event_times = filter(tuple -> !occursin("globalVar", tuple[1]) && !occursin("true", tuple[1]), events_in_range)[1]
+            min_times = minimum(map(tup -> length(tup[2]), ilter(tuple -> !occursin("globalVar", tuple[1]) && !occursin("true", tuple[1]), events_in_range)))
+            events_with_min_times = filter(tup -> length(tup[2]) == min_times, ilter(tuple -> !occursin("globalVar", tuple[1]) && !occursin("true", tuple[1]), events_in_range))
+            state_update_event, event_times = sort(events_with_min_times, by=x -> length(x[1]))[1] # sort(filter(tuple -> !occursin("globalVar", tuple[1]) && !occursin("true", tuple[1]), events_in_range), by=x -> length(x[2]))[1]
           else
-            state_update_event, event_times = filter(tuple -> !occursin("true", tuple[1]), events_in_range)[1]
+            min_times = minimum(map(tup -> length(tup[2]), filter(tuple -> !occursin("true", tuple[1]), events_in_range)))
+            events_with_min_times = filter(tup -> length(tup[2]) == min_times, filter(tuple -> !occursin("true", tuple[1]), events_in_range))
+            state_update_event, event_times = sort(events_with_min_times, by=x -> length(x[1]))[1] # sort(filter(tuple -> !occursin("true", tuple[1]), events_in_range), by=x -> length(x[2]))[1]
           end
         else 
           # FAILURE CASE 
