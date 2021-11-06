@@ -53,8 +53,8 @@ function run_model(model_name::String, desired_per_matrix_solution_count, desire
 
   observations, user_events, grid_size = generate_observations(model_name)
   observation_tuple = (observations, user_events, grid_size)
-  decomp_time_single = @timed singletimestepsolution_matrix(observations, user_events, grid_size, singlecell=true, upd_func_space=[6])
-  decomp_time_multi = @timed singletimestepsolution_matrix(observations, user_events, grid_size, singlecell=false, upd_func_space=[6])
+  decomp_time_single = @timed singletimestepsolution_matrix(observations, user_events, grid_size, singlecell=true, upd_func_space=6)
+  decomp_time_multi = @timed singletimestepsolution_matrix(observations, user_events, grid_size, singlecell=false, upd_func_space=6)
 
   singlecell_decomp = decomp_time_single.value 
   multicell_decomp = decomp_time_multi.value 

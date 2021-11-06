@@ -1052,10 +1052,10 @@ programs = Dict("particles"                                 => """(program
                                                                   (on true (= blobs (updateObj blobs (--> obj (move obj (Position (sign (prev xVel)) (sign (prev yVel))))))))
                                                                 )"""
                 , "gravity_iv" =>                             """(program
-                                                                  (= GRID_SIZE 50)
+                                                                  (= GRID_SIZE 100)
                                                                     
                                                                   (object Button (: color String) (Cell 0 0 color))
-                                                                  (object Blob (list (Cell 0 0 "blue") (Cell 0 1 "blue") (Cell 1 0 "blue") (Cell 1 1 "blue")))
+                                                                  (object Blob (list (Cell 0 -1 "black") (Cell 0 0 "black") (Cell 1 -1 "black") (Cell 1 0 "black")))
                                                                 
                                                                   (: buttons (List Button))
                                                                   (= buttons (initnext (list (Button "red" (Position 4 0)) 
@@ -1068,21 +1068,16 @@ programs = Dict("particles"                                 => """(program
                                                                                             
                                                                                             (Button "lightblue" (Position 4 (- GRID_SIZE 1)))
                                                                                             (Button "blue" (Position 8 (- GRID_SIZE 1)))
-                                                                                            (Button "darkblue" (Position 12 (- GRID_SIZE 1)))
                                                                                             
-                                                                                            (Button "mediumpurple" (Position 0 4))
-                                                                                            (Button "magenta" (Position 0 8))
-                                                                                            (Button "purple" (Position 0 12))
+
                                                                                         ) (prev buttons)))
                                                                   
                                                                   (: blobs (List Blob))
                                                                   (= blobs (initnext (list) (prev blobs)))
                                                                   
                                                                   (: gravity String)
-                                                                  (= gravity (initnext "down" (prev gravity)))
-                                                                  
-                                                                  (on (& clicked (isFree click)) (= blobs (addObj blobs (Blob (Position (.. click x) (.. click y))))))
-                                                                  
+                                                                  (= gravity (initnext "rr" (prev gravity)))
+                                                                                                                                    
                                                                   (on (== gravity "ul") (= blobs (updateObj (prev blobs) (--> obj (move (prev obj) -1 -2)))))
                                                                   (on (== gravity "uu") (= blobs (updateObj (prev blobs) (--> obj (move (prev obj) 0 -2)))))
                                                                   (on (== gravity "ur") (= blobs (updateObj (prev blobs) (--> obj (move (prev obj) 1 -2)))))
@@ -1093,13 +1088,8 @@ programs = Dict("particles"                                 => """(program
                                                                 
                                                                   (on (== gravity "dl") (= blobs (updateObj (prev blobs) (--> obj (move (prev obj) -1 2)))))
                                                                   (on (== gravity "dd") (= blobs (updateObj (prev blobs) (--> obj (move (prev obj) 0 2)))))
-                                                                  (on (== gravity "dr") (= blobs (updateObj (prev blobs) (--> obj (move (prev obj) 1 2)))))
                                                                 
-                                                                  (on (== gravity "lu") (= blobs (updateObj (prev blobs) (--> obj (move (prev obj) -2 -1)))))
-                                                                  (on (== gravity "ll") (= blobs (updateObj (prev blobs) (--> obj (move (prev obj) -2 0)))))
-                                                                  (on (== gravity "ld") (= blobs (updateObj (prev blobs) (--> obj (move (prev obj) -2 1)))))
-                                                                
-                                                                
+                                                            
                                                                   (on (clicked (filter (--> obj (== (.. obj color) "red")) (prev buttons))) (= gravity "ul"))
                                                                   (on (clicked (filter (--> obj (== (.. obj color) "gold")) (prev buttons))) (= gravity "uu"))
                                                                   (on (clicked (filter (--> obj (== (.. obj color) "darkorange")) (prev buttons))) (= gravity "ur"))
@@ -1110,11 +1100,9 @@ programs = Dict("particles"                                 => """(program
                                                                 
                                                                   (on (clicked (filter (--> obj (== (.. obj color) "lightblue")) (prev buttons))) (= gravity "dl"))
                                                                   (on (clicked (filter (--> obj (== (.. obj color) "blue")) (prev buttons))) (= gravity "dd"))
-                                                                  (on (clicked (filter (--> obj (== (.. obj color) "darkblue")) (prev buttons))) (= gravity "dr"))
-                                                                
-                                                                  (on (clicked (filter (--> obj (== (.. obj color) "mediumpurple")) (prev buttons))) (= gravity "lu"))
-                                                                  (on (clicked (filter (--> obj (== (.. obj color) "magenta")) (prev buttons))) (= gravity "ll"))
-                                                                  (on (clicked (filter (--> obj (== (.. obj color) "purple")) (prev buttons))) (= gravity "ld"))
+                                                                  
+                                                                  (on (& clicked (isFree click)) (= blobs (addObj blobs (Blob (Position (.. click x) (.. click y))))))
+
                                                                 
                                                                 )"""
                 )

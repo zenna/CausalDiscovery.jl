@@ -873,9 +873,13 @@ function generate_observations_count_1(m::Module)
                  4 => "right",
                  7 => "right",
                  12 => "left",
+                 15 => "left",
+                 16 => "right",
+                 18 => "right",
+                 19 => "left",
                 ])
 
-  for i in 0:16
+  for i in 0:20
     if i in collect(keys(events))
       event = events[i]
       if event == "left"
@@ -1271,9 +1275,10 @@ function generate_observations_bullets(m::Module)
   user_events = []
   push!(observations, Base.invokelatest(m.render, state.scene))
 
-  events = Dict([3 => "click 15 0",
-                 4 => "click 0 0",
-                 5 => "left",
+  events = Dict([
+                #  3 => "click 15 0",
+                #  4 => "click 0 0",
+                #  5 => "left",
                  7 => "click 1 1",
                  8 => "up",
                  10 => "click 2 2",
@@ -1490,24 +1495,22 @@ function generate_observations_gravity4(m::Module)
   user_events = []
   push!(observations, Base.invokelatest(m.render, state.scene))
 
-  clicks = Dict([1 => (25, 26),
-                 3 => (22, 23),
-                 6 => (20, 27),
+  clicks = Dict([1 => (49, 49),
+                #  3 => (22, 23),
+                 6 => (45, 44),
                  9 => (4, 0),
-                 11 => (8, 0),
-                 14 => (12, 0),
-                 17 => (49, 4),
-                 19 => (49, 8),
-                 21 => (49, 12),
-                 22 => (4, 49),
-                 25 => (8, 49),
-                 27 => (12, 49),
-                 29 => (0, 4),
-                 32 => (0, 8),
-                 35 => (0, 12),
+                 12 => (8, 0),
+                 15 => (12, 0),
+                 18 => (99, 4),
+                #  19 => (49, 8),
+                 21 => (99, 12),
+                 24 => (4, 99),
+                 27 => (8, 99),
+                #  30 => (12, 99),
+                 30 => (99, 8),
                 ])
 
-  for i in 0:37
+  for i in 0:46
     if i in collect(keys(clicks))
       click_x, click_y = clicks[i]
       state = Base.invokelatest(m.next, state, Base.invokelatest(m.Click, click_x, click_y), nothing, nothing, nothing, nothing)
@@ -1518,7 +1521,7 @@ function generate_observations_gravity4(m::Module)
     end
     push!(observations, Base.invokelatest(m.render, state.scene))
   end
-  observations, user_events, 50
+  observations, user_events, 100
 end
 
 

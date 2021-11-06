@@ -72,7 +72,7 @@ function generate_on_clauses_SKETCH_SINGLE(matrix, unformatted_matrix, object_de
   # filtered_matrices = filtered_matrices[22:22]
   # filtered_matrices = filtered_matrices[5:5]
   # filtered_matrices = filtered_matrices[2:2] # gravity
-  # filtered_matrices = filtered_matrices[1:1] 
+  filtered_matrices = filtered_matrices[1:1] 
 
   for filtered_matrix_index in 1:length(filtered_matrices)
     @show filtered_matrix_index
@@ -667,7 +667,21 @@ function generate_global_automaton_sketch(update_rule, update_function_times, ev
 
   if length(distinct_events) > 9 
     return solutions
+  elseif distinct_events == ["true"]
+    for event in ["left", "right", "up", "down"]
+      if event in keys(event_vector_dict)
+        @show event
+        event_values = event_vector_dict[event]
+        event_times = findall(x -> x == 1, event_values)
+        @show event_times
+        for time in event_times 
+          sketch_event_trajectory[time] = event
+        end
+      end
+    end
   end
+
+  distinct_events = sort(unique(sketch_event_trajectory))
 
   sketch_event_arr = map(e -> findall(x -> x == e, distinct_events)[1], sketch_event_trajectory)
 
@@ -901,7 +915,7 @@ function format_state_transition_functions(transitions, distinct_states; global_
   transition_and_label_pairs = unique(map(trans -> (trans[2], trans[3]), transitions))
   for transition_and_label in transition_and_label_pairs
     target, label = transition_and_label
-    starts = map(t -> t[1], filter(trans -> (trans[2], trans[3]) == transition_and_label, transitions))
+    starts = unique(map(t -> t[1], filter(trans -> (trans[2], trans[3]) == transition_and_label, transitions)))
     
     # check if the self-loop transition is also valid 
     other_pairs_with_same_label = filter(tup -> tup[2] == label, transition_and_label_pairs)
@@ -934,7 +948,9 @@ end
 function compute_all_products(state_solutions; global_aut=true, generalized=false)
   update_functions = sort(collect(keys(state_solutions)), by=x -> x isa Tuple ? length(x) : x)
   product_automata = [] 
-  for update_function in update_functions 
+  for update_function_index in 1:length(update_functions)
+    @show update_function_index
+    update_function = update_functions[update_function_index]     
     component_automata_full = state_solutions[update_function]
     
     # (states, transitions, start state, accept states, co_occurring_event)
@@ -958,7 +974,7 @@ function compute_all_products(state_solutions; global_aut=true, generalized=fals
       new_product_automata = []
       for old_product_automaton in product_automata 
         for component_automaton in component_automata 
-          prod = automata_product(old_product_automaton, component_automaton, global_aut=global_aut)
+          prod = automata_product2(old_product_automaton, component_automaton, global_aut=global_aut)
           push!(new_product_automata, prod)
         end 
       end
@@ -1127,6 +1143,152 @@ function automata_product(aut1, aut2; global_aut::Bool=true)
 
   (final_states, final_transitions, final_start_state, final_accept_states, final_co_occurring_events)
 end
+
+function automata_product2(aut1, aut2; global_aut::Bool=true)
+  state_seq1, transitions1, start_state1, accept_states1, co_occurring_event1 = aut1
+  state_seq2, transitions2, start_state2, accept_states2, co_occurring_event2 = aut2
+
+  distinct_states1 = unique(state_seq1)
+  distinct_states2 = unique(state_seq2)
+
+  unlabeled_transitions1 = map(tup -> (tup[1], tup[2]), transitions1)
+  unlabeled_transitions2 = map(tup -> (tup[1], tup[2]), transitions2)
+
+  product_states = Set()
+  product_transitions = Set()
+  if global_aut 
+    queue = Queue{Any}()
+    enqueue!(queue, (start_state1, start_state2))
+    while !isempty(queue)
+      prod_state = dequeue!(queue)
+      prod_1, prod_2 = prod_state
+      push!(product_states, prod_state)
+      # neighbors == target states of transitions emitting from prod_state
+      neighbors_and_transitions = []
+      trans_1 = filter(trans -> trans[1] == prod_1, transitions1)
+      trans_2 = filter(trans -> trans[1] == prod_2, transitions2)
+      
+      for t1 in trans_1 
+        t1_start, t1_end, t1_label = t1
+        
+        # try adding destination states where second state in product doesn't change 
+        unwanted_transitions = filter(tup -> (tup[1], tup[3]) == (prod_2, t1_label), transitions2)
+        if unwanted_transitions == [] 
+          destination_state = (t1_end, prod_2)
+          push!(neighbors_and_transitions, (destination_state, (prod_state, destination_state, t1_label)))
+        end
+      end
+
+      for t2 in trans_2 
+        t2_start, t2_end, t2_label = t2 
+
+        # try adding destination states where first state in product doesn't change 
+        unwanted_transitions = filter(tup -> (tup[1], tup[3]) == (prod_1, t2_label), transitions1)
+        if unwanted_transitions == [] 
+          destination_state = (prod_1, t2_end)
+          push!(neighbors_and_transitions, (destination_state, (prod_state, destination_state, t2_label)))
+        end
+      end
+
+      for t1 in trans_1 
+        for t2 in trans_2 
+          t1_start, t1_end, t1_label = t1
+          t2_start, t2_end, t2_label = t2 
+
+          if t1_label == t2_label 
+            destination_state = (t1_end, t2_end)
+            push!(neighbors_and_transitions, (destination_state, (prod_state, destination_state, t1_label)))
+          end
+
+        end
+      end
+
+      for nt in neighbors_and_transitions
+        neighbor, transition = nt
+        push!(product_transitions, transition) 
+        if !(neighbor in product_states) 
+          enqueue!(queue, neighbor)
+        end
+      end
+    end
+  else 
+    for id_index in 1:length(start_state1)
+      @show id_index
+      object_specific_visited_states = Set()
+      local queue = Queue{Any}()
+      enqueue!(queue, (start_state1[id_index], start_state2[id_index]))
+      while !isempty(queue)
+        prod_state = dequeue!(queue)
+        prod_1, prod_2 = prod_state
+        push!(object_specific_visited_states, prod_state)
+        # neighbors == target states of transitions emitting from prod_state
+        neighbors_and_transitions = []
+        trans_1 = filter(trans -> trans[1] == prod_1, transitions1)
+        trans_2 = filter(trans -> trans[1] == prod_2, transitions2)
+        
+        for t1 in trans_1 
+          t1_start, t1_end, t1_label = t1
+          
+          # try adding destination states where second state in product doesn't change 
+          unwanted_transitions = filter(tup -> (tup[1], tup[3]) == (prod_2, t1_label), transitions2)
+          if unwanted_transitions == [] 
+            destination_state = (t1_end, prod_2)
+            push!(neighbors_and_transitions, (destination_state, (prod_state, destination_state, t1_label)))
+          end
+        end
+  
+        for t2 in trans_2 
+          t2_start, t2_end, t2_label = t2 
+  
+          # try adding destination states where first state in product doesn't change 
+          unwanted_transitions = filter(tup -> (tup[1], tup[3]) == (prod_1, t2_label), transitions1)
+          if unwanted_transitions == [] 
+            destination_state = (prod_1, t2_end)
+            push!(neighbors_and_transitions, (destination_state, (prod_state, destination_state, t2_label)))
+          end
+        end
+  
+        for t1 in trans_1 
+          for t2 in trans_2 
+            t1_start, t1_end, t1_label = t1
+            t2_start, t2_end, t2_label = t2 
+  
+            if t1_label == t2_label 
+              destination_state = (t1_end, t2_end)
+              push!(neighbors_and_transitions, (destination_state, (prod_state, destination_state, t1_label)))
+            end
+  
+          end
+        end
+  
+        for nt in neighbors_and_transitions
+          neighbor, transition = nt
+          push!(product_transitions, transition) 
+          if !(neighbor in object_specific_visited_states) 
+            enqueue!(queue, neighbor)
+          end
+        end
+      end
+  
+      push!(product_states, object_specific_visited_states...)
+    end
+  end
+
+  final_states = collect(product_states) 
+  final_transitions = collect(product_transitions)
+  final_start_state = global_aut ? (start_state1, start_state2) : Tuple(collect(zip(start_state1, start_state2)))
+  final_accept_states = accept_states1 isa Tuple ? (accept_states1..., accept_states2) : (accept_states1, accept_states2)
+  final_co_occurring_events = co_occurring_event1 isa Tuple ? (co_occurring_event1..., co_occurring_event2) : (co_occurring_event1, co_occurring_event2)
+
+  # reformat: convert nested tuple structure to flattened tuple 
+  final_states = map(s -> Tuple(collect(Iterators.flatten(s))), final_states)
+  final_transitions = map(trans -> (Tuple(collect(Iterators.flatten(trans[1]))), Tuple(collect(Iterators.flatten(trans[2]))), trans[3]), final_transitions)
+  final_start_state = global_aut ? Tuple(collect(Iterators.flatten(final_start_state))) : map(tup -> Tuple(collect(Iterators.flatten(tup))), final_start_state)
+
+  (final_states, final_transitions, final_start_state, final_accept_states, final_co_occurring_events)
+end
+
+
 
 function generalize_all_automata(state_solutions, user_events, event_vector_dict; global_aut=true)
   @show global_aut

@@ -65,14 +65,14 @@ function generate_on_clauses_SKETCH_MULTI(matrix, unformatted_matrix, object_dec
   push!(filtered_matrices, filtered_random_matrices...)
 
   # add "chaos" solution to filtered_matrices 
-  filtered_unformatted_matrix = filter_update_function_matrix_multiple(unformatted_matrix, object_decomposition, multiple=false)[1]
-  push!(filtered_matrices, filter_update_function_matrix_multiple(construct_chaos_matrix(filtered_unformatted_matrix, object_decomposition), object_decomposition, multiple=false)...)
+  # filtered_unformatted_matrix = filter_update_function_matrix_multiple(unformatted_matrix, object_decomposition, multiple=false)[1]
+  # push!(filtered_matrices, filter_update_function_matrix_multiple(construct_chaos_matrix(filtered_unformatted_matrix, object_decomposition), object_decomposition, multiple=false)...)
 
   unique!(filtered_matrices)
   # filtered_matrices = filtered_matrices[22:22]
   # filtered_matrices = filtered_matrices[5:5]
   # filtered_matrices = filtered_matrices[2:2]
-  filtered_matrices = filtered_matrices[1:1] # gravity
+  # filtered_matrices = filtered_matrices[1:1] # gravity
   
   @show length(filtered_matrices)
   for filtered_matrix_index in 1:length(filtered_matrices)
@@ -141,6 +141,8 @@ function generate_on_clauses_SKETCH_MULTI(matrix, unformatted_matrix, object_dec
     @show ordered_update_functions_dict
     push!(on_clauses, new_on_clauses...)
     @show observation_vectors_dict
+    # @show redundant_events_set
+    # @show global_event_vector_dict
  
     # check if all update functions were solved; if not, proceed with state generation procedure
     if length(collect(keys(state_based_update_functions_dict))) == 0 
@@ -298,7 +300,7 @@ function generate_on_clauses_SKETCH_MULTI(matrix, unformatted_matrix, object_dec
 
           # determine if state is global or object-specific 
           state_is_global = true 
-          if length(object_ids_with_type) == 1 # foldl(&, map(u -> occursin("addObj", u), update_functions), init=true) ||
+          if length(object_ids_with_type) == 1 || foldl(&, map(u -> occursin("addObj", u), update_functions), init=true)
             state_is_global = true
           else
             for update_function in update_functions 
@@ -484,7 +486,7 @@ function generate_on_clauses_SKETCH_MULTI(matrix, unformatted_matrix, object_dec
         
           
           type_id = map(t -> t[1], object_specific_update_function_tuples)[1]
-          object_ids = filter(id -> filter(x -> !isnothing(x), object_mapping[id])[1].type.id == type_id, collect(keys(object_mapping)))
+          object_ids = sort(filter(id -> filter(x -> !isnothing(x), object_mapping[id])[1].type.id == type_id, collect(keys(object_mapping))))
 
           # compute products of component automata to find simplest 
           println("PRE-GENERALIZATION (OBJECT-SPECIFIC)")
@@ -497,6 +499,11 @@ function generate_on_clauses_SKETCH_MULTI(matrix, unformatted_matrix, object_dec
           best_automaton = optimal_automaton(product_automata)
           best_prod_states, best_prod_transitions, best_start_state, best_accept_states, best_co_occurring_event = best_automaton 
   
+          if !(best_accept_states isa Tuple)
+            best_accept_states = (best_accept_states,)
+            best_co_occurring_event = (best_co_occurring_event,)
+          end
+
           # re-label product states (tuples) to integers
           old_to_new_state_values = Dict(map(tup -> tup => findall(x -> x == tup, sort(best_prod_states))[1], sort(best_prod_states)))
   
@@ -528,8 +535,8 @@ function generate_on_clauses_SKETCH_MULTI(matrix, unformatted_matrix, object_dec
           state_transition_on_clauses = map(x -> replace(x, "(filter (--> obj (== (.. obj id) x)) (prev addedObjType$(type_id)List))" => "(prev obj)"), format_state_transition_functions(new_transitions, collect(values(old_to_new_state_values)), type_id=type_id))
 
 
-          fake_object_field_values = Dict(map(idx -> sort(collect(keys(object_mapping)))[idx] => [new_start_states[idx] for i in 1:length(object_mapping[object_ids[1]])], sort(collect(keys(object_mapping)))))
-  
+          fake_object_field_values = Dict(map(idx -> object_ids[idx] => [new_start_states[idx] for i in 1:length(object_mapping[object_ids[1]])], 1:length(object_ids)))
+
           new_object_types = deepcopy(object_types)
           new_object_type = filter(type -> type.id == type_id, new_object_types)[1]
           if !("field1" in map(field_tuple -> field_tuple[1], new_object_type.custom_fields))
@@ -780,7 +787,8 @@ function generate_global_multi_automaton_sketch(co_occurring_event, times_dict, 
 
   # construct sketch event input array
   distinct_events = sort(unique(sketch_event_trajectory), by=x -> count(y -> y == x, sketch_event_trajectory))
-  
+  @show distinct_events 
+
   if length(distinct_events) > 9
     return [([], [], [], "")]
   end
@@ -798,7 +806,6 @@ function generate_global_multi_automaton_sketch(co_occurring_event, times_dict, 
     sketch_update_function_arr[time] = string(value)
   end
 
-  @show distinct_events 
   @show sketch_event_arr 
   @show sketch_update_function_arr
 
