@@ -1,5 +1,5 @@
-# const sketch_directory = "/Users/riadas/Documents/urop/sketch-1.7.6/sketch-frontend/"
-const sketch_directory = "/scratch/riadas/sketch-1.7.6/sketch-frontend/"
+const sketch_directory = "/Users/riadas/Documents/urop/sketch-1.7.6/sketch-frontend/"
+# const sketch_directory = "/scratch/riadas/sketch-1.7.6/sketch-frontend/"
 
 function generate_on_clauses_SKETCH_MULTI(matrix, unformatted_matrix, object_decomposition, user_events, global_event_vector_dict, redundant_events_set, grid_size=16, desired_solution_count=1, desired_per_matrix_solution_count=1, interval_painting_param=false, z3_option="none", time_based=false, z3_timeout=0, sketch_timeout=0, co_occurring_param=false, transition_param=false)
   object_types, object_mapping, background, dim = object_decomposition
@@ -819,8 +819,8 @@ function generate_global_multi_automaton_sketch(co_occurring_event, times_dict, 
   @show sketch_update_function_arr
 
   sketch_program = """ 
-  include "/Users/riadas/Documents/urop/sketch-1.7.6/sketch-frontend/sketchlib/string.skh"; 
-  include "/Users/riadas/Documents/urop/sketch-1.7.6/sketch-frontend/test/sk/numerical/mstatemachine.skh";
+  include "$(sketch_directory)sketchlib/string.skh"; 
+  include "$(sketch_directory)test/sk/numerical/mstatemachine.skh";
 
   bit recognize([int n], char[n] events, int[n] functions, char true_char){
       return matches(MSM(events, true_char), functions);
@@ -1164,8 +1164,8 @@ function generate_object_specific_multi_automaton_sketch(co_occurring_event, upd
   end
 
   sketch_program = """ 
-  include "/Users/riadas/Documents/urop/sketch-1.7.6/sketch-frontend/sketchlib/string.skh"; 
-  include "/Users/riadas/Documents/urop/sketch-1.7.6/sketch-frontend/test/sk/numerical/mstatemachine.skh";
+  include "$(sketch_directory)sketchlib/string.skh"; 
+  include "$(sketch_directory)test/sk/numerical/mstatemachine.skh";
   
   bit recognize_obj_specific([int n], char[n] events, int[n] functions, int start, char true_char) {
       return matches(MSM_obj_specific(events, start, true_char), functions);
