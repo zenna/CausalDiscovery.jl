@@ -1,4 +1,4 @@
-# const sketch_directory = "/Users/riadas/Documents/urop/sketch-1.7.6/sketch-frontend//Users/riadas/Documents/urop/sketch-1.7.6/sketch-frontend/"
+# const sketch_directory = "/Users/riadas/Documents/urop/sketch-1.7.6/sketch-frontend/"
 const sketch_directory = "/scratch/riadas/sketch-1.7.6/sketch-frontend/"
 
 
