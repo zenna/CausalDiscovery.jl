@@ -77,21 +77,19 @@ function run_model(model_name::String, desired_per_matrix_solution_count, desire
   subdirectory_name = string(directory_name, "/", "per_matrix_count_$(desired_per_matrix_solution_count)_solution_count_$(desired_solution_count)")
   mkdir(subdirectory_name)
 
-  transition_param_vals = [false, true] # [false, true]
+  transition_param_vals = [false] # [false, true]
   co_occurring_param_vals = [false, true] # [false, true]
   z3_option_vals = ["partial", "full"] # ["full", "partial"]
   time_based_vals = [false, true]
-  singlecell_vals = [true, false]
+  singlecell_vals = [false, true]
 
   found_enough = false
 
   observations, user_events, grid_size = generate_observations(model_name)
   observation_tuple = (observations, user_events, grid_size)
-  decomp_time_single = @timed singletimestepsolution_matrix(observations, user_events, grid_size, singlecell=true, upd_func_space=6)
-  decomp_time_multi = @timed singletimestepsolution_matrix(observations, user_events, grid_size, singlecell=false, upd_func_space=6)
 
-  singlecell_decomp = decomp_time_single.value 
-  multicell_decomp = decomp_time_multi.value 
+  singlecell_decomp = nothing # decomp_time_single.value 
+  multicell_decomp = nothing # decomp_time_multi.value 
 
   singlecell_global_event_vector_dict = Dict()
   singlecell_redundant_events_set = Set()
@@ -99,7 +97,7 @@ function run_model(model_name::String, desired_per_matrix_solution_count, desire
   multicell_global_event_vector_dict = Dict()
   multicell_redundant_events_set = Set()
 
-  total_time = decomp_time_single.time + decomp_time_multi.time
+  total_time = 0 # decomp_time_single.time + decomp_time_multi.time
 
   all_sols = []
   for transition_param in transition_param_vals # this option exists because of ambiguity in one model :( -- should make this a primitive 
@@ -107,6 +105,22 @@ function run_model(model_name::String, desired_per_matrix_solution_count, desire
       for z3_option in z3_option_vals # this option exists because of ambiguity in one model :( 
         for time_based in time_based_vals 
           for singlecell in singlecell_vals
+            println("DO YOU SEE ME")
+
+            if singlecell
+              if isnothing(singlecell_decomp)
+                decomp_time_single = @timed singletimestepsolution_matrix(observations, user_events, grid_size, singlecell=true, upd_func_space=6)
+                singlecell_decomp = decomp_time_single.value 
+                total_time += decomp_time_single.time
+              end
+            else
+              if isnothing(multicell_decomp)
+                decomp_time_multi = @timed singletimestepsolution_matrix(observations, user_events, grid_size, singlecell=false, upd_func_space=6)
+                multicell_decomp = decomp_time_multi.value 
+                total_time += decomp_time_multi.time
+              end
+            end
+
             # timed_tuple = @timed synthesize_program(model_name, 
             #                                         singlecell=singlecell, 
             #                                         upd_func_spaces=[6], 
@@ -156,10 +170,19 @@ function run_model(model_name::String, desired_per_matrix_solution_count, desire
               @show total_time 
               break
             end
+
+            if total_time > 60 * 120
+              break
+            end
+
           end
     
           if found_enough 
             break 
+          end
+
+          if total_time > 60 * 120
+            break
           end
     
         end
@@ -168,38 +191,63 @@ function run_model(model_name::String, desired_per_matrix_solution_count, desire
           break 
         end
 
+        if total_time > 60 * 120
+          break
+        end
+
       end
 
       if found_enough 
         break 
       end
+
+      if total_time > 60 * 120
+        break
+      end
       
     end
 
-    open(string(subdirectory_name, "/final_time", ".txt"),"a") do io
-      println(io, "-----------------------------------------")
-      println(io, "FINAL TIME")
-      println(io, string(total_time))
+    if found_enough 
+      open(string(subdirectory_name, "/final_time", ".txt"),"a") do io
+        println(io, "-----------------------------------------")
+        println(io, "FINAL TIME")
+        println(io, string(total_time))
+      end
+
+      break
+    end
+
+    if total_time > 60 * 120
+      break
     end
 
   end
 
-  if false # length(all_sols) == 0 
+  if !found_enough # length(all_sols) == 0 
     # co_occurring_param (Water Plug), transition_param (Disease)
 
-    for time_based in time_based_vals 
-      for singlecell in singlecell_vals 
-        timed_tuple = try
-                        @timed sols = synthesize_program(model_name, 
-                                                          upd_func_spaces=[6], 
-                                                          singlecell=singlecell, 
-                                                          time_based=time_based,
-                                                          z3_option="full",
-                                                          desired_per_matrix_solution_count=10000)
-                      catch e
-                        e                      
-                      end
+    for time_based in [false, true] 
+      for singlecell in [false, true] 
+                        # @timed sols = synthesize_program(model_name, 
+                        #                                   upd_func_spaces=[6], 
+                        #                                   singlecell=singlecell, 
+                        #                                   time_based=time_based,
+                        #                                   z3_option="full",
+                        #                                   sketch_timeout=60 * 120)
+
+        timed_tuple = @timed synthesize_program_given_decomp(singlecell ? deepcopy(singlecell_decomp) : deepcopy(multicell_decomp), 
+                                                             deepcopy(observation_tuple),
+                                                             singlecell ? singlecell_global_event_vector_dict : multicell_global_event_vector_dict,
+                                                             singlecell ? singlecell_redundant_events_set : multicell_redundant_events_set, 
+                                                             upd_func_spaces=[6], 
+                                                             time_based=time_based,
+                                                             z3_option="full",
+                                                             desired_per_matrix_solution_count=desired_per_matrix_solution_count,
+                                                             desired_solution_count=desired_solution_count,
+                                                             algorithm="sketch_multi",
+                                                             sketch_timeout=120 * 60)
         sols = timed_tuple.value
+        total_time += timed_tuple.time 
         subdirectory_name = string(directory_name, "/", "per_matrix_count_$(desired_per_matrix_solution_count)_solution_count_$(desired_solution_count)")
         save(string(subdirectory_name, "/", string("EXTRA_singlecell_", singlecell, "_time_based_", time_based, "_z3_option_", "full", "_co_occurring_", "false", "_transition_param_", "false", ".jld")), String(model_name), timed_tuple)
         open(string(subdirectory_name, "/program_strings.txt"),"a") do io
@@ -208,7 +256,25 @@ function run_model(model_name::String, desired_per_matrix_solution_count, desire
           println(io, join(sols, "\n\n\n\n"))
         end
         push!(all_sols, sols...)
+
+        non_random_solutions = filter(x -> !occursin("randomPositions", x) && !occursin("uniformChoice", x), all_sols)
+        if length(non_random_solutions) >= 1 
+          found_enough = true 
+          println("FINAL TIME") 
+          @show total_time 
+          break
+        end
   
+      end
+
+      if found_enough 
+        open(string(subdirectory_name, "/final_time", ".txt"),"a") do io
+          println(io, "-----------------------------------------")
+          println(io, "FINAL TIME")
+          println(io, string(total_time))
+        end
+
+        break
       end
     
     end
@@ -238,7 +304,42 @@ function run_all_models(desired_per_matrix_solution_count, desired_solution_coun
 
   #   println("all done with $(model_name).")
   # end
-  for model_name in ["count_1", "gravity_i"] 
+  models = [
+    # "particles", 
+    #  "ants", 
+    #  "chase",
+    #  "lights",
+    #  "ice",
+    #  "paint", 
+    #  "magnets_i",
+    #  "sokoban_i",
+    "sand",
+    "gravity_i", 
+    # "gravity_iv",
+    # "disease", 
+    # "gravity_ii",
+    # # "space_invaders",
+    # "wind",
+    # "bullets", 
+    # "count_1",
+    # "count_2",
+    # "double_count_1",
+    # "water_plug",
+    # "mario",
+
+    # "count_3",
+    # "count_4",
+    # "double_count_2",
+    # "gravity_iii",
+     
+    #  "grow",
+    #  "egg",
+    #  "double_count_3",
+    #  "green_light",
+    #  "
+     ]
+
+  for model_name in models
     run_model(model_name, desired_per_matrix_solution_count, desired_solution_count)
   end
 end

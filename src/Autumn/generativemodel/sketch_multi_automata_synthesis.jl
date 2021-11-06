@@ -1,3 +1,4 @@
+# const sketch_directory = "/Users/riadas/Documents/urop/sketch-1.7.6/sketch-frontend//Users/riadas/Documents/urop/sketch-1.7.6/sketch-frontend/"
 const sketch_directory = "/Users/riadas/Documents/urop/sketch-1.7.6/sketch-frontend/"
 
 function generate_on_clauses_SKETCH_MULTI(matrix, unformatted_matrix, object_decomposition, user_events, global_event_vector_dict, redundant_events_set, grid_size=16, desired_solution_count=1, desired_per_matrix_solution_count=1, interval_painting_param=false, z3_option="none", time_based=false, z3_timeout=0, sketch_timeout=0, co_occurring_param=false, transition_param=false)
@@ -73,8 +74,15 @@ function generate_on_clauses_SKETCH_MULTI(matrix, unformatted_matrix, object_dec
   # filtered_matrices = filtered_matrices[5:5]
   # filtered_matrices = filtered_matrices[2:2]
   # filtered_matrices = filtered_matrices[1:1] # gravity
-  
+
   @show length(filtered_matrices)
+
+  if length(filtered_matrices) > 25 
+    filtered_matrices = filtered_matrices[1:25]
+  end 
+
+  @show length(filtered_matrices)
+
   for filtered_matrix_index in 1:length(filtered_matrices)
     @show filtered_matrix_index
     # @show length(filtered_matrices)
@@ -218,9 +226,9 @@ function generate_on_clauses_SKETCH_MULTI(matrix, unformatted_matrix, object_dec
           println("BEFORE")
           @show co_occurring_events
           if co_occurring_param 
-            co_occurring_events = sort(filter(x -> !occursin("(move ", x[1]) && !occursin("objClicked", x[1]) && !occursin("intersects (list", x[1]) && (!occursin("&", x[1]) || x[1] == "(& clicked (isFree click))") && !(occursin("(! (in (objClicked click (prev addedObjType3List)) (filter (--> obj (== (.. obj id) x)) (prev addedObjType3List))))", x[1])), co_occurring_events), by=x -> x[2]) # [1][1]
+            co_occurring_events = sort(filter(x -> !occursin("(move ", x[1]) && !occursin("(== (prev addedObjType", x[1]) && !occursin("objClicked", x[1]) && !occursin("intersects (list", x[1]) && (!occursin("&", x[1]) || x[1] == "(& clicked (isFree click))") && !(occursin("(! (in (objClicked click (prev addedObjType3List)) (filter (--> obj (== (.. obj id) x)) (prev addedObjType3List))))", x[1])), co_occurring_events), by=x -> x[2]) # [1][1]
           else
-            co_occurring_events = sort(filter(x -> !occursin("|", x[1]) && !occursin("objClicked", x[1]) && !occursin("(move ", x[1]) && !occursin("intersects (list", x[1]) && (!occursin("&", x[1]) || x[1] == "(& clicked (isFree click))")  && !(occursin("(! (in (objClicked click (prev addedObjType3List)) (filter (--> obj (== (.. obj id) x)) (prev addedObjType3List))))", x[1])), co_occurring_events), by=x -> x[2]) # [1][1]
+            co_occurring_events = sort(filter(x -> !occursin("|", x[1]) && !occursin("(== (prev addedObjType", x[1]) && !occursin("objClicked", x[1]) && !occursin("(move ", x[1]) && !occursin("intersects (list", x[1]) && (!occursin("&", x[1]) || x[1] == "(& clicked (isFree click))")  && !(occursin("(! (in (objClicked click (prev addedObjType3List)) (filter (--> obj (== (.. obj id) x)) (prev addedObjType3List))))", x[1])), co_occurring_events), by=x -> x[2]) # [1][1]
           end
   
           if state_is_global 
@@ -367,6 +375,7 @@ function generate_on_clauses_SKETCH_MULTI(matrix, unformatted_matrix, object_dec
             end
 
             state_solutions = generate_global_multi_automaton_sketch(co_occurring_event, times_dict, global_event_vector_dict, object_trajectory, Dict(), Dict(1 => ["" for x in 1:length(user_events)]), object_decomposition, type_id, desired_per_matrix_solution_count, sketch_timeout, false, ordered_update_functions)
+            @show state_solutions 
             if state_solutions[1][1] == []
               println("MULTI-AUTOMATA SKETCH FAILURE")
               failed = true
@@ -685,7 +694,7 @@ function generate_global_multi_automaton_sketch(co_occurring_event, times_dict, 
   # check if there is at most one label for every time; if not, failure
   if length(unique(map(x -> x[1], init_augmented_positive_times))) != length(init_augmented_positive_times)
     failed = true
-    return solutions
+    return [([], [], [], "")]
   end
 
   for i in 1:(length(init_augmented_positive_times)-1)

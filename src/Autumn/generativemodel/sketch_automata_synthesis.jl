@@ -1,4 +1,6 @@
-const sketch_directory = "/Users/riadas/Documents/urop/sketch-1.7.6/sketch-frontend/"
+const sketch_directory = "/Users/riadas/Documents/urop/sketch-1.7.6/sketch-frontend//Users/riadas/Documents/urop/sketch-1.7.6/sketch-frontend/"
+# const sketch_directory = "/scratch/riadas/sketch-1.7.6/sketch-frontend/"
+
 
 function generate_on_clauses_SKETCH_SINGLE(matrix, unformatted_matrix, object_decomposition, user_events, global_event_vector_dict, redundant_events_set, grid_size=16, desired_solution_count=1, desired_per_matrix_solution_count=1, interval_painting_param=false, z3_option="none", time_based=false, z3_timeout=0, sketch_timeout=0, co_occurring_param=false, transition_param=false)   
   object_types, object_mapping, background, dim = object_decomposition
@@ -72,7 +74,15 @@ function generate_on_clauses_SKETCH_SINGLE(matrix, unformatted_matrix, object_de
   # filtered_matrices = filtered_matrices[22:22]
   # filtered_matrices = filtered_matrices[5:5]
   # filtered_matrices = filtered_matrices[2:2] # gravity
-  filtered_matrices = filtered_matrices[1:1] 
+  # filtered_matrices = filtered_matrices[1:1] 
+
+  @show length(filtered_matrices)
+
+  if length(filtered_matrices) > 25 
+    filtered_matrices = filtered_matrices[1:25]
+  end 
+
+  @show length(filtered_matrices)
 
   for filtered_matrix_index in 1:length(filtered_matrices)
     @show filtered_matrix_index
@@ -706,8 +716,8 @@ function generate_global_automaton_sketch(update_rule, update_function_times, ev
     println("BEGIN HERE")
     @show i
     sketch_program = """ 
-    include "/Users/riadas/Documents/urop/sketch-1.7.6/sketch-frontend/sketchlib/string.skh"; 
-    include "/Users/riadas/Documents/urop/sketch-1.7.6/sketch-frontend/test/sk/numerical/mstatemachine.skh";
+    include "$(sketch_directory)sketchlib/string.skh"; 
+    include "$(sketch_directory)test/sk/numerical/mstatemachine.skh";
   
     bit recognize([int n], char[n] events, int[n] functions, char true_char){
         return matches(MSM(events, true_char), functions);
@@ -745,8 +755,8 @@ function generate_global_automaton_sketch(update_rule, update_function_times, ev
   
         # construct new Sketch query
         sketch_program = """
-        include "/Users/riadas/Documents/urop/sketch-1.7.6/sketch-frontend/sketchlib/string.skh"; 
-        include "/Users/riadas/Documents/urop/sketch-1.7.6/sketch-frontend/test/sk/numerical/mstatemachine.skh";
+        include "$(sketch_directory)sketchlib/string.skh"; 
+        include "$(sketch_directory)test/sk/numerical/mstatemachine.skh";
   
         bit recognize([int n, int m], char[n] events, int[n] functions, int[n][m] old_state_seqs, char true_char) {
             return matches(MSM_unique(events, old_state_seqs, true_char), functions);
@@ -1541,7 +1551,13 @@ function generate_object_specific_automaton_sketch(update_rule, update_function_
       end
     end
   end
-  co_occurring_events = sort(filter(x -> !occursin("|", x[1]), co_occurring_events), by=x -> x[2]) # [1][1]
+  # co_occurring_events = sort(filter(x -> !occursin("|", x[1]), co_occurring_events), by=x -> x[2]) # [1][1]
+  if co_occurring_param 
+    co_occurring_events = sort(filter(x -> !occursin("(move ", x[1]) && !occursin("(== (prev addedObjType", x[1]) && (!occursin("intersects (list", x[1]) || occursin("(.. obj id) x", x[1])) && (!occursin("&", x[1]) || x[1] == "(& clicked (isFree click))") && !(occursin("(! (in (objClicked click (prev addedObjType3List)) (filter (--> obj (== (.. obj id) x)) (prev addedObjType3List))))", x[1])), co_occurring_events), by=x -> x[2]) # [1][1]
+  else
+    co_occurring_events = sort(filter(x -> !occursin("|", x[1]) && !occursin("(== (prev addedObjType", x[1]) && !occursin("(move ", x[1]) && (!occursin("intersects (list", x[1]) || occursin("(.. obj id) x", x[1])) && (!occursin("&", x[1]) || x[1] == "(& clicked (isFree click))")  && !(occursin("(! (in (objClicked click (prev addedObjType3List)) (filter (--> obj (== (.. obj id) x)) (prev addedObjType3List))))", x[1])), co_occurring_events), by=x -> x[2]) # [1][1]
+  end
+
   # co_occurring_events = sort(co_occurring_events, by=x -> x[2]) # [1][1]
   if filter(x -> !occursin("globalVar", x[1]), co_occurring_events) != []
     co_occurring_events = filter(x -> !occursin("globalVar", x[1]), co_occurring_events)
@@ -1657,8 +1673,8 @@ function generate_object_specific_automaton_sketch(update_rule, update_function_
   end
 
   sketch_program = """ 
-  include "/Users/riadas/Documents/urop/sketch-1.7.6/sketch-frontend/sketchlib/string.skh"; 
-  include "/Users/riadas/Documents/urop/sketch-1.7.6/sketch-frontend/test/sk/numerical/mstatemachine.skh";
+  include "$(sketch_directory)sketchlib/string.skh"; 
+  include "$(sketch_directory)test/sk/numerical/mstatemachine.skh";
   
   bit recognize_obj_specific([int n], char[n] events, int[n] functions, int start, char true_char) {
       return matches(MSM_obj_specific(events, start, true_char), functions);

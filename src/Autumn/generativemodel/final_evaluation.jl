@@ -91,7 +91,8 @@ function run_model(model_name::String, desired_per_matrix_solution_count, desire
                                                                  time_based=time_based,
                                                                  z3_option=z3_option,
                                                                  desired_per_matrix_solution_count=desired_per_matrix_solution_count,
-                                                                 desired_solution_count=desired_solution_count)
+                                                                 desired_solution_count=desired_solution_count,
+                                                                 sketch_timeout)
             
             sols = timed_tuple.value
             
