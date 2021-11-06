@@ -78,10 +78,10 @@ function run_model(model_name::String, desired_per_matrix_solution_count, desire
   mkdir(subdirectory_name)
 
   transition_param_vals = [false] # [false, true]
-  co_occurring_param_vals = [false, true] # [false, true]
-  z3_option_vals = ["partial", "full"] # ["full", "partial"]
-  time_based_vals = [false, true]
-  singlecell_vals = [false, true]
+  co_occurring_param_vals = [false] # [false, true]
+  z3_option_vals = ["partial"] # ["full", "partial"]
+  time_based_vals = [false]
+  singlecell_vals = [false]
 
   found_enough = false
 
@@ -314,7 +314,7 @@ function run_all_models(desired_per_matrix_solution_count, desired_solution_coun
     #  "magnets_i",
     #  "sokoban_i",
     "sand",
-    "gravity_i", 
+    # "gravity_i", 
     # "gravity_iv",
     # "disease", 
     # "gravity_ii",
