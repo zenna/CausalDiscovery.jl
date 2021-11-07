@@ -617,6 +617,10 @@ function generate_on_clauses_GLOBAL(matrix, unformatted_matrix, object_decomposi
 end
 
 function re_order_on_clauses(on_clauses, ordered_update_functions_dict) 
+  println("RE-ORDERING")
+  @show on_clauses 
+  @show ordered_update_functions_dict
+
   state_update_on_clauses = filter(x -> !(x isa Tuple), on_clauses)
   regular_on_clauses = filter(x -> x isa Tuple, on_clauses)
 
