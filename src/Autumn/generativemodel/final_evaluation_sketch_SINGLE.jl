@@ -280,6 +280,16 @@ function run_model(model_name::String, desired_per_matrix_solution_count, desire
     end
 
   end
+
+  if !found_enough 
+    open(string(subdirectory_name, "/final_time", ".txt"),"a") do io
+      println(io, "-----------------------------------------")
+      println(io, "FINAL TIME")
+      println(io, string(total_time))
+    end
+
+  end
+
   all_sols
 end
 
@@ -363,4 +373,11 @@ function hack()
     global model_names = [model_name]
     run()
   end
+end
+
+model_name = ARGS[1]
+x = @timed run_model(model_name, 5, 1)
+save(string("DONE/DONE_$(model_name)_sketch_single.jld"), model_name, x)
+open("DONE/DONE_$(model_name)_TIME_sketch_single.txt", "w") do io 
+  println(io, x.time)
 end

@@ -1,3 +1,5 @@
+import Pkg; Pkg.add("Pickle")
+using Autumn
 include("test_synthesis.jl")
 
 
@@ -35,11 +37,11 @@ end
 
 
 global global_model_names = [
-              # "particles", 
-              #  "ants", 
-              #  "chase",
+              "particles", 
+               "ants", 
+               "chase",
               #  "lights",
-              #  "ice",
+               "ice",
               #  "paint", 
               #  "magnets_i",
               #  "sokoban_i",
@@ -53,7 +55,7 @@ global global_model_names = [
               #  "mario",
               #  "space_invaders",
               #  "water_plug",
-               "count_1",
+              #  "count_1",
               #  "count_2",
               #  "count_3",
               #  "count_4",
@@ -280,6 +282,16 @@ function run_model(model_name::String, desired_per_matrix_solution_count, desire
     end
 
   end
+  
+  if !found_enough 
+    open(string(subdirectory_name, "/final_time", ".txt"),"a") do io
+      println(io, "-----------------------------------------")
+      println(io, "FINAL TIME")
+      println(io, string(total_time))
+    end
+
+  end
+
   all_sols
 end
 
@@ -362,4 +374,11 @@ function hack()
     global model_names = [model_name]
     run()
   end
+end
+
+model_name = ARGS[1]
+x = @timed run_model(model_name, 5, 1)
+save(string("DONE/DONE_$(model_name)_sketch_multi.jld"), model_name, x)
+open("DONE/DONE_$(model_name)_TIME_sketch_multi.txt", "w") do io 
+  println(io, x.time)
 end

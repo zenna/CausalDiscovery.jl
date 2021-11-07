@@ -6,6 +6,10 @@ function generate_on_clauses_GLOBAL(matrix, unformatted_matrix, object_decomposi
   # pre_filtered_matrix = pre_filter_with_direction_biases(matrix, user_events, object_decomposition) 
   # filtered_matrix = filter_update_function_matrix_multiple(pre_filtered_matrix, object_decomposition)[1]
   
+  if !check_matrix_complete(matrix)
+    return solutions
+  end
+
   filtered_matrices = []
 
   pre_filtered_matrix_1 = pre_filter_remove_NoCollision(matrix)

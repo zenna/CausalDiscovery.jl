@@ -1,5 +1,8 @@
-# const sketch_directory = "/Users/riadas/Documents/urop/sketch-1.7.6/sketch-frontend/"
-const sketch_directory = "/scratch/riadas/sketch-1.7.6/sketch-frontend/"
+if Sys.islinux() 
+  sketch_directory = "/scratch/riadas/sketch-1.7.6/sketch-frontend/"
+else
+  sketch_directory = "/Users/riadas/Documents/urop/sketch-1.7.6/sketch-frontend/"
+end
 
 
 function generate_on_clauses_SKETCH_SINGLE(matrix, unformatted_matrix, object_decomposition, user_events, global_event_vector_dict, redundant_events_set, grid_size=16, desired_solution_count=1, desired_per_matrix_solution_count=1, interval_painting_param=false, z3_option="none", time_based=false, z3_timeout=0, sketch_timeout=0, co_occurring_param=false, transition_param=false)   
@@ -701,10 +704,13 @@ function generate_global_automaton_sketch(update_rule, update_function_times, ev
 
   distinct_events = sort(unique(sketch_event_trajectory))
 
+  println("SEE ME")
+  @show distinct_events
+  @show (length(intersect(["left", "right", "up", "down", "true"], distinct_events)) == 5)
   if length(distinct_events) > 9 
     return solutions
-  elseif distinct_events == ["true"]
-    for event in ["left", "right", "up", "down"]
+  elseif distinct_events == ["true"] || length(intersect(["left", "right", "up", "down", "true"], distinct_events)) > 1
+    for event in ["left", "right", "up", "down", "clicked"]
       if event in keys(event_vector_dict)
         @show event
         event_values = event_vector_dict[event]

@@ -318,6 +318,8 @@ function generate_observations(model_name::String)
     observations, user_events, grid_size = generate_observations_double_count_1(m)
   elseif model_name == "double_count_2"
     observations, user_events, grid_size = generate_observations_double_count_2(m)
+  elseif model_name == "swap"
+    observations, user_events, grid_size = generate_observations_swap(m)
   else
     error("model $(model_name) does not exist")
   end
@@ -1104,5 +1106,40 @@ programs = Dict("particles"                                 => """(program
                                                                   (on (& clicked (isFree click)) (= blobs (addObj blobs (Blob (Position (.. click x) (.. click y))))))
 
                                                                 
+                                                                )"""
+               , "swap"                                    => """(program
+                                                                  (= GRID_SIZE 100)
+                                                                    
+                                                                  (object Button (: color String) (Cell 0 0 color))
+                                                                  (object Blob (list (Cell 0 0 "blue")))
+                                                                  
+                                                                  (: blobs (List Blob))
+                                                                  (= blobs (initnext (list (Blob (Position 49 49))) (prev blobs)))
+                                                                  
+                                                                  (: gravity String)
+                                                                  (= gravity (initnext "left" (prev gravity)))
+                                                                  
+                                                                  (on (== gravity "left") (= blobs (updateObj (prev blobs) (--> obj (move obj -1 0)))))
+                                                                  (on (== gravity "right") (= blobs (updateObj (prev blobs) (--> obj (move obj 1 0)))))
+                                                                  (on (== gravity "up") (= blobs (updateObj (prev blobs) (--> obj (move obj 0 -1)))))
+                                                                  (on (== gravity "down") (= blobs (updateObj (prev blobs) (--> obj (move obj 0 1)))))
+                                                                  
+                                                                  (on (== gravity "diag1") (= blobs (updateObj (prev blobs) (--> obj (move obj -1 -1)))))
+                                                                  (on (== gravity "diag2") (= blobs (updateObj (prev blobs) (--> obj (move obj 1 -1)))))
+                                                                  (on (== gravity "diag3") (= blobs (updateObj (prev blobs) (--> obj (move obj 1 1)))))
+                                                                  (on (== gravity "diag4") (= blobs (updateObj (prev blobs) (--> obj (move obj -1 1)))))
+                                                                  
+                                                                  (on (& left (in (prev gravity) (list "left" "right" "up" "down"))) (= gravity "left"))
+                                                                  (on (& right (in (prev gravity) (list "left" "right" "up" "down"))) (= gravity "right"))
+                                                                  (on (& up (in (prev gravity) (list "left" "right" "up" "down"))) (= gravity "up"))
+                                                                  (on (& down (in (prev gravity) (list "left" "right" "up" "down"))) (= gravity "down"))
+                                                                
+                                                                  (on (& left (in (prev gravity) (list "diag1" "diag2" "diag3" "diag4"))) (= gravity "diag1"))
+                                                                  (on (& right (in (prev gravity) (list "diag1" "diag2" "diag3" "diag4"))) (= gravity "diag2"))
+                                                                  (on (& up (in (prev gravity) (list "diag1" "diag2" "diag3" "diag4"))) (= gravity "diag3"))
+                                                                  (on (& down (in (prev gravity) (list "diag1" "diag2" "diag3" "diag4"))) (= gravity "diag4"))
+                                                                
+                                                                  (on (& clicked (in (prev gravity) (list "diag1" "diag2" "diag3" "diag4"))) (= gravity "left"))
+                                                                  (on (& clicked (in (prev gravity) (list "left" "right" "up" "down"))) (= gravity "diag1"))
                                                                 )"""
                 )

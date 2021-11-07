@@ -1524,6 +1524,80 @@ function generate_observations_gravity4(m::Module)
   observations, user_events, 100
 end
 
+function generate_observations_swap(m::Module)
+  state = Base.invokelatest(m.init, nothing, nothing, nothing, nothing, nothing)
+  observations = []
+  user_events = []
+  push!(observations, Base.invokelatest(m.render, state.scene))
+
+  events = Dict([
+                 2 => "left",
+                 4 => "right",
+                 7 => "left",
+                 10 => "down",
+                 14 => "left",
+                 17 => "up",
+                 20 => "left",
+                 23 => "right",
+                 27 => "up",
+                 31 => "right",
+                 34 => "down",
+                 38 => "right",
+                 41 => "up",
+                 43 => "down",
+                 45 => "up",
+                 48 => "click 0 0",
+                 50 => "left",
+                 55 => "left",
+                 57 => "right",
+                 60 => "left",
+                 63 => "down",
+                 66 => "left",
+                 68 => "up",
+                 71 => "left",
+                 73 => "right",
+                 76 => "up",
+                 79 => "right",
+                 82 => "down",
+                 85 => "right",
+                 87 => "up",
+                 90 => "down",
+                 92 =>  "up",
+                 95 => "click 1 1",
+                 98 => "right",
+                 100 => "up",
+                 103 => "down",
+                ])
+
+  for i in 1:105
+    if i in collect(keys(events))
+      event = events[i]
+      if event == "left"
+        state = Base.invokelatest(m.next, state, nothing, Base.invokelatest(m.Left), nothing, nothing, nothing)
+        push!(user_events, event)
+      elseif event == "right"
+        state = Base.invokelatest(m.next, state, nothing, nothing, Base.invokelatest(m.Right), nothing, nothing)
+        push!(user_events, event)
+      elseif event == "up"
+        state = Base.invokelatest(m.next, state, nothing, nothing, nothing, Base.invokelatest(m.Up), nothing)
+        push!(user_events, event)
+      elseif event == "down"
+        state = Base.invokelatest(m.next, state, nothing, nothing, nothing, nothing, Base.invokelatest(m.Down))
+        push!(user_events, event)
+      elseif occursin("click", event)
+        x = parse(Int, split(event, " ")[2])
+        y = parse(Int, split(event, " ")[3])
+        state = Base.invokelatest(m.next, state, Base.invokelatest(m.Click, x, y), nothing, nothing, nothing, nothing)
+        push!(user_events, event)
+      end
+    else
+      state = Base.invokelatest(m.next, state, nothing, nothing, nothing, nothing, nothing)
+      push!(user_events, nothing)
+    end
+    push!(observations, Base.invokelatest(m.render, state.scene))
+  end
+  observations, user_events, 100
+end
 
 
 # PEDRO 

@@ -1,3 +1,5 @@
+import Pkg; Pkg.add("Pickle")
+using Autumn
 include("test_synthesis.jl")
 
 
@@ -278,6 +280,16 @@ function run_model(model_name::String, desired_per_matrix_solution_count, desire
     end
 
   end
+
+  if !found_enough 
+    open(string(subdirectory_name, "/final_time", ".txt"),"a") do io
+      println(io, "-----------------------------------------")
+      println(io, "FINAL TIME")
+      println(io, string(total_time))
+    end
+
+  end
+
   all_sols
 end
 
@@ -312,9 +324,9 @@ function run_all_models(desired_per_matrix_solution_count, desired_solution_coun
     #  "magnets_i",
     #  "sokoban_i",
     # "sand",
-    "gravity_i", 
-    "gravity_iii",
-    # "gravity_iv",
+    # "gravity_i", 
+    # "gravity_iii",
+    "gravity_iv",
     # "disease", 
     # "gravity_ii",
     # # "space_invaders",
@@ -360,4 +372,12 @@ function hack()
     global model_names = [model_name]
     run()
   end
+end
+
+
+model_name = ARGS[1]
+x = @timed run_model(model_name, 5, 1)
+save(string("DONE/DONE_$(model_name)_heuristic.jld"), model_name, x)
+open("DONE/DONE_$(model_name)_TIME_heuristic.txt", "w") do io 
+  println(io, x.time)
 end
