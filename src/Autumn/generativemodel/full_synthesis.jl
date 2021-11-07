@@ -201,13 +201,13 @@ function synthesize_program(model_name::String;
     else 
       error("algorithm $(algorithm) does not exist")
     end
-    
+    @show solutions
     for solution in solutions 
       if solution[1] != [] 
         on_clauses, new_object_decomposition, global_var_dict = solution
         @show on_clauses 
         
-        program = full_program_given_on_clauses(on_clauses, new_object_decomposition, global_var_dict, grid_size)
+        program = full_program_given_on_clauses(on_clauses, new_object_decomposition, global_var_dict, grid_size, matrix)
         push!(program_strings, program)
       end
     end

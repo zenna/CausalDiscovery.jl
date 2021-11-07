@@ -829,6 +829,22 @@ function generate_new_state_GLOBAL(co_occurring_event, times_dict, event_vector_
   
       # search for events within range
       events_in_range = find_state_update_events(small_event_vector_dict, augmented_positive_times, time_ranges, start_value, end_value, global_var_dict, global_var_id, 1)
+      println("PRE PRUNING: EVENTS IN RANGE")
+
+      @show events_in_range
+      events_to_remove = []
+
+      for tuple in events_in_range 
+        if occursin("(clicked (filter (--> obj (== (.. obj id) ", tuple[1])
+          id = parse(Int, split(split(tuple[1], "(clicked (filter (--> obj (== (.. obj id) ")[2], ")")[1])
+          if nothing in object_mapping[id]
+            push!(events_to_remove, tuple)
+          end
+        end
+      end
+
+      events_in_range = filter(tuple -> !(tuple in events_to_remove), events_in_range)
+      println("POST PRUNING: EVENTS IN RANGE")
       @show events_in_range
       if events_in_range != [] # event with zero false positives found
         println("PLS WORK 2")

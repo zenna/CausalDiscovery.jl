@@ -3013,7 +3013,7 @@ function is_no_change_rule(update_rule)
   !foldl(|, map(x -> occursin(x, update_rule), update_functions))
 end 
 
-function full_program(observations, user_events, grid_size=16; singlecell=false, pedro=false, upd_func_space=1)
+function full_program(observations, user_events, matrix, grid_size=16; singlecell=false, pedro=false, upd_func_space=1)
   matrix, unformatted_matrix, object_decomposition, _ = singletimestepsolution_matrix(observations, user_events, grid_size, singlecell=singlecell, pedro=pedro, upd_func_space=upd_func_space)
 
   object_types, object_mapping, background, _ = object_decomposition
@@ -3027,18 +3027,21 @@ function full_program(observations, user_events, grid_size=16; singlecell=false,
   matrix = new_matrix
 
   on_clauses, new_object_decomposition, global_var_dict = generate_on_clauses(matrix, unformatted_matrix, object_decomposition, user_events, grid_size)[1]
-  s = full_program_given_on_clauses(on_clauses, new_object_decomposition, global_var_dict, grid_size)
+  s = full_program_given_on_clauses(on_clauses, new_object_decomposition, global_var_dict, grid_size, matrix)
 end
 
-function format_on_clause_full_program(on_clause, object_decomposition) 
+function format_on_clause_full_program(on_clause, object_decomposition, matrix) 
   object_types, object_mapping, background, _ = object_decomposition
+  update_function = split(on_clause, "\n")[2][2:end-1]
   if occursin("addObj", on_clause)
     # determine object type 
     type_id = parse(Int, split(split(split(on_clause, "(= addedObjType")[2], "(ObjType")[2], " ")[1])
     object_type = filter(t -> t.id == type_id, object_types)[1]
     if "field1" in map(tuple -> tuple[1], object_type.custom_fields)
       object_ids_with_type = filter(id -> filter(obj -> !isnothing(obj), object_mapping[id])[1].type.id == type_id, collect(keys(object_mapping)))
-      field_values = map(i -> filter(obj -> !isnothing(obj), object_mapping[i])[1].custom_field_values[end], filter(id -> isnothing(object_mapping[id][1]), object_ids_with_type))
+      corresponding_object_ids = filter(id -> update_function in vcat(matrix[id, :]...), object_ids_with_type)
+
+      field_values = map(i -> filter(obj -> !isnothing(obj), object_mapping[i])[1].custom_field_values[end], filter(id -> isnothing(object_mapping[id][1]), corresponding_object_ids))
       field_value = field_values[1]
       replace(on_clause, "(ObjType$(type_id)" => "(ObjType$(type_id) $(field_value)")
     else
@@ -3049,7 +3052,8 @@ function format_on_clause_full_program(on_clause, object_decomposition)
   end
 end
 
-function full_program_given_on_clauses(on_clauses, new_object_decomposition, global_var_dict, grid_size)
+function full_program_given_on_clauses(on_clauses, new_object_decomposition, global_var_dict, grid_size, matrix)
+  @show new_object_decomposition
   object_types, object_mapping, background, _ = new_object_decomposition
 
   # for object_id in object_ids
@@ -3066,7 +3070,7 @@ function full_program_given_on_clauses(on_clauses, new_object_decomposition, glo
   on_clauses = unique(on_clauses)
 
   # format on_clauses with fields
-  on_clauses = map(c -> format_on_clause_full_program(c, new_object_decomposition), on_clauses)
+  on_clauses = map(c -> format_on_clause_full_program(c, new_object_decomposition, matrix), on_clauses)
 
   # true_on_clauses = filter(on_clause -> occursin("on true", on_clause), on_clauses)
   # user_event_on_clauses = filter(on_clause -> !(on_clause in true_on_clauses) && foldl(|, map(event -> occursin(event, on_clause) , ["clicked", "left", "right", "down", "up"])), on_clauses)
