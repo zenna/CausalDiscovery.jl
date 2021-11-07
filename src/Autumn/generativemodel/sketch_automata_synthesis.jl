@@ -1,5 +1,5 @@
-# const sketch_directory = "/Users/riadas/Documents/urop/sketch-1.7.6/sketch-frontend/"
-const sketch_directory = "/scratch/riadas/sketch-1.7.6/sketch-frontend/"
+const sketch_directory = "/Users/riadas/Documents/urop/sketch-1.7.6/sketch-frontend/"
+# const sketch_directory = "/scratch/riadas/sketch-1.7.6/sketch-frontend/"
 
 
 function generate_on_clauses_SKETCH_SINGLE(matrix, unformatted_matrix, object_decomposition, user_events, global_event_vector_dict, redundant_events_set, grid_size=16, desired_solution_count=1, desired_per_matrix_solution_count=1, interval_painting_param=false, z3_option="none", time_based=false, z3_timeout=0, sketch_timeout=0, co_occurring_param=false, transition_param=false)   
@@ -937,17 +937,17 @@ function format_state_transition_functions(transitions, distinct_states; global_
     if !isnothing(global_var_id) # state variable is global
       
       if length(starts) == length(distinct_states) # from any state, this label causes a transition to the target!
-        push!(formatted_transitions, "(on $(label) (= globalVar$(global_var_id) $(target)))")
+        push!(formatted_transitions, "(on $(label)\n(= globalVar$(global_var_id) $(target)))")
       else 
-        push!(formatted_transitions, "(on (& $(label) (in (prev globalVar$(global_var_id)) (list $(join(filter(s -> s != target, starts), " "))))) (= globalVar$(global_var_id) $(target)))")
+        push!(formatted_transitions, "(on (& $(label) (in (prev globalVar$(global_var_id)) (list $(join(filter(s -> s != target, starts), " ")))))\n(= globalVar$(global_var_id) $(target)))")
       end
 
     else # state variable is object-specific
       
       if length(starts) == length(distinct_states) # from any state, this label causes a transition to the target!
-        push!(formatted_transitions, """(on true (= addedObjType$(type_id)List (updateObj addedObjType$(type_id)List (--> obj (updateObj (prev obj) "field1" $(target))) (--> obj $(label)))))""")
+        push!(formatted_transitions, """(on true\n(= addedObjType$(type_id)List (updateObj addedObjType$(type_id)List (--> obj (updateObj (prev obj) "field1" $(target))) (--> obj $(label)))))""")
       else 
-        push!(formatted_transitions, """(on true (= addedObjType$(type_id)List (updateObj addedObjType$(type_id)List (--> obj (updateObj (prev obj) "field1" $(target))) (--> obj (& $(label) (in (.. (prev obj) field1) (list $(join(filter(s -> s != target, starts), " ")))))))))""")
+        push!(formatted_transitions, """(on true\n(= addedObjType$(type_id)List (updateObj addedObjType$(type_id)List (--> obj (updateObj (prev obj) "field1" $(target))) (--> obj (& $(label) (in (.. (prev obj) field1) (list $(join(filter(s -> s != target, starts), " ")))))))))""")
       end
 
     end
