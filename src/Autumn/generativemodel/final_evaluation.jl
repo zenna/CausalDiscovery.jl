@@ -1,5 +1,5 @@
-import Pkg; Pkg.add("Pickle")
-using Autumn
+# import Pkg; Pkg.add("Pickle")
+# using Autumn
 include("test_synthesis.jl")
 
 
@@ -375,9 +375,9 @@ function hack()
 end
 
 
-model_name = ARGS[1]
-x = @timed run_model(model_name, 5, 1)
-save(string("DONE/DONE_$(model_name)_heuristic.jld"), model_name, x)
-open("DONE/DONE_$(model_name)_TIME_heuristic.txt", "w") do io 
-  println(io, x.time)
-end
+# model_name = ARGS[1]
+# x = @timed run_model(model_name, 5, 1)
+# save(string("DONE/DONE_$(model_name)_heuristic.jld"), model_name, x)
+# open("DONE/DONE_$(model_name)_TIME_heuristic.txt", "w") do io 
+#   println(io, x.time)
+# end

@@ -3032,7 +3032,7 @@ end
 
 function format_on_clause_full_program(on_clause, object_decomposition, matrix) 
   object_types, object_mapping, background, _ = object_decomposition
-  update_function = split(on_clause, "\n")[2][2:end-1]
+  update_function = split(on_clause, "\n")[2][1:end-1]
   if occursin("addObj", on_clause)
     # determine object type 
     type_id = parse(Int, split(split(split(on_clause, "(= addedObjType")[2], "(ObjType")[2], " ")[1])
