@@ -309,7 +309,7 @@ function generate_on_clauses_SKETCH_SINGLE(matrix, unformatted_matrix, object_de
               update_function_times_dict[object_id] = findall(x -> x == 1, observation_vectors_dict[update_function][object_id])
             end
 
-            state_solutions = generate_object_specific_automaton_sketch(update_function, update_function_times_dict, global_event_vector_dict, type_id, global_object_decomposition, object_specific_state_update_times_dict, global_var_dict, sketch_timeout)            
+            state_solutions = generate_object_specific_automaton_sketch(update_function, update_function_times_dict, global_event_vector_dict, type_id, global_object_decomposition, object_specific_state_update_times_dict, global_var_dict, sketch_timeout, co_occurring_param)            
             println("OUTPUT??")
             @show state_solutions
             if state_solutions[1] == [] 
@@ -1463,7 +1463,7 @@ function generalize_automaton(aut, user_events, event_vector_dict, all_labels)
   state_seq, final_transitions, start_state, accept_states, co_occurring_event
 end
 
-function generate_object_specific_automaton_sketch(update_rule, update_function_times_dict, event_vector_dict, type_id, object_decomposition, init_state_update_times, global_var_dict, sketch_timeout)
+function generate_object_specific_automaton_sketch(update_rule, update_function_times_dict, event_vector_dict, type_id, object_decomposition, init_state_update_times, global_var_dict, sketch_timeout, co_occurring_param=false)
   println("GENERATE_NEW_OBJECT_SPECIFIC_STATE")
   @show update_rule
   @show update_function_times_dict
