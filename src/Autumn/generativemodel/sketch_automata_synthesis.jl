@@ -644,12 +644,34 @@ function generate_global_automaton_sketch(update_rule, update_function_times, ev
     # search for events within range
     events_in_range = find_state_update_events(small_event_vector_dict, augmented_positive_times, time_ranges, start_value, end_value, init_global_var_dict, global_var_id, global_var_value)
     events_in_range = filter(tup -> !occursin("globalVar", tup[1]) && !occursin("field1", tup[1]), events_in_range)
+    
+    println("PRE PRUNING: EVENTS IN RANGE")
+
+    @show events_in_range
+    events_to_remove = []
+
+    for tuple in events_in_range 
+      if occursin("(clicked (filter (--> obj (== (.. obj id) ", tuple[1])
+        id = parse(Int, split(split(tuple[1], "(clicked (filter (--> obj (== (.. obj id) ")[2], ")")[1])
+        if nothing in object_mapping[id]
+          push!(events_to_remove, tuple)
+        end
+      end
+    end
+
+    events_in_range = filter(tuple -> !(tuple in events_to_remove), events_in_range)
+    println("POST PRUNING: EVENTS IN RANGE")
+    
     if events_in_range != [] 
       if filter(tuple -> !occursin("true", tuple[1]), events_in_range) != []
         if filter(tuple -> !occursin("globalVar", tuple[1]) && !occursin("true", tuple[1]), events_in_range) != []
-          state_update_event, event_times = filter(tuple -> !occursin("globalVar", tuple[1]) && !occursin("true", tuple[1]), events_in_range)[1]
+          min_times = minimum(map(tup -> length(tup[2]), filter(tuple -> !occursin("globalVar", tuple[1]) && !occursin("true", tuple[1]), events_in_range)))
+          events_with_min_times = filter(tup -> length(tup[2]) == min_times, filter(tuple -> !occursin("globalVar", tuple[1]) && !occursin("true", tuple[1]), events_in_range))
+          state_update_event, event_times = sort(events_with_min_times, by=x -> length(x[1]))[1] # sort(filter(tuple -> !occursin("globalVar", tuple[1]) && !occursin("true", tuple[1]), events_in_range), by=x -> length(x[2]))[1]
         else
-          state_update_event, event_times = filter(tuple -> !occursin("true", tuple[1]), events_in_range)[1]
+          min_times = minimum(map(tup -> length(tup[2]), filter(tuple -> !occursin("true", tuple[1]), events_in_range)))
+          events_with_min_times = filter(tup -> length(tup[2]) == min_times, filter(tuple -> !occursin("true", tuple[1]), events_in_range))
+          state_update_event, event_times = sort(events_with_min_times, by=x -> length(x[1]))[1] # sort(filter(tuple -> !occursin("true", tuple[1]), events_in_range), by=x -> length(x[2]))[1]
         end
       
         for time in event_times 
