@@ -32,7 +32,7 @@ do
     for (( i = 1 ; i <= $num_repeats; i++ )) ### Inner for loop ###
     do
       echo "model_name: $model_name, algorithm: $algorithm, repeat: $i "
-      gtimeout 144000 julia --project=. src/Autumn/generativemodel/full_eval_$algorithm.jl $model_name $curr_date $i
+      timeout 144000 julia --project=. src/Autumn/generativemodel/full_eval_$algorithm.jl $model_name $curr_date $i
     done  
   done
 done
