@@ -4,25 +4,26 @@ curr_date=$(date '+%Y-%m-%d_%H:%M:%S')
 algorithms=("heuristic" "sketch" "sketch_SINGLE")
 num_repeats=5
 
-model_names=("paint"
-             "wind" 
-             "sand"
-             "bullets"
-             "gravity_i"
-             "gravity_iii"
-             "disease"
-             "gravity_ii"
-             "mario"
-             "count_1"
-             "count_2"
-             "count_3"
-             "count_4"
-             "double_count_1"
-             "double_count_2"
-             "water_plug" 
-            )
+# model_names=("paint"
+#              "wind" 
+#              "sand"
+#              "bullets"
+#              "gravity_i"
+#              "gravity_iii"
+#              "disease"
+#              "gravity_ii"
+#              "mario"
+#              "count_1"
+#              "count_2"
+#              "count_3"
+#              "count_4"
+#              "double_count_1"
+#              "double_count_2"
+            #  "water_plug" 
+            # )
 
-# model_names=("count_1")
+model_names=("mario"
+             "water_plug")
 # "space_invaders"
 
 for model_name in ${model_names[@]}
