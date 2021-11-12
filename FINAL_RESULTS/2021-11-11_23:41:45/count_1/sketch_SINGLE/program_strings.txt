@@ -1,0 +1,74 @@
+ 
+(program
+  (= GRID_SIZE 100)
+  (= background "white")
+  (object ObjType1  (list (Cell 0 0  "blue" )))
+
+  (: obj1 ObjType1)
+
+  (: addedObjType1List (List ObjType1))
+
+  (= obj1 (initnext (ObjType1  (Position 50 50)) (prev obj1)))
+  
+  (= addedObjType1List (initnext (list) (prev addedObjType1List)))
+
+	 (: globalVar1 Int)
+	 (= globalVar1 (initnext 2 (prev globalVar1)))
+
+  (: time Int)
+  (= time (initnext 0 (+ time 1)))
+
+  (on (& true (in (prev globalVar1) (list 1)))
+(= obj1 (moveRight (prev obj1))))
+  (on (& true (in (prev globalVar1) (list 3)))
+(= obj1 (moveLeft (prev obj1))))
+  (on (& right (in (prev globalVar1) (list 2)))
+(= globalVar1 1))
+  (on (& left (in (prev globalVar1) (list 1)))
+(= globalVar1 2))
+  (on (& left (in (prev globalVar1) (list 2)))
+(= globalVar1 3))
+  (on (& right (in (prev globalVar1) (list 3)))
+(= globalVar1 2)))
+
+
+
+
+
+ 
+(program
+  (= GRID_SIZE 100)
+  (= background "white")
+  (object ObjType1  (list (Cell 0 0  "blue" )))
+
+  (: obj1 ObjType1)
+
+  (: addedObjType1List (List ObjType1))
+
+  (= obj1 (initnext (ObjType1  (Position 50 50)) (prev obj1)))
+  
+  (= addedObjType1List (initnext (list) (prev addedObjType1List)))
+
+	 (: globalVar1 Int)
+	 (= globalVar1 (initnext 1 (prev globalVar1)))
+
+  (: time Int)
+  (= time (initnext 0 (+ time 1)))
+
+  (on (& true (in (prev globalVar1) (list 2)))
+(= obj1 (moveRight (prev obj1))))
+  (on (& true (in (prev globalVar1) (list 3)))
+(= obj1 (moveLeft (prev obj1))))
+  (on (& left (in (prev globalVar1) (list 2)))
+(= globalVar1 1))
+  (on (& left (in (prev globalVar1) (list 1)))
+(= globalVar1 3))
+  (on (& right (in (prev globalVar1) (list 3)))
+(= globalVar1 1))
+  (on (& right (in (prev globalVar1) (list 1)))
+(= globalVar1 2)))
+
+
+
+
+

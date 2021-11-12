@@ -354,14 +354,14 @@ function synthesize_update_functions(object_id, time, object_decomposition, user
           if abstracted_strings != []
             abstracted_string = abstracted_strings[1]
             if contained_in_list # object was added later; contained in addedList
-              push!(solutions, """(= addedObjType$(prev_object.type.id)List (updateObj addedObjType$(prev_object.type.id)List (--> obj (updateObj obj "color" $(abstracted_string))) (--> obj (== (.. obj id) $(object_id)))))""")
+              push!(solutions, """(= addedObjType$(prev_object.type.id)List (updateObj addedObjType$(prev_object.type.id)List (--> obj (updateObj (prev obj) "color" $(abstracted_string))) (--> obj (== (.. obj id) $(object_id)))))""")
             else # object was present at the start of the program
               push!(solutions, """(= obj$(object_id) (updateObj (prev obj$(object_id)) "color" $(abstracted_string)))""")
             end  
           end
 
           if contained_in_list # object was added later; contained in addedList
-            push!(solutions, """(= addedObjType$(prev_object.type.id)List (updateObj addedObjType$(prev_object.type.id)List (--> obj (updateObj obj "color" "$(next_object.custom_field_values[1])")) (--> obj (== (.. obj id) $(object_id)))))""")
+            push!(solutions, """(= addedObjType$(prev_object.type.id)List (updateObj addedObjType$(prev_object.type.id)List (--> obj (updateObj (prev obj) "color" "$(next_object.custom_field_values[1])")) (--> obj (== (.. obj id) $(object_id)))))""")
           else # object was present at the start of the program
             push!(solutions, """(= obj$(object_id) (updateObj (prev obj$(object_id)) "color" "$(next_object.custom_field_values[1])"))""")
           end
@@ -934,6 +934,7 @@ function generate_on_clauses(matrix, unformatted_matrix, object_decomposition, u
   filtered_matrices = []
 
   # pre-filter by removing NoCollision update functions 
+
   pre_filtered_matrix_1 = pre_filter_remove_NoCollision(matrix)
   if pre_filtered_matrix_1 != false 
     pre_filtered_non_random_matrix_1 = deepcopy(matrix)

@@ -161,6 +161,36 @@ mutable struct Obj
   id::Int
 end
 
+function render_from_cells(cells, gridsize) 
+  background = "white"
+  image = [RGBA(1.0, 0.0, 0.0, 1.0) for x in 1:gridsize, y in 1:gridsize]
+  for cell in cells 
+    x = cell.position.x 
+    y = cell.position.y 
+    if (x > 0) && (x <= gridsize) && (y > 0) && (y <= gridsize)
+      if image[y, x] == RGBA(1.0, 0.0, 0.0, 1.0)
+        image[y, x] = RGBA(color.r, color.g, color.b, 0.6)
+      else
+        new_alpha = image[y,x].alpha + 0.6 - image[y,x].alpha * 0.6
+        image[y, x] = RGBA((image[y,x].alpha * image[y,x].r + 0.6*(1 - image[y,x].alpha)*color.r)/new_alpha,
+                           (image[y,x].alpha * image[y,x].g + 0.6*(1 - image[y,x].alpha)*color.g)/new_alpha,
+                           (image[y,x].alpha * image[y,x].b + 0.6*(1 - image[y,x].alpha)*color.b)/new_alpha,
+                          new_alpha)
+      end  
+    end
+  end 
+
+  for x in 1:gridsize
+    for y in 1:gridsize
+      if image[x, y] == RGBA(1.0, 0.0, 0.0, 1.0)
+        image[x, y] = rgb(background)
+      end
+    end
+  end
+
+  image
+end
+
 """Produce image from types_and_objects scene representation"""
 function render(types_and_objects)
   types, objects, background, gridsize = types_and_objects

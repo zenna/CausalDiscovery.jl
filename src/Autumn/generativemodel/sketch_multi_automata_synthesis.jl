@@ -5,6 +5,8 @@ else
 end
 
 function generate_on_clauses_SKETCH_MULTI(matrix, unformatted_matrix, object_decomposition, user_events, global_event_vector_dict, redundant_events_set, grid_size=16, desired_solution_count=1, desired_per_matrix_solution_count=1, interval_painting_param=false, z3_option="none", time_based=false, z3_timeout=0, sketch_timeout=0, co_occurring_param=false, transition_param=false)
+  start_time = Dates.now()
+  
   object_types, object_mapping, background, dim = object_decomposition
   solutions = []
 
@@ -107,9 +109,10 @@ function generate_on_clauses_SKETCH_MULTI(matrix, unformatted_matrix, object_dec
     end
 
 
-    if (length(filter(x -> x[1] != [], solutions)) >= desired_solution_count) # || ((length(filter(x -> x[1] != [], solutions)) > 0) && length(filter(x -> occursin("randomPositions", x), vcat(vcat(filtered_matrix...)...))) > 0) 
+    if (length(filter(x -> x[1] != [], solutions)) >= desired_solution_count) || Dates.value(Dates.now() - start_time) > 3600 * 2 * 1000 # || ((length(filter(x -> x[1] != [], solutions)) > 0) && length(filter(x -> occursin("randomPositions", x), vcat(vcat(filtered_matrix...)...))) > 0) 
       # if we have reached a sufficient solution count or have found a solution before trying random solutions, exit
       println("BREAKING")
+      println("elapsed time: $(Dates.value(Dates.now() - start_time) > 3600 * 2 * 1000)")
       # @show length(solutions)
       break
     end

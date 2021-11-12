@@ -1,3 +1,5 @@
+import Pkg; Pkg.add("Pickle")
+using Autumn
 include("test_synthesis.jl")
 
 
@@ -142,7 +144,12 @@ function run_model(model_name::String, desired_per_matrix_solution_count, desire
                                                                  desired_solution_count=desired_solution_count,
                                                                  algorithm="sketch_single",
                                                                  sketch_timeout=120)
-            
+                            # try
+                            #
+                            # catch e
+                            #   (value=[], time=0)
+                            # end
+
             sols = timed_tuple.value
             
             println("LOOK AT THIS")
@@ -246,6 +253,13 @@ function run_model(model_name::String, desired_per_matrix_solution_count, desire
                                                              desired_solution_count=desired_solution_count,
                                                              algorithm="sketch_single",
                                                              sketch_timeout=120 * 60)
+                      
+                      # try
+                      # 
+                      # catch e
+                      #   (value=[], time=0)          
+                      # end
+
         sols = timed_tuple.value
         total_time += timed_tuple.time 
         subdirectory_name = string(directory_name, "/", "per_matrix_count_$(desired_per_matrix_solution_count)_solution_count_$(desired_solution_count)")
@@ -375,9 +389,9 @@ function hack()
   end
 end
 
-model_name = ARGS[1]
-x = @timed run_model(model_name, 5, 1)
-save(string("DONE/DONE_$(model_name)_sketch_single.jld"), model_name, x)
-open("DONE/DONE_$(model_name)_TIME_sketch_single.txt", "w") do io 
-  println(io, x.time)
-end
+# model_name = ARGS[1]
+# x = @timed run_model(model_name, 5, 1)
+# save(string("DONE/DONE_$(model_name)_sketch_single.jld"), model_name, x)
+# open("DONE/DONE_$(model_name)_TIME_sketch_single.txt", "w") do io 
+#   println(io, x.time)
+# end

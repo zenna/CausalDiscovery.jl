@@ -133,7 +133,8 @@ function run_model(model_name::String, desired_per_matrix_solution_count, desire
             #                                         algorithm="sketch_multi")
 
         
-            timed_tuple = @timed synthesize_program_given_decomp(singlecell ? deepcopy(singlecell_decomp) : deepcopy(multicell_decomp), 
+            timed_tuple =  
+                              @timed synthesize_program_given_decomp(singlecell ? deepcopy(singlecell_decomp) : deepcopy(multicell_decomp), 
                                                                  deepcopy(observation_tuple),
                                                                  singlecell ? singlecell_global_event_vector_dict : multicell_global_event_vector_dict,
                                                                  singlecell ? singlecell_redundant_events_set : multicell_redundant_events_set, 
@@ -144,7 +145,10 @@ function run_model(model_name::String, desired_per_matrix_solution_count, desire
                                                                  desired_solution_count=desired_solution_count,
                                                                  algorithm="sketch_multi",
                                                                  sketch_timeout=120)
-            
+                          # try
+                          # catch e
+                          #   (value=[], time=0)
+                          # end
             sols = timed_tuple.value
             
             println("LOOK AT THIS")
@@ -248,6 +252,11 @@ function run_model(model_name::String, desired_per_matrix_solution_count, desire
                                                              desired_solution_count=desired_solution_count,
                                                              algorithm="sketch_multi",
                                                              sketch_timeout=120 * 60)
+                        # try   
+                        # catch e 
+                        #   (value=[], time=0)
+                        # end
+                        
         sols = timed_tuple.value
         total_time += timed_tuple.time 
         subdirectory_name = string(directory_name, "/", "per_matrix_count_$(desired_per_matrix_solution_count)_solution_count_$(desired_solution_count)")
