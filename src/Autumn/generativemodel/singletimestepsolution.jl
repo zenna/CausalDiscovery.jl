@@ -267,7 +267,20 @@ function synthesize_update_functions(object_id, time, object_decomposition, user
         else
           new_rule = "(= objX objX)"
         end
-        push!(solutions, new_rule)
+        push!(unformatted_solutions, new_rule)
+        update_rule = replace(new_rule, "objX" => "obj$(object_id)")
+        if contained_in_list # object was added later; contained in addedList
+          update_rule_parts = split(update_rule, " ")
+          var1 = replace(update_rule_parts[2], "obj$(object_id)" => "obj")
+          var2 = replace(join(update_rule_parts[3:end], " "), "obj$(object_id)" => "(prev obj)")
+          map_lambda_func = string("(--> ", var1, " ", var2)
+          # map_lambda_func = replace(string("(-->", replace(update_rule, "obj$(object_id)" => "obj")[3:end]), "(prev obj)" => "(prev obj)")
+          push!(solutions, "(= addedObjType$(prev_object.type.id)List (updateObj addedObjType$(prev_object.type.id)List $(map_lambda_func) (--> obj (== (.. obj id) $(object_id)))))")
+        else # object was present at the start of the program
+          update_rule_parts = filter(x -> x != "", split(update_rule, " "))
+          push!(solutions, join([update_rule_parts[1], update_rule_parts[2], replace(join(update_rule_parts[3:end], " "), "obj$(object_id)" => "(prev obj$(object_id))" )], " "))
+        end
+        
         break
       end
 
@@ -462,8 +475,9 @@ function parse_and_map_objects(observations, gridsize=16; singlecell=false, pedr
   end
   for time in 2:length(observations)
     println("HERE 3")
-    println(time)
-    println(object_types)
+    @show time
+    # println(time)
+    # println(object_types)
     if !pedro 
       if overlapping_cells
         _, next_objects, _, _ = parsescene_autumn_singlecell_given_types(observations[time], deepcopy(object_types), "white", gridsize) # parsescene_autumn_singlecell

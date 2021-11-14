@@ -4,6 +4,39 @@ function filter_out_of_bounds_cells(observations, grid_size)
   map(obs -> filter(cell -> cell.position.x in collect(0:(grid_size - 1)) && cell.position.y in collect(0:(grid_size - 1)), obs), observations)
 end
 
+function generate_observations_custom_input(m::Module, user_events)
+  observations = []  
+  state = Base.invokelatest(m.init, nothing, nothing, nothing, nothing, nothing)
+  push!(observations, Base.invokelatest(m.render, state.scene))
+
+  for i in 1:length(user_events)
+    event = user_events[i]
+    if event == "left"
+      state = Base.invokelatest(m.next, state, nothing, Base.invokelatest(m.Left), nothing, nothing, nothing)
+      push!(user_events, event)
+    elseif event == "right"
+      state = Base.invokelatest(m.next, state, nothing, nothing, Base.invokelatest(m.Right), nothing, nothing)
+      push!(user_events, event)
+    elseif event == "up"
+      state = Base.invokelatest(m.next, state, nothing, nothing, nothing, Base.invokelatest(m.Up), nothing)
+      push!(user_events, event)
+    elseif event == "down"
+      state = Base.invokelatest(m.next, state, nothing, nothing, nothing, nothing, Base.invokelatest(m.Down))
+      push!(user_events, event)
+    elseif occursin("click", event)
+      x = parse(Int, split(event, " ")[2])
+      y = parse(Int, split(event, " ")[3])
+      state = Base.invokelatest(m.next, state, Base.invokelatest(m.Click, x, y), nothing, nothing, nothing, nothing)
+      push!(user_events, event)
+    else
+      state = Base.invokelatest(m.next, state, nothing, nothing, nothing, nothing, nothing)
+      push!(user_events, nothing)
+    end
+    push!(observations, Base.invokelatest(m.render, state.scene))
+  end
+  observations
+end
+
 function generate_observations_ice(m::Module)
   state = Base.invokelatest(m.init, nothing, nothing, nothing, nothing, nothing)
   observations = []
@@ -1598,7 +1631,6 @@ function generate_observations_swap(m::Module)
   end
   observations, user_events, 100
 end
-
 
 # PEDRO 
 pedro_output_folder = "/Users/riadas/Documents/urop/RC_RL/autumn_renders/"

@@ -2,7 +2,7 @@
 
 curr_date=$(date '+%Y-%m-%d_%H:%M:%S')
 algorithms=("heuristic" "sketch" "sketch_SINGLE")
-num_repeats=5
+num_repeats=1
 
 # model_names=("paint"
 #              "wind" 
@@ -33,7 +33,7 @@ do
     for (( i = 1 ; i <= $num_repeats; i++ )) ### Inner for loop ###
     do
       echo "model_name: $model_name, algorithm: $algorithm, repeat: $i "
-      timeout 144000 /scratch/riadas/julia-1.5.3/bin/julia --project=. src/Autumn/generativemodel/full_eval_$algorithm.jl $model_name $curr_date $i
+      /scratch/riadas/julia-1.5.3/bin/julia --project=. src/Autumn/generativemodel/full_eval_$algorithm.jl $model_name $curr_date $i
     done  
   done
 done

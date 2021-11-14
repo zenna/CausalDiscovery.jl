@@ -638,7 +638,7 @@ function re_order_on_clauses(on_clauses, ordered_update_functions_dict)
     for update_function in ordered_update_functions_list 
       @show update_function
       if !is_no_change_rule(update_function)
-        matching_on_clause = filter(tup -> tup[2] == update_function, regular_on_clauses)[1][1]
+        matching_on_clause = filter(tup -> tup[2] == update_function, regular_on_clauses)[1][1]        
         push!(ordered_on_clauses, matching_on_clause)
       end
     end
@@ -693,11 +693,19 @@ function generate_new_state_GLOBAL(co_occurring_event, times_dict, event_vector_
   object_types, object_mapping, _, _ = object_decomposition
 
   events = filter(e -> event_vector_dict[e] isa AbstractArray, collect(keys(event_vector_dict)))
+  @show events 
   atomic_events = gen_event_bool_human_prior(object_decomposition, "x", type_id isa Tuple ? type_id[1] : type_id, ["nothing"], init_global_var_dict, collect(keys(times_dict))[1])
+  @show atomic_events 
   small_event_vector_dict = deepcopy(event_vector_dict)    
+  deleted = []
   for e in keys(event_vector_dict)
+    if e == "(== (.. (.. (prev obj8) origin) x) 2)" 
+      println("hm")
+      @show !(e in atomic_events) || (!(event_vector_dict[e] isa AbstractArray) && !(e in map(x -> "(clicked (filter (--> obj (== (.. obj id) x)) (prev addedObjType$(x)List)))", map(x -> x.id, object_types))) )
+    end
     if !(e in atomic_events) || (!(event_vector_dict[e] isa AbstractArray) && !(e in map(x -> "(clicked (filter (--> obj (== (.. obj id) x)) (prev addedObjType$(x)List)))", map(x -> x.id, object_types))) )
-      delete!(small_event_vector_dict, e)
+      push!(deleted, e)
+      delete!(small_event_vector_dict, e)    
     end
   end
 
@@ -1318,7 +1326,28 @@ function generate_stateless_on_clauses(update_functions_dict, matrix, filtered_m
         if events != []
           event = events[1]
           event_is_global = event_is_globals[1]
-          on_clause = format_on_clause(replace(update_rule, ".. obj id) x" => ".. obj id) $(object_ids[1])"), replace(event, ".. obj id) x" => ".. obj id) $(object_ids[1])"), object_ids[1], object_ids, type_id, group_addObj_rules, addObj_rules, object_mapping, event_is_global, grid_size, addObj_count)
+          if occursin(""" "color" """, update_rule) 
+            # determine color
+            println("HANDLING SPECIAL COLOR UPDATE CASE") 
+            
+            @show update_rule 
+            @show event 
+            
+            color = split(split(update_rule, """ "color" """)[2], ")")[1]
+            if event_is_global 
+              event = "(& $(event) (!= (.. (prev obj$(object_ids[1])) color) $(color)))"
+            else 
+              event = "(& $(event) (!= (.. (prev obj) color) $(color)))"
+            end
+            
+            @show update_rule
+            @show event 
+
+            on_clause = format_on_clause(replace(update_rule, ".. obj id) x" => ".. obj id) $(object_ids[1])"), replace(event, ".. obj id) x" => ".. obj id) $(object_ids[1])"), object_ids[1], object_ids, type_id, group_addObj_rules, addObj_rules, object_mapping, event_is_global, grid_size, addObj_count)
+          else
+            on_clause = format_on_clause(replace(update_rule, ".. obj id) x" => ".. obj id) $(object_ids[1])"), replace(event, ".. obj id) x" => ".. obj id) $(object_ids[1])"), object_ids[1], object_ids, type_id, group_addObj_rules, addObj_rules, object_mapping, event_is_global, grid_size, addObj_count)
+          end
+
           push!(new_on_clauses, (on_clause, update_rule))
           new_on_clauses = unique(new_on_clauses)
           println("ADDING EVENT WITHOUT NEW STATE")
@@ -1690,12 +1719,27 @@ function generate_new_object_specific_state_GLOBAL(co_occurring_event, update_fu
 
     on_clauses = []
     formatted_co_occurring_event = replace(co_occurring_event, "(filter (--> obj (== (.. obj id) x)) (prev addedObjType$(type_id)List))" => "(list (prev obj))")
+  
+    
     for update_function in update_functions 
+      curr_formatted_co_occurring_event = formatted_co_occurring_event 
+
+      if occursin(""" "color" """, update_function) 
+        # determine color
+        println("HANDLING SPECIAL COLOR UPDATE CASE") 
+        
+        @show update_function       
+        color = split(split(update_function, """ "color" """)[2], ")")[1]
+        curr_formatted_co_occurring_event = "(& $(curr_formatted_co_occurring_event) (!= (.. (prev obj) color) $(color)))"
+        @show color 
+        @show curr_formatted_co_occurring_event
+      end
+
       update_function_index = update_function_indices[update_function]
       if !occursin("field1", formatted_co_occurring_event)
-        on_clause = "(on true\n$(replace(update_function, "(== (.. obj id) x)" => "(& $(formatted_co_occurring_event) (== (.. obj field1) $(update_function_index)))")))"
+        on_clause = "(on true\n$(replace(update_function, "(== (.. obj id) x)" => "(& $(curr_formatted_co_occurring_event) (== (.. obj field1) $(update_function_index)))")))"
       else
-        on_clause = "(on true\n$(replace(update_function, "(== (.. obj id) x)" => formatted_co_occurring_event)))"
+        on_clause = "(on true\n$(replace(update_function, "(== (.. obj id) x)" => curr_formatted_co_occurring_event)))"
       end
       push!(on_clauses, (on_clause, update_function))
     end    

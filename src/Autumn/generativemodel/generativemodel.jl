@@ -239,7 +239,7 @@ function generate_hypothesis_string_program(hypothesis_string, actual_string, ob
 end
 
 function gen_event_bool_human_prior(object_decomposition, object_id, type_id, user_events, global_var_dict, update_rule) 
-  object_types, object_mapping, _, _ = object_decomposition
+  object_types, object_mapping, _, grid_size = object_decomposition
   start_objects = map(k -> object_mapping[k][1], filter(key -> !isnothing(object_mapping[key][1]), collect(keys(object_mapping))))
   non_list_objects = filter(x -> (count(y -> y.type.id == x.type.id, start_objects) == 1) && (count(obj_id -> filter(z -> !isnothing(z), object_mapping[obj_id])[1].type.id == x.type.id, collect(keys(object_mapping))) == 1), start_objects)
   if type_id in map(o -> o.type.id, non_list_objects)
@@ -295,20 +295,38 @@ function gen_event_bool_human_prior(object_decomposition, object_id, type_id, us
       for object in non_list_objects 
         push!(choices, "(clicked (prev obj$(object.id)))")
 
-        push!(choices, vcat(map(pos -> [#  "(== (.. (.. (prev obj$(object.id)) origin) x) $(pos[1]))",
+        push!(choices, vcat(map(pos -> [ "(== (.. (.. (prev obj$(object.id)) origin) x) $(pos[1]))",
                                       #  "(== (.. (.. (prev obj$(object.id)) origin) y) $(pos[2]))",
                                       #  "(& (== (.. (.. (prev obj$(object.id)) origin) x) $(pos[1])) (== (.. (.. (prev obj$(object.id)) origin) y) $(pos[2])))",
                                       #  "(& (.. (prev obj$(object.id)) alive) (== (.. (.. (prev obj$(object.id)) origin) x) $(pos[1])))",
                                       #  "(& (.. (prev obj$(object.id)) alive) (== (.. (.. (prev obj$(object.id)) origin) y) $(pos[2])))",
                                       #  "(& (.. (prev obj$(object.id)) alive) (& (== (.. (.. (prev obj$(object.id)) origin) x) $(pos[1])) (== (.. (.. (prev obj$(object.id)) origin) y) $(pos[2]))))"
                                       ], 
-                           map(obj -> obj.position, filter(x -> !isnothing(x), object_mapping[object.id])))...)...)
+                           map(obj -> obj.position, filter(x -> !isnothing(x) && (abs(x.position[1]) <= 3 || abs(x.position[1] - grid_size) <= 3), object_mapping[object.id])))...)...)
         
-        push!(choices, ["(! (isWithinBounds (moveLeft (prev obj$(object.id)))))",
-                        "(! (isWithinBounds (moveRight (prev obj$(object.id)))))",
-                        "(! (isWithinBounds (moveUp (prev obj$(object.id)))))",
-                        "(! (isWithinBounds (moveDown (prev obj$(object.id)))))",
-                        ]...)
+        # displacements = []
+        # for x in -3:3 
+        #   for y in -3:3
+        #     if abs(x) + abs(y) < 3 && (x == 0 || y == 0) 
+        #       push!(displacements, "(move (prev obj$(object.id)) $(x) $(y))")
+        #     end
+        #   end
+        # end
+
+        # for disp in displacements 
+        #   push!(choices, "(! (isWithinBounds $(disp)))")
+        # end
+                   
+
+        # push!(choices, ["(! (isWithinBounds (moveLeft  (prev obj$(object.id)))))",
+        #                 "(! (isWithinBounds (moveRight  (prev obj$(object.id)))))",
+        #                 "(! (isWithinBounds (moveUp  (prev obj$(object.id)))))",
+        #                 "(! (isWithinBounds (moveDown  (prev obj$(object.id)))))",
+        #                 "(! (isWithinBounds (move  (prev obj$(object.id)) -2 0)))",
+        #                 "(! (isWithinBounds (move  (prev obj$(object.id)) 2 0)))",
+        #                 "(! (isWithinBounds (move  (prev obj$(object.id)) 0 2)))",
+        #                 "(! (isWithinBounds (move  (prev obj$(object.id)) 0 -2)))",
+        #                 ]...)
 
         for type in object_types 
           push!(choices, [
@@ -366,7 +384,7 @@ function gen_event_bool_human_prior(object_decomposition, object_id, type_id, us
 end
 
 function gen_event_bool(object_decomposition, object_id, type_id, update_rule, user_events, global_var_dict, time_based=true)
-  object_types, object_mapping, _, _ = object_decomposition
+  object_types, object_mapping, _, grid_size = object_decomposition
   start_objects = map(k -> object_mapping[k][1], filter(key -> !isnothing(object_mapping[key][1]), collect(keys(object_mapping))))
   non_list_objects = filter(x -> (count(y -> y.type.id == x.type.id, start_objects) == 1) && (count(obj_id -> filter(z -> !isnothing(z), object_mapping[obj_id])[1].type.id == x.type.id, collect(keys(object_mapping))) == 1), start_objects)
   user_events = filter(e -> (e != "") && (e != "nothing") && !isnothing(e), user_events)
@@ -387,14 +405,14 @@ function gen_event_bool(object_decomposition, object_id, type_id, update_rule, u
     for object in non_list_objects 
       push!(choices, ["(.. (prev obj$(object.id)) alive)", 
                       "(clicked (prev obj$(object.id)))",
-                      vcat(map(pos -> [ # "(== (.. (.. (prev obj$(object.id)) origin) x) $(pos[1]))",
+                      vcat(map(pos -> [ "(== (.. (.. (prev obj$(object.id)) origin) x) $(pos[1]))",
                                         # "(== (.. (.. (prev obj$(object.id)) origin) y) $(pos[2]))",
                                       #  "(& (== (.. (.. (prev obj$(object.id)) origin) x) $(pos[1])) (== (.. (.. (prev obj$(object.id)) origin) y) $(pos[2])))",
                                       #  "(& (.. (prev obj$(object.id)) alive) (== (.. (.. (prev obj$(object.id)) origin) x) $(pos[1])))",
                                       #  "(& (.. (prev obj$(object.id)) alive) (== (.. (.. (prev obj$(object.id)) origin) y) $(pos[2])))",
                                       #  "(& (.. (prev obj$(object.id)) alive) (& (== (.. (.. (prev obj$(object.id)) origin) x) $(pos[1])) (== (.. (.. (prev obj$(object.id)) origin) y) $(pos[2]))))"
                                       ], 
-                           map(obj -> obj.position, filter(x -> !isnothing(x), object_mapping[object.id])))...)...,
+                           map(obj -> obj.position, filter(x -> !isnothing(x) && (abs(x.position[1]) <= 3 || abs(x.position[1] - grid_size) <= 3), object_mapping[object.id])))...)...,
       ]...)
 
       if object.type.custom_fields != [] && object.type.custom_fields[1][1] == "color"

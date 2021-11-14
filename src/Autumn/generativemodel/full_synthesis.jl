@@ -325,6 +325,19 @@ function generate_observations(model_name::String)
   end
 end
 
+function generate_observations_custom_input(model_name::String, user_events)
+  if occursin("double_count_", model_name)
+    program_expr = compiletojulia(parseautumn(programs["double_count"]))
+  elseif occursin("count_", model_name)
+    program_expr = compiletojulia(parseautumn(programs["count"]))
+  else
+    program_expr = compiletojulia(parseautumn(programs[model_name]))  
+  end
+  m = eval(program_expr)
+  generate_observations_custom_input(m, user_events)
+end
+
+
 programs = Dict("particles"                                 => """(program
                                                                   (= GRID_SIZE 16)
 

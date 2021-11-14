@@ -170,7 +170,7 @@ function run_model(model_name::String, desired_per_matrix_solution_count, desire
             push!(all_sols, sols...)
             total_time += timed_tuple.time
             
-            non_random_solutions = filter(x -> !occursin("randomPositions", x) && !occursin("uniformChoice", x), all_sols)
+            non_random_solutions = filter(x -> !occursin("randomPositions", x) && (!occursin("uniformChoice", x) || occursin("uniformChoice (map", x)), all_sols)
             if length(non_random_solutions) >= 1 
               found_enough = true 
               println("FINAL TIME") 
@@ -271,7 +271,7 @@ function run_model(model_name::String, desired_per_matrix_solution_count, desire
         end
         push!(all_sols, sols...)
 
-        non_random_solutions = filter(x -> !occursin("randomPositions", x) && !occursin("uniformChoice", x), all_sols)
+        non_random_solutions = filter(x -> !occursin("randomPositions", x) && (!occursin("uniformChoice", x) || occursin("uniformChoice (map", x)), all_sols)
         if length(non_random_solutions) >= 1 
           found_enough = true 
           println("FINAL TIME") 

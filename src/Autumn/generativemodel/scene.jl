@@ -966,7 +966,7 @@ function parsescene_autumn_pedro(render_output, gridsize=16, background::String=
   end
 
   # combine types with the same shape but different colors
-  # println("INSIDE REGULAR PARSER")
+  println("INSIDE REGULAR PARSER")
   # @show types 
   # @show objects
   # (types, objects) = combine_types_with_same_shape(types, objects)

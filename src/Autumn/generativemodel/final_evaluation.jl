@@ -78,10 +78,10 @@ function run_model(model_name::String, desired_per_matrix_solution_count, desire
   mkdir(subdirectory_name)
 
   transition_param_vals = [false] # [false, true]
-  co_occurring_param_vals = [false, true] # [false, true]
-  z3_option_vals = ["partial", "full"] # ["full", "partial"]
-  time_based_vals = [false, true]
-  singlecell_vals = [false, true]
+  co_occurring_param_vals = [false] # [false, true]
+  z3_option_vals = ["full"] # ["full", "partial"]
+  time_based_vals = [false]
+  singlecell_vals = [false]
 
   found_enough = false
 
@@ -166,7 +166,7 @@ function run_model(model_name::String, desired_per_matrix_solution_count, desire
             push!(all_sols, sols...)
             total_time += timed_tuple.time
             
-            non_random_solutions = filter(x -> !occursin("randomPositions", x) && !occursin("uniformChoice", x), all_sols)
+            non_random_solutions = filter(x -> !occursin("randomPositions", x) && (!occursin("uniformChoice", x) || occursin("uniformChoice (map", x)), all_sols)
             if length(non_random_solutions) >= 1 
               found_enough = true 
               println("FINAL TIME") 
