@@ -1653,6 +1653,6 @@ function generate_observations_pedro(game_name)
     push!(user_events, pedro_events[parse(Int, s) + 1])
   end
 
-  observations, user_events, [900, 330]
+  observations[1:140], user_events[1:139], [900, 330]
 end
 

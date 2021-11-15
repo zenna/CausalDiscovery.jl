@@ -302,7 +302,7 @@ function gen_event_bool_human_prior(object_decomposition, object_id, type_id, us
                                       #  "(& (.. (prev obj$(object.id)) alive) (== (.. (.. (prev obj$(object.id)) origin) y) $(pos[2])))",
                                       #  "(& (.. (prev obj$(object.id)) alive) (& (== (.. (.. (prev obj$(object.id)) origin) x) $(pos[1])) (== (.. (.. (prev obj$(object.id)) origin) y) $(pos[2]))))"
                                       ], 
-                           map(obj -> obj.position, filter(x -> !isnothing(x) && (abs(x.position[1]) <= 3 || abs(x.position[1] - grid_size) <= 3), object_mapping[object.id])))...)...)
+                           map(obj -> obj.position, filter(x -> !isnothing(x) && (abs(x.position[1]) <= 3 || abs(x.position[1] - (grid_size isa Int ? grid_size : grid_size[1])) <= 3), object_mapping[object.id])))...)...)
         
         # displacements = []
         # for x in -3:3 
@@ -398,6 +398,8 @@ function gen_event_bool(object_decomposition, object_id, type_id, update_rule, u
     push!(choices, "(== (% (prev time) 10) 0)")  
     push!(choices, "(== (% (prev time) 5) 2)")
     push!(choices, "(== (% (prev time) 4) 2)") 
+    push!(choices, "(== (% (prev time) 16) 0)") 
+    push!(choices, "(== (% (prev time) 16) 1)") 
   end
 
   # ----- add events dealing with constant objects (i.e. objects not contained in a list) -----
@@ -412,7 +414,7 @@ function gen_event_bool(object_decomposition, object_id, type_id, update_rule, u
                                       #  "(& (.. (prev obj$(object.id)) alive) (== (.. (.. (prev obj$(object.id)) origin) y) $(pos[2])))",
                                       #  "(& (.. (prev obj$(object.id)) alive) (& (== (.. (.. (prev obj$(object.id)) origin) x) $(pos[1])) (== (.. (.. (prev obj$(object.id)) origin) y) $(pos[2]))))"
                                       ], 
-                           map(obj -> obj.position, filter(x -> !isnothing(x) && (abs(x.position[1]) <= 3 || abs(x.position[1] - grid_size) <= 3), object_mapping[object.id])))...)...,
+                           map(obj -> obj.position, filter(x -> !isnothing(x) && (abs(x.position[1]) <= 3 || abs(x.position[1] - (grid_size isa Int ? grid_size : grid_size[1])) <= 3), object_mapping[object.id])))...)...,
       ]...)
 
       if object.type.custom_fields != [] && object.type.custom_fields[1][1] == "color"

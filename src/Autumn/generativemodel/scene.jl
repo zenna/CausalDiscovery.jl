@@ -306,7 +306,7 @@ function program_string_synth_standard_groups(object_decomposition)
 
   """ 
   (program
-    (= GRID_SIZE $(gridsize))
+    (= GRID_SIZE $(gridsize isa Int ? gridsize : "(list $(gridsize[1]) $(gridsize[2]))"))
     (= background "$(background)")
     $(join(map(t -> "(object ObjType$(t.id) $(join(map(tuple -> "(: $(tuple[1]) $(tuple[2]))", t.custom_fields), " ")) (list $(join(map(cell -> """(Cell $(cell[1]) $(cell[2]) $(filter(tuple -> tuple[1] == "color", t.custom_fields) == [] ? """ "$(t.color)" """ : "color"))""", t.shape), " "))))", object_types), "\n  "))
 
