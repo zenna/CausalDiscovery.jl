@@ -35,6 +35,8 @@ function singletimestepsolution_matrix(observations, user_events, grid_size; sin
 
   object_types, object_mapping, background, _ = object_decomposition
 
+  @show object_decomposition 
+
   # matrix of update function sets for each object/time pair
   # number of rows = number of objects, number of cols = number of time steps  
   num_objects = length(collect(keys(object_mapping)))
@@ -269,6 +271,7 @@ function synthesize_update_functions(object_id, time, object_decomposition, user
         end
         push!(unformatted_solutions, new_rule)
         update_rule = replace(new_rule, "objX" => "obj$(object_id)")
+        contained_in_list = isnothing(object_mapping[object_id][1]) || (count(id -> (filter(x -> !isnothing(x), object_mapping[id]))[1].type.id == object_mapping[object_id][1].type.id, collect(keys(object_mapping))) > 1)
         if contained_in_list # object was added later; contained in addedList
           update_rule_parts = split(update_rule, " ")
           var1 = replace(update_rule_parts[2], "obj$(object_id)" => "obj")
@@ -280,7 +283,7 @@ function synthesize_update_functions(object_id, time, object_decomposition, user
           update_rule_parts = filter(x -> x != "", split(update_rule, " "))
           push!(solutions, join([update_rule_parts[1], update_rule_parts[2], replace(join(update_rule_parts[3:end], " "), "obj$(object_id)" => "(prev obj$(object_id))" )], " "))
         end
-        
+
         break
       end
 
@@ -3046,8 +3049,15 @@ function full_program(observations, user_events, matrix, grid_size=16; singlecel
 end
 
 function format_on_clause_full_program(on_clause, object_decomposition, matrix) 
+  @show on_clause 
   object_types, object_mapping, background, _ = object_decomposition
-  update_function = split(on_clause, "\n")[2][1:end-1]
+  update_function = split(on_clause, "\n")[2][1:end-2]
+  has_let = occursin("let", update_function)
+
+  if has_let 
+    update_function = replace(update_function[1:end-1], "(let (" => "")
+  end
+
   if occursin("addObj", on_clause)
     # determine object type 
     type_id = parse(Int, split(split(split(on_clause, "(= addedObjType")[2], "(ObjType")[2], " ")[1])
@@ -3058,7 +3068,11 @@ function format_on_clause_full_program(on_clause, object_decomposition, matrix)
 
       field_values = map(i -> filter(obj -> !isnothing(obj), object_mapping[i])[1].custom_field_values[end], filter(id -> isnothing(object_mapping[id][1]), corresponding_object_ids))
       field_value = field_values[1]
-      replace(on_clause, "(ObjType$(type_id)" => "(ObjType$(type_id) $(field_value)")
+      if has_let 
+        "(let $(replace(on_clause, "(ObjType$(type_id)" => "(ObjType$(type_id) $(field_value)")))"
+      else
+        replace(on_clause, "(ObjType$(type_id)" => "(ObjType$(type_id) $(field_value)")
+      end
     else
       on_clause
     end

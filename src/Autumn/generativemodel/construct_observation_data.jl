@@ -1633,7 +1633,7 @@ function generate_observations_swap(m::Module)
 end
 
 # PEDRO 
-pedro_output_folder = "/Users/riadas/Documents/urop/RC_RL/autumn_renders/"
+pedro_output_folder = "/Users/riadas/Documents/urop/RC_RL/autumn_renders"
 pedro_events = ["nothing", "right", "left", "up", "down", "click -1 -1"]
 function generate_observations_pedro(game_name)
   observations = []
