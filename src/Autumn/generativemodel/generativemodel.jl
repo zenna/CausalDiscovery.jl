@@ -179,9 +179,9 @@ function generate_hypothesis_position(position, environment_vars)
   println("GENERATE_HYPOTHESIS_POSITION")
   objects = map(obj -> "obj$(obj.id)", filter(x -> x isa Obj, environment_vars))
   user_event = filter(x -> !(x isa Obj), environment_vars)[1]
-  # @show environment_vars
+  @show environment_vars
   choices = []
-  # @show length(objects)
+  @show length(objects)
   if length(objects) != 0
     push!(choices, ["(.. $(rand(objects)) origin)",
                     "(move (.. $(rand(objects)) origin) (Position $(rand(-1:1)) $(rand(-1:1))))"]...)
@@ -215,10 +215,10 @@ end
 function generate_hypothesis_string(string, environment_vars, object_types)
   objects = filter(x -> (x isa Obj) && length(x.type.custom_fields) > 0, environment_vars)
   object = rand(objects)
-  # @show string
-  # @show objects
+  @show string
+  @show objects
   x = filter(type -> length(type.custom_fields) > 0 && string in type.custom_fields[1][3], object_types)
-  # @show x
+  @show x
   pair_string = filter(s -> s != string, map(type -> type.custom_fields[1][3], filter(type -> length(type.custom_fields) > 0 && string in type.custom_fields[1][3], object_types))[1])[1]
 
   first_string, second_string = rand() > 0.5 ? (string, pair_string) : (pair_string, string)
@@ -690,14 +690,14 @@ function gen_event_bool(object_decomposition, object_id, type_id, update_rule, u
   choices = filter(x -> !(x in events_to_remove), choices)
 
   println("XYZ")
-  # @show choices
+  @show choices
   # choices = gen_event_bool_human_prior(object_decomposition, object_id, type_id, user_events, global_var_dict, update_rule)
   sort(unique(choices), by=length)
 end
 
 function construct_compound_events(choices, event_vector_dict, redundant_events_set, object_decomposition)
   println("START construct_compound_events")
-  # @show event_vector_dict
+  @show event_vector_dict
   object_specific_events = filter(k -> (k in keys(event_vector_dict)) && !(event_vector_dict[k] isa AbstractArray), choices)
   global_events = filter(k ->  (k in keys(event_vector_dict)) && event_vector_dict[k] isa AbstractArray, choices)
 
@@ -707,14 +707,14 @@ function construct_compound_events(choices, event_vector_dict, redundant_events_
   compound_events = []
 
   # construct global/global compound events and global/object-specific compound events 
-  # @show length(nonzero_global_events)
-  # @show length(nonzero_object_specific_events)
+  @show length(nonzero_global_events)
+  @show length(nonzero_object_specific_events)
   nonzero_global_events = sort(nonzero_global_events, by=length)
-  # # @show nonzero_global_events 
+  # @show nonzero_global_events 
   for i in 1:length(nonzero_global_events) 
-    # @show i
+    @show i
     event_i = nonzero_global_events[i]
-    # @show event_i
+    @show event_i
     for j in (i+1):length(nonzero_global_events)
       event_j = nonzero_global_events[j]
       and_event = "(& $(event_i) $(event_j))"
@@ -765,10 +765,10 @@ function construct_compound_events(choices, event_vector_dict, redundant_events_
 
   end
 
-  # @show length(nonzero_object_specific_events)
+  @show length(nonzero_object_specific_events)
   for i in 1:length(nonzero_object_specific_events)
-    # @show i 
-    # # @show event_i
+    @show i 
+    # @show event_i
     event_i = nonzero_object_specific_events[i]
     object_ids_i = collect(keys(event_vector_dict[event_i]))
     for j in (i+1):length(nonzero_object_specific_events)
