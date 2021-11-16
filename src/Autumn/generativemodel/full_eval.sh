@@ -4,24 +4,25 @@ curr_date=$(date '+%Y-%m-%d_%H:%M:%S')
 algorithms=("heuristic" "sketch" "sketch_SINGLE")
 num_repeats=1
 
-model_names=("paint"
-             "wind" 
-             "sand"
-             "bullets"
-             "gravity_i"
-             "gravity_iii"
-             "disease"
-             "gravity_ii"
-             "count_1"
-             "count_2"
-             "count_3"
-             "count_4"
-             "double_count_1"
-             "double_count_2"
-            )
+# model_names=("paint"
+#              "wind" 
+#              "sand"
+#              "bullets"
+#              "gravity_i"
+#              "gravity_iii"
+#              "disease"
+#              "gravity_ii"
+#              "count_1"
+#              "count_2"
+#              "double_count_1"
+#              "double_count_2"
+#              "mario"
+#              "count_3"
+#              "count_4"
+#             )
 
-# model_names=("mario"
-#              "water_plug")
+model_names=("paint"
+             "disease")
 # "space_invaders"
 
 for model_name in ${model_names[@]}
@@ -37,3 +38,4 @@ do
 done
 
 julia --project=. src/Autumn/generativemodel/compute_output_accuracy.jl
+julia --project=. src/Autumn/generativemodel/compute_average_accuracies.jl

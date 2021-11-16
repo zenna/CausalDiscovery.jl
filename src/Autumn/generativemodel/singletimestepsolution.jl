@@ -3051,11 +3051,11 @@ end
 function format_on_clause_full_program(on_clause, object_decomposition, matrix) 
   @show on_clause 
   object_types, object_mapping, background, _ = object_decomposition
-  update_function = split(on_clause, "\n")[2][1:end-2]
+  update_function = split(on_clause, "\n")[2][1:end-1]
   has_let = occursin("let", update_function)
 
   if has_let 
-    update_function = replace(update_function[1:end-1], "(let (" => "")
+    update_function = replace(update_function[1:end-2], "(let (" => "")
   end
 
   if occursin("addObj", on_clause)
@@ -3068,11 +3068,7 @@ function format_on_clause_full_program(on_clause, object_decomposition, matrix)
 
       field_values = map(i -> filter(obj -> !isnothing(obj), object_mapping[i])[1].custom_field_values[end], filter(id -> isnothing(object_mapping[id][1]), corresponding_object_ids))
       field_value = field_values[1]
-      if has_let 
-        "(let $(replace(on_clause, "(ObjType$(type_id)" => "(ObjType$(type_id) $(field_value)")))"
-      else
-        replace(on_clause, "(ObjType$(type_id)" => "(ObjType$(type_id) $(field_value)")
-      end
+      replace(on_clause, "(ObjType$(type_id)" => "(ObjType$(type_id) $(field_value)")
     else
       on_clause
     end
