@@ -21,8 +21,7 @@ num_repeats=1
 #              "count_4"
 #             )
 
-model_names=("paint"
-             "disease")
+model_names=("paint")
 # "space_invaders"
 
 for model_name in ${model_names[@]}

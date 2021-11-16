@@ -4,6 +4,8 @@ model_name = ARGS[1]
 curr_date = ARGS[2]
 iteration = ARGS[3]
 
+println("CURRENTLY WORKING ON $(model_name)")
+
 directory_name = "FINAL_RESULTS/$(curr_date)"
 if !isdir(directory_name)
   mkdir(directory_name)

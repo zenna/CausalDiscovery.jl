@@ -145,7 +145,7 @@ function synthesize_program_given_decomp(decomp, observation_tuple, global_event
   for solution in solutions 
     if solution[1] != [] 
       on_clauses, new_object_decomposition, global_var_dict = solution
-      @show on_clauses 
+      # @show on_clauses 
       
       program = full_program_given_on_clauses(on_clauses, new_object_decomposition, global_var_dict, grid_size, matrix)
       push!(program_strings, program)
@@ -176,7 +176,7 @@ function synthesize_program(model_name::String;
     observations, user_events, grid_size = generate_observations(model_name)
   end
 
-  @show (observations, user_events, grid_size)
+  # @show (observations, user_events, grid_size)
 
   program_strings = []
   global_event_vector_dict = Dict()
@@ -201,11 +201,11 @@ function synthesize_program(model_name::String;
     else 
       error("algorithm $(algorithm) does not exist")
     end
-    @show solutions
+    # @show solutions
     for solution in solutions 
       if solution[1] != [] 
         on_clauses, new_object_decomposition, global_var_dict = solution
-        @show on_clauses 
+        # @show on_clauses 
         
         program = full_program_given_on_clauses(on_clauses, new_object_decomposition, global_var_dict, grid_size, matrix)
         push!(program_strings, program)

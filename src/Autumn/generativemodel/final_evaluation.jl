@@ -149,7 +149,7 @@ function run_model(model_name::String, desired_per_matrix_solution_count, desire
             sols = timed_tuple.value
             
             println("LOOK AT THIS")
-            @show sols
+            # @show sols
             # write solution to file
             save(string(subdirectory_name, "/", string("transition_param_", transition_param, 
                                                        "_co_occurring_", co_occurring_param, 
@@ -170,7 +170,7 @@ function run_model(model_name::String, desired_per_matrix_solution_count, desire
             if length(non_random_solutions) >= 1 
               found_enough = true 
               println("FINAL TIME") 
-              @show total_time 
+              # @show total_time 
               break
             end
 
@@ -269,7 +269,7 @@ function run_model(model_name::String, desired_per_matrix_solution_count, desire
         if length(non_random_solutions) >= 1 
           found_enough = true 
           println("FINAL TIME") 
-          @show total_time 
+          # @show total_time 
           break
         end
   
@@ -376,7 +376,7 @@ global model_names = []
 
 function hack()
   for model_name in global_model_names 
-    @show model_name
+    # @show model_name
     global model_names = [model_name]
     run()
   end
