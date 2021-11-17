@@ -3,39 +3,39 @@ using Autumn
 include("test_synthesis.jl")
 
 # function to be run on remote processes; 
-function do_work(jobs, results) # define work function everywhere
-  while true
-      param_option = take!(jobs)
-      # do work 
-      decomp, 
-      observation_tuple, 
-      event_vector_dict, 
-      redundant_events_set, 
-      algorithm, 
-      desired_per_matrix_solution_count, 
-      desired_solution_count, 
-      singlecell, 
-      time_based, 
-      z3_option, 
-      co_occurring_param, 
-      transition_param = param_option
+# function do_work(jobs, results) # define work function everywhere
+#   while true
+#       param_option = take!(jobs)
+#       # do work 
+#       decomp, 
+#       observation_tuple, 
+#       event_vector_dict, 
+#       redundant_events_set, 
+#       algorithm, 
+#       desired_per_matrix_solution_count, 
+#       desired_solution_count, 
+#       singlecell, 
+#       time_based, 
+#       z3_option, 
+#       co_occurring_param, 
+#       transition_param = param_option
 
-      result = @timed synthesize_program_given_decomp(decomp, 
-                                                      singlecell, 
-                                                      deepcopy(observation_tuple),
-                                                      deepcopy(event_vector_dict),
-                                                      deepcopy(redundant_events_set), 
-                                                      upd_func_spaces=[6], 
-                                                      time_based=time_based,
-                                                      z3_option=z3_option,
-                                                      desired_per_matrix_solution_count=desired_per_matrix_solution_count,
-                                                      desired_solution_count=desired_solution_count,
-                                                      algorithm=algorithm,
-                                                      )
+#       result = @timed synthesize_program_given_decomp(decomp, 
+#                                                       singlecell, 
+#                                                       deepcopy(observation_tuple),
+#                                                       deepcopy(event_vector_dict),
+#                                                       deepcopy(redundant_events_set), 
+#                                                       upd_func_spaces=[6], 
+#                                                       time_based=time_based,
+#                                                       z3_option=z3_option,
+#                                                       desired_per_matrix_solution_count=desired_per_matrix_solution_count,
+#                                                       desired_solution_count=desired_solution_count,
+#                                                       algorithm=algorithm,
+#                                                       )
 
-      put!(results, result)
-  end
-end
+#       put!(results, result)
+#   end
+# end
 
 function run_model(model_name::String, algorithm, desired_per_matrix_solution_count, desired_solution_count)
   # build desired directory structure
@@ -50,8 +50,8 @@ function run_model(model_name::String, algorithm, desired_per_matrix_solution_co
 
   # define synthesis parameter options 
   transition_param_vals = [false] # this option exists because of ambiguity in one model :( -- should make this a primitive 
-  co_occurring_param_vals = [false, true] # [false, true]
-  z3_option_vals = ["full", "partial"] # ["full", "partial"]
+  co_occurring_param_vals = [false] # [false, true]
+  z3_option_vals = ["full"] # ["full", "partial"]
   time_based_vals = [false, true]
   singlecell_vals = [false, true]
 

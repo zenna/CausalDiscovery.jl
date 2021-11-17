@@ -398,8 +398,8 @@ function gen_event_bool(object_decomposition, object_id, type_id, update_rule, u
     push!(choices, "(== (% (prev time) 10) 0)")  
     push!(choices, "(== (% (prev time) 5) 2)")
     push!(choices, "(== (% (prev time) 4) 2)") 
-    push!(choices, "(== (% (prev time) 16) 0)") 
-    push!(choices, "(== (% (prev time) 16) 1)") 
+    # push!(choices, "(== (% (prev time) 16) 0)") 
+    # push!(choices, "(== (% (prev time) 16) 1)") 
   end
 
   # ----- add events dealing with constant objects (i.e. objects not contained in a list) -----

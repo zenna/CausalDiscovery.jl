@@ -1,5 +1,5 @@
 """On-clause generation, where we collect all unsolved (latent state dependent) on-clauses at the end"""
-function generate_on_clauses_GLOBAL(matrix, unformatted_matrix, object_decomposition, user_events, global_event_vector_dict, redundant_events_set, grid_size=16, desired_solution_count=1, desired_per_matrix_solution_count=1, interval_painting_param=false, sketch=false, z3_option="none", time_based=false, z3_timeout=0, sketch_timeout=0, co_occurring_param=false, transition_param=false) 
+function generate_on_clauses_GLOBAL(matrix, unformatted_matrix, object_decomposition, user_events, global_event_vector_dict, redundant_events_set, grid_size=16, desired_solution_count=1, desired_per_matrix_solution_count=1, interval_painting_param=false, sketch=false, z3_option="none", time_based=false, z3_timeout=0, sketch_timeout=0, co_occurring_param=false, transition_param=false) # co_occurring_distinct=1, co_occurring_same=1 
   start_time = Dates.now()
   
   object_types, object_mapping, background, dim = object_decomposition
@@ -178,6 +178,7 @@ function generate_on_clauses_GLOBAL(matrix, unformatted_matrix, object_decomposi
 
       # compute co-occurring event for each state-based update function 
       co_occurring_events_dict = Dict() # keys are tuples (type_id, co-occurring event), values are lists of update_functions with that co-occurring event
+      # optimal_event_lists_dict = Dict()
       events = collect(keys(global_event_vector_dict)) # ["left", "right", "up", "down", "clicked", "true"]
       for type_id in collect(keys(state_based_update_functions_dict))
         update_functions = state_based_update_functions_dict[type_id]
@@ -244,6 +245,21 @@ function generate_on_clauses_GLOBAL(matrix, unformatted_matrix, object_decomposi
           if filter(x -> !occursin("globalVar", x[1]), co_occurring_events) != []
             co_occurring_events = filter(x -> !occursin("globalVar", x[1]), co_occurring_events)
           end
+
+          # false_positive_counts = sort(unique(distinct(map(x -> x[2], co_occurring_events))))
+          # false_positive_counts = false_positive_counts[1:min(length(false_positive_counts), co_occurring_distinct)]
+          # optimal_events = []
+          # for false_positive_count in false_positive_counts 
+          #   events_with_count = sort(filter(tup -> tup[2] == false_positive_count, co_occurring_events), by=length)
+          #   push!(optimal_events, events_with_count[min(length(events_with_count), co_occurring_same)]...)
+          # end
+
+          # if type_id in optimal_event_lists_dict 
+          #   push!(optimal_event_lists_dict[type_id], (update_function, optimal_events))
+          # else 
+          #   optimal_event_lists_dict[type_id] = (update_function, optimal_events)
+          # end
+
           best_co_occurring_events = sort(filter(e -> e[2] == minimum(map(x -> x[2], co_occurring_events)), co_occurring_events), by=z -> length(z[1]))
           # # @show best_co_occurring_events
           co_occurring_event = best_co_occurring_events[1][1]        
@@ -256,6 +272,21 @@ function generate_on_clauses_GLOBAL(matrix, unformatted_matrix, object_decomposi
   
         end
       end
+
+      # # convert optimal_event_lists_dict to co_occurring_event_lists_dict 
+      # co_occurring_events_lists_dict = Dict()
+      # for type_id in keys(optimal_event_lists_dict)
+      #   tuples = optimal_event_lists_dict[type_id]
+      #   update_functions = map(x -> x[1], sort(tuples))
+      #   optimal_event_lists = map(x -> x[2], sort(tuples))
+
+      #   event_combinations = vec(collect(Base.product(optimal_event_lists...)))
+
+        
+      #   co_occurring_events_dict = Dict()
+        
+
+      # end
 
       @show co_occurring_events_dict
 
