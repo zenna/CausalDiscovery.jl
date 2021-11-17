@@ -2,12 +2,38 @@ import Pkg; Pkg.add("Pickle")
 using Autumn
 include("test_synthesis.jl")
 
+# function to be run on remote processes; 
 function do_work(jobs, results) # define work function everywhere
   while true
       param_option = take!(jobs)
-      
+      # do work 
+      decomp, 
+      observation_tuple, 
+      event_vector_dict, 
+      redundant_events_set, 
+      algorithm, 
+      desired_per_matrix_solution_count, 
+      desired_solution_count, 
+      singlecell, 
+      time_based, 
+      z3_option, 
+      co_occurring_param, 
+      transition_param = param_option
 
-      put!(results, (job_id, exec_time, myid()))
+      result = @timed synthesize_program_given_decomp(decomp, 
+                                                      singlecell, 
+                                                      deepcopy(observation_tuple),
+                                                      deepcopy(event_vector_dict),
+                                                      deepcopy(redundant_events_set), 
+                                                      upd_func_spaces=[6], 
+                                                      time_based=time_based,
+                                                      z3_option=z3_option,
+                                                      desired_per_matrix_solution_count=desired_per_matrix_solution_count,
+                                                      desired_solution_count=desired_solution_count,
+                                                      algorithm=algorithm,
+                                                      )
+
+      put!(results, result)
   end
 end
 
@@ -53,6 +79,8 @@ function run_model(model_name::String, algorithm, desired_per_matrix_solution_co
 
   for param_option in param_options
     println("DO YOU SEE ME")
+    println("singlecell, time_based, z3_option, co_occurring_param, transition_param")
+    @show param_option 
 
     singlecell, time_based, z3_option, co_occurring_param, transition_param = param_option
 

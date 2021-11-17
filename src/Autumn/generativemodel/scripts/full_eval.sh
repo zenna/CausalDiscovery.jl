@@ -5,7 +5,6 @@ algorithms=("heuristic" "sketch_multi" "sketch_single")
 num_repeats=1
 
 model_names=("paint"
-             "wind" 
              "sand"
              "bullets"
              "gravity_i"
@@ -19,6 +18,7 @@ model_names=("paint"
              "mario"
              "count_3"
              "count_4"
+             "wind" 
             )
 
 # model_names=("paint")
