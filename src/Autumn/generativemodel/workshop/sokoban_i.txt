@@ -38,3 +38,22 @@
 (= addedObjType2List (updateObj addedObjType2List (--> obj (moveLeft (prev obj))) (--> obj (& left (& (in true (map (--> obj (& (isWithinBounds obj) (isFree (.. obj origin)))) (map (--> obj (moveLeft obj)) (list (prev obj))))) (in (Position 1 0) (map (--> obj (displacement (.. obj origin) (.. (prev obj1) origin))) (list (prev obj))))))))))
   (on true
 (= addedObjType2List (removeObj addedObjType2List (--> obj (& up (& (intersects (prev obj5) (map (--> obj (moveUp obj)) (list (prev obj)))) (in (Position 0 1) (map (--> obj (displacement (.. obj origin) (.. (prev obj1) origin))) (list (prev obj)))))))))))
+
+
+(& left 
+  (| (! (intersects (moveLeft (prev obj1)) (prev addedObjType2List))) 
+     (& (! (intersects (move (prev obj1) (Position -2 0)) (prev addedObjType2List))) 
+        (isWithinBounds (move (prev obj1) (Position -2 0))))))
+
+(& up 
+  (& (in true (map (--> obj (& (isWithinBounds obj) (isFree (.. obj origin)))) (map (--> obj (moveUp obj)) (list (prev obj))))) 
+  (in (Position 0 1) (map (--> obj (displacement (.. obj origin) (.. (prev obj1) origin))) (list (prev obj))))))
+
+(& left 
+  (& (in true (map (--> obj (& (isWithinBounds obj) (isFree (.. obj origin)))) (map (--> obj (moveLeft obj)) (list (prev obj))))) 
+     (in (Position 1 0) (map (--> obj (displacement (.. obj origin) (.. (prev obj1) origin))) (list (prev obj))))))
+
+(& up 
+  (& (intersects (prev obj5) (map (--> obj (moveUp obj)) (list (prev obj)))) 
+     (in (Position 0 1) (map (--> obj (displacement (.. obj origin) (.. (prev obj1) origin))) (list (prev obj))))))
+

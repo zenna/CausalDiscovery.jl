@@ -5,7 +5,7 @@ else
 end
 
 
-function generate_on_clauses_SKETCH_SINGLE(matrix, unformatted_matrix, object_decomposition, user_events, global_event_vector_dict, redundant_events_set, grid_size=16, desired_solution_count=1, desired_per_matrix_solution_count=1, interval_painting_param=false, z3_option="none", time_based=false, z3_timeout=0, sketch_timeout=0, co_occurring_param=false, transition_param=false)   
+function generate_on_clauses_SKETCH_SINGLE(matrix, unformatted_matrix, object_decomposition, user_events, global_event_vector_dict, redundant_events_set, grid_size=16, desired_solution_count=1, desired_per_matrix_solution_count=1, interval_painting_param=false, z3_option="none", time_based=false, z3_timeout=0, sketch_timeout=0, co_occurring_param=false, transition_param=false, co_occurring_distinct=2, co_occurring_same=1, co_occurring_threshold=1, transition_distinct=1, transition_same=1, transition_threshold=1)   
   start_time = Dates.now()
   object_types, object_mapping, background, dim = object_decomposition
   solutions = []
@@ -244,7 +244,7 @@ function generate_on_clauses_SKETCH_SINGLE(matrix, unformatted_matrix, object_de
               true_times = unique(findall(rule -> rule == update_function, vcat(object_trajectory...)))
               ordered_update_functions = ordered_update_functions_dict[type_id]
             end
-            state_solutions = generate_global_automaton_sketch(update_function, true_times, global_event_vector_dict, object_trajectory, Dict(), global_state_update_times_dict, global_object_decomposition, type_id, desired_per_matrix_solution_count, interval_painting_param, sketch_timeout, ordered_update_functions, global_update_functions, co_occurring_param)
+            state_solutions = generate_global_automaton_sketch(update_function, true_times, global_event_vector_dict, object_trajectory, Dict(), global_state_update_times_dict, global_object_decomposition, type_id, desired_per_matrix_solution_count, interval_painting_param, sketch_timeout, ordered_update_functions, global_update_functions, co_occurring_param, co_occurring_distinct, co_occurring_same, co_occurring_threshold, transition_distinct, transition_same, transition_threshold)
             if state_solutions == [] 
               failed = true 
               break
@@ -318,10 +318,10 @@ function generate_on_clauses_SKETCH_SINGLE(matrix, unformatted_matrix, object_de
               update_function_times_dict[object_id] = findall(x -> x == 1, observation_vectors_dict[update_function][object_id])
             end
 
-            state_solutions = generate_object_specific_automaton_sketch(update_function, update_function_times_dict, global_event_vector_dict, type_id, global_object_decomposition, object_specific_state_update_times_dict, global_var_dict, sketch_timeout, co_occurring_param)            
+            state_solutions = generate_object_specific_automaton_sketch(update_function, update_function_times_dict, global_event_vector_dict, type_id, global_object_decomposition, object_specific_state_update_times_dict, global_var_dict, sketch_timeout, co_occurring_param, co_occurring_distinct, co_occurring_same, co_occurring_threshold, transition_distinct, transition_same, transition_threshold)            
             println("OUTPUT??")
             @show state_solutions
-            if state_solutions[1] == [] 
+            if state_solutions == [] 
               println("SKETCH AUTOMATA SEARCH FAILED")
               failed = true 
               break
@@ -439,7 +439,7 @@ function generate_on_clauses_SKETCH_SINGLE(matrix, unformatted_matrix, object_de
   solutions
 end
 
-function generate_global_automaton_sketch(update_rule, update_function_times, event_vector_dict, object_trajectory, init_global_var_dict, state_update_times_dict, object_decomposition, type_id, desired_per_matrix_solution_count, interval_painting_param, sketch_timeout=0, ordered_update_functions=[], global_update_functions = [], co_occurring_param=false)
+function generate_global_automaton_sketch(update_rule, update_function_times, event_vector_dict, object_trajectory, init_global_var_dict, state_update_times_dict, object_decomposition, type_id, desired_per_matrix_solution_count, interval_painting_param, sketch_timeout=0, ordered_update_functions=[], global_update_functions = [], co_occurring_param=false, co_occurring_distinct=1, co_occurring_same=1, co_occurring_threshold=1, transition_distinct=1, transition_same=1, transition_threshold=1)
   println("GENERATE_NEW_STATE_SKETCH")
   @show update_rule 
   @show update_function_times
@@ -485,474 +485,517 @@ function generate_global_automaton_sketch(update_rule, update_function_times, ev
     co_occurring_events = sort(filter(x -> !occursin("(list)", x[1]) && !occursin("|", x[1]) && !occursin("(== (prev addedObjType", x[1]) && !occursin("(move ", x[1]) && (!occursin("intersects (list", x[1]) || occursin("(.. obj id) x", x[1])) && (!occursin("&", x[1]) || x[1] == "(& clicked (isFree click))")  && !(occursin("(! (in (objClicked click (prev addedObjType3List)) (filter (--> obj (== (.. obj id) x)) (prev addedObjType3List))))", x[1])), co_occurring_events), by=x -> x[2]) # [1][1]
   end
 
-  
-  best_co_occurring_events = sort(filter(e -> e[2] == minimum(map(x -> x[2], co_occurring_events)), co_occurring_events), by=z -> length(z[1]))
-  # @show best_co_occurring_events
-  co_occurring_event = best_co_occurring_events[1][1]
-  co_occurring_event_trajectory = event_vector_dict[co_occurring_event]
+  false_positive_counts = sort(unique(map(x -> x[2], co_occurring_events)))
+  false_positive_counts = false_positive_counts[1:min(length(false_positive_counts), co_occurring_distinct)]
+  optimal_co_occurring_events = []
+  for false_positive_count in false_positive_counts 
+    events_with_count = map(e -> e[1], sort(filter(tup -> tup[2] == false_positive_count, co_occurring_events), by=t -> length(t[1])))
+    push!(optimal_co_occurring_events, events_with_count[1:min(length(events_with_count), co_occurring_same)]...)
+  end
+
+  optimal_co_occurring_events = optimal_co_occurring_events[1:min(length(optimal_co_occurring_events), co_occurring_threshold)]
+
+  # best_co_occurring_events = sort(filter(e -> e[2] == minimum(map(x -> x[2], co_occurring_events)), co_occurring_events), by=z -> length(z[1]))
+  # # @show best_co_occurring_events
+  # co_occurring_event = best_co_occurring_events[1][1]
+  # co_occurring_event_trajectory = event_vector_dict[co_occurring_event]
   # @show co_occurring_event 
   # @show co_occurring_event_trajectory
 
-  # initialize global_var_dict and get global_var_value
-  if length(collect(keys(init_global_var_dict))) == 0 
-    init_global_var_dict[1] = ones(Int, length(init_state_update_times_dict[1]))
-    global_var_value = 1
-    global_var_id = 1
-  else # check if all update function times match with one value of init_global_var_dict 
-    global_var_id = -1
-    for key in collect(keys(init_global_var_dict))
-      values = init_global_var_dict[key]
-      if length(unique(map(t -> values[t], update_function_times))) == 1
-        global_var_id = key
-        break
+  for co_occurring_event in optimal_co_occurring_events
+    co_occurring_event_trajectory = event_vector_dict[co_occurring_event]
+    @show co_occurring_event 
+    @show co_occurring_event_trajectory
+
+    # initialize global_var_dict and get global_var_value
+    if length(collect(keys(init_global_var_dict))) == 0 
+      init_global_var_dict[1] = ones(Int, length(init_state_update_times_dict[1]))
+      global_var_value = 1
+      global_var_id = 1
+    else # check if all update function times match with one value of init_global_var_dict 
+      global_var_id = -1
+      for key in collect(keys(init_global_var_dict))
+        values = init_global_var_dict[key]
+        if length(unique(map(t -> values[t], update_function_times))) == 1
+          global_var_id = key
+          break
+        end
       end
+    
+      if global_var_id == -1 # update function times crosses state lines 
+        # initialize new global var 
+        max_key = maximum(collect(keys(init_global_var_dict)))
+        init_global_var_dict[max_key + 1] = ones(Int, length(init_state_update_times_dict[1]))
+        global_var_id = max_key + 1 
+
+        init_state_update_times_dict[global_var_id] = ["" for i in 1:length(init_global_var_dict[max_key])]
+      end
+      global_var_value = maximum(init_global_var_dict[global_var_id])  
     end
-  
-    if global_var_id == -1 # update function times crosses state lines 
-      # initialize new global var 
-      max_key = maximum(collect(keys(init_global_var_dict)))
-      init_global_var_dict[max_key + 1] = ones(Int, length(init_state_update_times_dict[1]))
-      global_var_id = max_key + 1 
 
-      init_state_update_times_dict[global_var_id] = ["" for i in 1:length(init_global_var_dict[max_key])]
-    end
-    global_var_value = maximum(init_global_var_dict[global_var_id])  
-  end
+    true_positive_times = update_function_times # times when co_occurring_event happened and update_rule happened 
+    false_positive_times = [] # times when user_event happened and update_rule didn't happen
 
-  true_positive_times = update_function_times # times when co_occurring_event happened and update_rule happened 
-  false_positive_times = [] # times when user_event happened and update_rule didn't happen
-
-  # construct true_positive_times and false_positive_times 
-  # # @show length(user_events)
-  # # @show length(co_occurring_event_trajectory)
-  for time in 1:length(co_occurring_event_trajectory)
-    if co_occurring_event_trajectory[time] == 1 && !(time in true_positive_times)
-      if occursin("addObj", update_rule)
-        push!(false_positive_times, time)
-      elseif (object_trajectory[time][1] != "") # && !(occursin("addObj", object_trajectory[time][1]))
-                
-        rule = object_trajectory[time][1]
-        min_index = minimum(findall(r -> r == update_rule, ordered_update_functions))
-
-        @show time 
-        @show rule 
-        @show min_index 
-        @show findall(r -> r == rule, ordered_update_functions) 
-
-        if is_no_change_rule(rule) || findall(r -> r == rule, ordered_update_functions)[1] < min_index || rule in global_update_functions
+    # construct true_positive_times and false_positive_times 
+    # # @show length(user_events)
+    # # @show length(co_occurring_event_trajectory)
+    for time in 1:length(co_occurring_event_trajectory)
+      if co_occurring_event_trajectory[time] == 1 && !(time in true_positive_times)
+        if occursin("addObj", update_rule)
           push!(false_positive_times, time)
-        end
+        elseif (object_trajectory[time][1] != "") # && !(occursin("addObj", object_trajectory[time][1]))
+                  
+          rule = object_trajectory[time][1]
+          min_index = minimum(findall(r -> r == update_rule, ordered_update_functions))
 
-      end     
+          @show time 
+          @show rule 
+          @show min_index 
+          @show findall(r -> r == rule, ordered_update_functions) 
+
+          if is_no_change_rule(rule) || findall(r -> r == rule, ordered_update_functions)[1] < min_index || rule in global_update_functions
+            push!(false_positive_times, time)
+          end
+
+        end     
+      end
     end
-  end
 
-  # compute ranges in which to search for events 
-  ranges = []
-  augmented_true_positive_times = map(t -> (t, global_var_value), true_positive_times)
-  augmented_false_positive_times = map(t -> (t, global_var_value + 1), false_positive_times)
-  init_augmented_positive_times = sort(vcat(augmented_true_positive_times, augmented_false_positive_times), by=x -> x[1])
+    # compute ranges in which to search for events 
+    ranges = []
+    augmented_true_positive_times = map(t -> (t, global_var_value), true_positive_times)
+    augmented_false_positive_times = map(t -> (t, global_var_value + 1), false_positive_times)
+    init_augmented_positive_times = sort(vcat(augmented_true_positive_times, augmented_false_positive_times), by=x -> x[1])
 
-  for i in 1:(length(init_augmented_positive_times)-1)
-    prev_time, prev_value = init_augmented_positive_times[i]
-    next_time, next_value = init_augmented_positive_times[i + 1]
-    if prev_value != next_value
-      push!(ranges, (init_augmented_positive_times[i], init_augmented_positive_times[i + 1]))
+    for i in 1:(length(init_augmented_positive_times)-1)
+      prev_time, prev_value = init_augmented_positive_times[i]
+      next_time, next_value = init_augmented_positive_times[i + 1]
+      if prev_value != next_value
+        push!(ranges, (init_augmented_positive_times[i], init_augmented_positive_times[i + 1]))
+      end
     end
-  end
 
-  # add ranges that interface between global_var_value and lower values
-  if global_var_value > 1
-    for time in 1:(length(init_state_update_times_dict[global_var_id]) - 1)
-      prev_val = init_global_var_dict[global_var_id][time]
-      next_val = init_global_var_dict[global_var_id][time + 1]
-      println("HELLO 1")
-      # @show prev_val 
-      # @show next_val 
-      if (prev_val < global_var_value) && (next_val == global_var_value)
-        if (filter(t -> t[1] == time + 1, init_augmented_positive_times) != []) && (filter(t -> t[1] == time + 1, init_augmented_positive_times)[1][2] != global_var_value)
-          new_value = filter(t -> t[1] == time + 1, init_augmented_positive_times)[1][2]
-          push!(ranges, ((time, prev_val), (time + 1, new_value)))        
-        else
-          push!(ranges, ((time, prev_val), (time + 1, next_val)))        
-        end
-        println("IT'S ME 1")
-        # clear state update functions within this range; will find new ones later
-        state_update_func = init_state_update_times_dict[global_var_id][time]
-        if state_update_func != "" 
-          for time in 1:length(init_state_update_times_dict[global_var_id])
-            if init_state_update_times_dict[global_var_id][time] == state_update_func
-              init_state_update_times_dict[global_var_id][time] = ""
+    # add ranges that interface between global_var_value and lower values
+    if global_var_value > 1
+      for time in 1:(length(init_state_update_times_dict[global_var_id]) - 1)
+        prev_val = init_global_var_dict[global_var_id][time]
+        next_val = init_global_var_dict[global_var_id][time + 1]
+        println("HELLO 1")
+        # @show prev_val 
+        # @show next_val 
+        if (prev_val < global_var_value) && (next_val == global_var_value)
+          if (filter(t -> t[1] == time + 1, init_augmented_positive_times) != []) && (filter(t -> t[1] == time + 1, init_augmented_positive_times)[1][2] != global_var_value)
+            new_value = filter(t -> t[1] == time + 1, init_augmented_positive_times)[1][2]
+            push!(ranges, ((time, prev_val), (time + 1, new_value)))        
+          else
+            push!(ranges, ((time, prev_val), (time + 1, next_val)))        
+          end
+          println("IT'S ME 1")
+          # clear state update functions within this range; will find new ones later
+          state_update_func = init_state_update_times_dict[global_var_id][time]
+          if state_update_func != "" 
+            for time in 1:length(init_state_update_times_dict[global_var_id])
+              if init_state_update_times_dict[global_var_id][time] == state_update_func
+                init_state_update_times_dict[global_var_id][time] = ""
+              end
             end
           end
-        end
 
-      elseif (prev_val == global_var_value) && (next_val < global_var_value)
-        if (filter(t -> t[1] == time, init_augmented_positive_times) != []) && (filter(t -> t[1] == time, init_augmented_positive_times)[1][2] != global_var_value)
-          new_value = filter(t -> t[1] == time, init_augmented_positive_times)[1][2]
-          push!(ranges, ((time, new_value), (time + 1, next_val)))        
-        else
-          push!(ranges, ((time, prev_val), (time + 1, next_val)))        
-        end
-        println("IT'S ME 2")
-        # clear state update functions within this range; will find new ones later
-        state_update_func = init_state_update_times_dict[global_var_id][time]
-        if state_update_func != "" 
-          for time in 1:length(init_state_update_times_dict[global_var_id])
-            if init_state_update_times_dict[global_var_id][time] == state_update_func
-              init_state_update_times_dict[global_var_id][time] = ""
+        elseif (prev_val == global_var_value) && (next_val < global_var_value)
+          if (filter(t -> t[1] == time, init_augmented_positive_times) != []) && (filter(t -> t[1] == time, init_augmented_positive_times)[1][2] != global_var_value)
+            new_value = filter(t -> t[1] == time, init_augmented_positive_times)[1][2]
+            push!(ranges, ((time, new_value), (time + 1, next_val)))        
+          else
+            push!(ranges, ((time, prev_val), (time + 1, next_val)))        
+          end
+          println("IT'S ME 2")
+          # clear state update functions within this range; will find new ones later
+          state_update_func = init_state_update_times_dict[global_var_id][time]
+          if state_update_func != "" 
+            for time in 1:length(init_state_update_times_dict[global_var_id])
+              if init_state_update_times_dict[global_var_id][time] == state_update_func
+                init_state_update_times_dict[global_var_id][time] = ""
+              end
             end
           end
         end
       end
     end
-  end
-  println("WHY THO")
-  # @show init_state_update_times_dict 
+    println("WHY THO")
+    # @show init_state_update_times_dict 
 
-  # filter ranges where both the range's start and end times are already included
-  ranges = unique(ranges)
-  new_ranges = []
-  for range in ranges
-    start_tuples = map(range -> range[1], filter(r -> r != range, ranges))
-    end_tuples = map(range -> range[2], filter(r -> r != range, ranges))
-    if !((range[1] in start_tuples) && (range[2] in end_tuples))
-      push!(new_ranges, range)      
+    # filter ranges where both the range's start and end times are already included
+    ranges = unique(ranges)
+    new_ranges = []
+    for range in ranges
+      start_tuples = map(range -> range[1], filter(r -> r != range, ranges))
+      end_tuples = map(range -> range[2], filter(r -> r != range, ranges))
+      if !((range[1] in start_tuples) && (range[2] in end_tuples))
+        push!(new_ranges, range)      
+      end
     end
-  end
 
-  init_grouped_ranges = group_ranges(new_ranges)
-  # @show init_grouped_ranges
+    init_grouped_ranges = group_ranges(new_ranges)
+    # @show init_grouped_ranges
 
-  init_extra_global_var_values = []
+    init_extra_global_var_values = []
 
-  grouped_ranges = deepcopy(init_grouped_ranges)
-  augmented_positive_times = deepcopy(init_augmented_positive_times)
-  state_update_times_dict = deepcopy(init_state_update_times_dict)
+    grouped_ranges = deepcopy(init_grouped_ranges)
+    augmented_positive_times = deepcopy(init_augmented_positive_times)
+    state_update_times_dict = deepcopy(init_state_update_times_dict)
+    
+    println("HERE WE GO")
+    @show update_rule 
+    @show augmented_positive_times
+
+    num_transition_decisions = length(init_grouped_ranges)
+    transition_decision_strings = sort(vec(collect(Base.product([1:(transition_distinct * transition_same) for i in 1:length(init_grouped_ranges)]...))), by=tup -> sum(collect(tup)))
+    transition_decision_strings = transition_decision_strings[1:min(length(transition_decision_strings), transition_threshold)]
   
-  # ----- STEP 1: construct input string of which to take prefixes -----  
-  sketch_event_trajectory = map(x -> "true", zeros(length(collect(values(small_event_vector_dict))[1])))
+    for transition_decision_string in transition_decision_strings 
+      transition_decision_index = 1
 
-  println("HERE WE GO")
-  @show update_rule 
-  @show augmented_positive_times
+      # ----- STEP 1: construct input string of which to take prefixes -----  
+      sketch_event_trajectory = map(x -> "true", zeros(length(collect(values(small_event_vector_dict))[1])))
 
-  for grouped_range in grouped_ranges 
-    grouped_range = grouped_ranges[1]
-    grouped_ranges = grouped_ranges[2:end] # remove first range from ranges 
+      for grouped_range in grouped_ranges 
+        grouped_range = grouped_ranges[1]
+        grouped_ranges = grouped_ranges[2:end] # remove first range from ranges 
 
-    range = grouped_range[1]
-    start_value = range[1][2]
-    end_value = range[2][2]
+        range = grouped_range[1]
+        start_value = range[1][2]
+        end_value = range[2][2]
 
-    time_ranges = map(r -> (r[1][1], r[2][1] - 1), grouped_range)
+        time_ranges = map(r -> (r[1][1], r[2][1] - 1), grouped_range)
 
-    # construct state update function
-    state_update_function = "(= globalVar$(global_var_id) $(end_value))"
+        # construct state update function
+        state_update_function = "(= globalVar$(global_var_id) $(end_value))"
 
-    # get current maximum value of globalVar
-    max_global_var_value = maximum(map(tuple -> tuple[2], augmented_positive_times))
+        # get current maximum value of globalVar
+        max_global_var_value = maximum(map(tuple -> tuple[2], augmented_positive_times))
 
-    # search for events within range
-    events_in_range = find_state_update_events(small_event_vector_dict, augmented_positive_times, time_ranges, start_value, end_value, init_global_var_dict, global_var_id, global_var_value)
-    events_in_range = filter(tup -> !occursin("globalVar", tup[1]) && !occursin("field1", tup[1]), events_in_range)
-    
-    println("PRE PRUNING: EVENTS IN RANGE")
-
-    @show events_in_range
-    events_to_remove = []
-
-    for tuple in events_in_range 
-      if occursin("(clicked (filter (--> obj (== (.. obj id) ", tuple[1])
-        id = parse(Int, split(split(tuple[1], "(clicked (filter (--> obj (== (.. obj id) ")[2], ")")[1])
-        if nothing in object_mapping[id]
-          push!(events_to_remove, tuple)
-        end
-      end
-    end
-
-    events_in_range = filter(tuple -> !(tuple in events_to_remove), events_in_range)
-    println("POST PRUNING: EVENTS IN RANGE")
-    
-    if events_in_range != [] 
-      if filter(tuple -> !occursin("true", tuple[1]), events_in_range) != []
-        if filter(tuple -> !occursin("globalVar", tuple[1]) && !occursin("true", tuple[1]), events_in_range) != []
-          min_times = minimum(map(tup -> length(tup[2]), filter(tuple -> !occursin("globalVar", tuple[1]) && !occursin("true", tuple[1]), events_in_range)))
-          events_with_min_times = filter(tup -> length(tup[2]) == min_times, filter(tuple -> !occursin("globalVar", tuple[1]) && !occursin("true", tuple[1]), events_in_range))
-          state_update_event, event_times = sort(events_with_min_times, by=x -> length(x[1]))[1] # sort(filter(tuple -> !occursin("globalVar", tuple[1]) && !occursin("true", tuple[1]), events_in_range), by=x -> length(x[2]))[1]
-        else
-          min_times = minimum(map(tup -> length(tup[2]), filter(tuple -> !occursin("true", tuple[1]), events_in_range)))
-          events_with_min_times = filter(tup -> length(tup[2]) == min_times, filter(tuple -> !occursin("true", tuple[1]), events_in_range))
-          state_update_event, event_times = sort(events_with_min_times, by=x -> length(x[1]))[1] # sort(filter(tuple -> !occursin("true", tuple[1]), events_in_range), by=x -> length(x[2]))[1]
-        end
-      
-        for time in event_times 
-          sketch_event_trajectory[time] = state_update_event
-        end
-      end
-
-    else 
-      false_positive_events = find_state_update_events_false_positives(small_event_vector_dict, init_augmented_positive_times, time_ranges, start_value, end_value, init_global_var_dict, global_var_id, 1)
-      false_positive_events_with_state = filter(e -> !occursin("globalVar", e[1]), false_positive_events) # no state-based events in sketch-based approach
-      
-      events_without_true = filter(tuple -> !occursin("true", tuple[1]) && tuple[2] == minimum(map(t -> t[2], false_positive_events_with_state)), false_positive_events_with_state)
-      if events_without_true != []
-        false_positive_event, _, true_positive_times, false_positive_times = events_without_true[1] 
+        # search for events within range
+        events_in_range = find_state_update_events(small_event_vector_dict, augmented_positive_times, time_ranges, start_value, end_value, init_global_var_dict, global_var_id, global_var_value)
+        events_in_range = filter(tup -> !occursin("globalVar", tup[1]) && !occursin("field1", tup[1]), events_in_range)
         
-        for time in vcat(true_positive_times, false_positive_times)
-          sketch_event_trajectory[time] = false_positive_event
+        println("PRE PRUNING: EVENTS IN RANGE")
+
+        @show events_in_range
+        events_to_remove = []
+
+        for tuple in events_in_range 
+          if occursin("(clicked (filter (--> obj (== (.. obj id) ", tuple[1])
+            id = parse(Int, split(split(tuple[1], "(clicked (filter (--> obj (== (.. obj id) ")[2], ")")[1])
+            if nothing in object_mapping[id]
+              push!(events_to_remove, tuple)
+            end
+          end
+        end
+
+        events_in_range = filter(tuple -> !(tuple in events_to_remove), events_in_range)
+        println("POST PRUNING: EVENTS IN RANGE")
+        
+        if events_in_range != [] 
+          if filter(tuple -> !occursin("true", tuple[1]), events_in_range) != []
+            if filter(tuple -> !occursin("globalVar", tuple[1]) && !occursin("true", tuple[1]), events_in_range) != []
+              min_times = minimum(map(tup -> length(tup[2]), filter(tuple -> !occursin("globalVar", tuple[1]) && !occursin("true", tuple[1]), events_in_range)))
+              events_with_min_times = filter(tup -> length(tup[2]) == min_times, filter(tuple -> !occursin("globalVar", tuple[1]) && !occursin("true", tuple[1]), events_in_range))
+              
+              index = min(length(events_with_min_times), transition_decision_index > num_transition_decisions ? 1 : transition_decision_string[transition_decision_index])            
+
+              state_update_event, event_times = sort(events_with_min_times, by=x -> length(x[1]))[index] # sort(filter(tuple -> !occursin("globalVar", tuple[1]) && !occursin("true", tuple[1]), events_in_range), by=x -> length(x[2]))[1]
+            else
+              min_times = minimum(map(tup -> length(tup[2]), filter(tuple -> !occursin("true", tuple[1]), events_in_range)))
+              events_with_min_times = filter(tup -> length(tup[2]) == min_times, filter(tuple -> !occursin("true", tuple[1]), events_in_range))
+              
+              index = min(length(events_with_min_times), transition_decision_index > num_transition_decisions ? 1 : transition_decision_string[transition_decision_index])            
+              state_update_event, event_times = sort(events_with_min_times, by=x -> length(x[1]))[index] # sort(filter(tuple -> !occursin("true", tuple[1]), events_in_range), by=x -> length(x[2]))[1]
+            end
+          
+            for time in event_times 
+              sketch_event_trajectory[time] = state_update_event
+            end
+          end
+
+        else 
+          false_positive_events = find_state_update_events_false_positives(small_event_vector_dict, init_augmented_positive_times, time_ranges, start_value, end_value, init_global_var_dict, global_var_id, 1)
+          false_positive_events_with_state = filter(e -> !occursin("globalVar", e[1]), false_positive_events) # no state-based events in sketch-based approach
+          
+          events_without_true = filter(tuple -> !occursin("true", tuple[1]) && tuple[2] == minimum(map(t -> t[2], false_positive_events_with_state)), false_positive_events_with_state)
+          if events_without_true != []
+            index = min(length(events_without_true), transition_decision_index > num_transition_decisions ? 1 : transition_decision_string[transition_decision_index])            
+
+            false_positive_event, _, true_positive_times, false_positive_times = events_without_true[index] 
+            
+            for time in vcat(true_positive_times, false_positive_times)
+              sketch_event_trajectory[time] = false_positive_event
+            end
+          end
+
+        end
+        transition_decision_index += 1
+      end
+      
+      # TODO: add user events to event string if they do not overlap with existing events from time range analysis 
+
+      # ----- STEP 2: construct positive and negative prefixes 
+
+      distinct_events = sort(unique(sketch_event_trajectory))
+
+      println("SEE ME")
+      @show distinct_events
+      @show (length(intersect(["left", "right", "up", "down", "true"], distinct_events)) == 5)
+      if length(distinct_events) > 9 
+        return solutions
+      elseif distinct_events == ["true"] || length(intersect(["left", "right", "up", "down", "true"], distinct_events)) > 1
+        for event in ["left", "right", "up", "down", "clicked"]
+          if event in keys(event_vector_dict)
+            @show event
+            event_values = event_vector_dict[event]
+            event_times = findall(x -> x == 1, event_values)
+            @show event_times
+            for time in event_times 
+              sketch_event_trajectory[time] = event
+            end
+          end
         end
       end
 
-    end
-  end
-  
-  # TODO: add user events to event string if they do not overlap with existing events from time range analysis 
+      distinct_events = sort(unique(sketch_event_trajectory))
 
-  # ----- STEP 2: construct positive and negative prefixes 
+      sketch_event_arr = map(e -> findall(x -> x == e, distinct_events)[1], sketch_event_trajectory)
 
-  distinct_events = sort(unique(sketch_event_trajectory))
-
-  println("SEE ME")
-  @show distinct_events
-  @show (length(intersect(["left", "right", "up", "down", "true"], distinct_events)) == 5)
-  if length(distinct_events) > 9 
-    return solutions
-  elseif distinct_events == ["true"] || length(intersect(["left", "right", "up", "down", "true"], distinct_events)) > 1
-    for event in ["left", "right", "up", "down", "clicked"]
-      if event in keys(event_vector_dict)
-        @show event
-        event_values = event_vector_dict[event]
-        event_times = findall(x -> x == 1, event_values)
-        @show event_times
-        for time in event_times 
-          sketch_event_trajectory[time] = event
-        end
+      true_char = "0"
+      if "true" in distinct_events 
+        true_char = string(findall(x -> x == "true", distinct_events)[1])
       end
-    end
-  end
 
-  distinct_events = sort(unique(sketch_event_trajectory))
+      # construct sketch update function input array
+      sketch_update_function_arr = ["0" for i in 1:length(sketch_event_trajectory)]
+      for tuple in augmented_positive_times 
+        time, value = tuple 
+        sketch_update_function_arr[time] = string(value)
+      end
 
-  sketch_event_arr = map(e -> findall(x -> x == e, distinct_events)[1], sketch_event_trajectory)
+      @show distinct_events 
+      @show sketch_event_arr 
+      @show sketch_update_function_arr
 
-  true_char = "0"
-  if "true" in distinct_events 
-    true_char = string(findall(x -> x == "true", distinct_events)[1])
-  end
-
-  # construct sketch update function input array
-  sketch_update_function_arr = ["0" for i in 1:length(sketch_event_trajectory)]
-  for tuple in augmented_positive_times 
-    time, value = tuple 
-    sketch_update_function_arr[time] = string(value)
-  end
-
-  @show distinct_events 
-  @show sketch_event_arr 
-  @show sketch_update_function_arr
-
-  solutions = []
-  for i in 1:1
-    println("BEGIN HERE")
-    @show i
-    sketch_program = """ 
-    include "$(sketch_directory)sketchlib/string.skh"; 
-    include "$(sketch_directory)test/sk/numerical/mstatemachine.skh";
-  
-    bit recognize([int n], char[n] events, int[n] functions, char true_char){
-        return matches(MSM(events, true_char), functions);
-    }
-  
-    harness void h() {
-      assert recognize( { $(join(map(c -> "'$(c)'", sketch_event_arr), ", ")) }, 
-                        { $(join(sketch_update_function_arr, ", ")) }, 
-                        '$(true_char)');
-    }
-    """
-  
-    ## save sketch program as file 
-    open("automata_sketch.sk","w") do io
-      println(io, sketch_program)
-    end
-
-    first_automaton = true 
-    min_state_count = -1 
-    curr_state_count = -1
-    curr_solution = nothing
-    old_state_seqs = []
-  
-    while first_automaton || ((curr_state_count == min_state_count) && (length(solutions) < 8))
-      println("INSIDE AUTOMATA FINDING ENUMERATIVE LOOP")
-      @show length(solutions)
-      @show curr_solution
-      if !first_automaton 
-        # add automaton to solutions list 
-        push!(solutions, curr_solution)
-  
-        # add state_seq to old_state_seqs 
-        push!(old_state_seqs, curr_solution[3][global_var_id])
-        @show old_state_seqs
-  
-        # construct new Sketch query
-        sketch_program = """
+      solutions = []
+      for i in 1:1
+        println("BEGIN HERE")
+        @show i
+        sketch_program = """ 
         include "$(sketch_directory)sketchlib/string.skh"; 
         include "$(sketch_directory)test/sk/numerical/mstatemachine.skh";
-  
-        bit recognize([int n, int m], char[n] events, int[n] functions, int[n][m] old_state_seqs, char true_char) {
-            return matches(MSM_unique(events, old_state_seqs, true_char), functions);
+      
+        bit recognize([int n], char[n] events, int[n] functions, char true_char){
+            return matches(MSM(events, true_char), functions);
         }
-  
+      
         harness void h() {
           assert recognize( { $(join(map(c -> "'$(c)'", sketch_event_arr), ", ")) }, 
-                            { $(join(sketch_update_function_arr, ", ")) },
-                            { $(join(map(old_seq -> "{ $(join(old_seq, ", ")) }", old_state_seqs), ", \n")) }, 
+                            { $(join(sketch_update_function_arr, ", ")) }, 
                             '$(true_char)');
         }
         """
-  
+      
         ## save sketch program as file 
         open("automata_sketch.sk","w") do io
           println(io, sketch_program)
         end
-      end
-  
-      # copy init_global_var_dict and init_extra_global_var_values for each Sketch automaton search 
-      global_var_dict = deepcopy(init_global_var_dict)
-      extra_global_var_values = deepcopy(init_extra_global_var_values)
-  
-      # run Sketch query
-      if sketch_timeout == 0 
-        command = "$(sketch_directory)sketch --bnd-unroll-amnt $(length(sketch_event_trajectory) + 2) --fe-output-code automata_sketch.sk"
-      else
-        if Sys.islinux() 
-          command = "timeout $(sketch_timeout) $(sketch_directory)sketch --bnd-unroll-amnt $(length(sketch_event_trajectory) + 2) --fe-output-code automata_sketch.sk"
-        else
-          command = "gtimeout $(sketch_timeout) $(sketch_directory)sketch --bnd-unroll-amnt $(length(sketch_event_trajectory) + 2) --fe-output-code automata_sketch.sk"
-        end
-      end
-      
-      sketch_output = try 
-                        readchomp(eval(Meta.parse("`$(command)`")))
-                      catch e
-                        ""
-                      end
 
-      @show sketch_output
-      if sketch_output == "" || occursin("The sketch could not be resolved.", sketch_output)
-        break
-      else
-        # update intAsChar and add main function to output cpp file 
-        f = open("automata_sketch.cpp", "r")
-        cpp_content = read(f, String)
-        close(f)
-  
-        if first_automaton 
-          modified_cpp_content = string(split(cpp_content, "void intAsChar")[1], """void intAsChar(int x, char& _out) {
-            _out = static_cast<char>(x % 10);
-            _out = printf("%d", _out);
-          }
-          
-          }
-          
-          int main() {
-            ANONYMOUS::h();
-            return 0;
-          }
-          """)    
-        else 
-          modified_cpp_content = string(replace(cpp_content, """void intAsChar(int x, char& _out) {
-            _out = x % 10;
-            return;
-          }""" => "")[1:end-3],
-           """void intAsChar(int x, char& _out) {
-            _out = static_cast<char>(x % 10);
-            _out = printf("%d", _out);
-          }
-          
-          }
-          
-          int main() {
-            ANONYMOUS::h();
-            return 0;
-          }
-          """)
-        end
-  
-        open("automata_sketch.cpp", "w+") do io
-          println(io, modified_cpp_content)
-        end
-  
-        # compile modified cpp program 
-        command = "g++ -o automata_sketch.out automata_sketch.cpp"
-        compile_output = readchomp(eval(Meta.parse("`$(command)`"))) 
-  
-        # run compiled cpp program 
-        command = "./automata_sketch.out"
-        run_output = readchomp(eval(Meta.parse("`$(command)`")))  
-        run_output = replace(run_output, "\x01" => "")
-  
-        parts = split(run_output, "STATE TRAJECTORY")
-        state_transition_string = parts[1]
-        states_and_table_string = parts[2]
-  
-        parts = split(states_and_table_string, "TABLE")
-        states_string = parts[1]
-        table_string = parts[2]
-  
-        # parse state trajectory into init_global_var_dict 
-        global_var_values = map(s -> parse(Int, s), filter(x -> x != " ", split(states_string, "\n")))
-        global_var_dict[global_var_id] = global_var_values
-  
-        @show global_var_values
-  
-        # construct init_extra_global_var_values from table and on_clauses 
-        state_to_update_function_index_arr = map(s -> parse(Int, s), filter(x -> x != " ", split(table_string, "\n")))
-        distinct_states = unique(global_var_values)
-  
-        if first_automaton 
-          min_state_count = length(distinct_states)
-        end
-        curr_state_count = length(distinct_states)
-  
-        update_function_index = 1
-        corresponding_states = map(i -> i - 1, findall(x -> x == update_function_index, state_to_update_function_index_arr))
-        corresponding_states = intersect(corresponding_states, distinct_states) # don't count extraneous indices from table
-        extra_global_var_values = corresponding_states 
-        
-        on_clause = "(on (& $(co_occurring_event) (in (prev globalVar$(global_var_id)) (list $(join(extra_global_var_values, " ")))))\n$(update_rule))"
-  
-        # parse state transitions string to construct state_update_on_clauses and state_update_times 
-        lines = filter(l -> l != " ", split(state_transition_string, "\n"))
-        grouped_transitions = collect(Iterators.partition(lines, 6))
-        transitions = []
-        for grouped_transition in grouped_transitions 
-          start_state = parse(Int, grouped_transition[2])
-          transition_label = distinct_events[parse(Int, grouped_transition[4])]
-          end_state = parse(Int, grouped_transition[6])
-          push!(transitions, (start_state, end_state, transition_label))
-        end
-  
-        state_update_on_clauses = []
-        for time in 2:length(global_var_dict[global_var_id])
-          prev_value = global_var_dict[global_var_id][time - 1]
-          next_value = global_var_dict[global_var_id][time]
-  
-          if prev_value != next_value 
-            transition_tuple = filter(t -> t[1] == prev_value && t[2] == next_value, transitions)[1]
-            _, _, transition_label = transition_tuple 
-            
-            state_update_on_clause = "(on (& $(transition_label) (== (prev globalVar$(global_var_id)) $(prev_value)))\n(= globalVar$(global_var_id) $(next_value)))"
-            state_update_times_dict[global_var_id][time - 1] = state_update_on_clause
-            push!(state_update_on_clauses, state_update_on_clause)
+        first_automaton = true 
+        min_state_count = -1 
+        curr_state_count = -1
+        curr_solution = nothing
+        old_state_seqs = []
+      
+        while first_automaton || ((curr_state_count == min_state_count) && (length(solutions) < 8))
+          println("INSIDE AUTOMATA FINDING ENUMERATIVE LOOP")
+          @show length(solutions)
+          @show curr_solution
+          if !first_automaton 
+            # add automaton to solutions list 
+            push!(solutions, curr_solution)
+      
+            # add state_seq to old_state_seqs 
+            push!(old_state_seqs, curr_solution[3][global_var_id])
+            @show old_state_seqs
+      
+            # construct new Sketch query
+            sketch_program = """
+            include "$(sketch_directory)sketchlib/string.skh"; 
+            include "$(sketch_directory)test/sk/numerical/mstatemachine.skh";
+      
+            bit recognize([int n, int m], char[n] events, int[n] functions, int[n][m] old_state_seqs, char true_char) {
+                return matches(MSM_unique(events, old_state_seqs, true_char), functions);
+            }
+      
+            harness void h() {
+              assert recognize( { $(join(map(c -> "'$(c)'", sketch_event_arr), ", ")) }, 
+                                { $(join(sketch_update_function_arr, ", ")) },
+                                { $(join(map(old_seq -> "{ $(join(old_seq, ", ")) }", old_state_seqs), ", \n")) }, 
+                                '$(true_char)');
+            }
+            """
+      
+            ## save sketch program as file 
+            open("automata_sketch.sk","w") do io
+              println(io, sketch_program)
+            end
           end
+      
+          # copy init_global_var_dict and init_extra_global_var_values for each Sketch automaton search 
+          global_var_dict = deepcopy(init_global_var_dict)
+          extra_global_var_values = deepcopy(init_extra_global_var_values)
+      
+          # run Sketch query
+          if sketch_timeout == 0 
+            command = "$(sketch_directory)sketch --bnd-unroll-amnt $(length(sketch_event_trajectory) + 2) --fe-output-code automata_sketch.sk"
+          else
+            if Sys.islinux() 
+              command = "timeout $(sketch_timeout) $(sketch_directory)sketch --bnd-unroll-amnt $(length(sketch_event_trajectory) + 2) --fe-output-code automata_sketch.sk"
+            else
+              command = "gtimeout $(sketch_timeout) $(sketch_directory)sketch --bnd-unroll-amnt $(length(sketch_event_trajectory) + 2) --fe-output-code automata_sketch.sk"
+            end
+          end
+          
+          sketch_output = try 
+                            readchomp(eval(Meta.parse("`$(command)`")))
+                          catch e
+                            ""
+                          end
+
+          @show sketch_output
+          if sketch_output == "" || occursin("The sketch could not be resolved.", sketch_output)
+            break
+          else
+            # update intAsChar and add main function to output cpp file 
+            f = open("automata_sketch.cpp", "r")
+            cpp_content = read(f, String)
+            close(f)
+      
+            if first_automaton 
+              modified_cpp_content = string(split(cpp_content, "void intAsChar")[1], """void intAsChar(int x, char& _out) {
+                _out = static_cast<char>(x % 10);
+                _out = printf("%d", _out);
+              }
+              
+              }
+              
+              int main() {
+                ANONYMOUS::h();
+                return 0;
+              }
+              """)    
+            else 
+              modified_cpp_content = string(replace(cpp_content, """void intAsChar(int x, char& _out) {
+                _out = x % 10;
+                return;
+              }""" => "")[1:end-3],
+              """void intAsChar(int x, char& _out) {
+                _out = static_cast<char>(x % 10);
+                _out = printf("%d", _out);
+              }
+              
+              }
+              
+              int main() {
+                ANONYMOUS::h();
+                return 0;
+              }
+              """)
+            end
+      
+            open("automata_sketch.cpp", "w+") do io
+              println(io, modified_cpp_content)
+            end
+      
+            # compile modified cpp program 
+            command = "g++ -o automata_sketch.out automata_sketch.cpp"
+            compile_output = readchomp(eval(Meta.parse("`$(command)`"))) 
+      
+            # run compiled cpp program 
+            command = "./automata_sketch.out"
+            run_output = readchomp(eval(Meta.parse("`$(command)`")))  
+            run_output = replace(run_output, "\x01" => "")
+      
+            parts = split(run_output, "STATE TRAJECTORY")
+            state_transition_string = parts[1]
+            states_and_table_string = parts[2]
+      
+            parts = split(states_and_table_string, "TABLE")
+            states_string = parts[1]
+            table_string = parts[2]
+      
+            # parse state trajectory into init_global_var_dict 
+            global_var_values = map(s -> parse(Int, s), filter(x -> x != " ", split(states_string, "\n")))
+            global_var_dict[global_var_id] = global_var_values
+      
+            @show global_var_values
+      
+            # construct init_extra_global_var_values from table and on_clauses 
+            state_to_update_function_index_arr = map(s -> parse(Int, s), filter(x -> x != " ", split(table_string, "\n")))
+            distinct_states = unique(global_var_values)
+      
+            if first_automaton 
+              min_state_count = length(distinct_states)
+            end
+            curr_state_count = length(distinct_states)
+      
+            update_function_index = 1
+            corresponding_states = map(i -> i - 1, findall(x -> x == update_function_index, state_to_update_function_index_arr))
+            corresponding_states = intersect(corresponding_states, distinct_states) # don't count extraneous indices from table
+            extra_global_var_values = corresponding_states 
+            
+            on_clause = "(on (& $(co_occurring_event) (in (prev globalVar$(global_var_id)) (list $(join(extra_global_var_values, " ")))))\n$(update_rule))"
+      
+            # parse state transitions string to construct state_update_on_clauses and state_update_times 
+            lines = filter(l -> l != " ", split(state_transition_string, "\n"))
+            grouped_transitions = collect(Iterators.partition(lines, 6))
+            transitions = []
+            for grouped_transition in grouped_transitions 
+              start_state = parse(Int, grouped_transition[2])
+              transition_label = distinct_events[parse(Int, grouped_transition[4])]
+              end_state = parse(Int, grouped_transition[6])
+              push!(transitions, (start_state, end_state, transition_label))
+            end
+      
+            state_update_on_clauses = []
+            for time in 2:length(global_var_dict[global_var_id])
+              prev_value = global_var_dict[global_var_id][time - 1]
+              next_value = global_var_dict[global_var_id][time]
+      
+              if prev_value != next_value 
+                transition_tuple = filter(t -> t[1] == prev_value && t[2] == next_value, transitions)[1]
+                _, _, transition_label = transition_tuple 
+                
+                state_update_on_clause = "(on (& $(transition_label) (== (prev globalVar$(global_var_id)) $(prev_value)))\n(= globalVar$(global_var_id) $(next_value)))"
+                state_update_times_dict[global_var_id][time - 1] = state_update_on_clause
+                push!(state_update_on_clauses, state_update_on_clause)
+              end
+            end
+            curr_solution = (extra_global_var_values, unique(transitions), global_var_dict, co_occurring_event)
+          end  
+          first_automaton = false  
         end
-        curr_solution = (extra_global_var_values, unique(transitions), global_var_dict, co_occurring_event)
-      end  
-      first_automaton = false  
+      end
+      @show solutions
+
+      # some solution count breaking threshold 
+      if length(solutions) >= 8 
+        break
+      end
+
+    end # end transition decision string loop 
+
+    if length(solutions) >= 8 
+      break
     end
-  end
-  @show solutions 
+
+  end # end co-occurring event loop
+ 
   solutions
   # transition_dict = Dict(map(s -> Tuple(map(t -> t[3], s[2])) => s, solutions))
   # map(t -> transition_dict[t], unique(collect(keys(transition_dict))))
@@ -1504,7 +1547,7 @@ function generalize_automaton(aut, user_events, event_vector_dict, all_labels)
   state_seq, final_transitions, start_state, accept_states, co_occurring_event
 end
 
-function generate_object_specific_automaton_sketch(update_rule, update_function_times_dict, event_vector_dict, type_id, object_decomposition, init_state_update_times, global_var_dict, sketch_timeout, co_occurring_param=false)
+function generate_object_specific_automaton_sketch(update_rule, update_function_times_dict, event_vector_dict, type_id, object_decomposition, init_state_update_times, global_var_dict, sketch_timeout, co_occurring_param=false, co_occurring_distinct=1, co_occurring_same=1, co_occurring_threshold=1, transition_distinct=1, transition_same=1, transition_threshold=1)
   println("GENERATE_NEW_OBJECT_SPECIFIC_STATE")
   @show update_rule
   @show update_function_times_dict
@@ -1538,17 +1581,17 @@ function generate_object_specific_automaton_sketch(update_rule, update_function_
     end
   end
   # choices, event_vector_dict, redundant_events_set, object_decomposition
-  small_events = construct_compound_events(collect(keys(small_event_vector_dict)), small_event_vector_dict, Set(), object_decomposition)
-  for e in keys(event_vector_dict)
-    if (occursin("true", e) || occursin("|", e)) && e in keys(small_event_vector_dict)
-      delete!(small_event_vector_dict, e)
-    end
-  end
+  # small_events = construct_compound_events(collect(keys(small_event_vector_dict)), small_event_vector_dict, Set(), object_decomposition)
+  # for e in keys(event_vector_dict)
+  #   if (occursin("true", e) || occursin("|", e)) && e in keys(small_event_vector_dict)
+  #     delete!(small_event_vector_dict, e)
+  #   end
+  # end
 
-  x = "(& clicked (& true (! (in (objClicked click (prev addedObjType1List)) (filter (--> obj (== (.. obj id) x)) (prev addedObjType1List))))))"
-  if x in keys(event_vector_dict)
-    small_event_vector_dict[x] = event_vector_dict[x]
-  end
+  # x = "(& clicked (& true (! (in (objClicked click (prev addedObjType1List)) (filter (--> obj (== (.. obj id) x)) (prev addedObjType1List))))))"
+  # if x in keys(event_vector_dict)
+  #   small_event_vector_dict[x] = event_vector_dict[x]
+  # end
 
   @show length(collect(keys(event_vector_dict)))
   @show length(collect(keys(small_event_vector_dict)))
@@ -1603,239 +1646,280 @@ function generate_object_specific_automaton_sketch(update_rule, update_function_
   if filter(x -> !occursin("globalVar", x[1]), co_occurring_events) != []
     co_occurring_events = filter(x -> !occursin("globalVar", x[1]), co_occurring_events)
   end
-  best_co_occurring_events = sort(filter(e -> e[2] == minimum(map(x -> x[2], co_occurring_events)), co_occurring_events), by=z -> length(z[1]))
-  # # @show best_co_occurring_events
-  co_occurring_event = best_co_occurring_events[1][1]
-  co_occurring_event_trajectory = event_vector_dict[co_occurring_event]
 
-  augmented_positive_times_dict = Dict()
-  for object_id in object_ids
-    true_positive_times = update_function_times_dict[object_id] # times when co_occurring_event happened and update_rule happened 
-    false_positive_times = [] # times when user_event happened and update_rule didn't happen
-    
-    # construct false_positive_times 
-    for time in 1:(length(object_mapping[object_ids[1]])-1)
-      if co_occurring_event_trajectory isa AbstractArray
-        if co_occurring_event_trajectory[time] == 1 && !(time in true_positive_times) && !isnothing(object_mapping[object_id][time]) && !isnothing(object_mapping[object_id][time + 1])
-          push!(false_positive_times, time)
-        end
-      else 
-        if co_occurring_event_trajectory[object_id][time] == 1 && !(time in true_positive_times) && !isnothing(object_mapping[object_id][time]) && !isnothing(object_mapping[object_id][time + 1])
-          push!(false_positive_times, time)
-        end
-      end
-    end
-
-    # construct positive times list augmented by true/false value 
-    augmented_true_positive_times = map(t -> (t, curr_state_value), true_positive_times)
-    augmented_false_positive_times = map(t -> (t, curr_state_value + 1), false_positive_times)
-    augmented_positive_times = sort(vcat(augmented_true_positive_times, augmented_false_positive_times), by=x -> x[1])  
-
-    augmented_positive_times_dict[object_id] = augmented_positive_times 
+  false_positive_counts = sort(unique(map(x -> x[2], co_occurring_events)))
+  false_positive_counts = false_positive_counts[1:min(length(false_positive_counts), co_occurring_distinct)]
+  optimal_co_occurring_events = []
+  for false_positive_count in false_positive_counts 
+    events_with_count = map(e -> e[1], sort(filter(tup -> tup[2] == false_positive_count, co_occurring_events), by=t -> length(t[1])))
+    push!(optimal_co_occurring_events, events_with_count[1:min(length(events_with_count), co_occurring_same)]...)
   end
 
-  # compute ranges 
-  grouped_ranges = recompute_ranges_object_specific(augmented_positive_times_dict, curr_state_value, object_mapping, object_ids)
-  max_state_value = maximum(vcat(map(id -> map(tuple -> tuple[2], augmented_positive_times_dict[id]), collect(keys(augmented_positive_times_dict)))...))
+  optimal_co_occurring_events = optimal_co_occurring_events[1:min(length(optimal_co_occurring_events), co_occurring_threshold)]
 
-  sketch_event_arrs_dict = Dict(map(id -> id => ["true" for i in 1:length(object_mapping[object_ids[1]])], object_ids))
+  # best_co_occurring_events = sort(filter(e -> e[2] == minimum(map(x -> x[2], co_occurring_events)), co_occurring_events), by=z -> length(z[1]))
+  # # # @show best_co_occurring_events
+  # co_occurring_event = best_co_occurring_events[1][1]
+  # co_occurring_event_trajectory = event_vector_dict[co_occurring_event]
 
-  while length(grouped_ranges) > 0
-    grouped_range = grouped_ranges[1]
-    grouped_ranges = grouped_ranges[2:end]
+  solutions = []
+  for co_occurring_event in optimal_co_occurring_events
+    co_occurring_event_trajectory = event_vector_dict[co_occurring_event]
+    @show co_occurring_event 
+    @show co_occurring_event_trajectory
 
-    range = grouped_range[1]
-    start_value = range[1][2]
-    end_value = range[2][2]
-
-    max_state_value = maximum(vcat(map(id -> map(tuple -> tuple[2], augmented_positive_times_dict[id]), collect(keys(augmented_positive_times_dict)))...))
-
-    # TODO: try global events too  
-    events_in_range = []
-    if events_in_range == [] # if no global events are found, try object-specific events 
-      # events_in_range = find_state_update_events(event_vector_dict, augmented_positive_times, time_ranges, start_value, end_value, global_var_dict, global_var_value)
-      events_in_range = find_state_update_events_object_specific(small_event_vector_dict, augmented_positive_times_dict, grouped_range, object_ids, object_mapping, curr_state_value)
-    end
-    @show events_in_range
-    events_in_range = filter(e -> !occursin("field1", e[1]) && !occursin("globalVar1", e[1]), events_in_range)
-    if length(events_in_range) > 0 # only handling perfect matches currently 
-      event, event_times = events_in_range[1]
-      # formatted_event = replace(event, "(filter (--> obj (== (.. obj id) x)) (prev addedObjType$(type_id)List))" => "(list (prev obj))")
-
-      for id in object_ids # collect(keys(state_update_times))
-        object_event_times = map(t -> t[1], filter(time -> time[2] == id, event_times))
-        for time in object_event_times
-          sketch_event_arrs_dict[id][time] = event
-        end
-      end
-    else
-      false_positive_events = find_state_update_events_object_specific_false_positives(small_event_vector_dict, augmented_positive_times_dict, grouped_range, object_ids, object_mapping, curr_state_value)      
-      false_positive_events_with_state = filter(e -> !occursin("field1", e[1]) && !occursin("globalVar1", e[1]), false_positive_events)
-      @show false_positive_events
-      events_without_true = filter(tuple -> !occursin("true", tuple[1]) && tuple[2] == minimum(map(t -> t[2], false_positive_events_with_state)), false_positive_events_with_state)
-      if events_without_true != []
-          false_positive_event, _, true_positive_times, false_positive_times = events_without_true[1] 
+    augmented_positive_times_dict = Dict()
+    for object_id in object_ids
+      true_positive_times = update_function_times_dict[object_id] # times when co_occurring_event happened and update_rule happened 
+      false_positive_times = [] # times when user_event happened and update_rule didn't happen
       
-        # construct state update on-clause
-        # formatted_event = replace(false_positive_event, "(filter (--> obj (== (.. obj id) x)) (prev addedObjType$(type_id)List))" => "(list (prev obj))")
-        
-        for id in object_ids # collect(keys(state_update_times))
-          object_event_times = map(t -> t[1], filter(time -> time[2] == id, vcat(true_positive_times, false_positive_times)))
-          for time in object_event_times
-            sketch_event_arrs_dict[id][time] = false_positive_event
+      # construct false_positive_times 
+      for time in 1:(length(object_mapping[object_ids[1]])-1)
+        if co_occurring_event_trajectory isa AbstractArray
+          if co_occurring_event_trajectory[time] == 1 && !(time in true_positive_times) && !isnothing(object_mapping[object_id][time]) && !isnothing(object_mapping[object_id][time + 1])
+            push!(false_positive_times, time)
+          end
+        else 
+          if co_occurring_event_trajectory[object_id][time] == 1 && !(time in true_positive_times) && !isnothing(object_mapping[object_id][time]) && !isnothing(object_mapping[object_id][time + 1])
+            push!(false_positive_times, time)
           end
         end
-          
       end
-    end
-  end
-
-  distinct_events = sort(unique(vcat(collect(values(sketch_event_arrs_dict))...)))  
   
-  if length(distinct_events) > 9 
-    return solutions
-  end
-
-  sketch_event_arrs_dict_formatted = Dict(map(id -> id => map(e -> findall(x -> x == e, distinct_events)[1], sketch_event_arrs_dict[id]) , collect(keys(sketch_event_arrs_dict)))) # map(e -> findall(x -> x == e, distinct_events)[1], sketch_event_trajectory)
+      # construct positive times list augmented by true/false value 
+      augmented_true_positive_times = map(t -> (t, curr_state_value), true_positive_times)
+      augmented_false_positive_times = map(t -> (t, curr_state_value + 1), false_positive_times)
+      augmented_positive_times = sort(vcat(augmented_true_positive_times, augmented_false_positive_times), by=x -> x[1])  
   
-  true_char = "0"
-  if "true" in distinct_events 
-    true_char = string(findall(x -> x == "true", distinct_events)[1])
-  end
-
-  # construct sketch update function input array
-  sketch_update_function_arr = Dict(map(id -> id => ["0" for i in 1:length(sketch_event_arrs_dict_formatted[object_ids[1]])], object_ids))
-  for id in object_ids 
-    augmented_positive_times = augmented_positive_times_dict[id]
-    for tuple in augmented_positive_times 
-      time, value = tuple 
-      sketch_update_function_arr[id][time] = string(value)
+      augmented_positive_times_dict[object_id] = augmented_positive_times 
     end
-  end
-
-  sketch_program = """ 
-  include "$(sketch_directory)sketchlib/string.skh"; 
-  include "$(sketch_directory)test/sk/numerical/mstatemachine.skh";
   
-  bit recognize_obj_specific([int n], char[n] events, int[n] functions, int start, char true_char) {
-      return matches(MSM_obj_specific(events, start, true_char), functions);
-  }
-
-  $(join(map(i -> """harness void h$(i)() {
-                        int start = ??;
-                        assert recognize_obj_specific({ $(join(map(c -> "'$(c)'", sketch_event_arrs_dict_formatted[object_ids[i]]), ", ")) }, 
-                                                      { $(join(sketch_update_function_arr[object_ids[i]], ", ")) }, 
-                                                      start, 
-                                                      '$(true_char)');
-                      }""", collect(1:length(object_ids))), "\n\n"))
-  """
-
-  ## save sketch program as file 
-  open("automata_sketch.sk","w") do io
-    println(io, sketch_program)
-  end
-
-  # run Sketch query
-  if sketch_timeout == 0 
-    command = "$(sketch_directory)sketch --bnd-unroll-amnt $(length(sketch_update_function_arr[object_ids[1]]) + 2) --fe-output-code automata_sketch.sk"
-  else
-    if Sys.islinux() 
-      command = "timeout $(sketch_timeout) $(sketch_directory)sketch --bnd-unroll-amnt $(length(sketch_update_function_arr[object_ids[1]]) + 2) --fe-output-code automata_sketch.sk"
-    else
-      command = "gtimeout $(sketch_timeout) $(sketch_directory)sketch --bnd-unroll-amnt $(length(sketch_update_function_arr[object_ids[1]]) + 2) --fe-output-code automata_sketch.sk"
-    end
-  end
-
-    sketch_output = try 
-                    readchomp(eval(Meta.parse("`$(command)`")))
-                  catch e
-                    ""
-                  end
-
-
-  if !occursin("The sketch could not be resolved.", sketch_output) && sketch_output != ""
-    # update intAsChar and add main function to output cpp file 
-    f = open("automata_sketch.cpp", "r")
-    cpp_content = read(f, String)
-    close(f)
-
-    modified_cpp_content = string(replace(cpp_content, """void intAsChar(int x, char& _out) {
-      _out = x % 10;
-      return;
-    }""" => "")[1:end-3],
-      """void intAsChar(int x, char& _out) {
-      _out = static_cast<char>(x % 10);
-      _out = printf("%d", _out);
-    }
+    # compute ranges 
+    init_grouped_ranges = recompute_ranges_object_specific(augmented_positive_times_dict, curr_state_value, object_mapping, object_ids)
     
-    }
-    int main() {
-      $(join(map(i -> "ANONYMOUS::h$(i)();", collect(1:length(object_ids))), "\n  "))
+    num_transition_decisions = length(init_grouped_ranges)
+    transition_decision_strings = sort(vec(collect(Base.product([1:(transition_distinct * transition_same) for i in 1:length(init_grouped_ranges)]...))), by=tup -> sum(collect(tup)))
+    transition_decision_strings = transition_decision_strings[1:min(length(transition_decision_strings), transition_threshold)]
+
+    for transition_decision_string in transition_decision_strings
+      transition_decision_index = 1
+      grouped_ranges = deepcopy(init_grouped_ranges)
+      max_state_value = maximum(vcat(map(id -> map(tuple -> tuple[2], augmented_positive_times_dict[id]), collect(keys(augmented_positive_times_dict)))...))  
+      sketch_event_arrs_dict = Dict(map(id -> id => ["true" for i in 1:length(object_mapping[object_ids[1]])], object_ids))
     
-      return 0;
-    }
-    """)
-
-    open("automata_sketch.cpp", "w+") do io
-      println(io, modified_cpp_content)
-    end
-
-    # compile modified cpp program 
-    command = "g++ -o automata_sketch.out automata_sketch.cpp"
-    compile_output = readchomp(eval(Meta.parse("`$(command)`"))) 
-
-    # run compiled cpp program 
-    command = "./automata_sketch.out"
-    full_run_output = readchomp(eval(Meta.parse("`$(command)`")))  
-    full_run_output = replace(full_run_output, "\x01" => "")
+      while length(grouped_ranges) > 0
+        grouped_range = grouped_ranges[1]
+        grouped_ranges = grouped_ranges[2:end]
     
-    output_per_object_id_list = filter(x -> occursin("TRAJECTORY", x), split(full_run_output, "DONE"))
-
-    object_field_values = Dict()
-    accept_values = []
-    transitions = []
-    for output_index in 1:length(output_per_object_id_list)
-      run_output = output_per_object_id_list[output_index]
-
-      parts = split(run_output, "STATE TRAJECTORY")
-      state_transition_string = parts[1]
-      states_and_table_string = parts[2]
-
-      parts = split(states_and_table_string, "TABLE")
-      states_string = parts[1]
-      table_string = parts[2]
-
-      # parse state trajectory into init_global_var_dict 
-      field_values = map(s -> parse(Int, s), filter(x -> x != " ", split(states_string, "\n")))
-      object_field_values[object_ids[output_index]] = field_values
-
-      # construct init_accept_values from table and on_clauses 
-      state_to_update_function_index_arr = map(s -> parse(Int, s), filter(x -> x != " ", split(table_string, "\n")))
-      distinct_states = unique(field_values)
-
-      update_function_index = 1
-      corresponding_states = map(i -> i - 1, findall(x -> x == update_function_index, state_to_update_function_index_arr))
-      corresponding_states = intersect(corresponding_states, distinct_states) # don't count extraneous indices from table
-      push!(accept_values, corresponding_states...) 
-      
-      # parse state transitions string to construct state_update_on_clauses and state_update_times 
-      if state_transition_string != "" 
-        lines = filter(l -> l != " ", split(state_transition_string, "\n"))
-        grouped_transitions = collect(Iterators.partition(lines, 6))  
-        for grouped_transition in grouped_transitions 
-          start_state = parse(Int, grouped_transition[2])
-          transition_label = distinct_events[parse(Int, grouped_transition[4])]
-          end_state = parse(Int, grouped_transition[6])
-          push!(transitions, (start_state, end_state, transition_label))
+        range = grouped_range[1]
+        start_value = range[1][2]
+        end_value = range[2][2]
+    
+        max_state_value = maximum(vcat(map(id -> map(tuple -> tuple[2], augmented_positive_times_dict[id]), collect(keys(augmented_positive_times_dict)))...))
+    
+        # TODO: try global events too  
+        events_in_range = []
+        if events_in_range == [] # if no global events are found, try object-specific events 
+          # events_in_range = find_state_update_events(event_vector_dict, augmented_positive_times, time_ranges, start_value, end_value, global_var_dict, global_var_value)
+          events_in_range = find_state_update_events_object_specific(small_event_vector_dict, augmented_positive_times_dict, grouped_range, object_ids, object_mapping, curr_state_value)
         end
-      
+        @show events_in_range
+        events_in_range = filter(e -> !occursin("field1", e[1]) && !occursin("globalVar1", e[1]), events_in_range)
+        if length(events_in_range) > 0 # only handling perfect matches currently 
+          
+          index = min(length(events_with_min_times), transition_decision_index > num_transition_decisions ? 1 : transition_decision_string[transition_decision_index])            
+          
+          event, event_times = events_with_min_times[index]
+          # formatted_event = replace(event, "(filter (--> obj (== (.. obj id) x)) (prev addedObjType$(type_id)List))" => "(list (prev obj))")
+    
+          for id in object_ids # collect(keys(state_update_times))
+            object_event_times = map(t -> t[1], filter(time -> time[2] == id, event_times))
+            for time in object_event_times
+              sketch_event_arrs_dict[id][time] = event
+            end
+          end
+        else
+          false_positive_events = find_state_update_events_object_specific_false_positives(small_event_vector_dict, augmented_positive_times_dict, grouped_range, object_ids, object_mapping, curr_state_value)      
+          false_positive_events_with_state = filter(e -> !occursin("field1", e[1]) && !occursin("globalVar1", e[1]), false_positive_events)
+          @show false_positive_events
+          events_without_true = filter(tuple -> !occursin("true", tuple[1]) && tuple[2] == minimum(map(t -> t[2], false_positive_events_with_state)), false_positive_events_with_state)
+          if events_without_true != []
+
+            index = min(length(events_without_true), transition_decision_index > num_transition_decisions ? 1 : transition_decision_string[transition_decision_index])            
+            false_positive_event, _, true_positive_times, false_positive_times = events_without_true[index] 
+          
+            # construct state update on-clause
+            # formatted_event = replace(false_positive_event, "(filter (--> obj (== (.. obj id) x)) (prev addedObjType$(type_id)List))" => "(list (prev obj))")
+            
+            for id in object_ids # collect(keys(state_update_times))
+              object_event_times = map(t -> t[1], filter(time -> time[2] == id, vcat(true_positive_times, false_positive_times)))
+              for time in object_event_times
+                sketch_event_arrs_dict[id][time] = false_positive_event
+              end
+            end
+              
+          end
+        end
+        transition_decision_index += 1
       end
-    end
-    println("OUTPUT?")
-    @show [(unique(accept_values), object_field_values, unique(transitions), co_occurring_event)]
-    [(unique(accept_values), object_field_values, unique(transitions), co_occurring_event)]
-  else
-    # return default val
-    ([], Dict(), [], "")
-  end
+    
+      distinct_events = sort(unique(vcat(collect(values(sketch_event_arrs_dict))...)))  
+      
+      if length(distinct_events) > 9 
+        return solutions
+      end
+    
+      sketch_event_arrs_dict_formatted = Dict(map(id -> id => map(e -> findall(x -> x == e, distinct_events)[1], sketch_event_arrs_dict[id]) , collect(keys(sketch_event_arrs_dict)))) # map(e -> findall(x -> x == e, distinct_events)[1], sketch_event_trajectory)
+      
+      true_char = "0"
+      if "true" in distinct_events 
+        true_char = string(findall(x -> x == "true", distinct_events)[1])
+      end
+    
+      # construct sketch update function input array
+      sketch_update_function_arr = Dict(map(id -> id => ["0" for i in 1:length(sketch_event_arrs_dict_formatted[object_ids[1]])], object_ids))
+      for id in object_ids 
+        augmented_positive_times = augmented_positive_times_dict[id]
+        for tuple in augmented_positive_times 
+          time, value = tuple 
+          sketch_update_function_arr[id][time] = string(value)
+        end
+      end
+    
+      sketch_program = """ 
+      include "$(sketch_directory)sketchlib/string.skh"; 
+      include "$(sketch_directory)test/sk/numerical/mstatemachine.skh";
+      
+      bit recognize_obj_specific([int n], char[n] events, int[n] functions, int start, char true_char) {
+          return matches(MSM_obj_specific(events, start, true_char), functions);
+      }
+    
+      $(join(map(i -> """harness void h$(i)() {
+                            int start = ??;
+                            assert recognize_obj_specific({ $(join(map(c -> "'$(c)'", sketch_event_arrs_dict_formatted[object_ids[i]]), ", ")) }, 
+                                                          { $(join(sketch_update_function_arr[object_ids[i]], ", ")) }, 
+                                                          start, 
+                                                          '$(true_char)');
+                          }""", collect(1:length(object_ids))), "\n\n"))
+      """
+    
+      ## save sketch program as file 
+      open("automata_sketch.sk","w") do io
+        println(io, sketch_program)
+      end
+    
+      # run Sketch query
+      if sketch_timeout == 0 
+        command = "$(sketch_directory)sketch --bnd-unroll-amnt $(length(sketch_update_function_arr[object_ids[1]]) + 2) --fe-output-code automata_sketch.sk"
+      else
+        if Sys.islinux() 
+          command = "timeout $(sketch_timeout) $(sketch_directory)sketch --bnd-unroll-amnt $(length(sketch_update_function_arr[object_ids[1]]) + 2) --fe-output-code automata_sketch.sk"
+        else
+          command = "gtimeout $(sketch_timeout) $(sketch_directory)sketch --bnd-unroll-amnt $(length(sketch_update_function_arr[object_ids[1]]) + 2) --fe-output-code automata_sketch.sk"
+        end
+      end
+    
+        sketch_output = try 
+                        readchomp(eval(Meta.parse("`$(command)`")))
+                      catch e
+                        ""
+                      end
+    
+    
+      if !occursin("The sketch could not be resolved.", sketch_output) && sketch_output != ""
+        # update intAsChar and add main function to output cpp file 
+        f = open("automata_sketch.cpp", "r")
+        cpp_content = read(f, String)
+        close(f)
+    
+        modified_cpp_content = string(replace(cpp_content, """void intAsChar(int x, char& _out) {
+          _out = x % 10;
+          return;
+        }""" => "")[1:end-3],
+          """void intAsChar(int x, char& _out) {
+          _out = static_cast<char>(x % 10);
+          _out = printf("%d", _out);
+        }
+        
+        }
+        int main() {
+          $(join(map(i -> "ANONYMOUS::h$(i)();", collect(1:length(object_ids))), "\n  "))
+        
+          return 0;
+        }
+        """)
+    
+        open("automata_sketch.cpp", "w+") do io
+          println(io, modified_cpp_content)
+        end
+    
+        # compile modified cpp program 
+        command = "g++ -o automata_sketch.out automata_sketch.cpp"
+        compile_output = readchomp(eval(Meta.parse("`$(command)`"))) 
+    
+        # run compiled cpp program 
+        command = "./automata_sketch.out"
+        full_run_output = readchomp(eval(Meta.parse("`$(command)`")))  
+        full_run_output = replace(full_run_output, "\x01" => "")
+        
+        output_per_object_id_list = filter(x -> occursin("TRAJECTORY", x), split(full_run_output, "DONE"))
+    
+        object_field_values = Dict()
+        accept_values = []
+        transitions = []
+        for output_index in 1:length(output_per_object_id_list)
+          run_output = output_per_object_id_list[output_index]
+    
+          parts = split(run_output, "STATE TRAJECTORY")
+          state_transition_string = parts[1]
+          states_and_table_string = parts[2]
+    
+          parts = split(states_and_table_string, "TABLE")
+          states_string = parts[1]
+          table_string = parts[2]
+    
+          # parse state trajectory into init_global_var_dict 
+          field_values = map(s -> parse(Int, s), filter(x -> x != " ", split(states_string, "\n")))
+          object_field_values[object_ids[output_index]] = field_values
+    
+          # construct init_accept_values from table and on_clauses 
+          state_to_update_function_index_arr = map(s -> parse(Int, s), filter(x -> x != " ", split(table_string, "\n")))
+          distinct_states = unique(field_values)
+    
+          update_function_index = 1
+          corresponding_states = map(i -> i - 1, findall(x -> x == update_function_index, state_to_update_function_index_arr))
+          corresponding_states = intersect(corresponding_states, distinct_states) # don't count extraneous indices from table
+          push!(accept_values, corresponding_states...) 
+          
+          # parse state transitions string to construct state_update_on_clauses and state_update_times 
+          if state_transition_string != "" 
+            lines = filter(l -> l != " ", split(state_transition_string, "\n"))
+            grouped_transitions = collect(Iterators.partition(lines, 6))  
+            for grouped_transition in grouped_transitions 
+              start_state = parse(Int, grouped_transition[2])
+              transition_label = distinct_events[parse(Int, grouped_transition[4])]
+              end_state = parse(Int, grouped_transition[6])
+              push!(transitions, (start_state, end_state, transition_label))
+            end
+          
+          end
+        end
+        println("OUTPUT?")
+        @show [(unique(accept_values), object_field_values, unique(transitions), co_occurring_event)]
+        push!(solutions, (unique(accept_values), object_field_values, unique(transitions), co_occurring_event))
+      end
+  
+      if length(solutions) >= 8 
+        break
+      end 
+  
+    end # end of transition decision string loop 
+
+    if length(solutions) >= 8 
+      break
+    end 
+
+  end # end of co-occurring loop
+  solutions 
+
 end

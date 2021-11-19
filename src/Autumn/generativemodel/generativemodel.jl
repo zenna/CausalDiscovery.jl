@@ -175,7 +175,7 @@ function generate_hypothesis_update_rule(object, object_decomposition; p=0.0)
   """(= obj$(object.id) $(genObjectUpdateRule("obj$(object.id)", environment, p=p)))"""
 end
 
-function generate_hypothesis_position(position, environment_vars)
+function generate_hypothesis_position(position, environment_vars, pedro)
   println("GENERATE_HYPOTHESIS_POSITION")
   objects = map(obj -> "obj$(obj.id)", filter(x -> x isa Obj, environment_vars))
   user_event = filter(x -> !(x isa Obj), environment_vars)[1]
@@ -183,8 +183,13 @@ function generate_hypothesis_position(position, environment_vars)
   choices = []
   @show length(objects)
   if length(objects) != 0
-    push!(choices, ["(.. $(rand(objects)) origin)",
-                    "(move (.. $(rand(objects)) origin) (Position $(rand(-1:1)) $(rand(-1:1))))"]...)
+    if !pedro 
+      push!(choices, ["(.. $(rand(objects)) origin)",
+      "(move (.. $(rand(objects)) origin) (Position $(rand(-1:1)) $(rand(-1:1))))"]...)
+    else
+      push!(choices, ["(.. $(rand(objects)) origin)",
+      "(move (.. $(rand(objects)) origin) (Position $(rand(-30:30)) $(rand(-30:30))))"]...)
+    end
   end
 
   if !isnothing(user_event) && (user_event != "nothing") && (occursin("click", split(user_event, " ")[1])) 
@@ -304,20 +309,20 @@ function gen_event_bool_human_prior(object_decomposition, object_id, type_id, us
                                       ], 
                            map(obj -> obj.position, filter(x -> !isnothing(x) && (abs(x.position[1]) <= 3 || abs(x.position[1] - (grid_size isa Int ? grid_size : grid_size[1])) <= 3), object_mapping[object.id])))...)...)
         
-        # displacements = []
-        # for x in -3:3 
-        #   for y in -3:3
-        #     if abs(x) + abs(y) < 3 && (x == 0 || y == 0) 
-        #       push!(displacements, "(move (prev obj$(object.id)) $(x) $(y))")
-        #     end
-        #   end
-        # end
+        displacements = []
+        for x in -3:3 
+          for y in -3:3
+            if abs(x) + abs(y) < 3 && (x == 0 || y == 0) 
+              push!(displacements, "(move (prev obj$(object.id)) $(x) $(y))")
+              # push!(displacements, "(move (prev obj$(object.id)) $(x * 30) $(y * 30))")
+            end
+          end
+        end
 
-        # for disp in displacements 
-        #   push!(choices, "(! (isWithinBounds $(disp)))")
-        # end
+        for disp in displacements 
+          push!(choices, "(! (isWithinBounds $(disp)))")
+        end
                    
-
         # push!(choices, ["(! (isWithinBounds (moveLeft  (prev obj$(object.id)))))",
         #                 "(! (isWithinBounds (moveRight  (prev obj$(object.id)))))",
         #                 "(! (isWithinBounds (moveUp  (prev obj$(object.id)))))",
@@ -373,7 +378,7 @@ function gen_event_bool_human_prior(object_decomposition, object_id, type_id, us
     push!(choices, "(clicked (filter (--> obj (== (.. obj id) $(object_id))) (prev addedObjType$(type.id)List)))")
 
     for type2 in object_types 
-      if type2.id < type.id 
+      if type2.id != type.id 
         push!(choices, "(intersects (prev addedObjType$(type.id)List) (prev addedObjType$(type2.id)List))")
         push!(choices, "(intersects (filter (--> obj (== (.. obj id) $(object_id))) (prev addedObjType$(type.id)List)) (prev addedObjType$(type2.id)List))")
       end
@@ -398,7 +403,7 @@ function gen_event_bool(object_decomposition, object_id, type_id, update_rule, u
     push!(choices, "(== (% (prev time) 10) 0)")  
     push!(choices, "(== (% (prev time) 5) 2)")
     push!(choices, "(== (% (prev time) 4) 2)") 
-    # push!(choices, "(== (% (prev time) 16) 0)") 
+    push!(choices, "(== (% (prev time) 16) 0)") 
     # push!(choices, "(== (% (prev time) 16) 1)") 
   end
 
@@ -691,7 +696,18 @@ function gen_event_bool(object_decomposition, object_id, type_id, update_rule, u
 
   println("XYZ")
   @show choices
+  @show length(choices)
   # choices = gen_event_bool_human_prior(object_decomposition, object_id, type_id, user_events, global_var_dict, update_rule)
+  
+  # if time_based 
+  #   push!(choices, "(== (% (prev time) 10) 5)")
+  #   push!(choices, "(== (% (prev time) 10) 0)")  
+  #   push!(choices, "(== (% (prev time) 5) 2)")
+  #   push!(choices, "(== (% (prev time) 4) 2)") 
+  #   push!(choices, "(== (% (prev time) 16) 0)") 
+  #   push!(choices, "(== (% (prev time) 16) 1)") 
+  # end
+  
   sort(unique(choices), by=length)
 end
 

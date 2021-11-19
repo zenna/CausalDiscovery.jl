@@ -177,11 +177,12 @@ function synthesize_update_functions(object_id, time, object_decomposition, user
     println("HELLO")
     # # @show prev_objects
     prev_objects_not_listed = filter(x -> !isnothing(object_mapping[x.id][1]) && count(k -> filter(y -> !isnothing(y), object_mapping[k])[1].type.id == x.type.id, collect(keys(object_mapping))) == 1, prev_objects)
-    abstracted_positions, prev_abstract_positions = abstract_position(next_object.position, prev_abstract_positions, user_events[time - 1], (object_types, sort(prev_objects_not_listed, by = x -> x.id), background, grid_size))
+    abstracted_positions, prev_abstract_positions = abstract_position(next_object.position, prev_abstract_positions, user_events[time - 1], (object_types, sort(prev_objects_not_listed, by = x -> x.id), background, grid_size), pedro)
     # abstracted_positions = [abstracted_positions..., "(uniformChoice (randomPositions $(grid_size) 1))"]
     
     # add uniformChoice option
     matching_objects = filter(o -> o.position == next_object.position, prev_existing_objects)
+
     if (matching_objects != []) && (isnothing(object_mapping[matching_objects[1].id][1]) || !(matching_objects[1].type.id in map(x -> x.id, prev_objects_not_listed))) 
       # matching object is in a list!
 
@@ -190,6 +191,29 @@ function synthesize_update_functions(object_id, time, object_decomposition, user
       for matching_object in matching_objects 
         push!(abstracted_positions, "(uniformChoice (map (--> obj (.. obj origin)) (filter (--> obj (== (.. obj id) $(matching_object.id))) (prev addedObjType$(matching_object.type.id)List))))")
       end      
+    end
+
+    if pedro 
+      pedro_matching_objects = filter(o -> next_object.position in [(o.position[1] + 24, o.position[2]), 
+                                                                    (o.position[1] - 24, o.position[2]), 
+                                                                    (o.position[1], o.position[2] + 24), 
+                                                                    (o.position[1], o.position[2] - 24),
+                                                                    (o.position[1], o.position[2])], prev_existing_objects)
+      
+      if (pedro_matching_objects != []) && (isnothing(object_mapping[pedro_matching_objects[1].id][1]) || !(pedro_matching_objects[1].type.id in map(x -> x.id, prev_objects_not_listed))) 
+        first_matching_object = pedro_matching_objects[1]
+        disps = map(o -> (next_object.position[1] - o.position[1], next_object.position[2] - o.position[2]), pedro_matching_objects)      
+        abstracted_position = "(.. (uniformChoice (vcat $(join(map(disp -> "(map (--> obj (.. (move obj (Position $(disp[1]) $(disp[2]))) origin)) (prev addedObjType$(first_matching_object.type.id)List))", disps), " ")) (prev addedObjType$(first_matching_object.type.id)List) (prev addedObjType$(first_matching_object.type.id)List) (prev addedObjType$(first_matching_object.type.id)List) (prev addedObjType$(first_matching_object.type.id)List) (prev addedObjType$(first_matching_object.type.id)List) )) origin)"
+        println("RANDOM ABSTRACTIONS!")
+        @show abstracted_position 
+        push!(abstracted_positions, abstracted_position)
+        for matching_object in pedro_matching_objects 
+          disp = (next_object.position[1] - matching_object.position[1], next_object.position[2] - matching_object.position[2]) 
+          pos = "(uniformChoice (map (--> obj (.. (move obj (Position $(disp[1]) $(disp[2]))) origin)) (filter (--> obj (== (.. obj id) $(matching_object.id))) (prev addedObjType$(matching_object.type.id)List))))"
+          @show pos 
+          push!(abstracted_positions, pos)
+        end
+      end
     end
 
     if length(next_object.custom_field_values) > 0
@@ -835,7 +859,7 @@ function has_dups(list::AbstractArray)
   length(unique(list)) != length(list) 
 end
 
-function abstract_position(position, prev_abstract_positions, user_event, object_decomposition, max_iters=100)
+function abstract_position(position, prev_abstract_positions, user_event, object_decomposition, pedro=false, max_iters=100)
   println("ABSTRACT POSITION")
   # @show position 
   # @show prev_abstract_positions 
@@ -856,7 +880,7 @@ function abstract_position(position, prev_abstract_positions, user_event, object
       prev_used_index += 1
     else
       using_prev = false
-      hypothesis_position = generate_hypothesis_position(position, vcat(prev_objects, user_event))
+      hypothesis_position = generate_hypothesis_position(position, vcat(prev_objects, user_event), pedro)
       if hypothesis_position == ""
         break
       end
@@ -1794,18 +1818,29 @@ function generate_event(anonymized_update_rule, distinct_update_rules, object_id
 
   found_events = []
   final_event_globals = []
-  new_choices = filter(e -> !(e in redundant_events_set), gen_event_bool(object_decomposition, "x", type_id, anonymized_update_rule, filter(e -> e != "", unique(user_events)), global_var_dict, time_based))
+  choices = gen_event_bool(object_decomposition, "x", type_id, anonymized_update_rule, filter(e -> e != "", unique(user_events)), global_var_dict, time_based)
+  println("WHAT ABOUT HERE")
+  @show choices
+  @show redundant_events_set 
+  new_choices = filter(e -> !(e in redundant_events_set), choices)
   println("STRANGE BEHAVIOR")
+  @show time_based 
+  @show new_choices
   @show length(new_choices)
   @show length(collect(keys(event_vector_dict)))
+  @show length(collect(redundant_events_set))
+  @show redundant_events_set
   events_to_try = sort(unique(vcat(new_choices, collect(keys(event_vector_dict)))), by=length)
+  @show length(events_to_try)
   while true
     for event in events_to_try 
       event_is_global = !occursin(".. obj id)", event)
       anonymized_event = event # replace(event, ".. obj id) $(object_ids[1])" => ".. obj id) x")
-      
+      @show anonymized_event
+      @show type_id
       is_event_object_specific_with_correct_type = event_is_global || parse(Int, split(match(r".. obj id x prev addedObjType\dList", replace(replace(anonymized_event, ")" => ""), "(" => "")).match, "addedObjType")[2][1]) == type_id
-      
+      @show is_event_object_specific_with_correct_type
+      @show object_ids
       if !(occursin("first", anonymized_event) && (nothing in vcat(map(k -> object_mapping[k], collect(keys(object_mapping)))...))) && is_event_object_specific_with_correct_type
         
         if !(anonymized_event in keys(event_vector_dict)) # || !(event_vector_dict[anonymized_event] isa AbstractArray) && intersect(object_ids, collect(keys(event_vector_dict[anonymized_event]))) == [] # event values are not stored
@@ -1815,7 +1850,8 @@ function generate_event(anonymized_update_rule, distinct_update_rules, object_id
             event_object_ids = object_ids # collect(keys(object_mapping)) # object_ids; evaluate even for ids not with the current rule's type, for uniformity!!
             event_vector_dict[anonymized_event] = Dict()
           end
-    
+          
+          @show event_object_ids
           for object_id in event_object_ids 
             formatted_event = replace(event, ".. obj id) x" => ".. obj id) $(object_id)")
             program_str = singletimestepsolution_program_given_matrix_NEW(matrix, object_decomposition, grid_size) # CHANGE BACK TO DIM LATER
@@ -1923,6 +1959,7 @@ function generate_event(anonymized_update_rule, distinct_update_rules, object_id
           push!(event_values_dicts, (event, event_values_dict))
         else
           # add object-specific event values
+          @show collect(keys(event_vector_dict[anonymized_event]))
           event_values_dict = Dict() 
           for object_id in object_ids 
             event_values_dict[object_id] = event_vector_dict[anonymized_event][object_id]
@@ -1987,6 +2024,7 @@ function generate_event(anonymized_update_rule, distinct_update_rules, object_id
     # remove duplicate events that are observationally equivalent
     println("PRE PRUNING")
     @show length(collect(keys(event_vector_dict)))
+    @show event_vector_dict
 
     event_vector_dict, redundant_events_set = prune_by_observational_equivalence(event_vector_dict, redundant_events_set)
 
