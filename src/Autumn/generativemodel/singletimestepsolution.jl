@@ -1747,7 +1747,7 @@ end
 # generate_event, generate_hypothesis_position, generate_hypothesis_position_program 
 ## tricky things: add user events, and fix environment 
 global hypothesis_state = nothing
-function generate_event(anonymized_update_rule, distinct_update_rules, object_id, object_ids, matrix, filtered_matrix, object_decomposition, user_events, state_update_on_clauses, global_var_dict, event_vector_dict, grid_size, redundant_events_set, min_events=1, max_iters=400, z3_option = "none", time_based=true, z3_timeout=0, sketch_timeout=0)
+function generate_event(run_id, anonymized_update_rule, distinct_update_rules, object_id, object_ids, matrix, filtered_matrix, object_decomposition, user_events, state_update_on_clauses, global_var_dict, event_vector_dict, grid_size, redundant_events_set, min_events=1, max_iters=400, z3_option = "none", time_based=true, z3_timeout=0, sketch_timeout=0)
   println("GENERATE EVENT")
   # # @show object_decomposition
   object_types, object_mapping, background, dim = object_decomposition 
@@ -1841,7 +1841,8 @@ function generate_event(anonymized_update_rule, distinct_update_rules, object_id
       is_event_object_specific_with_correct_type = event_is_global || parse(Int, split(match(r".. obj id x prev addedObjType\dList", replace(replace(anonymized_event, ")" => ""), "(" => "")).match, "addedObjType")[2][1]) == type_id
       @show is_event_object_specific_with_correct_type
       @show object_ids
-      if !(occursin("first", anonymized_event) && (nothing in vcat(map(k -> object_mapping[k], collect(keys(object_mapping)))...))) && is_event_object_specific_with_correct_type
+      # !(occursin("first", anonymized_event) && (nothing in vcat(map(k -> object_mapping[k], collect(keys(object_mapping)))...))) && is_event_object_specific_with_correct_type
+      if is_event_object_specific_with_correct_type
         
         if !(anonymized_event in keys(event_vector_dict)) # || !(event_vector_dict[anonymized_event] isa AbstractArray) && intersect(object_ids, collect(keys(event_vector_dict[anonymized_event]))) == [] # event values are not stored
           if event_is_global # if the event is global, only need to evaluate the event on one object_id 
@@ -2100,7 +2101,7 @@ function generate_event(anonymized_update_rule, distinct_update_rules, object_id
       @show observation_data_dict
       if length(found_events) < min_events 
         partial_param = (z3_option == "partial")
-        solution_event = z3_event_search_full(observation_data_dict, z3_event_vector_dict, partial_param, z3_timeout)
+        solution_event = z3_event_search_full(run_id, observation_data_dict, z3_event_vector_dict, partial_param, z3_timeout)
         if solution_event != "" 
           push!(found_events, solution_event)
           if occursin("obj id) x", solution_event)
@@ -2166,13 +2167,13 @@ function z3_event_search_partial(observed_data_dict, event_vector_dict, timeout=
   event
 end
 
-function z3_event_search_full(observed_data_dict, event_vector_dict, partial=false, timeout=0)
+function z3_event_search_full(run_id, observed_data_dict, event_vector_dict, partial=false, timeout=0)
   println("Z3_EVENT_SEARCH_FULL")
   @show length(collect(keys(event_vector_dict)))
   @show observed_data_dict 
   @show event_vector_dict
-  Pickle.store("./observed_data_dict.pkl", observed_data_dict)
-  Pickle.store("./event_vector_dict.pkl", event_vector_dict)
+  Pickle.store("./observed_data_dict_$(run_id).pkl", observed_data_dict)
+  Pickle.store("./event_vector_dict_$(run_id).pkl", event_vector_dict)
 
   # activate autumn environment containing z3
   # command = "conda activate autumn"
@@ -2182,12 +2183,12 @@ function z3_event_search_full(observed_data_dict, event_vector_dict, partial=fal
   options = partial ? [1, 2] : collect(1:14)
   for option in options
     if timeout == 0 
-      command = "python3 z3_event_search_full.py $(option)"
+      command = "python3 z3_event_search_full.py $(option) $(run_id)"
     else
       if Sys.islinux() 
-        command = "gtimeout $(timeout) python3 z3_event_search_full.py $(option)"
+        command = "gtimeout $(timeout) python3 z3_event_search_full.py $(option) $(run_id)"
       else
-        command = "timeout $(timeout) python3 z3_event_search_full.py $(option)"
+        command = "timeout $(timeout) python3 z3_event_search_full.py $(option) $(run_id)"
       end
     end
     z3_output = try 

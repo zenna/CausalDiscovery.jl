@@ -500,39 +500,102 @@ function generate_observations_egg(m::Module)
 end
 
 function generate_observations_grow(m::Module)
+  # state = Base.invokelatest(m.init, nothing, nothing, nothing, nothing, nothing)
+  # observations = []
+  # user_events = []
+  # push!(observations, Base.invokelatest(m.render, state.scene))
+
+  # events = Dict([1 => "left",
+  #                2 => "down",
+  #                5 => "down",
+  #                8 => "down",
+  #                9 => "left",
+  #                10 => "left",
+  #                11 => "down",
+  #                14 => "down",
+  #                18 => (0, 0),
+  #                19 => "down",
+  #                20 => "left",
+  #                21 => "left",
+  #                22 => "down",
+  #                23 => (1, 0),
+  #                24 => (2, 0),
+  #                25 => (3, 0),
+  #                26 => (4, 0),
+  #                27 => (5, 0),
+  #                29 => (6, 0),
+  #                31 => (6, 0),
+  #                32 => (5, 0),
+  #                33 => (4, 0),
+  #                34 => (3, 0),
+  #                35 => (2, 0),
+  #                37 => (1, 0),
+  #               ])
+
+  # for i in 0:38
+  #   if i in collect(keys(events))
+  #     event = events[i]
+  #     if event == "left"
+  #       state = Base.invokelatest(m.next, state, nothing, Base.invokelatest(m.Left), nothing, nothing, nothing)
+  #       push!(user_events, event)
+  #     elseif event == "right"
+  #       state = Base.invokelatest(m.next, state, nothing, nothing, Base.invokelatest(m.Right), nothing, nothing)
+  #       push!(user_events, event)
+  #     elseif event == "up"
+  #       state = Base.invokelatest(m.next, state, nothing, nothing, nothing, Base.invokelatest(m.Up), nothing)
+  #       push!(user_events, event)
+  #     elseif event == "down"
+  #       state = Base.invokelatest(m.next, state, nothing, nothing, nothing, nothing, Base.invokelatest(m.Down))
+  #       push!(user_events, event)
+  #     else 
+  #       click_x, click_y = events[i]
+  #       state = Base.invokelatest(m.next, state, Base.invokelatest(m.Click, click_x, click_y), nothing, nothing, nothing, nothing)
+  #       push!(user_events, "click $(click_x) $(click_y)")
+  #     end
+  #   else
+  #     state = Base.invokelatest(m.next, state, nothing, nothing, nothing, nothing, nothing)
+  #     push!(user_events, nothing)
+  #   end
+  #   push!(observations, Base.invokelatest(m.render, state.scene))
+  # end
+  # observations, user_events, 8
+
   state = Base.invokelatest(m.init, nothing, nothing, nothing, nothing, nothing)
   observations = []
   user_events = []
   push!(observations, Base.invokelatest(m.render, state.scene))
 
-  events = Dict([1 => "left",
+  events = Dict([
+                 0 => "left",
+                 1 => "right",
                  2 => "down",
-                 5 => "down",
                  8 => "down",
-                 9 => "left",
-                 10 => "left",
-                 11 => "down",
                  14 => "down",
-                 18 => (0, 0),
-                 19 => "down",
-                 20 => "left",
-                 21 => "left",
-                 22 => "down",
-                 23 => (1, 0),
-                 24 => (2, 0),
-                 25 => (3, 0),
-                 26 => (4, 0),
-                 27 => (5, 0),
-                 29 => (6, 0),
-                 31 => (6, 0),
-                 32 => (5, 0),
-                 33 => (4, 0),
-                 34 => (3, 0),
-                 35 => (2, 0),
-                 37 => (1, 0),
+                 15 => "left",
+                #  20 => "down",  
+                 27 => "left",
+                 29 => "down",
+                 37 => "down",
+                 39 => (0, 0),
+                 43 => "down",
+                 44 => "left",
+                 45 => "left",
+                 49 => "down",
+                 53 => (1, 0),
+                 55 => (2, 0),
+                 57 => (3, 0),
+                 59 => (4, 0),
+                 61 => (5, 0),
+                 63 => (5, 0),
+                 64 => "down",
+                 70 => "down",
+                 74 => (4, 0),
+                 76 => (3, 0),
+                 78 => (2, 0),
+                 80 => (1, 0),
                 ])
 
-  for i in 0:38
+  for i in -1:81
     if i in collect(keys(events))
       event = events[i]
       if event == "left"
@@ -558,7 +621,8 @@ function generate_observations_grow(m::Module)
     end
     push!(observations, Base.invokelatest(m.render, state.scene))
   end
-  observations, user_events, 8
+  # observations, user_events, 7
+  filter_out_of_bounds_cells(observations, 7), user_events, 7
 end
 
 function generate_observations_magnets(m::Module)
@@ -1256,9 +1320,9 @@ function generate_observations_mario(m::Module)
                  28 => "right",
                  37 => "right",
                  
-                 40 => "click 15 15",
-                 45 => "click 14 13",
-                 46 => "click 14 14",
+                 41 => "click 15 15",
+                 46 => "click 14 13",
+                 47 => "click 14 14",
                  55 => "up",
                  56 => "left",
                  57 => "left",
@@ -1299,7 +1363,8 @@ function generate_observations_mario(m::Module)
     end
     push!(observations, Base.invokelatest(m.render, state.scene))
   end
-  observations, user_events, 16
+  # observations, user_events, 16
+  filter_out_of_bounds_cells(observations, 16), user_events, 16
 end
 
 function generate_observations_bullets(m::Module)
@@ -1308,37 +1373,54 @@ function generate_observations_bullets(m::Module)
   user_events = []
   push!(observations, Base.invokelatest(m.render, state.scene))
 
+  # events = Dict([
+  #               #  3 => "click 15 0",
+  #               #  4 => "click 0 0",
+  #               #  5 => "left",
+  #                7 => "click 1 1",
+  #                8 => "up",
+  #                10 => "click 2 2",
+  #                11 => "right",
+  #                13 => "click 3 3",
+  #                14 => "down",
+  #                16 => "click 4 4",
+  #                27 => "down",
+  #                28 => "down",
+  #                29 => "down",
+  #                30 => "down",
+  #                31 => "down",
+  #                32 => "click 15 1",
+  #                34 => "left",
+  #                35 => "left",
+  #                36 => "left",
+  #                37 => "left",
+  #                39 => "click 1 0",
+  #                40 => "up",
+  #                45 => "click 2 0",
+  #                47 => "right",
+  #                49 => "click 3 0",
+  #                50 => "down",
+  #                51 => "click 4 0", 
+  #               ])
+
   events = Dict([
                 #  3 => "click 15 0",
                 #  4 => "click 0 0",
                 #  5 => "left",
+                 5 => "click 1 1",
                  7 => "click 1 1",
-                 8 => "up",
-                 10 => "click 2 2",
-                 11 => "right",
-                 13 => "click 3 3",
-                 14 => "down",
-                 16 => "click 4 4",
-                 27 => "down",
-                 28 => "down",
-                 29 => "down",
-                 30 => "down",
-                 31 => "down",
-                 32 => "click 15 1",
-                 34 => "left",
-                 35 => "left",
-                 36 => "left",
-                 37 => "left",
-                 39 => "click 1 0",
-                 40 => "up",
-                 45 => "click 2 0",
-                 47 => "right",
-                 49 => "click 3 0",
-                 50 => "down",
-                 51 => "click 4 0", 
+                 9 => "up",
+                 11 => "click 1 1",
+                 13 => "click 2 2",
+                 15 => "right",
+                 17 => "click 3 3",
+                 19 => "click 4 4",
+                 21 => "down",
+                 23 => "click 4 4",
+                 25 => "click 0 0",
                 ])
 
-  for i in 1:53
+  for i in 1:28
     if i in collect(keys(events))
       event = events[i]
       if event == "left"

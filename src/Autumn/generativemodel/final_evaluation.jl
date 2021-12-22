@@ -38,6 +38,7 @@ include("test_synthesis.jl")
 # end
 
 function run_model(model_name::String, algorithm, desired_per_matrix_solution_count, desired_solution_count)
+  run_id = string(model_name, "_", algorithm)
   # build desired directory structure
   date_string = Dates.format(Dates.now(), "yyyy-mm-dd HH:MM:SS")
   directory_name = string("heuristic_final_results/results_$(date_string)")
@@ -108,7 +109,8 @@ function run_model(model_name::String, algorithm, desired_per_matrix_solution_co
     #                                         algorithm="sketch_multi")
 
 
-    timed_tuple = @timed synthesize_program_given_decomp(singlecell ? deepcopy(singlecell_decomp) : deepcopy(multicell_decomp), 
+    timed_tuple = @timed synthesize_program_given_decomp( run_id, 
+                                                          singlecell ? deepcopy(singlecell_decomp) : deepcopy(multicell_decomp), 
                                                           deepcopy(observation_tuple),
                                                           singlecell ? singlecell_global_event_vector_dict : multicell_global_event_vector_dict,
                                                           singlecell ? singlecell_redundant_events_set : multicell_redundant_events_set, 
@@ -159,9 +161,9 @@ function run_model(model_name::String, algorithm, desired_per_matrix_solution_co
       break
     end
 
-    if total_time > 60 * 120
-      break
-    end
+    # if total_time > 60 * 120
+    #   break
+    # end
 
   end
   
@@ -177,7 +179,8 @@ function run_model(model_name::String, algorithm, desired_per_matrix_solution_co
                         #                                   z3_option="full",
                         #                                   sketch_timeout=60 * 120)
 
-        timed_tuple = @timed synthesize_program_given_decomp(singlecell ? deepcopy(singlecell_decomp) : deepcopy(multicell_decomp), 
+        timed_tuple = @timed synthesize_program_given_decomp(run_id,
+                                                             singlecell ? deepcopy(singlecell_decomp) : deepcopy(multicell_decomp), 
                                                              deepcopy(observation_tuple),
                                                              singlecell ? singlecell_global_event_vector_dict : multicell_global_event_vector_dict,
                                                              singlecell ? singlecell_redundant_events_set : multicell_redundant_events_set, 

@@ -2,7 +2,6 @@
 
 curr_date=$(date '+%Y-%m-%d_%H:%M:%S')
 # algorithms=("heuristic" "sketch_multi" "sketch_single")
-algorithms=("heuristic")
 num_repeats=1
 
 # model_names=("paint"
@@ -28,14 +27,9 @@ model_names=("paint"
 
 for model_name in ${model_names[@]}
 do
-  for algorithm in ${algorithms[@]}
-  do
-    for (( i = 1 ; i <= $num_repeats; i++ )) ### Inner for loop ###
-    do
-      echo "model_name: $model_name, algorithm: $algorithm, repeat: $i "
-      julia --project=. src/Autumn/generativemodel/scripts/full_eval.jl $model_name $algorithm $curr_date $i
-    done  
-  done
+  echo "model_name: $model_name, algorithm: all, repeat: $i "
+  nohup bash src/Autumn/generativemodel/scripts/full_eval_one_model.sh $model_name $curr_date $num_repeats &
+  sleep 60
 done
 
 # julia --project=. src/Autumn/generativemodel/scripts/compute_output_accuracy.jl

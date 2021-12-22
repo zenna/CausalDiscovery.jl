@@ -4,15 +4,18 @@ from bitstring import BitArray
 import sys 
 
 option = int(sys.argv[1])
+run_id = sys.argv[2]
 
 # dictionary of event strings to their observed bit-vectors
-event_vector_dict = pickle.load(open('./event_vector_dict.pkl', 'rb')) # {"up" : [1,0,0,1], "down" : [1, 1, 1, 0], "right" : {1 : [0, 1, 1, 1], 2 : [1, 1, 1, 0]}}
+event_vector_dict = pickle.load(open('./event_vector_dict_'+ run_id + '.pkl', 'rb')) # {"up" : [1,0,0,1], "down" : [1, 1, 1, 0], "right" : {1 : [0, 1, 1, 1], 2 : [1, 1, 1, 0]}}
 
 # dictionary of object_id's to their observed vectors (-1/0/1)
-observed_data_dict = pickle.load(open('./observed_data_dict.pkl', 'rb')) # {1 : [1, 0, 0, 0], 2 : [1, 0, 0, 0]}  
+observed_data_dict = pickle.load(open('./observed_data_dict_'+ run_id + '.pkl', 'rb')) # {1 : [1, 0, 0, 0], 2 : [1, 0, 0, 0]}  
 
 # sorted list of object_id's
 object_ids = sorted(list(observed_data_dict.keys()))
+# print("OBJECT IDS")
+# print(object_ids)
 
 ambig_positions_dict = {} # dictionary of object_id's to the -1 positions in observed_data_dict
 observed_bv_dict = {} # dictionary of object_id's to observed_data_dict[object_id] value with -1's removed
@@ -30,20 +33,26 @@ for id in empty_ids:
   del ambig_positions_dict[id]
 object_ids = sorted(list(filter(lambda id: id not in empty_ids, object_ids)))
 
+
 atom_dict = {} # dictionary of events to event values with ambig positions filtered out
 for event in event_vector_dict:
+
   event_values = event_vector_dict[event]
+  # print(event_values)
   filtered_event_values = {}
   if isinstance(event_values, list):
+    # print("HERE 1")
     for object_id in object_ids:
       filtered_event_values[object_id] = list(map(lambda i: event_values[i], list(filter(lambda pos: pos not in ambig_positions_dict[object_id], list(range(len(observed_data_dict[object_id])))))))
     atom_dict[event] = filtered_event_values
-  elif set(event_values.keys()) == set(object_ids):
+  elif set(object_ids).issubset(event_values.keys()): # set(event_values.keys()) == set(object_ids):
+    # print("HERE 2")
     for object_id in object_ids:
       filtered_event_values[object_id] = list(map(lambda i: event_values[object_id][i], list(filter(lambda pos: pos not in ambig_positions_dict[object_id], list(range(len(observed_data_dict[object_id])))))))
     atom_dict[event] = filtered_event_values 
 
 sorted_atom_events = sorted(atom_dict.keys())
+
 
 # construct Z3 problem 
 # z3_atoms is list of Z3 arrays of bit_vectors, where there is one array per object_id, 

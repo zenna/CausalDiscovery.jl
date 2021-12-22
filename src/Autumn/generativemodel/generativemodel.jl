@@ -519,7 +519,7 @@ function gen_event_bool(object_decomposition, object_id, type_id, update_rule, u
   #   # out-of-bounds handling 
     displacements = ["(moveUp obj)", "(moveDown obj)", "(moveLeft obj)", "(moveRight obj)", "(move obj -1 1)", "(move obj 1 -1)"]
     for disp1 in displacements 
-      push!(choices, "(in true (map (--> obj (! (isWithinBounds $(disp1)))) (filter (--> obj (== (.. obj id) $(object_id))) (prev addedObjType$(type.id)List))))")
+      push!(choices, "(in true       (map (--> obj (! (isWithinBounds $(disp1)))) (filter (--> obj (== (.. obj id) $(object_id))) (prev addedObjType$(type.id)List))))")
       # for disp2 in displacements 
       #   if disp1 != disp2 
       #     push!(choices, "(in true (map (--> obj (| (! (isWithinBounds $(disp1))) (! (isWithinBounds $(disp2))))) (filter (--> obj (== (.. obj id) $(object_id))) (prev addedObjType$(type.id)List))))")
@@ -551,8 +551,8 @@ function gen_event_bool(object_decomposition, object_id, type_id, update_rule, u
               # #   push!(choices, """(& $(user_event) (& (intersects (list "$(color2)") (map (--> obj2 (.. obj2 color)) (filter (--> obj (== (.. obj id) $(object_id))) (prev addedObjType$(type.id)List)))) (& (!= (length $(filtered_list)) 0) (in (Position $(xCoord) $(yCoord)) (map (--> obj2 (displacement (.. obj2 origin) (.. (first $(filtered_list)) origin))) (filter (--> obj2 (== (.. obj2 color) "$(color)")) (prev addedObjType$(type.id)List)))))))""")
               # # end
 
-              push!(choices, """(in (Position $(xCoord) $(yCoord)) (map (--> obj2 (displacement (.. obj2 origin) (.. (first $(filtered_list)) origin))) (filter (--> obj2 (== (.. obj2 color) "$(color)")) (prev addedObjType$(type.id)List))))""")
-              push!(choices, """(! (in (Position $(xCoord) $(yCoord)) (map (--> obj2 (displacement (.. obj2 origin) (.. (first $(filtered_list)) origin))) (filter (--> obj2 (== (.. obj2 color) "$(color)")) (prev addedObjType$(type.id)List)))))""")
+              push!(choices, """(in (Position $(xCoord) $(yCoord)) (map (--> obj2 (displacement (.. obj2 origin) (if (== 0 (length $(filtered_list))) then (Position -10 -10) else (.. (first $(filtered_list)) origin)))) (filter (--> obj2 (== (.. obj2 color) "$(color)")) (prev addedObjType$(type.id)List))))""")
+              push!(choices, """(! (in (Position $(xCoord) $(yCoord)) (map (--> obj2 (displacement (.. obj2 origin) (if (== 0 (length $(filtered_list))) then (Position -10 -10) else (.. (first $(filtered_list)) origin)))) (filter (--> obj2 (== (.. obj2 color) "$(color)")) (prev addedObjType$(type.id)List)))))""")
             end
           end  
         end

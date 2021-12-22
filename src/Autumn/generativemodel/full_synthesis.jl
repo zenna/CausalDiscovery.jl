@@ -101,7 +101,7 @@ function conf_evaluation()
 
 end
 
-function synthesize_program_given_decomp(decomp, observation_tuple, global_event_vector_dict, redundant_events_set; 
+function synthesize_program_given_decomp(run_id, decomp, observation_tuple, global_event_vector_dict, redundant_events_set; 
                                           pedro = false,
                                           desired_solution_count = 1, # 2
                                           desired_per_matrix_solution_count = 1, # 5
@@ -133,11 +133,11 @@ function synthesize_program_given_decomp(decomp, observation_tuple, global_event
   matrix, unformatted_matrix, object_decomposition, prev_used_rules = decomp                                        
 
   if algorithm == "heuristic"
-    solutions = generate_on_clauses_GLOBAL(matrix, unformatted_matrix, object_decomposition, user_events, global_event_vector_dict, redundant_events_set, grid_size, desired_solution_count, desired_per_matrix_solution_count, interval_painting_param, false, z3_option, time_based, 0, sketch_timeout, co_occurring_param, transition_param)
+    solutions = generate_on_clauses_GLOBAL(run_id, matrix, unformatted_matrix, object_decomposition, user_events, global_event_vector_dict, redundant_events_set, grid_size, desired_solution_count, desired_per_matrix_solution_count, interval_painting_param, false, z3_option, time_based, 0, sketch_timeout, co_occurring_param, transition_param)
   elseif algorithm == "sketch_single"
-    solutions = generate_on_clauses_SKETCH_SINGLE(matrix, unformatted_matrix, object_decomposition, user_events, global_event_vector_dict, redundant_events_set, grid_size, desired_solution_count, desired_per_matrix_solution_count, interval_painting_param, z3_option, time_based, 0, sketch_timeout, co_occurring_param, transition_param)
+    solutions = generate_on_clauses_SKETCH_SINGLE(run_id, matrix, unformatted_matrix, object_decomposition, user_events, global_event_vector_dict, redundant_events_set, grid_size, desired_solution_count, desired_per_matrix_solution_count, interval_painting_param, z3_option, time_based, 0, sketch_timeout, co_occurring_param, transition_param)
   elseif algorithm == "sketch_multi"
-    solutions = generate_on_clauses_SKETCH_MULTI(matrix, unformatted_matrix, object_decomposition, user_events, global_event_vector_dict, redundant_events_set, grid_size, desired_solution_count, desired_per_matrix_solution_count, interval_painting_param, z3_option, time_based, 0, sketch_timeout, co_occurring_param, transition_param)
+    solutions = generate_on_clauses_SKETCH_MULTI(run_id, matrix, unformatted_matrix, object_decomposition, user_events, global_event_vector_dict, redundant_events_set, grid_size, desired_solution_count, desired_per_matrix_solution_count, interval_painting_param, z3_option, time_based, 0, sketch_timeout, co_occurring_param, transition_param)
   else 
     error("algorithm $(algorithm) does not exist")
   end
@@ -170,6 +170,9 @@ function synthesize_program(model_name::String;
                             sketch_timeout=0,
                             )
   println(string("CURRENTLY WORKING ON: ", model_name))
+  
+  run_id = string(model_name, "_", algorithm)
+
   if pedro 
     observations, user_events, grid_size = generate_observations_pedro(model_name)
   else
@@ -193,11 +196,11 @@ function synthesize_program(model_name::String;
     #                                            matrix, unformatted_matrix, object_decomposition, user_events, global_event_vector_dict, redundant_events_set, grid_size=16, desired_solution_count=1, desired_per_matrix_solution_count=1, interval_painting_param=false, z3_option="none", time_based=false, z3_timeout=0, sketch_timeout=0, co_occurring_param=false, transition_param=false
     
     if algorithm == "heuristic"
-      solutions = generate_on_clauses_GLOBAL(matrix, unformatted_matrix, object_decomposition, user_events, global_event_vector_dict, redundant_events_set, grid_size, desired_solution_count, desired_per_matrix_solution_count, interval_painting_param, false, z3_option, time_based, 0, sketch_timeout, co_occurring_param, transition_param)
+      solutions = generate_on_clauses_GLOBAL(run_id, matrix, unformatted_matrix, object_decomposition, user_events, global_event_vector_dict, redundant_events_set, grid_size, desired_solution_count, desired_per_matrix_solution_count, interval_painting_param, false, z3_option, time_based, 0, sketch_timeout, co_occurring_param, transition_param)
     elseif algorithm == "sketch_single"
-      solutions = generate_on_clauses_SKETCH_SINGLE(matrix, unformatted_matrix, object_decomposition, user_events, global_event_vector_dict, redundant_events_set, grid_size, desired_solution_count, desired_per_matrix_solution_count, interval_painting_param, z3_option, time_based, 0, sketch_timeout, co_occurring_param, transition_param)
+      solutions = generate_on_clauses_SKETCH_SINGLE(run_id, matrix, unformatted_matrix, object_decomposition, user_events, global_event_vector_dict, redundant_events_set, grid_size, desired_solution_count, desired_per_matrix_solution_count, interval_painting_param, z3_option, time_based, 0, sketch_timeout, co_occurring_param, transition_param)
     elseif algorithm == "sketch_multi"
-      solutions = generate_on_clauses_SKETCH_MULTI(matrix, unformatted_matrix, object_decomposition, user_events, global_event_vector_dict, redundant_events_set, grid_size, desired_solution_count, desired_per_matrix_solution_count, interval_painting_param, z3_option, time_based, 0, sketch_timeout, co_occurring_param, transition_param)
+      solutions = generate_on_clauses_SKETCH_MULTI(run_id, matrix, unformatted_matrix, object_decomposition, user_events, global_event_vector_dict, redundant_events_set, grid_size, desired_solution_count, desired_per_matrix_solution_count, interval_painting_param, z3_option, time_based, 0, sketch_timeout, co_occurring_param, transition_param)
     else 
       error("algorithm $(algorithm) does not exist")
     end
@@ -628,47 +631,47 @@ programs = Dict("particles"                                 => """(program
                                                                 )"""
                 ,"sokoban_ii" => ""
                 ,"grow"                                      => """(program
-                                                                  (= GRID_SIZE 8)
-                                                                  
-                                                                  (object Water (Cell 0 0 "blue"))
-                                                                  (object Leaf (: color String) (Cell 0 0 color))
-                                                                  (object Cloud (list (Cell -1 0 "gray") (Cell 0 0 "gray") (Cell 1 0 "gray")
-                                                                                      (Cell -1 1 "gray") (Cell 0 1 "gray") (Cell 1 1 "gray")))
-                                                                  
-                                                                  (object Sun (: movingLeft Bool) (list (Cell 0 0 "gold")
-                                                                                                (Cell 0 1 "gold")
-                                                                                                (Cell 1 0 "gold")
-                                                                                                (Cell 1 1 "gold")))
-                                                                
-                                                                  (: sun Sun)
-                                                                  (= sun (initnext (Sun false (Position 0 0)) (prev sun)))
-                                                                
-                                                                  (: water (List Water))
-                                                                  (= water (initnext (list) (updateObj (prev water) (--> obj (if (! (isWithinBounds obj)) then (removeObj obj) else (moveDown obj))))))
-                                                                  
-                                                                  (: cloud Cloud)
-                                                                  (= cloud (initnext (Cloud (Position 6 0)) (prev cloud)))
-                                                                  
-                                                                  (: leaves (List Leaf))
-                                                                  (= leaves (initnext (list (Leaf "green" (Position 1 7) ) (Leaf "green" (Position 3 7)) (Leaf "green" (Position 5 7)) ) (prev leaves)))
-                                                                                                                                      
-                                                                  (on (intersects (map (--> obj (moveDown obj)) (prev water) ) (prev leaves))
-                                                                    (= water (removeObj (prev water) (--> obj (intersects (moveDown obj) (prev leaves))) ) ) )
-                                                                
-                                                                  (on (& (intersects (map (--> obj (moveDown obj)) (prev water)) (filter (--> obj (== (.. obj color) "green")) (prev leaves))) (! (intersects (prev sun) (prev cloud))))
-                                                                    (= leaves (addObj (prev leaves) (map (--> obj (Leaf (if (== (.. (.. (moveUp obj) origin) y) 4) then "mediumpurple" else "green") (.. (moveUp obj) origin))) (filter (--> obj (intersects (moveUp obj) (prev water))) (prev leaves))))))
-
-                                                                  (on down
-                                                                    (= water (addObj water (Water (.. (moveDown (prev cloud)) origin)))))
-                                                                    
-                                                                  (on left (= cloud (moveLeft (prev cloud))))
-                                                                  (on right (= cloud (moveRight (prev cloud))))
-                                                                
-                                                                  (on (== (.. (.. (prev sun) origin) x) 0) (= sun (updateObj (prev sun) "movingLeft" false)))
-                                                                  (on (== (.. (.. (prev sun) origin) x) 6) (= sun (updateObj (prev sun) "movingLeft" true)))
-                                                                
-                                                                  (on (clicked (prev sun)) (= sun (if (.. (prev sun) movingLeft) then (moveLeft (prev sun)) else (moveRight (prev sun)))))
-                                                                )"""
+                (= GRID_SIZE 7)
+                
+                (object Water (Cell 0 0 "blue"))
+                (object Leaf (: color String) (Cell 0 0 color))
+                (object Cloud (list (Cell -1 0 "gray") (Cell 0 0 "gray") (Cell 1 0 "gray")
+                                    (Cell -1 1 "gray") (Cell 0 1 "gray") (Cell 1 1 "gray")))
+                
+                (object Sun (: movingLeft Bool) (list (Cell 0 0 "gold")
+                                              (Cell 0 1 "gold")
+                                               (Cell 1 0 "gold")
+                                              (Cell 1 1 "gold")))
+              
+                (: sun Sun)
+                (= sun (initnext (Sun false (Position 0 0)) (prev sun)))
+              
+                (: water (List Water))
+                (= water (initnext (list) (updateObj (prev water) (--> obj (if (! (isWithinBounds obj)) then (removeObj obj) else (moveDown obj))))))
+                
+                (: cloud Cloud)
+                (= cloud (initnext (Cloud (Position 5 0)) (prev cloud)))
+                
+                (: leaves (List Leaf))
+                (= leaves (initnext (list (Leaf "green" (Position 1 6) ) (Leaf "green" (Position 3 6)) (Leaf "green" (Position 5 6)) ) (prev leaves)))
+                    
+                (on down
+                  (= water (addObj (prev water) (Water (.. (moveDown (prev cloud)) origin)))))
+              
+                (on (intersects (map (--> obj (moveDown obj)) (prev water) ) (prev leaves))
+                  (= water (removeObj (prev water) (--> obj (intersects (moveDown obj) (prev leaves))) ) ) )
+              
+                (on (& (intersects (map (--> obj (moveDown obj)) (prev water)) (filter (--> obj (== (.. obj color) "green")) (prev leaves))) (! (intersects (prev sun) (prev cloud))))
+                  (= leaves (addObj (prev leaves) (map (--> obj (Leaf (if (== (.. (.. (moveUp obj) origin) y) 4) then "mediumpurple" else "green") (.. (moveUp obj) origin))) (filter (--> obj (intersects (moveUp obj) (prev water))) (prev leaves))))))
+                  
+                (on left (= cloud (moveLeft (prev cloud))))
+                (on right (= cloud (moveRight (prev cloud))))
+              
+                (on (== (.. (.. (prev sun) origin) x) 0) (= sun (updateObj (prev sun) "movingLeft" false)))
+                (on (== (.. (.. (prev sun) origin) x) 5) (= sun (updateObj (prev sun) "movingLeft" true)))
+              
+                (on (clicked (prev sun)) (= sun (if (.. (prev sun) movingLeft) then (moveLeft (prev sun)) else (moveRight (prev sun)))))
+              )"""
                 ,"mario"                                       => """(program
                                                                       (= GRID_SIZE 16)
                                                                       (= background "skyblue")
