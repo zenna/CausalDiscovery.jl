@@ -7,12 +7,17 @@ end
 
 function generate_on_clauses_SKETCH_SINGLE(run_id, matrix, unformatted_matrix, object_decomposition, user_events, global_event_vector_dict, redundant_events_set, grid_size=16, desired_solution_count=1, desired_per_matrix_solution_count=1, interval_painting_param=false, z3_option="none", time_based=false, z3_timeout=0, sketch_timeout=0, co_occurring_param=false, transition_param=false, co_occurring_distinct=2, co_occurring_same=1, co_occurring_threshold=1, transition_distinct=1, transition_same=1, transition_threshold=1)   
   start_time = Dates.now()
+  
   object_types, object_mapping, background, dim = object_decomposition
   solutions = []
 
   # pre_filtered_matrix = pre_filter_with_direction_biases(matrix, user_events, object_decomposition) 
   # filtered_matrix = filter_update_function_matrix_multiple(pre_filtered_matrix, object_decomposition)[1]
   
+  if !check_matrix_complete(matrix)
+    return solutions
+  end
+
   filtered_matrices = []
 
   pre_filtered_matrix_1 = pre_filter_remove_NoCollision(matrix)
@@ -77,15 +82,8 @@ function generate_on_clauses_SKETCH_SINGLE(run_id, matrix, unformatted_matrix, o
   unique!(filtered_matrices)
   # filtered_matrices = filtered_matrices[22:22]
   # filtered_matrices = filtered_matrices[5:5]
-  # filtered_matrices = filtered_matrices[2:2] # gravity
-  # filtered_matrices = filtered_matrices[1:1] 
-
-  @show length(filtered_matrices)
-
-  if length(filtered_matrices) > 25 
-    filtered_matrices = filtered_matrices[1:25]
-  end 
-
+  # filtered_matrices = filtered_matrices[1:1]
+  
   @show length(filtered_matrices)
 
   for filtered_matrix_index in 1:length(filtered_matrices)

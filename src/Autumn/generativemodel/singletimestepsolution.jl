@@ -1661,6 +1661,19 @@ function filter_update_function_matrix_multiple(matrix, object_decomposition; mu
   unique(new_matrices)
 end
 
+function sort_update_function_matrices(matrices, object_decomposition)
+  object_types, object_mapping, _, _ = object_decomposition
+  counts = [] 
+  for matrix in matrices 
+    for type in object_types 
+      ids_with_type = filter(id -> filter(o -> !isnothing(o), object_mapping[id])[1].type.id == type.id, collect(keys(object_mapping)))
+      distinct_update_functions = unique(vcat(map(id -> matrix[id, :], ids_with_type)...))
+      push!(counts, length(distinct_update_functions))
+    end
+  end
+  map(y -> y[1], sort(collect(zip(matrices, counts)), by=x -> x[2])) 
+end
+
 function pre_filter_remove_NoCollision(matrix)
   new_matrix = deepcopy(matrix)
   new_matrix = map(cell -> filter(x -> !occursin("NoCollision", x) && !occursin("unitVector", x) && !occursin("nextLiquid", x), cell), new_matrix)
@@ -2260,7 +2273,7 @@ function z3_event_search_full(run_id, observed_data_dict, event_vector_dict, par
       @show event 
       @show shortest_length 
       @show option 
-      
+
       push!(events, event)
 
       if option in [1, 2]

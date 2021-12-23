@@ -80,11 +80,6 @@ function generate_on_clauses_GLOBAL(run_id, matrix, unformatted_matrix, object_d
   
   @show length(filtered_matrices)
 
-  if length(filtered_matrices) > 25 
-    filtered_matrices = filtered_matrices[1:25]
-  end 
-
-  @show length(filtered_matrices)
 
   for filtered_matrix_index in 1:length(filtered_matrices)
     @show filtered_matrix_index

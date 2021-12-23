@@ -1,7 +1,7 @@
 #!/bin/bash
 
 curr_date=$(date '+%Y-%m-%d_%H:%M:%S')
-algorithms=("sketch_multi")
+algorithms=("heuristic")
 # algorithms=("heuristic")
 num_repeats=1
 
@@ -10,6 +10,7 @@ num_repeats=1
 #              "bullets"
 #              "gravity_i"
 #              "gravity_iii"
+#              "gravity_iv"
 #              "disease"
 #              "gravity_ii"
 #              "count_1"
@@ -20,6 +21,7 @@ num_repeats=1
 #              "count_3"
 #              "count_4"
 #              "wind" 
+#              "water_plug"
 #             )
 
 model_names=("paint"
@@ -33,7 +35,7 @@ do
     for (( i = 1 ; i <= $num_repeats; i++ )) ### Inner for loop ###
     do
       echo "model_name: $model_name, algorithm: $algorithm, repeat: $i "
-      nohup julia --project=. src/Autumn/generativemodel/scripts/full_eval.jl $model_name $algorithm $curr_date $i > bg_outs/$model_name_$algorithm.out 2>&1 &
+      nohup /scratch/riadas/julia-1.5.3/bin/julia --project=. src/Autumn/generativemodel/scripts/full_eval.jl $model_name $algorithm $curr_date $i > bg_outs/$model_name_$algorithm.out 2>&1 &
       echo $! >> bg_pids.txt
       sleep 60
     done  

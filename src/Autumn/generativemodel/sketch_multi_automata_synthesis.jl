@@ -13,6 +13,10 @@ function generate_on_clauses_SKETCH_MULTI(run_id, matrix, unformatted_matrix, ob
   # pre_filtered_matrix = pre_filter_with_direction_biases(matrix, user_events, object_decomposition) 
   # filtered_matrix = filter_update_function_matrix_multiple(pre_filtered_matrix, object_decomposition)[1]
   
+  if !check_matrix_complete(matrix)
+    return solutions
+  end
+
   filtered_matrices = []
 
   pre_filtered_matrix_1 = pre_filter_remove_NoCollision(matrix)
@@ -71,21 +75,14 @@ function generate_on_clauses_SKETCH_MULTI(run_id, matrix, unformatted_matrix, ob
   push!(filtered_matrices, filtered_random_matrices...)
 
   # add "chaos" solution to filtered_matrices 
-  # filtered_unformatted_matrix = filter_update_function_matrix_multiple(unformatted_matrix, object_decomposition, multiple=false)[1]
-  # push!(filtered_matrices, filter_update_function_matrix_multiple(construct_chaos_matrix(filtered_unformatted_matrix, object_decomposition), object_decomposition, multiple=false)...)
+  filtered_unformatted_matrix = filter_update_function_matrix_multiple(unformatted_matrix, object_decomposition, multiple=false)[1]
+  push!(filtered_matrices, filter_update_function_matrix_multiple(construct_chaos_matrix(filtered_unformatted_matrix, object_decomposition), object_decomposition, multiple=false)...)
 
   unique!(filtered_matrices)
   # filtered_matrices = filtered_matrices[22:22]
   # filtered_matrices = filtered_matrices[5:5]
-  # filtered_matrices = filtered_matrices[2:2]
-  # filtered_matrices = filtered_matrices[1:1] # gravity
-
-  @show length(filtered_matrices)
-
-  if length(filtered_matrices) > 25 
-    filtered_matrices = filtered_matrices[1:25]
-  end 
-
+  # filtered_matrices = filtered_matrices[1:1]
+  
   @show length(filtered_matrices)
 
   for filtered_matrix_index in 1:length(filtered_matrices)
