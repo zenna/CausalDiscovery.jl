@@ -2178,17 +2178,18 @@ function z3_event_search_full(run_id, observed_data_dict, event_vector_dict, par
   # activate autumn environment containing z3
   # command = "conda activate autumn"
   # output = readchomp(eval(Meta.parse("`$(command)`")))
-  event = ""
+  events = [""]
   # run python command for z3 event search 
   options = partial ? [1, 2] : collect(1:14)
   for option in options
+    shortest_length = 0
     if timeout == 0 
-      command = "python3 z3_event_search_full.py $(option) $(run_id)"
+      command = "python3 z3_event_search_full.py $(option) $(run_id) $(shortest_length)"
     else
       if Sys.islinux() 
-        command = "gtimeout $(timeout) python3 z3_event_search_full.py $(option) $(run_id)"
+        command = "gtimeout $(timeout) python3 z3_event_search_full.py $(option) $(run_id) $(shortest_length)"
       else
-        command = "timeout $(timeout) python3 z3_event_search_full.py $(option) $(run_id)"
+        command = "timeout $(timeout) python3 z3_event_search_full.py $(option) $(run_id) $(shortest_length)"
       end
     end
     z3_output = try 
@@ -2201,59 +2202,94 @@ function z3_event_search_full(run_id, observed_data_dict, event_vector_dict, par
     @show command  
     @show option
     @show z3_output
-    if z3_output != ""
+
+    while z3_output != "" && split(z3_output, "\n")[1] == "sat"
+      println("INSIDE MINIMIZATION WHILE LOOP")
+      @show events
+
       lines = split(z3_output, "\n")
-      @show lines
-      if lines[1] == "sat"
-        if option in [1, 2]
-          event_1 = lines[3]
-          event_2 = lines[4]
-          if option == 1
-            event = "(& $(event_1) $(event_2))"
-          elseif option == 2 
-            event = "(| $(event_1) $(event_2))"
-          end
-        elseif option in [3, 4, 5, 11]
-          event_1 = lines[3]
-          event_2 = lines[4]
-          event_3 = lines[5]
-          if option == 3
-            event = "(& (& $(event_1) $(event_2)) $(event_3))"
-          elseif option == 4 
-            event = "(| (& $(event_1) $(event_2)) $(event_3))"
-          elseif option == 5 
-            event = "(| (| $(event_1) $(event_2)) $(event_3))"
-          elseif option == 11 
-            event = "(& $(event_1) (| $(event_2) $(event_3)))"
-          end
-        elseif option in [6, 7, 8, 9, 10, 12, 13, 14]    
-          event_1 = lines[3]
-          event_2 = lines[4]
-          event_3 = lines[5]
-          event_4 = lines[6]
-          if option == 6
-            event = "(& (& $(event_1) $(event_2)) (& $(event_3) $(event_4)))"
-          elseif option == 7 
-            event = "(| (& (& $(event_1) $(event_2)) $(event_3)) $(event_4))"
-          elseif option == 8 
-            event = "(| (& $(event_1) $(event_2)) (& $(event_3) $(event_4)))" # "(& $(event_1) (| $(event_2) (& $(event_3) $(event_4))))" # 
-          elseif option == 9 
-            event = "(| (& $(event_1) $(event_2)) (| $(event_3) $(event_4)))"
-          elseif option == 10 
-            event = "(| (| $(event_1) $(event_2)) (| $(event_3) $(event_4)))"
-          elseif option == 12 
-            event = "(& $(event_1) (& $(event_2) (| $(event_3) $(event_4))))"
-          elseif option == 13 
-            event = "(& $(event_1) (| $(event_2) (| $(event_3) $(event_4))))"
-          elseif option == 14 
-            event = "(& $(event_1) (| $(event_2) (& $(event_3) $(event_4)) ))"
-          end
+      event = ""
+
+      if option in [1, 2]
+        event_1 = lines[3]
+        event_2 = lines[4]
+        if option == 1
+          event = "(& $(event_1) $(event_2))"
+        elseif option == 2 
+          event = "(| $(event_1) $(event_2))"
         end
+        shortest_length = length(event_1) + length(event_2)
+      elseif option in [3, 4, 5, 11]
+        event_1 = lines[3]
+        event_2 = lines[4]
+        event_3 = lines[5]
+        if option == 3
+          event = "(& (& $(event_1) $(event_2)) $(event_3))"
+        elseif option == 4 
+          event = "(| (& $(event_1) $(event_2)) $(event_3))"
+        elseif option == 5 
+          event = "(| (| $(event_1) $(event_2)) $(event_3))"
+        elseif option == 11 
+          event = "(& $(event_1) (| $(event_2) $(event_3)))"
+        end
+        shortest_length = length(event_1) + length(event_2) + length(event_3)
+      elseif option in [6, 7, 8, 9, 10, 12, 13, 14]    
+        event_1 = lines[3]
+        event_2 = lines[4]
+        event_3 = lines[5]
+        event_4 = lines[6]
+        if option == 6
+          event = "(& (& $(event_1) $(event_2)) (& $(event_3) $(event_4)))"
+        elseif option == 7 
+          event = "(| (& (& $(event_1) $(event_2)) $(event_3)) $(event_4))"
+        elseif option == 8 
+          event = "(| (& $(event_1) $(event_2)) (& $(event_3) $(event_4)))" # "(& $(event_1) (| $(event_2) (& $(event_3) $(event_4))))" # 
+        elseif option == 9 
+          event = "(| (& $(event_1) $(event_2)) (| $(event_3) $(event_4)))"
+        elseif option == 10 
+          event = "(| (| $(event_1) $(event_2)) (| $(event_3) $(event_4)))"
+        elseif option == 12 
+          event = "(& $(event_1) (& $(event_2) (| $(event_3) $(event_4))))"
+        elseif option == 13 
+          event = "(& $(event_1) (| $(event_2) (| $(event_3) $(event_4))))"
+        elseif option == 14 
+          event = "(& $(event_1) (| $(event_2) (& $(event_3) $(event_4)) ))"
+        end
+        shortest_length = length(event_1) + length(event_2) + length(event_3) + length(event_4)
+      end
+      @show event 
+      @show shortest_length 
+      @show option 
+      
+      push!(events, event)
+
+      if option in [1, 2]
         break
-      end        
+      end
+
+      # re-run Z3 search with shortest length, for all options > 2
+      if timeout == 0 
+        command = "python3 z3_event_search_full.py $(option) $(run_id) $(shortest_length)"
+      else
+        if Sys.islinux() 
+          command = "gtimeout $(timeout) python3 z3_event_search_full.py $(option) $(run_id) $(shortest_length)"
+        else
+          command = "timeout $(timeout) python3 z3_event_search_full.py $(option) $(run_id) $(shortest_length)"
+        end
+      end
+      z3_output = try 
+                    readchomp(eval(Meta.parse("`$(command)`")))
+                  catch e 
+                    ""
+                  end
+    
+    end
+
+    if length(events) > 1 
+      break
     end
   end
-  event
+  events[end]
 end
 
 

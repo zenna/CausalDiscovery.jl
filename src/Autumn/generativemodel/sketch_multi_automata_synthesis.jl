@@ -440,7 +440,7 @@ function generate_on_clauses_SKETCH_MULTI(run_id, matrix, unformatted_matrix, ob
                 ordered_update_functions = ordered_update_functions_dict[type_id]
               end
 
-              state_solutions = generate_global_multi_automaton_sketch(co_occurring_event, times_dict, global_event_vector_dict, object_trajectory, Dict(), Dict(1 => ["" for x in 1:length(user_events)]), object_decomposition, type_id, desired_per_matrix_solution_count, sketch_timeout, false, ordered_update_functions, transition_distinct, transition_same, transition_threshold)
+              state_solutions = generate_global_multi_automaton_sketch(run_id, co_occurring_event, times_dict, global_event_vector_dict, object_trajectory, Dict(), Dict(1 => ["" for x in 1:length(user_events)]), object_decomposition, type_id, desired_per_matrix_solution_count, sketch_timeout, false, ordered_update_functions, transition_distinct, transition_same, transition_threshold)
               @show state_solutions 
               if state_solutions[1][1] == []
                 println("MULTI-AUTOMATA SKETCH FAILURE")
@@ -539,7 +539,7 @@ function generate_on_clauses_SKETCH_MULTI(run_id, matrix, unformatted_matrix, ob
                 times_dict[update_function] = Dict(map(id -> id => findall(r -> r == update_function, vcat(anonymized_filtered_matrix[id, :]...)), object_ids_with_type))
               end
 
-              state_solutions = generate_object_specific_multi_automaton_sketch(co_occurring_event, object_specific_update_functions, times_dict, global_event_vector_dict, type_id, global_object_decomposition, object_specific_state_update_times_dict, global_var_dict, sketch_timeout, false, transition_param, transition_distinct, transition_same, transition_threshold)            
+              state_solutions = generate_object_specific_multi_automaton_sketch(run_id, co_occurring_event, object_specific_update_functions, times_dict, global_event_vector_dict, type_id, global_object_decomposition, object_specific_state_update_times_dict, global_var_dict, sketch_timeout, false, transition_param, transition_distinct, transition_same, transition_threshold)            
               if state_solutions == [] 
                 println("MULTI-AUTOMATA SKETCH FAILURE")
                 failed = true 
@@ -675,7 +675,7 @@ function generate_on_clauses_SKETCH_MULTI(run_id, matrix, unformatted_matrix, ob
 
 end
 
-function generate_global_multi_automaton_sketch(co_occurring_event, times_dict, event_vector_dict, object_trajectory, init_global_var_dict, state_update_times_dict, object_decomposition, type_id, desired_per_matrix_solution_count, sketch_timeout=0, incremental=false, ordered_update_functions=[], transition_distinct=1, transition_same=1, transition_threshold=1)
+function generate_global_multi_automaton_sketch(run_id, co_occurring_event, times_dict, event_vector_dict, object_trajectory, init_global_var_dict, state_update_times_dict, object_decomposition, type_id, desired_per_matrix_solution_count, sketch_timeout=0, incremental=false, ordered_update_functions=[], transition_distinct=1, transition_same=1, transition_threshold=1)
   println("GENERATE_NEW_STATE_GLOBAL_SKETCH")
   @show co_occurring_event
   @show times_dict 
@@ -943,18 +943,19 @@ function generate_global_multi_automaton_sketch(co_occurring_event, times_dict, 
     """
 
     # save sketch program 
-    open("multi_automata_sketch.sk","w") do io
+    sketch_file_name = "multi_automata_sketch_$(run_id).sk"
+    open(sketch_file_name,"w") do io
       println(io, sketch_program)
     end
 
     # run Sketch query
     if sketch_timeout == 0 
-      command = "$(sketch_directory)sketch --bnd-unroll-amnt $(length(sketch_event_trajectory) + 2) --fe-output-code multi_automata_sketch.sk"
+      command = "$(sketch_directory)sketch --bnd-unroll-amnt $(length(sketch_event_trajectory) + 2) --fe-output-code $(sketch_file_name)"
     else
       if Sys.islinux() 
-        command = "timeout $(sketch_timeout) $(sketch_directory)sketch --bnd-unroll-amnt $(length(sketch_event_trajectory) + 2) --fe-output-code multi_automata_sketch.sk"
+        command = "timeout $(sketch_timeout) $(sketch_directory)sketch --bnd-unroll-amnt $(length(sketch_event_trajectory) + 2) --fe-output-code $(sketch_file_name)"
       else
-        command = "gtimeout $(sketch_timeout) $(sketch_directory)sketch --bnd-unroll-amnt $(length(sketch_event_trajectory) + 2) --fe-output-code multi_automata_sketch.sk"
+        command = "gtimeout $(sketch_timeout) $(sketch_directory)sketch --bnd-unroll-amnt $(length(sketch_event_trajectory) + 2) --fe-output-code $(sketch_file_name)"
       end
     end
     
@@ -971,7 +972,10 @@ function generate_global_multi_automaton_sketch(co_occurring_event, times_dict, 
       [([], [], [], init_global_var_dict)]
     else
       # update intAsChar and add main function to output cpp file 
-      f = open("multi_automata_sketch.cpp", "r")
+      cpp_file_name = "multi_automata_sketch_$(run_id).cpp"
+      cpp_out_file_name = "multi_automata_sketch_$(run_id).out"
+
+      f = open(cpp_file_name, "r")
       cpp_content = read(f, String)
       close(f)
 
@@ -988,16 +992,16 @@ function generate_global_multi_automaton_sketch(co_occurring_event, times_dict, 
       }
       """)
 
-      open("multi_automata_sketch.cpp", "w+") do io
+      open(cpp_file_name, "w+") do io
         println(io, modified_cpp_content)
       end
 
       # compile modified cpp program 
-      command = "g++ -o multi_automata_sketch.out multi_automata_sketch.cpp"
+      command = "g++ -o $(cpp_out_file_name) $(cpp_file_name)"
       compile_output = readchomp(eval(Meta.parse("`$(command)`"))) 
 
       # run compiled cpp program 
-      command = "./multi_automata_sketch.out"
+      command = "./$(cpp_out_file_name)"
       run_output = readchomp(eval(Meta.parse("`$(command)`")))  
       run_output = replace(run_output, "\x01" => "")
       @show run_output
@@ -1082,7 +1086,7 @@ function generate_global_multi_automaton_sketch(co_occurring_event, times_dict, 
   solutions
 end
 
-function generate_object_specific_multi_automaton_sketch(co_occurring_event, update_functions, times_dict, event_vector_dict, type_id, object_decomposition, init_state_update_times, global_var_dict, sketch_timeout=0, incremental=false, transition_param=false, transition_distinct=1, transition_same=1, transition_threshold=1) 
+function generate_object_specific_multi_automaton_sketch(run_id, co_occurring_event, update_functions, times_dict, event_vector_dict, type_id, object_decomposition, init_state_update_times, global_var_dict, sketch_timeout=0, incremental=false, transition_param=false, transition_distinct=1, transition_same=1, transition_threshold=1) 
   println("GENERATE_NEW_OBJECT_SPECIFIC_STATE")
   @show co_occurring_event
   @show update_functions 
@@ -1303,18 +1307,19 @@ function generate_object_specific_multi_automaton_sketch(co_occurring_event, upd
     """
 
     ## save sketch program as file 
-    open("multi_automata_sketch.sk","w") do io
+    sketch_file_name = "multi_automata_sketch_$(run_id).sk"
+    open(sketch_file_name,"w") do io
       println(io, sketch_program)
     end
 
     # run Sketch query
     if sketch_timeout == 0 
-      command = "$(sketch_directory)sketch --bnd-unroll-amnt $(length(sketch_event_arrs_dict_formatted[object_ids[1]]) + 2) --fe-output-code multi_automata_sketch.sk"
+      command = "$(sketch_directory)sketch --bnd-unroll-amnt $(length(sketch_event_arrs_dict_formatted[object_ids[1]]) + 2) --fe-output-code $(sketch_file_name)"
     else
       if Sys.islinux() 
-        command = "timeout $(sketch_timeout) $(sketch_directory)sketch --bnd-unroll-amnt $(length(sketch_event_arrs_dict_formatted[object_ids[1]]) + 2) --fe-output-code multi_automata_sketch.sk"
+        command = "timeout $(sketch_timeout) $(sketch_directory)sketch --bnd-unroll-amnt $(length(sketch_event_arrs_dict_formatted[object_ids[1]]) + 2) --fe-output-code $(sketch_file_name)"
       else
-        command = "gtimeout $(sketch_timeout) $(sketch_directory)sketch --bnd-unroll-amnt $(length(sketch_event_arrs_dict_formatted[object_ids[1]]) + 2) --fe-output-code multi_automata_sketch.sk"
+        command = "gtimeout $(sketch_timeout) $(sketch_directory)sketch --bnd-unroll-amnt $(length(sketch_event_arrs_dict_formatted[object_ids[1]]) + 2) --fe-output-code $(sketch_file_name)"
       end
     end
     
@@ -1328,7 +1333,9 @@ function generate_object_specific_multi_automaton_sketch(co_occurring_event, upd
 
     if !occursin("The sketch could not be resolved.", sketch_output) && sketch_output != ""
       # update intAsChar and add main function to output cpp file 
-      f = open("multi_automata_sketch.cpp", "r")
+      cpp_file_name = "multi_automata_sketch_$(run_id).cpp"
+      cpp_out_file_name = "multi_automata_sketch_$(run_id).out"
+      f = open(cpp_file_name, "r")
       cpp_content = read(f, String)
       close(f)
 
@@ -1349,16 +1356,16 @@ function generate_object_specific_multi_automaton_sketch(co_occurring_event, upd
       }
       """)
 
-      open("multi_automata_sketch.cpp", "w+") do io
+      open(cpp_file_name, "w+") do io
         println(io, modified_cpp_content)
       end
 
       # compile modified cpp program 
-      command = "g++ -o multi_automata_sketch.out multi_automata_sketch.cpp"
+      command = "g++ -o $(cpp_out_file_name) $(cpp_file_name)"
       compile_output = readchomp(eval(Meta.parse("`$(command)`"))) 
 
       # run compiled cpp program 
-      command = "./multi_automata_sketch.out"
+      command = "./$(cpp_out_file_name)"
       full_run_output = readchomp(eval(Meta.parse("`$(command)`")))  
       full_run_output = replace(full_run_output, "\x01" => "")
       

@@ -41,13 +41,21 @@ function run_model(model_name::String, algorithm, desired_per_matrix_solution_co
   run_id = string(model_name, "_", algorithm)
   # build desired directory structure
   date_string = Dates.format(Dates.now(), "yyyy-mm-dd HH:MM:SS")
+
   directory_name = string("heuristic_final_results/results_$(date_string)")
-  mkdir(directory_name)
+  if !isdir(directory_name)
+    mkdir(directory_name)
+  end
+
   directory_name = string("heuristic_final_results/results_$(date_string)/", model_name)
-  mkdir(directory_name)
-  
+  if !isdir(directory_name)
+    mkdir(directory_name)
+  end
+
   subdirectory_name = string(directory_name, "/", "per_matrix_count_$(desired_per_matrix_solution_count)_solution_count_$(desired_solution_count)")
-  mkdir(subdirectory_name)
+  if !isdir(subdirectory_name)
+    mkdir(subdirectory_name)
+  end
 
   # define synthesis parameter options 
   transition_param_vals = [false] # this option exists because of ambiguity in one model :( -- should make this a primitive 

@@ -21,14 +21,16 @@ num_repeats=1
 #              "wind" 
 #             )
 
-model_names=("paint"
-             "gravity_ii")
+model_names=("gravity_ii"
+             "paint"
+             )
 # # "space_invaders"
 
 for model_name in ${model_names[@]}
 do
   echo "model_name: $model_name, algorithm: all, repeat: $i "
   nohup bash src/Autumn/generativemodel/scripts/full_eval_one_model.sh $model_name $curr_date $num_repeats &
+  echo $! >> bg_pids.txt
   sleep 60
 done
 

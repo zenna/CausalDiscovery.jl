@@ -5,6 +5,7 @@ import sys
 
 option = int(sys.argv[1])
 run_id = sys.argv[2]
+shortest_length = int(sys.argv[3])
 
 # dictionary of event strings to their observed bit-vectors
 event_vector_dict = pickle.load(open('./event_vector_dict_'+ run_id + '.pkl', 'rb')) # {"up" : [1,0,0,1], "down" : [1, 1, 1, 0], "right" : {1 : [0, 1, 1, 1], 2 : [1, 1, 1, 0]}}
@@ -65,6 +66,11 @@ for object_id_idx in range(len(object_ids)):
     z3_atoms[object_id_idx] = Store(z3_atoms[object_id_idx], i, elem)
     i = i + 1
 
+# [new] construct Z3 array of atom event lengths; used for iterating to find the shortest event  
+z3_atom_lengths = Array("atom_lengths", IntSort(), IntSort())
+for atom_index in range(len(sorted_atom_events)):
+  z3_atom_lengths = Store(z3_atom_lengths, atom_index, len(sorted_atom_events[atom_index]))
+
 atom_index_1 = Int("atom_index_1")
 atom_index_2 = Int("atom_index_2")
 atom_index_3 = Int("atom_index_3")
@@ -84,7 +90,7 @@ s.add(atom_index_4 >= 0)
 s.add(atom_index_4 < len(list(atom_dict.keys())))
 
 for i in range(len(object_ids)):
-  single_sol = Select(z3_atoms[i], atom_index_1) == BitVecVal(observed_bv_vals_dict[object_ids[i]], len(observed_bv_dict[object_ids[i]]))
+  # single_sol = Select(z3_atoms[i], atom_index_1) == BitVecVal(observed_bv_vals_dict[object_ids[i]], len(observed_bv_dict[object_ids[i]]))
   w = Select(z3_atoms[i], atom_index_1) 
   x = Select(z3_atoms[i], atom_index_2)
   y = Select(z3_atoms[i], atom_index_3)
@@ -134,6 +140,24 @@ for i in range(len(object_ids)):
     s.add(parens_3)
   elif option == 14:
     s.add(parens_4)
+
+# search for event with length less than shortest_length
+if shortest_length != 0:
+  w_len = Select(z3_atom_lengths, atom_index_1) 
+  x_len = Select(z3_atom_lengths, atom_index_2)
+  y_len = Select(z3_atom_lengths, atom_index_3)
+  z_len = Select(z3_atom_lengths, atom_index_4)
+
+  xy_len = x_len + y_len < shortest_length 
+  xyz_len = x_len + y_len + z_len < shortest_length 
+  wxyz_len = w_len + x_len + y_len + z_len < shortest_length 
+
+  if option in [1, 2]:
+    s.add(xy_len)
+  elif option in [3, 4, 5, 11]:
+    s.add(xyz_len)
+  elif option in [6, 7, 8, 9, 10, 12, 13, 14]:
+    s.add(wxyz_len)
 
 res = s.check()
 index_1 = -1
