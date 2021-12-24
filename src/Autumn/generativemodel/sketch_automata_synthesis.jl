@@ -20,6 +20,7 @@ function generate_on_clauses_SKETCH_SINGLE(run_id, matrix, unformatted_matrix, o
 
   filtered_matrices = []
 
+  # add bare-bones matrix as last resort for non-random matrices 
   pre_filtered_matrix_1 = pre_filter_remove_NoCollision(matrix)
   if pre_filtered_matrix_1 != false 
     pre_filtered_non_random_matrix_1 = deepcopy(pre_filtered_matrix_1)
@@ -29,22 +30,8 @@ function generate_on_clauses_SKETCH_SINGLE(run_id, matrix, unformatted_matrix, o
       end
     end
     filtered_non_random_matrices = filter_update_function_matrix_multiple(pre_filtered_non_random_matrix_1, object_decomposition, multiple=true)
-    push!(filtered_matrices, filtered_non_random_matrices...)
+    push!(filtered_matrices, filtered_non_random_matrices[1:1]...)
   end
-
-  # pre filter by removing non-NoCollision update functions 
-  pre_filtered_matrix_1 = pre_filter_remove_non_NoCollision(matrix)
-  if pre_filtered_matrix_1 != false 
-    pre_filtered_non_random_matrix_1 = deepcopy(pre_filtered_matrix_1)
-    for row in 1:size(pre_filtered_non_random_matrix_1)[1]
-      for col in 1:size(pre_filtered_non_random_matrix_1)[2]
-        pre_filtered_non_random_matrix_1[row, col] = filter(x -> !occursin("randomPositions", x), pre_filtered_non_random_matrix_1[row, col])
-      end
-    end
-    filtered_non_random_matrices = filter_update_function_matrix_multiple(pre_filtered_non_random_matrix_1, object_decomposition, multiple=true)
-    push!(filtered_matrices, filtered_non_random_matrices...)
-  end
-
 
   # add non-random filtered matrices to filtered_matrices
   non_random_matrix = deepcopy(matrix)
@@ -59,9 +46,19 @@ function generate_on_clauses_SKETCH_SINGLE(run_id, matrix, unformatted_matrix, o
   
 
   # add direction-bias-filtered matrix to filtered_matrices 
-  pre_filtered_matrix = pre_filter_with_direction_biases(deepcopy(matrix), user_events, object_decomposition) 
+  pre_filtered_matrix = pre_filter_with_direction_biases(deepcopy(non_random_matrix), user_events, object_decomposition) 
   push!(filtered_matrices, filter_update_function_matrix_multiple(pre_filtered_matrix, object_decomposition, multiple=false)...)
 
+  unique!(filtered_matrices)
+  filtered_matrices = sort_update_function_matrices(filtered_matrices, object_decomposition)
+  
+  @show length(filtered_matrices)
+
+  if length(filtered_matrices) > 5 
+    filtered_matrices = filtered_matrices[1:5]
+  end 
+
+  # BEGIN RANDOM 
   # add random filtered matrices to filtered_matrices 
   random_matrix = deepcopy(matrix)
   for row in 1:size(random_matrix)[1]
@@ -80,11 +77,11 @@ function generate_on_clauses_SKETCH_SINGLE(run_id, matrix, unformatted_matrix, o
   push!(filtered_matrices, filter_update_function_matrix_multiple(construct_chaos_matrix(filtered_unformatted_matrix, object_decomposition), object_decomposition, multiple=false)...)
 
   unique!(filtered_matrices)
+  @show length(filtered_matrices)
+
   # filtered_matrices = filtered_matrices[22:22]
   # filtered_matrices = filtered_matrices[5:5]
-  # filtered_matrices = filtered_matrices[1:1]
-  
-  @show length(filtered_matrices)
+  filtered_matrices = filtered_matrices[1:1]
 
   for filtered_matrix_index in 1:length(filtered_matrices)
     @show filtered_matrix_index
@@ -243,7 +240,7 @@ function generate_on_clauses_SKETCH_SINGLE(run_id, matrix, unformatted_matrix, o
               ordered_update_functions = ordered_update_functions_dict[type_id]
             end
             state_solutions = generate_global_automaton_sketch(run_id, update_function, true_times, global_event_vector_dict, object_trajectory, Dict(), global_state_update_times_dict, global_object_decomposition, type_id, desired_per_matrix_solution_count, interval_painting_param, sketch_timeout, ordered_update_functions, global_update_functions, co_occurring_param, co_occurring_distinct, co_occurring_same, co_occurring_threshold, transition_distinct, transition_same, transition_threshold)
-            if state_solutions == [] 
+            if state_solutions == [] || state_solutions[1][1] == []
               failed = true 
               break
             end
@@ -319,7 +316,7 @@ function generate_on_clauses_SKETCH_SINGLE(run_id, matrix, unformatted_matrix, o
             state_solutions = generate_object_specific_automaton_sketch(run_id, update_function, update_function_times_dict, global_event_vector_dict, type_id, global_object_decomposition, object_specific_state_update_times_dict, global_var_dict, sketch_timeout, co_occurring_param, co_occurring_distinct, co_occurring_same, co_occurring_threshold, transition_distinct, transition_same, transition_threshold)            
             println("OUTPUT??")
             @show state_solutions
-            if state_solutions == [] 
+            if state_solutions == [] || state_solutions[1][1] == []
               println("SKETCH AUTOMATA SEARCH FAILED")
               failed = true 
               break
@@ -383,7 +380,7 @@ function generate_on_clauses_SKETCH_SINGLE(run_id, matrix, unformatted_matrix, o
           state_based_update_func_on_clauses = map(idx -> ("(on true\n$(replace(object_specific_update_functions[idx], "(== (.. obj id) x)" => "(& $(best_co_occurring_event[idx]) (in (.. (prev obj) field1) (list $(join(new_accept_state_dict[object_specific_update_functions[idx]], " ")))))")))", object_specific_update_functions[idx]), 1:length(object_specific_update_functions))
           new_transitions = map(trans -> (trans[1], trans[2], replace(trans[3], "(filter (--> obj (== (.. obj id) x)) (prev addedObjType$(type_id)List))" => "(list (prev obj))")), new_transitions)
           # state_transition_on_clauses = map(trans -> """(on true\n(= addedObjType$(type_id)List (updateObj addedObjType$(type_id)List (--> obj (updateObj (prev obj) "field1" $(trans[2]))) (--> obj $(trans[3])))))""", new_transitions)
-          state_transition_on_clauses = map(x -> replace(x, "(filter (--> obj (== (.. obj id) x)) (prev addedObjType$(type_id)List))" ), format_state_transition_functions(new_transitions, collect(values(old_to_new_state_values)), type_id=type_id))
+          state_transition_on_clauses = map(x -> replace(x, "(filter (--> obj (== (.. obj id) x)) (prev addedObjType$(type_id)List))" => "(list (prev obj))" ), format_state_transition_functions(new_transitions, collect(values(old_to_new_state_values)), type_id=type_id))
   
           fake_object_field_values = Dict(map(idx -> sort(collect(keys(object_mapping)))[idx] => [new_start_states[idx] for i in 1:length(object_mapping[object_ids[1]])], sort(collect(keys(object_mapping)))))
   
@@ -1393,6 +1390,7 @@ function generalize_all_automata(state_solutions, user_events, event_vector_dict
   new_state_solutions = Dict()
   for update_function in update_functions 
     component_automata_full = state_solutions[update_function]
+    @show component_automata_full 
 
     # (states, transitions, start state, accept states, co_occurring_event)
     # NOTE: passing in state *sequence* instead of set of distinct states as first tuple element; this differs from product-taking, 
@@ -1730,15 +1728,33 @@ function generate_object_specific_automaton_sketch(run_id, update_rule, update_f
         events_in_range = filter(e -> !occursin("field1", e[1]) && !occursin("globalVar1", e[1]), events_in_range)
         if length(events_in_range) > 0 # only handling perfect matches currently 
           
-          index = min(length(events_with_min_times), transition_decision_index > num_transition_decisions ? 1 : transition_decision_string[transition_decision_index])            
-          
-          event, event_times = events_with_min_times[index]
-          # formatted_event = replace(event, "(filter (--> obj (== (.. obj id) x)) (prev addedObjType$(type_id)List))" => "(list (prev obj))")
-    
+          state_update_event, event_times = events_in_range[1]
+        
+          if filter(tuple -> !occursin("true", tuple[1]), events_in_range) != []
+            if filter(tuple -> !occursin("globalVar", tuple[1]) && !occursin("true", tuple[1]), events_in_range) != []
+              min_times = minimum(map(tup -> length(tup[2]), filter(tuple -> !occursin("globalVar", tuple[1]) && !occursin("true", tuple[1]), events_in_range)))
+              events_with_min_times = filter(tup -> length(tup[2]) == min_times, filter(tuple -> !occursin("globalVar", tuple[1]) && !occursin("true", tuple[1]), events_in_range))
+              
+              index = min(length(events_with_min_times), transition_decision_index > num_transition_decisions ? 1 : transition_decision_string[transition_decision_index])            
+              state_update_event, event_times = sort(events_with_min_times, by=x -> length(x[1]))[index] # sort(filter(tuple -> !occursin("globalVar", tuple[1]) && !occursin("true", tuple[1]), events_in_range), by=x -> length(x[2]))[1]
+            else
+              min_times = minimum(map(tup -> length(tup[2]), filter(tuple -> !occursin("true", tuple[1]), events_in_range)))
+              events_with_min_times = filter(tup -> length(tup[2]) == min_times, filter(tuple -> !occursin("true", tuple[1]), events_in_range))
+              
+              index = min(length(events_with_min_times), transition_decision_index > num_transition_decisions ? 1 : transition_decision_string[transition_decision_index])            
+              state_update_event, event_times = sort(events_with_min_times, by=x -> length(x[1]))[index] # sort(filter(tuple -> !occursin("true", tuple[1]), events_in_range), by=x -> length(x[2]))[1]
+            end
+          else 
+            # FAILURE CASE 
+            index = min(length(events_in_range), transition_decision_index > num_transition_decisions ? 1 : transition_decision_string[transition_decision_index])            
+  
+            state_update_event, event_times = events_in_range[index]
+          end
+
           for id in object_ids # collect(keys(state_update_times))
             object_event_times = map(t -> t[1], filter(time -> time[2] == id, event_times))
             for time in object_event_times
-              sketch_event_arrs_dict[id][time] = event
+              sketch_event_arrs_dict[id][time] = state_update_event
             end
           end
         else
@@ -1814,12 +1830,12 @@ function generate_object_specific_automaton_sketch(run_id, update_rule, update_f
     
       # run Sketch query
       if sketch_timeout == 0 
-        command = "$(sketch_directory)sketch --bnd-unroll-amnt $(length(sketch_update_function_arr[object_ids[1]]) + 2) --fe-output-code sketch_file_name"
+        command = "$(sketch_directory)sketch --bnd-unroll-amnt $(length(sketch_update_function_arr[object_ids[1]]) + 2) --fe-output-code $(sketch_file_name)"
       else
         if Sys.islinux() 
-          command = "timeout $(sketch_timeout) $(sketch_directory)sketch --bnd-unroll-amnt $(length(sketch_update_function_arr[object_ids[1]]) + 2) --fe-output-code sketch_file_name"
+          command = "timeout $(sketch_timeout) $(sketch_directory)sketch --bnd-unroll-amnt $(length(sketch_update_function_arr[object_ids[1]]) + 2) --fe-output-code $(sketch_file_name)"
         else
-          command = "gtimeout $(sketch_timeout) $(sketch_directory)sketch --bnd-unroll-amnt $(length(sketch_update_function_arr[object_ids[1]]) + 2) --fe-output-code sketch_file_name"
+          command = "gtimeout $(sketch_timeout) $(sketch_directory)sketch --bnd-unroll-amnt $(length(sketch_update_function_arr[object_ids[1]]) + 2) --fe-output-code $(sketch_file_name)"
         end
       end
     

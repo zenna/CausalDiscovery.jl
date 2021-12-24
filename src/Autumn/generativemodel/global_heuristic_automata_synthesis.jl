@@ -14,6 +14,7 @@ function generate_on_clauses_GLOBAL(run_id, matrix, unformatted_matrix, object_d
 
   filtered_matrices = []
 
+  # add bare-bones matrix as last resort for non-random matrices 
   pre_filtered_matrix_1 = pre_filter_remove_NoCollision(matrix)
   if pre_filtered_matrix_1 != false 
     pre_filtered_non_random_matrix_1 = deepcopy(pre_filtered_matrix_1)
@@ -23,22 +24,8 @@ function generate_on_clauses_GLOBAL(run_id, matrix, unformatted_matrix, object_d
       end
     end
     filtered_non_random_matrices = filter_update_function_matrix_multiple(pre_filtered_non_random_matrix_1, object_decomposition, multiple=true)
-    push!(filtered_matrices, filtered_non_random_matrices...)
+    push!(filtered_matrices, filtered_non_random_matrices[1:1]...)
   end
-
-  # pre filter by removing non-NoCollision update functions 
-  pre_filtered_matrix_1 = pre_filter_remove_non_NoCollision(matrix)
-  if pre_filtered_matrix_1 != false 
-    pre_filtered_non_random_matrix_1 = deepcopy(pre_filtered_matrix_1)
-    for row in 1:size(pre_filtered_non_random_matrix_1)[1]
-      for col in 1:size(pre_filtered_non_random_matrix_1)[2]
-        pre_filtered_non_random_matrix_1[row, col] = filter(x -> !occursin("randomPositions", x), pre_filtered_non_random_matrix_1[row, col])
-      end
-    end
-    filtered_non_random_matrices = filter_update_function_matrix_multiple(pre_filtered_non_random_matrix_1, object_decomposition, multiple=true)
-    push!(filtered_matrices, filtered_non_random_matrices...)
-  end
-
 
   # add non-random filtered matrices to filtered_matrices
   non_random_matrix = deepcopy(matrix)
@@ -53,9 +40,19 @@ function generate_on_clauses_GLOBAL(run_id, matrix, unformatted_matrix, object_d
   
 
   # add direction-bias-filtered matrix to filtered_matrices 
-  pre_filtered_matrix = pre_filter_with_direction_biases(deepcopy(matrix), user_events, object_decomposition) 
+  pre_filtered_matrix = pre_filter_with_direction_biases(deepcopy(non_random_matrix), user_events, object_decomposition) 
   push!(filtered_matrices, filter_update_function_matrix_multiple(pre_filtered_matrix, object_decomposition, multiple=false)...)
 
+  unique!(filtered_matrices)
+  filtered_matrices = sort_update_function_matrices(filtered_matrices, object_decomposition)
+  
+  @show length(filtered_matrices)
+
+  if length(filtered_matrices) > 5 
+    filtered_matrices = filtered_matrices[1:5]
+  end 
+
+  # BEGIN RANDOM 
   # add random filtered matrices to filtered_matrices 
   random_matrix = deepcopy(matrix)
   for row in 1:size(random_matrix)[1]
@@ -74,12 +71,11 @@ function generate_on_clauses_GLOBAL(run_id, matrix, unformatted_matrix, object_d
   push!(filtered_matrices, filter_update_function_matrix_multiple(construct_chaos_matrix(filtered_unformatted_matrix, object_decomposition), object_decomposition, multiple=false)...)
 
   unique!(filtered_matrices)
+  @show length(filtered_matrices)
+
   # filtered_matrices = filtered_matrices[22:22]
   # filtered_matrices = filtered_matrices[5:5]
   # filtered_matrices = filtered_matrices[1:1]
-  
-  @show length(filtered_matrices)
-
 
   for filtered_matrix_index in 1:length(filtered_matrices)
     @show filtered_matrix_index
@@ -454,6 +450,19 @@ function generate_on_clauses_GLOBAL(run_id, matrix, unformatted_matrix, object_d
                 true_times = unique(vcat(map(trajectory -> findall(rule -> rule in update_functions, vcat(trajectory...)), object_trajectories)...))
                 object_trajectory = []
                 ordered_update_functions = []
+
+                println("DEBUGGING GROUP_ADDOBJ_RULES")
+                group_addObj_rules, addObj_rules, addObj_count = addObj_params_dict[type_id[1]]
+                if group_addObj_rules 
+                  u = sort(collect(keys(times_dict)))[1]
+                  for k in sort(collect(keys(times_dict)))
+                    if k != u 
+                      delete!(times_dict, k)
+                    end
+                  end
+                end 
+                @show times_dict
+
               else 
                 ids_with_rule = map(idx -> object_ids_with_type[idx], findall(idx_set -> idx_set != [], map(id -> findall(rule -> rule[1] in update_functions, anonymized_filtered_matrix[id, :]), object_ids_with_type)))
                 trajectory_lengths = map(id -> length(filter(x -> x != [""], anonymized_filtered_matrix[id, :])), ids_with_rule)
@@ -792,10 +801,6 @@ function generate_new_state_GLOBAL(co_occurring_event, times_dict, event_vector_
   small_event_vector_dict = deepcopy(event_vector_dict)    
   deleted = []
   for e in keys(event_vector_dict)
-    if e == "(== (.. (.. (prev obj8) origin) x) 2)" 
-      println("hm")
-      @show !(e in atomic_events) || (!(event_vector_dict[e] isa AbstractArray) && !(e in map(x -> "(clicked (filter (--> obj (== (.. obj id) x)) (prev addedObjType$(x)List)))", map(x -> x.id, object_types))) )
-    end
     if !(e in atomic_events) || (!(event_vector_dict[e] isa AbstractArray) && !(e in map(x -> "(clicked (filter (--> obj (== (.. obj id) x)) (prev addedObjType$(x)List)))", map(x -> x.id, object_types))) )
       push!(deleted, e)
       delete!(small_event_vector_dict, e)    
@@ -1410,9 +1415,13 @@ function generate_stateless_on_clauses(run_id, update_functions_dict, matrix, fi
       push!(all_update_rules, addObj_rules[1]) 
       addObj_count = count(r -> occursin("addObj", r), vcat(filtered_matrix[:, collect(values(addObj_times_dict))[1][1]]...))
     end
+    println("DEBUGGING FUNNY BEHAVIOR")
+    @show addObj_times_dict 
+    @show group_addObj_rules 
 
     # construct addObj_params_dict
     addObj_params_dict[type_id] = (group_addObj_rules, addObj_rules, addObj_count)
+    @show addObj_params_dict 
     
     no_change_rules = filter(x -> is_no_change_rule(x), unique(all_update_rules))
     all_update_rules = reverse(sort(filter(x -> !is_no_change_rule(x), unique(all_update_rules)), by=x -> count(y -> y == x, update_rule_set)))
@@ -1449,10 +1458,11 @@ function generate_stateless_on_clauses(run_id, update_functions_dict, matrix, fi
             @show event 
             
             color = split(split(update_rule, """ "color" """)[2], ")")[1]
-            if event_is_global 
+            if (length(object_ids) == 1) && !isnothing(object_mapping[object_ids[1]][1]) 
               event = "(& $(event) (!= (.. (prev obj$(object_ids[1])) color) $(color)))"
             else 
-              event = "(& $(event) (!= (.. (prev obj) color) $(color)))"
+              event = "(& $(event) (! (intersects (list $(color)) (map (--> obj (.. obj color)) (filter (--> obj (== (.. obj id) x)) (prev addedObjType$(type_id)List))))))"
+              event_is_global = false
             end
             
             @show update_rule

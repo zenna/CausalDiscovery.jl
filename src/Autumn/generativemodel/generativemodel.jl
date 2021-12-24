@@ -513,8 +513,8 @@ function gen_event_bool(object_decomposition, object_id, type_id, update_rule, u
   # # ----- add events dealing with objects contained in a list -----
   for type in object_types 
     push!(choices, "(clicked (prev addedObjType$(type.id)List))")
-    push!(choices, "(== (prev addedObjType$(type.id)List) (list))")
-    push!(choices, "(!= (prev addedObjType$(type.id)List) (list))")    
+    # push!(choices, "(== (prev addedObjType$(type.id)List) (list))")
+    # push!(choices, "(!= (prev addedObjType$(type.id)List) (list))")    
 
   #   # out-of-bounds handling 
     displacements = ["(moveUp obj)", "(moveDown obj)", "(moveLeft obj)", "(moveRight obj)", "(move obj -1 1)", "(move obj 1 -1)"]

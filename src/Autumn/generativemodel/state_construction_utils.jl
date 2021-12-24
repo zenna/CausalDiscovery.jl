@@ -56,7 +56,7 @@ function find_state_update_events_false_positives(orig_event_vector_dict, augmen
         desired_start_values = []
         for time in false_positive_times 
           # handle end value
-          if (((time == length(global_var_dict[global_var_id])) && (global_var_dict[global_var_id][time] < global_var_value)) || ((time < length(global_var_dict[global_var_id])) && (global_var_dict[global_var_id][time + 1] < global_var_value)))
+          if ((time == length(global_var_dict[global_var_id])) && (global_var_dict[global_var_id][time] < global_var_value)) || ((time < length(global_var_dict[global_var_id])) && (global_var_dict[global_var_id][time + 1] < global_var_value))
             desired_end_value = ((time + 1) > length(global_var_dict[global_var_id])) ? global_var_dict[global_var_id][time] : global_var_dict[global_var_id][time + 1]
             push!(desired_end_values, desired_end_value)
           elseif (time >= maximum(map(tuple -> tuple[1], augmented_positive_times)))

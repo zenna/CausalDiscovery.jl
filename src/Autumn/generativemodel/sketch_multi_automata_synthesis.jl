@@ -19,6 +19,7 @@ function generate_on_clauses_SKETCH_MULTI(run_id, matrix, unformatted_matrix, ob
 
   filtered_matrices = []
 
+  # add bare-bones matrix as last resort for non-random matrices 
   pre_filtered_matrix_1 = pre_filter_remove_NoCollision(matrix)
   if pre_filtered_matrix_1 != false 
     pre_filtered_non_random_matrix_1 = deepcopy(pre_filtered_matrix_1)
@@ -28,22 +29,8 @@ function generate_on_clauses_SKETCH_MULTI(run_id, matrix, unformatted_matrix, ob
       end
     end
     filtered_non_random_matrices = filter_update_function_matrix_multiple(pre_filtered_non_random_matrix_1, object_decomposition, multiple=true)
-    push!(filtered_matrices, filtered_non_random_matrices...)
+    push!(filtered_matrices, filtered_non_random_matrices[1:1]...)
   end
-
-  # pre filter by removing non-NoCollision update functions 
-  pre_filtered_matrix_1 = pre_filter_remove_non_NoCollision(matrix)
-  if pre_filtered_matrix_1 != false 
-    pre_filtered_non_random_matrix_1 = deepcopy(pre_filtered_matrix_1)
-    for row in 1:size(pre_filtered_non_random_matrix_1)[1]
-      for col in 1:size(pre_filtered_non_random_matrix_1)[2]
-        pre_filtered_non_random_matrix_1[row, col] = filter(x -> !occursin("randomPositions", x), pre_filtered_non_random_matrix_1[row, col])
-      end
-    end
-    filtered_non_random_matrices = filter_update_function_matrix_multiple(pre_filtered_non_random_matrix_1, object_decomposition, multiple=true)
-    push!(filtered_matrices, filtered_non_random_matrices...)
-  end
-
 
   # add non-random filtered matrices to filtered_matrices
   non_random_matrix = deepcopy(matrix)
@@ -58,9 +45,19 @@ function generate_on_clauses_SKETCH_MULTI(run_id, matrix, unformatted_matrix, ob
   
 
   # add direction-bias-filtered matrix to filtered_matrices 
-  pre_filtered_matrix = pre_filter_with_direction_biases(deepcopy(matrix), user_events, object_decomposition) 
+  pre_filtered_matrix = pre_filter_with_direction_biases(deepcopy(non_random_matrix), user_events, object_decomposition) 
   push!(filtered_matrices, filter_update_function_matrix_multiple(pre_filtered_matrix, object_decomposition, multiple=false)...)
 
+  unique!(filtered_matrices)
+  filtered_matrices = sort_update_function_matrices(filtered_matrices, object_decomposition)
+  
+  @show length(filtered_matrices)
+
+  if length(filtered_matrices) > 5 
+    filtered_matrices = filtered_matrices[1:5]
+  end 
+
+  # BEGIN RANDOM 
   # add random filtered matrices to filtered_matrices 
   random_matrix = deepcopy(matrix)
   for row in 1:size(random_matrix)[1]
@@ -79,11 +76,11 @@ function generate_on_clauses_SKETCH_MULTI(run_id, matrix, unformatted_matrix, ob
   push!(filtered_matrices, filter_update_function_matrix_multiple(construct_chaos_matrix(filtered_unformatted_matrix, object_decomposition), object_decomposition, multiple=false)...)
 
   unique!(filtered_matrices)
+  @show length(filtered_matrices)
+
   # filtered_matrices = filtered_matrices[22:22]
   # filtered_matrices = filtered_matrices[5:5]
   # filtered_matrices = filtered_matrices[1:1]
-  
-  @show length(filtered_matrices)
 
   for filtered_matrix_index in 1:length(filtered_matrices)
     @show filtered_matrix_index
@@ -427,6 +424,19 @@ function generate_on_clauses_SKETCH_MULTI(run_id, matrix, unformatted_matrix, ob
                 true_times = unique(vcat(map(trajectory -> findall(rule -> rule in update_functions, vcat(trajectory...)), object_trajectories)...))
                 object_trajectory = []
                 ordered_update_functions = []
+
+                println("DEBUGGING GROUP_ADDOBJ_RULES")
+                group_addObj_rules, addObj_rules, addObj_count = addObj_params_dict[type_id[1]]
+                if group_addObj_rules 
+                  u = sort(collect(keys(times_dict)))[1]
+                  for k in sort(collect(keys(times_dict)))
+                    if k != u 
+                      delete!(times_dict, k)
+                    end
+                  end
+                end 
+                @show times_dict
+
               else 
                 ids_with_rule = map(idx -> object_ids_with_type[idx], findall(idx_set -> idx_set != [], map(id -> findall(rule -> rule[1] in update_functions, anonymized_filtered_matrix[id, :]), object_ids_with_type)))
                 trajectory_lengths = map(id -> length(filter(x -> x != [""], anonymized_filtered_matrix[id, :])), ids_with_rule)
@@ -439,7 +449,7 @@ function generate_on_clauses_SKETCH_MULTI(run_id, matrix, unformatted_matrix, ob
 
               state_solutions = generate_global_multi_automaton_sketch(run_id, co_occurring_event, times_dict, global_event_vector_dict, object_trajectory, Dict(), Dict(1 => ["" for x in 1:length(user_events)]), object_decomposition, type_id, desired_per_matrix_solution_count, sketch_timeout, false, ordered_update_functions, transition_distinct, transition_same, transition_threshold)
               @show state_solutions 
-              if state_solutions[1][1] == []
+              if state_solutions == [] || state_solutions[1][1] == []
                 println("MULTI-AUTOMATA SKETCH FAILURE")
                 failed = true
                 break
@@ -537,7 +547,7 @@ function generate_on_clauses_SKETCH_MULTI(run_id, matrix, unformatted_matrix, ob
               end
 
               state_solutions = generate_object_specific_multi_automaton_sketch(run_id, co_occurring_event, object_specific_update_functions, times_dict, global_event_vector_dict, type_id, global_object_decomposition, object_specific_state_update_times_dict, global_var_dict, sketch_timeout, false, transition_param, transition_distinct, transition_same, transition_threshold)            
-              if state_solutions == [] 
+              if state_solutions == [] || state_solutions[1][1] == []
                 println("MULTI-AUTOMATA SKETCH FAILURE")
                 failed = true 
                 break
@@ -1471,7 +1481,7 @@ function generate_object_specific_multi_automaton_sketch(run_id, co_occurring_ev
       if incremental 
         return [unique(on_clauses), unique(state_update_on_clauses), new_object_decomposition, state_update_times]  
       else
-        push!(solutions, [(accept_values, object_field_values, unique(transitions), co_occurring_event)])
+        push!(solutions, [(accept_values, object_field_values, unique(transitions), co_occurring_event)]...)
       end
     end
   end 

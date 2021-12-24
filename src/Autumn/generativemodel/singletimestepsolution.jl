@@ -18,7 +18,7 @@ function find_global_index(update_function)
   if is_no_change_rule(update_function)
     1
   else
-    ordered_rules = ["moveUp", "moveDown", "moveLeft", "moveRight", "moveUpNoCollision", "moveDownNoCollision", "moveLeftNoCollision", "moveRightNoCollision", "nextLiquid", "click", "uniformChoice", "randomPositions"]
+    ordered_rules = ["moveUp ", "moveDown ", "moveLeft ", "moveRight ", "moveUpNoCollision", "moveDownNoCollision", "moveLeftNoCollision", "moveRightNoCollision", "nextLiquid", "click", "uniformChoice", "randomPositions"]
     bools = map(r -> occursin(r, update_function), ordered_rules)
     indices = findall(x -> x == 1, bools)
     if indices != []
@@ -1519,20 +1519,22 @@ function filter_update_function_matrix_multiple(matrix, object_decomposition; mu
             update_functions = filter(x -> x != "", update_functions)
             update_function_frequencies = map(func -> count(x -> x == func, same_type_update_function_set), update_functions)
 
-            if length(unique(map(x -> count(y -> y == x, same_type_update_function_set), update_functions))) == 1 
-              global_sorted_update_functions = update_functions
-            else
-              global_sorted_update_functions = reverse(sort(filter(z -> z != "", unique(same_type_update_function_set)), by=x -> count(y -> y == x, same_type_update_function_set)))
-              global_sorted_frequencies = map(x -> count(y -> y == x, same_type_update_function_set), global_sorted_update_functions)
-              
-              # sort most-frequent update functions (top functions) by their original order in matrix
-              top_indices = findall(x -> x == maximum(global_sorted_frequencies), global_sorted_frequencies)
-              sorted_top_indices = sort(top_indices, by=i -> find_global_index(global_sorted_update_functions[i])) 
-              top_functions = map(i -> global_sorted_update_functions[i], sorted_top_indices)
-              
-              non_top_functions = filter(x -> !(x in top_functions), global_sorted_update_functions)
-              global_sorted_update_functions = vcat(top_functions, non_top_functions)
-            end
+            # if length(unique(map(x -> count(y -> y == x, same_type_update_function_set), update_functions))) == 1 
+            #   global_sorted_update_functions = update_functions
+            # else
+
+            global_sorted_update_functions = reverse(sort(filter(z -> z != "", unique(same_type_update_function_set)), by=x -> count(y -> y == x, same_type_update_function_set)))
+            global_sorted_frequencies = map(x -> count(y -> y == x, same_type_update_function_set), global_sorted_update_functions)
+            
+            # sort most-frequent update functions (top functions) by their original order in matrix
+            top_indices = findall(x -> x == maximum(global_sorted_frequencies), global_sorted_frequencies)
+            sorted_top_indices = sort(top_indices, by=i -> find_global_index(global_sorted_update_functions[i])) 
+            top_functions = map(i -> global_sorted_update_functions[i], sorted_top_indices)
+            
+            non_top_functions = filter(x -> !(x in top_functions), global_sorted_update_functions)
+            global_sorted_update_functions = vcat(top_functions, non_top_functions)
+            
+            # end
             
             if (bit_value == 1) && length(global_sorted_update_functions) > 1
               # swap first and second elements of global_sorted_update_functions
@@ -1570,20 +1572,22 @@ function filter_update_function_matrix_multiple(matrix, object_decomposition; mu
               # # @show bit_value
 
               update_function_frequencies = map(func -> count(x -> x == func, same_type_update_function_sets[color]), update_functions)
-              if length(unique(map(x -> count(y -> y == x, same_type_update_function_sets_dict[object_type.id][color]), update_functions))) == 1 
-                global_sorted_update_functions = update_functions
-              else
-                global_sorted_update_functions = reverse(sort(filter(x -> x != "", unique(same_type_update_function_sets_dict[object_type.id][color])), by=x -> count(y -> y == x, same_type_update_function_sets_dict[object_type.id][color])))
-                global_sorted_frequencies = map(x -> count(y -> y == x, same_type_update_function_sets_dict[object_type.id][color]), global_sorted_update_functions)
-                
-                # sort most-frequent update functions (top functions) by their original order in matrix
-                top_indices = findall(x -> x == maximum(global_sorted_frequencies), global_sorted_frequencies)
-                sorted_top_indices = sort(top_indices, by=i -> find_global_index(global_sorted_update_functions[i])) 
-                top_functions = map(i -> global_sorted_update_functions[i], sorted_top_indices)
-                
-                non_top_functions = filter(x -> !(x in top_functions), global_sorted_update_functions)
-                global_sorted_update_functions = vcat(top_functions, non_top_functions)
-              end
+              # if length(unique(map(x -> count(y -> y == x, same_type_update_function_sets_dict[object_type.id][color]), update_functions))) == 1 
+              #   global_sorted_update_functions = update_functions
+              # else
+
+              global_sorted_update_functions = reverse(sort(filter(x -> x != "", unique(same_type_update_function_sets_dict[object_type.id][color])), by=x -> count(y -> y == x, same_type_update_function_sets_dict[object_type.id][color])))
+              global_sorted_frequencies = map(x -> count(y -> y == x, same_type_update_function_sets_dict[object_type.id][color]), global_sorted_update_functions)
+              
+              # sort most-frequent update functions (top functions) by their original order in matrix
+              top_indices = findall(x -> x == maximum(global_sorted_frequencies), global_sorted_frequencies)
+              sorted_top_indices = sort(top_indices, by=i -> find_global_index(global_sorted_update_functions[i])) 
+              top_functions = map(i -> global_sorted_update_functions[i], sorted_top_indices)
+              
+              non_top_functions = filter(x -> !(x in top_functions), global_sorted_update_functions)
+              global_sorted_update_functions = vcat(top_functions, non_top_functions)
+            
+              # end
               
               # # @show bit_value
               # # @show length(global_sorted_update_functions)
@@ -1667,8 +1671,27 @@ function sort_update_function_matrices(matrices, object_decomposition)
   for matrix in matrices 
     for type in object_types 
       ids_with_type = filter(id -> filter(o -> !isnothing(o), object_mapping[id])[1].type.id == type.id, collect(keys(object_mapping)))
-      distinct_update_functions = unique(vcat(map(id -> matrix[id, :], ids_with_type)...))
-      push!(counts, length(distinct_update_functions))
+      
+      custom_field_names = map(x -> x[1], type.custom_fields)
+      if "color" in custom_field_names 
+        colors = filter(x -> x[1] == "color", type.custom_fields)[1][3]
+        color_functions_dict = Dict(map(c -> c => [], colors))
+        
+        for id in ids_with_type 
+          for time in 1:length(matrix[1, :])
+            if !isnothing(object_mapping[id][time])
+              color = object_mapping[id][time].custom_field_values[end]
+              update_function = matrix[id, time]
+              push!(color_functions_dict[color], update_function...)
+            end
+          end
+        end
+        count = sum(map(c -> length(unique(color_functions_dict[c])), colors))
+        push!(counts, count)
+      else 
+        distinct_update_functions = unique(vcat(map(id -> matrix[id, :], ids_with_type)...))
+        push!(counts, length(distinct_update_functions))
+      end
     end
   end
   map(y -> y[1], sort(collect(zip(matrices, counts)), by=x -> x[2])) 
@@ -2276,9 +2299,9 @@ function z3_event_search_full(run_id, observed_data_dict, event_vector_dict, par
 
       push!(events, event)
 
-      if option in [1, 2]
-        break
-      end
+      # if option in [1, 2]
+      #   break
+      # end
 
       # re-run Z3 search with shortest length, for all options > 2
       if timeout == 0 
@@ -2302,6 +2325,7 @@ function z3_event_search_full(run_id, observed_data_dict, event_vector_dict, par
       break
     end
   end
+  println("HERES AN EVENT!")
   events[end]
 end
 

@@ -100,7 +100,8 @@ function generate_observations_lights(m::Module)
   clicks = Dict([1 => (4, 3),
                  10 => (7, 8),
                 #  10 => (1, 13),
-                #  13 => (8, 10),
+                 13 => (8, 10),
+                 16 => (2, 6),
                 ])
 
   for i in 0:22
