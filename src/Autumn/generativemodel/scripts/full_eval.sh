@@ -37,7 +37,7 @@ do
     for (( i = 1 ; i <= $num_repeats; i++ )) ### Inner for loop ###
     do
       echo "model_name: $model_name, algorithm: $algorithm, repeat: $i "
-      nohup /scratch/riadas/julia-1.5.4/bin/julia --project=. src/Autumn/generativemodel/scripts/full_eval.jl $model_name $algorithm $curr_date $i > bg_outs/$model_name_$algorithm.out 2>&1 &
+      nohup /scratch/riadas/julia-1.5.4/bin/julia --project=. src/Autumn/generativemodel/scripts/full_eval.jl $model_name $algorithm $curr_date $i > bg_outs/$model_name.$algorithm.out 2>&1 &
       echo $! >> bg_pids.txt
       sleep 60
     done  

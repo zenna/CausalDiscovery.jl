@@ -1427,6 +1427,8 @@ function filter_update_function_matrix_multiple(matrix, object_decomposition; mu
 
   new_matrices = []
   type_id_and_colors = []
+  @show object_types 
+  @show object_decomposition 
   for type in object_types 
     if length(type.custom_fields) == 0
       push!(type_id_and_colors, (type.id, nothing))

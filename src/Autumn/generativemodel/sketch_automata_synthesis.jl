@@ -1012,9 +1012,8 @@ function format_state_transition_functions(transitions, distinct_states; global_
     starts = unique(map(t -> t[1], filter(trans -> (trans[2], trans[3]) == transition_and_label, transitions)))
     
     # check if the self-loop transition is also valid 
-    other_pairs_with_same_label = filter(tup -> tup[2] == label, transition_and_label_pairs)
-    other_pairs_starts = map(t -> t[1], filter(trans -> (trans[2], trans[3]) == transition_and_label, transitions))
-    if !(target in other_pairs_starts)
+    other_pairs_with_same_label = filter(tup -> tup[1] == target && tup[3] == label, transitions)
+    if length(other_pairs_with_same_label) == 0
       push!(starts, target)
     end
 

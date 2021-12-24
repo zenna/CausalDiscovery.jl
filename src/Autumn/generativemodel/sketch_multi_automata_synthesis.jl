@@ -393,7 +393,16 @@ function generate_on_clauses_SKETCH_MULTI(run_id, matrix, unformatted_matrix, ob
             end
 
             if state_is_global 
-              global_update_functions_dict[(type_id, co_occurring_event)] = update_functions
+              if foldl(&, map(u -> occursin("addObj", u), update_functions), init=true)
+                group_addObj_rules, addObj_rules, addObj_count = addObj_params_dict[type_id[1]]
+                if group_addObj_rules 
+                  global_update_functions_dict[(type_id, co_occurring_event)] = update_functions[1:1]
+                else
+                  global_update_functions_dict[(type_id, co_occurring_event)] = update_functions
+                end
+              else
+                global_update_functions_dict[(type_id, co_occurring_event)] = update_functions
+              end
             else
               object_specific_update_functions_dict[(type_id, co_occurring_event)] = update_functions
             end
@@ -511,10 +520,31 @@ function generate_on_clauses_SKETCH_MULTI(run_id, matrix, unformatted_matrix, ob
       
             # construct start state under relabeling 
             new_start_state = old_to_new_state_values[best_start_state]
-      
-            state_based_update_func_on_clauses = vcat(map(tuple_idx -> map(upd_func -> ("(on (& $(best_co_occurring_events[tuple_idx]) (in (prev globalVar1) (list $(join(unique(new_accept_state_dict[tuple_idx][upd_func]), " ")))))\n$(replace(upd_func, "(--> obj (== (.. obj id) x))" => "(--> obj true)")))", upd_func), global_update_functions_dict[global_update_function_tuples[tuple_idx]]), collect(1:length(global_update_function_tuples)))...)
+            
+            # construct state_based_update_func_on_clauses
+            state_based_update_func_on_clauses = []
+            grouped_indices = []
+            normal_indices = []
+            for tuple_index in collect(1:length(global_update_function_tuples)) 
+              type_id, co_occurring_event = global_update_function_tuples[tuple_index]
+              update_functions = global_update_functions_dict[(type_id, co_occurring_event)]
+              if foldl(&, map(u -> occursin("addObj", u), update_functions), init=true)
+                group_addObj_rules, addObj_rules, addObj_count = addObj_params_dict[type_id[1]]
+                if group_addObj_rules 
+                  push!(grouped_indices, tuple_index)
+                else
+                  push!(normal_indices, tuple_index)
+                end
+              else
+                push!(normal_indices, tuple_index)
+              end
+            end
+            push!(state_based_update_func_on_clauses, vcat(map(tuple_idx -> map(upd_func -> ("(on (& $(best_co_occurring_events[tuple_idx]) (in (prev globalVar1) (list $(join(unique(new_accept_state_dict[tuple_idx][upd_func]), " ")))))\n$(replace(upd_func, "(--> obj (== (.. obj id) x))" => "(--> obj true)")))", upd_func), global_update_functions_dict[global_update_function_tuples[tuple_idx]]), normal_indices)...)...)
+            push!(state_based_update_func_on_clauses, vcat(map(tuple_idx -> map(upd_func -> ("(on (& $(best_co_occurring_events[tuple_idx]) (in (prev globalVar1) (list $(join(unique(new_accept_state_dict[tuple_idx][upd_func]), " ")))))\n(let\n($(join(unique(addObj_params_dict[global_update_function_tuples[tuple_idx][1][1]][2]), "\n")))))", upd_func), global_update_functions_dict[global_update_function_tuples[tuple_idx]]), grouped_indices)...)...)
+            
             new_transitions = map(trans -> (trans[1], trans[2], replace(trans[3], "(filter (--> obj (== (.. obj id) x)) (prev addedObjType$(type_id)List))" => "(list (prev obj))")), new_transitions)
             @show new_transitions 
+            @show collect(values(old_to_new_state_values))
             state_transition_on_clauses = format_state_transition_functions(new_transitions, collect(values(old_to_new_state_values)), global_var_id=1)
             fake_global_var_dict = Dict(1 => [new_start_state for i in 1:length(user_events)])
             global_var_dict = fake_global_var_dict
