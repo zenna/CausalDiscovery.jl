@@ -1034,141 +1034,74 @@ function generate_new_state_GLOBAL(co_occurring_event, times_dict, event_vector_
             end
           end
           
-          if length(matching_grouped_ranges) == 1 && length(matching_grouped_ranges[1]) == 1 # false
+          if length(matching_grouped_ranges) == 1 # && length(matching_grouped_ranges[1]) == 1 # false
 
-            # intervals = matching_grouped_ranges[1]
-            # new_problem_contexts = []
+            intervals = matching_grouped_ranges[1]
+            new_problem_contexts = []
 
-            # # initialize new_problem_contexts with current context plus current context with grouped_ranges order switched
-            # ## copy original problem context
-            # new_context_grouped_ranges, new_context_augmented_positive_times, new_context_new_state_update_times_dict = recompute_ranges(deepcopy(augmented_positive_times), 
-            #                                                                                                                              deepcopy(new_state_update_times_dict),
-            #                                                                                                                              global_var_id, 
-            #                                                                                                                              global_var_value,
-            #                                                                                                                              deepcopy(global_var_dict),
-            #                                                                                                                              deepcopy(true_positive_times), 
-            #                                                                                                                              deepcopy(extra_global_var_values),
-            #                                                                                                                              true)
-            # push!(new_problem_contexts, (deepcopy(new_context_grouped_ranges), deepcopy(new_context_augmented_positive_times), deepcopy(init_state_update_times_dict), deepcopy(global_var_dict), deepcopy(extra_global_var_values)))
+            # initialize new_problem_contexts with current context plus current context with grouped_ranges order switched
+            ## copy original problem context
+            new_context_grouped_ranges, new_context_augmented_positive_times, new_context_new_state_update_times_dict = recompute_ranges(deepcopy(augmented_positive_times), 
+                                                                                                                                         deepcopy(new_state_update_times_dict),
+                                                                                                                                         global_var_id, 
+                                                                                                                                         global_var_value,
+                                                                                                                                         deepcopy(global_var_dict),
+                                                                                                                                         deepcopy(true_positive_times), 
+                                                                                                                                         deepcopy(extra_global_var_values),
+                                                                                                                                         true)
+            push!(new_problem_contexts, (deepcopy(new_context_grouped_ranges), deepcopy(new_context_augmented_positive_times), deepcopy(init_state_update_times_dict), deepcopy(global_var_dict), deepcopy(extra_global_var_values)))
 
-            # ## add original problem context with two ranges swapped 
-            # matching_grouped_range = matching_grouped_ranges[1]
-            # matching_range = matching_grouped_range[1]
-            # matching_values = (matching_range[1][2], matching_range[2][2])
-            # current_values = (start_value, end_value)
-
-            # if !((current_values, matching_values) in split_orders) # && !((matching_values, current_values) in split_orders)
-            #   push!(split_orders, (current_values, matching_values))
-
-            #   matching_idx = findall(r -> r[1][1][2] == matching_values[1] && r[1][2][2] == matching_values[2], new_context_grouped_ranges)[1]
-            #   curr_idx = findall(r -> r[1][1][2] == current_values[1] && r[1][2][2] == current_values[2], new_context_grouped_ranges)[1]
-              
-            #   new_swapped_grouped_ranges = deepcopy(new_context_grouped_ranges)
-
-            #   new_swapped_grouped_ranges[curr_idx] = deepcopy(matching_grouped_range) 
-            #   new_swapped_grouped_ranges[matching_idx] = deepcopy(grouped_range)
-
-            #   push!(new_problem_contexts, (deepcopy(new_swapped_grouped_ranges), deepcopy(new_context_augmented_positive_times), deepcopy(init_state_update_times_dict), deepcopy(global_var_dict), deepcopy(extra_global_var_values)))
-            # end
-
-            # # redefine new_problem_contexts for each interval incrementally
-            # for interval in intervals 
-            #   curr_new_problem_contexts = [] 
-
-            #   for pc in new_problem_contexts 
-            #     push!(curr_new_problem_contexts, deepcopy(pc))
-            #     grouped_r, augmented_pt, state_ut, global_vd, extra_gvv = pc 
-
-            #     # check for intersection 
-            #     intersecting_times = intersect(collect(interval[1][1]:(interval[2][1] - 1)), false_positive_times)
-            #     if length(intersecting_times) > 1 
-            #       first_intersecting_time = intersecting_times[1]
-            #       push!(augmented_pt, (first_intersecting_time + 1, end_value))
-            #       sort!(augmented_pt, by=x -> x[1])
-            #       # recompute ranges + state_update_times_dict
-            #       new_context_grouped_ranges, new_context_augmented_positive_times, new_context_new_state_update_times_dict = recompute_ranges(augmented_pt, 
-            #                                                                                                                                    state_ut,
-            #                                                                                                                                    global_var_id, 
-            #                                                                                                                                    global_var_value,
-            #                                                                                                                                    global_vd,
-            #                                                                                                                                    true_positive_times, 
-            #                                                                                                                                    extra_gvv,
-            #                                                                                                                                    true)
-
-            #       push!(curr_new_problem_contexts, (new_context_grouped_ranges, new_context_augmented_positive_times, deepcopy(init_state_update_times_dict), deepcopy(global_var_dict), deepcopy(extra_global_var_values)))
-            #     end
-            #   end
-
-            #   new_problem_contexts = curr_new_problem_contexts
-            # end
-            # final_new_problem_contexts = new_problem_contexts[2:end]
-            # push!(problem_contexts, final_new_problem_contexts...)
-
-
-
-
-            
-            matching_grouped_range = matching_grouped_ranges[1]
-            matching_range = matching_grouped_range[1]
+            ## add original problem context with two ranges swapped 
+            matching_range = intervals[1]
             matching_values = (matching_range[1][2], matching_range[2][2])
             current_values = (start_value, end_value)
-  
-            # @show matching_grouped_range
-            # @show matching_range
-            # @show matching_values
-            # @show current_values
-  
-            # check that we haven't previously considered this reordering
+
             if !((current_values, matching_values) in split_orders) # && !((matching_values, current_values) in split_orders)
               push!(split_orders, (current_values, matching_values))
-  
-              # create new problem context
-              new_context_grouped_ranges, new_context_augmented_positive_times, new_context_new_state_update_times_dict = recompute_ranges(deepcopy(augmented_positive_times), 
-                                                                                                                                           deepcopy(new_state_update_times_dict),
-                                                                                                                                           global_var_id, 
-                                                                                                                                           global_var_value,
-                                                                                                                                           deepcopy(global_var_dict),
-                                                                                                                                           deepcopy(true_positive_times), 
-                                                                                                                                           deepcopy(extra_global_var_values),
-                                                                                                                                           true)
-              # new_context_grouped_ranges = deepcopy(curr_max_grouped_ranges)
-              # @show grouped_ranges
-              # @show new_context_grouped_ranges
+
               matching_idx = findall(r -> r[1][1][2] == matching_values[1] && r[1][2][2] == matching_values[2], new_context_grouped_ranges)[1]
               curr_idx = findall(r -> r[1][1][2] == current_values[1] && r[1][2][2] == current_values[2], new_context_grouped_ranges)[1]
               
-              new_context_grouped_ranges[curr_idx] = deepcopy(matching_grouped_range) 
-              new_context_grouped_ranges[matching_idx] = deepcopy(grouped_range)
-  
-              # new_context_augmented_positive_times = deepcopy(curr_max_augmented_positive_times)
-              # new_context_new_state_update_times_dict = deepcopy(curr_max_new_state_update_times_dict) 
-              # new_context_curr_max_global_var_dict = deepcopy(curr_max_global_var_dict)
+              new_swapped_grouped_ranges = deepcopy(new_context_grouped_ranges)
 
-              # push!(problem_contexts, (deepcopy(new_context_grouped_ranges), deepcopy(new_context_augmented_positive_times), deepcopy(init_state_update_times_dict), deepcopy(global_var_dict), deepcopy(extra_global_var_values)))
-  
-              # if the false positive intersection with a different range has size greater than 1, try allowing the first false
-              # positive event in that other range to take place, instead of specializing its value
-              intersecting_times = intersect(collect(matching_range[1][1]:(matching_range[2][1] - 1)), false_positive_times)
-              if length(intersecting_times) > 1
-                # update new_context_augmented_positive_times 
-                first_intersecting_time = intersecting_times[1]
-                push!(new_context_augmented_positive_times, (first_intersecting_time + 1, end_value))
-                sort!(new_context_augmented_positive_times, by=x -> x[1])
-                # recompute ranges + state_update_times_dict
-                new_context_grouped_ranges, new_context_augmented_positive_times, new_context_new_state_update_times_dict = recompute_ranges(new_context_augmented_positive_times, 
-                                                                                                                                             deepcopy(init_state_update_times_dict),
-                                                                                                                                             global_var_id, 
-                                                                                                                                             global_var_value,
-                                                                                                                                             deepcopy(global_var_dict),
-                                                                                                                                             true_positive_times, 
-                                                                                                                                             extra_global_var_values,
-                                                                                                                                             true)
+              new_swapped_grouped_ranges[curr_idx] = deepcopy(intervals) 
+              new_swapped_grouped_ranges[matching_idx] = deepcopy(grouped_range)
 
-                # push!(problem_contexts, (new_context_grouped_ranges, new_context_augmented_positive_times, deepcopy(init_state_update_times_dict), deepcopy(global_var_dict), deepcopy(extra_global_var_values)))
-              end
-              push!(problem_contexts, (deepcopy(new_context_grouped_ranges), deepcopy(new_context_augmented_positive_times), deepcopy(init_state_update_times_dict), deepcopy(global_var_dict), deepcopy(extra_global_var_values)))
-
+              push!(new_problem_contexts, (deepcopy(new_swapped_grouped_ranges), deepcopy(new_context_augmented_positive_times), deepcopy(init_state_update_times_dict), deepcopy(global_var_dict), deepcopy(extra_global_var_values)))
             end
+
+            # redefine new_problem_contexts for each interval incrementally
+            for interval in intervals 
+              curr_new_problem_contexts = [] 
+
+              for pc in new_problem_contexts 
+                push!(curr_new_problem_contexts, deepcopy(pc))
+                grouped_r, augmented_pt, state_ut, global_vd, extra_gvv = pc 
+
+                # check for intersection 
+                intersecting_times = intersect(collect(interval[1][1]:(interval[2][1] - 1)), false_positive_times)
+                if length(intersecting_times) > 1 
+                  first_intersecting_time = intersecting_times[1]
+                  push!(augmented_pt, (first_intersecting_time + 1, end_value))
+                  sort!(augmented_pt, by=x -> x[1])
+                  # recompute ranges + state_update_times_dict
+                  new_context_grouped_ranges, new_context_augmented_positive_times, new_context_new_state_update_times_dict = recompute_ranges(deepcopy(augmented_pt), 
+                                                                                                                                               deepcopy(state_ut),
+                                                                                                                                               global_var_id, 
+                                                                                                                                               global_var_value,
+                                                                                                                                               deepcopy(global_vd),
+                                                                                                                                               true_positive_times, 
+                                                                                                                                               deepcopy(extra_gvv),
+                                                                                                                                               true)
+
+                  push!(curr_new_problem_contexts, (new_context_grouped_ranges, new_context_augmented_positive_times, deepcopy(init_state_update_times_dict), deepcopy(global_var_dict), deepcopy(extra_global_var_values)))
+                end
+              end
+
+              new_problem_contexts = curr_new_problem_contexts
+            end
+            final_new_problem_contexts = new_problem_contexts[2:end]
+            push!(problem_contexts, final_new_problem_contexts...)            
           end
     
           # construct state update on-clause
