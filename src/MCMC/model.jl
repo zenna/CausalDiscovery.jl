@@ -89,7 +89,7 @@ function generateNewExpression(E, observed_data, variables=nothing)
     setVariablesToNothing()
     newLik = getLikelihood(newE, observed_data)
     setVariablesToNothing()
-    println(join(["lik: ", string(lik), " newLik: ", string(newLik), " "]," "))
+    # println(join(["lik: ", string(lik), " newLik: ", string(newLik), " "]," "))
     if lik == 0
         p = 1
     else

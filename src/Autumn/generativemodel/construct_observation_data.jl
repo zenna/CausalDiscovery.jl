@@ -1724,7 +1724,7 @@ function generate_observations_pedro(game_name)
   render_folder = string(pedro_output_folder, "/", game_name)
   sorted_files = sort(filter(f -> occursin("render", f), readdir(render_folder)), by=x -> parse(Int, split(x, "render")[2]))
   for render_file in sorted_files
-    println(render_file)
+    # println(render_file)
     cell_strings = readlines(string(render_folder, "/", render_file))
     push!(observations, map(s -> Autumn.AutumnStandardLibrary.Cell(parse(Int, split(s, " ")[2]), 
                                                                     parse(Int, split(s, " ")[1]), 
