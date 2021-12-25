@@ -915,6 +915,8 @@ function generate_new_state_GLOBAL(co_occurring_event, times_dict, event_vector_
     @show small_event_vector_dict 
     while (length(problem_contexts) > 0) && length(solutions) < desired_per_matrix_solution_count 
       grouped_ranges, augmented_positive_times, new_state_update_times_dict, global_var_dict, extra_global_var_values = problem_contexts[1]
+      filled_augmented_positive_times = deepcopy(augmented_positive_times)
+
       problem_contexts = problem_contexts[2:end]
       failed = false
       transition_decision_index = 1
@@ -955,7 +957,8 @@ function generate_new_state_GLOBAL(co_occurring_event, times_dict, event_vector_
         max_global_var_value = maximum(map(tuple -> tuple[2], augmented_positive_times))
     
         # search for events within range
-        events_in_range = find_state_update_events(small_event_vector_dict, augmented_positive_times, time_ranges, start_value, end_value, global_var_dict, global_var_id, 1)
+        # TODO: pass filled_augmented_positive_times into events_in_range
+        events_in_range = find_state_update_events(small_event_vector_dict, filled_augmented_positive_times, time_ranges, start_value, end_value, global_var_dict, global_var_id, 1)
         println("PRE PRUNING: EVENTS IN RANGE")
   
         @show events_in_range
@@ -998,12 +1001,46 @@ function generate_new_state_GLOBAL(co_occurring_event, times_dict, event_vector_
           # construct state update on-clause
           state_update_on_clause = "(on $(state_update_event)\n$(state_update_function))"
           
-          # add to state_update_times 
-          # # @show event_times
-          # # # @show state_update_on_clause  
-          for time in event_times 
-            new_state_update_times_dict[global_var_id][time] = state_update_on_clause
+          # # add to state_update_times 
+          # # # @show event_times
+          # # # # @show state_update_on_clause  
+          # for time in event_times 
+          #   # TODO: update filled_augmented_positive_times
+
+          #   new_state_update_times_dict[global_var_id][time] = state_update_on_clause
+          # end
+
+          for range in grouped_range 
+            start_time = range[1][1]
+            end_time = range[2][1]
+            
+            matching_event_times = filter(t -> t >= start_time && t < end_time, event_times)
+            if matching_event_times != [] 
+              # fill in interval in filled_augmented_positive_times
+              first_event_time = matching_event_times[1]
+              for time in (start_time + 1):(end_time - 1)
+                if time <= first_event_time 
+                  push!(filled_augmented_positive_times, (time, start_value))
+                else 
+                  push!(filled_augmented_positive_times, (time, end_value))
+                end
+              end
+
+              # update state_update_times 
+              if occursin("globalVar", state_update_event)
+                new_state_update_times_dict[global_var_id][first_event_time] = state_update_on_clause
+              else
+                for time in matching_event_times 
+                  new_state_update_times_dict[global_var_id][time] = state_update_on_clause
+                end
+              end
+
+            end
+
           end
+          sort!(filled_augmented_positive_times, by=x->x[1])
+          @show filled_augmented_positive_times 
+          @show augmented_positive_times 
     
         else # no event with zero false positives found; use best false-positive event and specialize globalVar values (i.e. add new value)
           # find co-occurring event with fewest false positives 
@@ -1248,6 +1285,7 @@ function generate_new_state_GLOBAL(co_occurring_event, times_dict, event_vector_
   
           # compute new ranges and find state update events
           grouped_ranges, augmented_positive_times, new_state_update_times_dict = recompute_ranges(augmented_positive_times, new_state_update_times_dict, global_var_id, global_var_value, global_var_dict, true_positive_times, extra_global_var_values, true)
+          filled_augmented_positive_times = deepcopy(augmented_positive_times) # reset filled a_p_t 
           @show new_state_update_times_dict 
         end   
       end
