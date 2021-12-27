@@ -58,23 +58,23 @@ function generate_on_clauses_SKETCH_SINGLE(run_id, matrix, unformatted_matrix, o
     filtered_matrices = filtered_matrices[1:5]
   end 
 
-  # # BEGIN RANDOM 
-  # # add random filtered matrices to filtered_matrices 
-  # random_matrix = deepcopy(matrix)
-  # for row in 1:size(random_matrix)[1]
-  #   for col in 1:size(random_matrix)[2]
-  #     if filter(x -> occursin("uniformChoice", x) || occursin("randomPositions", x), random_matrix[row, col]) != []
-  #       random_matrix[row, col] = filter(x -> occursin("uniformChoice", x) || occursin("randomPositions", x), random_matrix[row, col])
-  #     end
-  #   end
-  # end
-  # filtered_random_matrices = filter_update_function_matrix_multiple(random_matrix, object_decomposition, multiple=true)
-  # filtered_random_matrices = filtered_random_matrices[1:min(4, length(filtered_random_matrices))]
-  # push!(filtered_matrices, filtered_random_matrices...)
+  # BEGIN RANDOM 
+  # add random filtered matrices to filtered_matrices 
+  random_matrix = deepcopy(matrix)
+  for row in 1:size(random_matrix)[1]
+    for col in 1:size(random_matrix)[2]
+      if filter(x -> occursin("uniformChoice", x) || occursin("randomPositions", x), random_matrix[row, col]) != []
+        random_matrix[row, col] = filter(x -> occursin("uniformChoice", x) || occursin("randomPositions", x), random_matrix[row, col])
+      end
+    end
+  end
+  filtered_random_matrices = filter_update_function_matrix_multiple(random_matrix, object_decomposition, multiple=true)
+  filtered_random_matrices = filtered_random_matrices[1:min(4, length(filtered_random_matrices))]
+  push!(filtered_matrices, filtered_random_matrices...)
 
-  # # add "chaos" solution to filtered_matrices 
-  # filtered_unformatted_matrix = filter_update_function_matrix_multiple(unformatted_matrix, object_decomposition, multiple=false)[1]
-  # push!(filtered_matrices, filter_update_function_matrix_multiple(construct_chaos_matrix(filtered_unformatted_matrix, object_decomposition), object_decomposition, multiple=false)...)
+  # add "chaos" solution to filtered_matrices 
+  filtered_unformatted_matrix = filter_update_function_matrix_multiple(unformatted_matrix, object_decomposition, multiple=false)[1]
+  push!(filtered_matrices, filter_update_function_matrix_multiple(construct_chaos_matrix(filtered_unformatted_matrix, object_decomposition), object_decomposition, multiple=false)...)
 
   unique!(filtered_matrices)
   # @show length(filtered_matrices)
