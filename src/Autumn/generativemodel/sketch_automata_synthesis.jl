@@ -144,7 +144,7 @@ function generate_on_clauses_SKETCH_SINGLE(run_id, matrix, unformatted_matrix, o
 
     # return values: state_based_update_functions_dict has form type_id => [unsolved update functions]
     new_on_clauses, state_based_update_functions_dict, observation_vectors_dict, addObj_params_dict, global_event_vector_dict, ordered_update_functions_dict = generate_stateless_on_clauses(run_id, update_functions_dict, matrix, filtered_matrix, anonymized_filtered_matrix, object_decomposition, user_events, state_update_on_clauses, global_var_dict, global_event_vector_dict, redundant_events_set, z3_option, time_based, z3_timeout, sketch_timeout)
-    
+    # @show addObj_params_dict
     # println("I AM HERE NOW")
     # @show new_on_clauses
     # @show state_based_update_functions_dict
@@ -214,9 +214,9 @@ function generate_on_clauses_SKETCH_SINGLE(run_id, matrix, unformatted_matrix, o
 
       # GLOBAL STATE HANDLING
       if length(collect(keys(global_update_functions_dict))) > 0 
-        global_update_functions = sort(vcat(collect(keys(global_update_functions_dict))...))
+        type_ids = sort(vcat(collect(keys(global_update_functions_dict))...))
         # construct update_function_times_dict for this type_id/co_occurring_event pair 
-        for type_id in global_update_functions
+        for type_id in type_ids
           global_update_functions = global_update_functions_dict[type_id]
           for update_function in global_update_functions 
             times_dict = Dict() # form: update function => object_id => times when update function occurred for object_id
@@ -289,7 +289,32 @@ function generate_on_clauses_SKETCH_SINGLE(run_id, matrix, unformatted_matrix, o
           # construct start state under relabeling 
           new_start_state = old_to_new_state_values[best_start_state]
     
-          state_based_update_func_on_clauses = map(idx -> ("(on (& $(best_co_occurring_events[idx]) (in (prev globalVar1) (list $(join(new_accept_state_dict[global_update_functions[idx]], " ")))))\n$(replace(global_update_functions[idx], "(--> obj (== (.. obj id) x))" => "(--> obj true)")))", global_update_functions[idx]), collect(1:length(global_update_functions)))
+          # state_based_update_func_on_clauses = map(idx -> ("(on (& $(best_co_occurring_events[idx]) (in (prev globalVar1) (list $(join(new_accept_state_dict[global_update_functions[idx]], " ")))))\n$(replace(global_update_functions[idx], "(--> obj (== (.. obj id) x))" => "(--> obj true)")))", global_update_functions[idx]), collect(1:length(global_update_functions)))
+          
+          state_based_update_func_on_clauses = []
+          grouped_indices = []
+          normal_indices = []
+          for index in collect(1:length(global_update_functions)) 
+            update_function = global_update_functions[index]
+            if occursin("addObj", update_function)
+              matching_tuples = filter(tup -> update_function in tup[2], collect(values(addObj_params_dict)))
+              if matching_tuples != [] 
+                group_addObj_rules, addObj_rules, addObj_count = matching_tuples[1]
+                if group_addObj_rules 
+                  push!(grouped_indices, (index, addObj_rules))
+                else
+                  push!(normal_indices, index)
+                end
+              else
+                push!(normal_indices, index)
+              end
+            else
+              push!(normal_indices, index)
+            end
+          end
+          push!(state_based_update_func_on_clauses, vcat(map(idx -> ("(on (& $(best_co_occurring_events[idx]) (in (prev globalVar1) (list $(join(new_accept_state_dict[global_update_functions[idx]], " ")))))\n$(replace(global_update_functions[idx], "(--> obj (== (.. obj id) x))" => "(--> obj true)")))", global_update_functions[idx]), normal_indices)...)...)
+          push!(state_based_update_func_on_clauses, vcat(map(idx -> ("(on (& $(best_co_occurring_events[idx[1]]) (in (prev globalVar1) (list $(join(new_accept_state_dict[global_update_functions[idx[1]]], " ")))))\n(let\n($(join(unique(idx[2]), "\n")))))", global_update_functions[idx[1]]), grouped_indices)...)...)
+                    
           # state_transition_on_clauses = map(trans -> "(on (& $(trans[3]) (== (prev globalVar1) $(trans[1])))\n(= globalVar1 $(trans[2])))", new_transitions)
           state_transition_on_clauses = format_state_transition_functions(new_transitions, collect(values(old_to_new_state_values)), global_var_id=1)
           fake_global_var_dict = Dict(1 => [new_start_state for i in 1:length(user_events)])

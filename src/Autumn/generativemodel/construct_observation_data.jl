@@ -309,10 +309,10 @@ function generate_observations_gravity(m::Module)
   user_events = []
   push!(observations, Base.invokelatest(m.render, state.scene))
 
-  clicks = Dict([1 => (5, 6),
-                 2 => (2, 3),
+  clicks = Dict([1 => (8, 8),
+                 2 => (6, 5),
                  3 => (0, 7),
-                 5 => (11, 8),
+                 5 => (11, 10),
                  8 => (15, 7),
                  11 => (7, 0),
                  13 => (7, 15),
@@ -590,13 +590,17 @@ function generate_observations_grow(m::Module)
                  63 => (5, 0),
                  64 => "down",
                  70 => "down",
-                 74 => (4, 0),
-                 76 => (3, 0),
-                 78 => (2, 0),
-                 80 => (1, 0),
+                 80 => "right",
+                 81 => "right",
+                 82 => "right",
+                 83 => "right",
+                 85 => (4, 0),
+                 86 => (3, 0),
+                 87 => (2, 0),
+                 89 => (1, 0),
                 ])
 
-  for i in -1:81
+  for i in -1:90
     if i in collect(keys(events))
       event = events[i]
       if event == "left"
