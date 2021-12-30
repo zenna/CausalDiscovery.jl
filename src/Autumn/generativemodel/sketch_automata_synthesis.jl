@@ -1,7 +1,9 @@
 if Sys.islinux() 
   sketch_directory = "/scratch/riadas/sketch-1.7.6/sketch-frontend/"
+  temp_directory = "/scratch/riadas/.sketch/tmp"
 else
   sketch_directory = "/Users/riadas/Documents/urop/sketch-1.7.6/sketch-frontend/"
+  temp_directory = "/Users/riadas/Documents/urop/.sketch/tmp"
 end
 
 
@@ -172,7 +174,7 @@ function generate_on_clauses_SKETCH_SINGLE(run_id, matrix, unformatted_matrix, o
 
       for type_id in type_ids 
         object_ids_with_type = filter(k -> filter(obj -> !isnothing(obj), object_mapping[k])[1].type.id == type_id, collect(keys(object_mapping)))
-        for update_function in update_functions 
+        for update_function in state_based_update_functions_dict[type_id] 
           # determine if state is global or object-specific 
           state_is_global = true 
           if length(object_ids_with_type) == 1 || occursin("addObj", update_function)
@@ -407,7 +409,7 @@ function generate_on_clauses_SKETCH_SINGLE(run_id, matrix, unformatted_matrix, o
           # state_transition_on_clauses = map(trans -> """(on true\n(= addedObjType$(type_id)List (updateObj addedObjType$(type_id)List (--> obj (updateObj (prev obj) "field1" $(trans[2]))) (--> obj $(trans[3])))))""", new_transitions)
           state_transition_on_clauses = map(x -> replace(x, "(filter (--> obj (== (.. obj id) x)) (prev addedObjType$(type_id)List))" => "(list (prev obj))" ), format_state_transition_functions(new_transitions, collect(values(old_to_new_state_values)), type_id=type_id))
   
-          fake_object_field_values = Dict(map(idx -> sort(collect(keys(object_mapping)))[idx] => [new_start_states[idx] for i in 1:length(object_mapping[object_ids[1]])], sort(collect(keys(object_mapping)))))
+          fake_object_field_values = Dict(map(idx -> sort(object_ids)[idx] => [new_start_states[idx] for i in 1:length(object_mapping[object_ids[1]])], 1:length(object_ids)))
   
           new_object_types = deepcopy(object_types)
           new_object_type = filter(type -> type.id == type_id, new_object_types)[1]
@@ -874,12 +876,12 @@ function generate_global_automaton_sketch(run_id, update_rule, update_function_t
       
           # run Sketch query
           if sketch_timeout == 0 
-            command = "$(sketch_directory)sketch --bnd-unroll-amnt $(length(sketch_event_trajectory) + 2) --fe-output-code --fe-tempdir /scratch/riadas/.sketch/tmp $(sketch_file_name)"
+            command = "$(sketch_directory)sketch --bnd-unroll-amnt $(length(sketch_event_trajectory) + 2)  $(sketch_file_name)"
           else
             if Sys.islinux() 
-              command = "timeout $(sketch_timeout) $(sketch_directory)sketch --bnd-unroll-amnt $(length(sketch_event_trajectory) + 2) --fe-output-code --fe-output-code --fe-tempdir /scratch/riadas/.sketch/tmp $(sketch_file_name)"
+              command = "timeout $(sketch_timeout) $(sketch_directory)sketch --bnd-unroll-amnt $(length(sketch_event_trajectory) + 2) --fe-output-code --fe-tempdir $(temp_directory) $(sketch_file_name)"
             else
-              command = "gtimeout $(sketch_timeout) $(sketch_directory)sketch --bnd-unroll-amnt $(length(sketch_event_trajectory) + 2) --fe-output-code --fe-output-code --fe-tempdir /scratch/riadas/.sketch/tmp $(sketch_file_name)"
+              command = "gtimeout $(sketch_timeout) $(sketch_directory)sketch --bnd-unroll-amnt $(length(sketch_event_trajectory) + 2) --fe-output-code --fe-tempdir $(temp_directory) $(sketch_file_name)"
             end
           end
           
@@ -1854,12 +1856,12 @@ function generate_object_specific_automaton_sketch(run_id, update_rule, update_f
     
       # run Sketch query
       if sketch_timeout == 0 
-        command = "$(sketch_directory)sketch --bnd-unroll-amnt $(length(sketch_update_function_arr[object_ids[1]]) + 2) --fe-output-code --fe-output-code --fe-tempdir /scratch/riadas/.sketch/tmp $(sketch_file_name)"
+        command = "$(sketch_directory)sketch --bnd-unroll-amnt $(length(sketch_update_function_arr[object_ids[1]]) + 2) --fe-output-code --fe-tempdir $(temp_directory) $(sketch_file_name)"
       else
         if Sys.islinux() 
-          command = "timeout $(sketch_timeout) $(sketch_directory)sketch --bnd-unroll-amnt $(length(sketch_update_function_arr[object_ids[1]]) + 2) --fe-output-code --fe-output-code --fe-tempdir /scratch/riadas/.sketch/tmp $(sketch_file_name)"
+          command = "timeout $(sketch_timeout) $(sketch_directory)sketch --bnd-unroll-amnt $(length(sketch_update_function_arr[object_ids[1]]) + 2) --fe-output-code --fe-tempdir $(temp_directory) $(sketch_file_name)"
         else
-          command = "gtimeout $(sketch_timeout) $(sketch_directory)sketch --bnd-unroll-amnt $(length(sketch_update_function_arr[object_ids[1]]) + 2) --fe-output-code --fe-output-code --fe-tempdir /scratch/riadas/.sketch/tmp $(sketch_file_name)"
+          command = "gtimeout $(sketch_timeout) $(sketch_directory)sketch --bnd-unroll-amnt $(length(sketch_update_function_arr[object_ids[1]]) + 2) --fe-output-code --fe-tempdir $(temp_directory) $(sketch_file_name)"
         end
       end
     

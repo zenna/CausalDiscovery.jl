@@ -1,7 +1,9 @@
 if Sys.islinux() 
   sketch_directory = "/scratch/riadas/sketch-1.7.6/sketch-frontend/"
+  temp_directory = "/scratch/riadas/.sketch/tmp"
 else
   sketch_directory = "/Users/riadas/Documents/urop/sketch-1.7.6/sketch-frontend/"
+  temp_directory = "/Users/riadas/Documents/urop/.sketch/tmp"
 end
 
 function generate_on_clauses_SKETCH_MULTI(run_id, matrix, unformatted_matrix, object_decomposition, user_events, global_event_vector_dict, redundant_events_set, grid_size=16, desired_solution_count=1, desired_per_matrix_solution_count=1, interval_painting_param=false, z3_option="none", time_based=false, z3_timeout=0, sketch_timeout=0, co_occurring_param=false, transition_param=false, co_occurring_distinct=1, co_occurring_same=1, co_occurring_threshold=1, transition_distinct=1, transition_same=1, transition_threshold=1)
@@ -987,12 +989,12 @@ function generate_global_multi_automaton_sketch(run_id, co_occurring_event, time
 
     # run Sketch query
     if sketch_timeout == 0 
-      command = "$(sketch_directory)sketch --bnd-unroll-amnt $(length(sketch_event_trajectory) + 2) --fe-output-code --fe-output-code --fe-tempdir /scratch/riadas/.sketch/tmp $(sketch_file_name)"
+      command = "$(sketch_directory)sketch --bnd-unroll-amnt $(length(sketch_event_trajectory) + 2) --fe-output-code --fe-tempdir $(temp_directory) $(sketch_file_name)"
     else
       if Sys.islinux() 
-        command = "timeout $(sketch_timeout) $(sketch_directory)sketch --bnd-unroll-amnt $(length(sketch_event_trajectory) + 2) --fe-output-code --fe-output-code --fe-tempdir /scratch/riadas/.sketch/tmp $(sketch_file_name)"
+        command = "timeout $(sketch_timeout) $(sketch_directory)sketch --bnd-unroll-amnt $(length(sketch_event_trajectory) + 2) --fe-output-code --fe-tempdir $(temp_directory) $(sketch_file_name)"
       else
-        command = "gtimeout $(sketch_timeout) $(sketch_directory)sketch --bnd-unroll-amnt $(length(sketch_event_trajectory) + 2) --fe-output-code --fe-output-code --fe-tempdir /scratch/riadas/.sketch/tmp $(sketch_file_name)"
+        command = "gtimeout $(sketch_timeout) $(sketch_directory)sketch --bnd-unroll-amnt $(length(sketch_event_trajectory) + 2) --fe-output-code --fe-tempdir $(temp_directory) $(sketch_file_name)"
       end
     end
     
@@ -1351,12 +1353,12 @@ function generate_object_specific_multi_automaton_sketch(run_id, co_occurring_ev
 
     # run Sketch query
     if sketch_timeout == 0 
-      command = "$(sketch_directory)sketch --bnd-unroll-amnt $(length(sketch_event_arrs_dict_formatted[object_ids[1]]) + 2) --fe-output-code --fe-output-code --fe-tempdir /scratch/riadas/.sketch/tmp $(sketch_file_name)"
+      command = "$(sketch_directory)sketch --bnd-unroll-amnt $(length(sketch_event_arrs_dict_formatted[object_ids[1]]) + 2) --fe-output-code --fe-tempdir $(temp_directory) $(sketch_file_name)"
     else
       if Sys.islinux() 
-        command = "timeout $(sketch_timeout) $(sketch_directory)sketch --bnd-unroll-amnt $(length(sketch_event_arrs_dict_formatted[object_ids[1]]) + 2) --fe-output-code --fe-output-code --fe-tempdir /scratch/riadas/.sketch/tmp $(sketch_file_name)"
+        command = "timeout $(sketch_timeout) $(sketch_directory)sketch --bnd-unroll-amnt $(length(sketch_event_arrs_dict_formatted[object_ids[1]]) + 2) --fe-output-code --fe-tempdir $(temp_directory) $(sketch_file_name)"
       else
-        command = "gtimeout $(sketch_timeout) $(sketch_directory)sketch --bnd-unroll-amnt $(length(sketch_event_arrs_dict_formatted[object_ids[1]]) + 2) --fe-output-code --fe-output-code --fe-tempdir /scratch/riadas/.sketch/tmp $(sketch_file_name)"
+        command = "gtimeout $(sketch_timeout) $(sketch_directory)sketch --bnd-unroll-amnt $(length(sketch_event_arrs_dict_formatted[object_ids[1]]) + 2) --fe-output-code --fe-tempdir $(temp_directory) $(sketch_file_name)"
       end
     end
     
