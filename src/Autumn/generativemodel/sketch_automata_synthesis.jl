@@ -874,12 +874,12 @@ function generate_global_automaton_sketch(run_id, update_rule, update_function_t
       
           # run Sketch query
           if sketch_timeout == 0 
-            command = "$(sketch_directory)sketch --bnd-unroll-amnt $(length(sketch_event_trajectory) + 2) --fe-output-code $(sketch_file_name)"
+            command = "$(sketch_directory)sketch --bnd-unroll-amnt $(length(sketch_event_trajectory) + 2) --fe-output-code --fe-tempdir /scratch/riadas/.sketch/tmp $(sketch_file_name)"
           else
             if Sys.islinux() 
-              command = "timeout $(sketch_timeout) $(sketch_directory)sketch --bnd-unroll-amnt $(length(sketch_event_trajectory) + 2) --fe-output-code $(sketch_file_name)"
+              command = "timeout $(sketch_timeout) $(sketch_directory)sketch --bnd-unroll-amnt $(length(sketch_event_trajectory) + 2) --fe-output-code --fe-output-code --fe-tempdir /scratch/riadas/.sketch/tmp $(sketch_file_name)"
             else
-              command = "gtimeout $(sketch_timeout) $(sketch_directory)sketch --bnd-unroll-amnt $(length(sketch_event_trajectory) + 2) --fe-output-code $(sketch_file_name)"
+              command = "gtimeout $(sketch_timeout) $(sketch_directory)sketch --bnd-unroll-amnt $(length(sketch_event_trajectory) + 2) --fe-output-code --fe-output-code --fe-tempdir /scratch/riadas/.sketch/tmp $(sketch_file_name)"
             end
           end
           
@@ -1854,12 +1854,12 @@ function generate_object_specific_automaton_sketch(run_id, update_rule, update_f
     
       # run Sketch query
       if sketch_timeout == 0 
-        command = "$(sketch_directory)sketch --bnd-unroll-amnt $(length(sketch_update_function_arr[object_ids[1]]) + 2) --fe-output-code $(sketch_file_name)"
+        command = "$(sketch_directory)sketch --bnd-unroll-amnt $(length(sketch_update_function_arr[object_ids[1]]) + 2) --fe-output-code --fe-output-code --fe-tempdir /scratch/riadas/.sketch/tmp $(sketch_file_name)"
       else
         if Sys.islinux() 
-          command = "timeout $(sketch_timeout) $(sketch_directory)sketch --bnd-unroll-amnt $(length(sketch_update_function_arr[object_ids[1]]) + 2) --fe-output-code $(sketch_file_name)"
+          command = "timeout $(sketch_timeout) $(sketch_directory)sketch --bnd-unroll-amnt $(length(sketch_update_function_arr[object_ids[1]]) + 2) --fe-output-code --fe-output-code --fe-tempdir /scratch/riadas/.sketch/tmp $(sketch_file_name)"
         else
-          command = "gtimeout $(sketch_timeout) $(sketch_directory)sketch --bnd-unroll-amnt $(length(sketch_update_function_arr[object_ids[1]]) + 2) --fe-output-code $(sketch_file_name)"
+          command = "gtimeout $(sketch_timeout) $(sketch_directory)sketch --bnd-unroll-amnt $(length(sketch_update_function_arr[object_ids[1]]) + 2) --fe-output-code --fe-output-code --fe-tempdir /scratch/riadas/.sketch/tmp $(sketch_file_name)"
         end
       end
     

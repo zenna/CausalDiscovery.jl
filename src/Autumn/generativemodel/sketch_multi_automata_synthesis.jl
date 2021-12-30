@@ -987,12 +987,12 @@ function generate_global_multi_automaton_sketch(run_id, co_occurring_event, time
 
     # run Sketch query
     if sketch_timeout == 0 
-      command = "$(sketch_directory)sketch --bnd-unroll-amnt $(length(sketch_event_trajectory) + 2) --fe-output-code $(sketch_file_name)"
+      command = "$(sketch_directory)sketch --bnd-unroll-amnt $(length(sketch_event_trajectory) + 2) --fe-output-code --fe-output-code --fe-tempdir /scratch/riadas/.sketch/tmp $(sketch_file_name)"
     else
       if Sys.islinux() 
-        command = "timeout $(sketch_timeout) $(sketch_directory)sketch --bnd-unroll-amnt $(length(sketch_event_trajectory) + 2) --fe-output-code $(sketch_file_name)"
+        command = "timeout $(sketch_timeout) $(sketch_directory)sketch --bnd-unroll-amnt $(length(sketch_event_trajectory) + 2) --fe-output-code --fe-output-code --fe-tempdir /scratch/riadas/.sketch/tmp $(sketch_file_name)"
       else
-        command = "gtimeout $(sketch_timeout) $(sketch_directory)sketch --bnd-unroll-amnt $(length(sketch_event_trajectory) + 2) --fe-output-code $(sketch_file_name)"
+        command = "gtimeout $(sketch_timeout) $(sketch_directory)sketch --bnd-unroll-amnt $(length(sketch_event_trajectory) + 2) --fe-output-code --fe-output-code --fe-tempdir /scratch/riadas/.sketch/tmp $(sketch_file_name)"
       end
     end
     
@@ -1351,12 +1351,12 @@ function generate_object_specific_multi_automaton_sketch(run_id, co_occurring_ev
 
     # run Sketch query
     if sketch_timeout == 0 
-      command = "$(sketch_directory)sketch --bnd-unroll-amnt $(length(sketch_event_arrs_dict_formatted[object_ids[1]]) + 2) --fe-output-code $(sketch_file_name)"
+      command = "$(sketch_directory)sketch --bnd-unroll-amnt $(length(sketch_event_arrs_dict_formatted[object_ids[1]]) + 2) --fe-output-code --fe-output-code --fe-tempdir /scratch/riadas/.sketch/tmp $(sketch_file_name)"
     else
       if Sys.islinux() 
-        command = "timeout $(sketch_timeout) $(sketch_directory)sketch --bnd-unroll-amnt $(length(sketch_event_arrs_dict_formatted[object_ids[1]]) + 2) --fe-output-code $(sketch_file_name)"
+        command = "timeout $(sketch_timeout) $(sketch_directory)sketch --bnd-unroll-amnt $(length(sketch_event_arrs_dict_formatted[object_ids[1]]) + 2) --fe-output-code --fe-output-code --fe-tempdir /scratch/riadas/.sketch/tmp $(sketch_file_name)"
       else
-        command = "gtimeout $(sketch_timeout) $(sketch_directory)sketch --bnd-unroll-amnt $(length(sketch_event_arrs_dict_formatted[object_ids[1]]) + 2) --fe-output-code $(sketch_file_name)"
+        command = "gtimeout $(sketch_timeout) $(sketch_directory)sketch --bnd-unroll-amnt $(length(sketch_event_arrs_dict_formatted[object_ids[1]]) + 2) --fe-output-code --fe-output-code --fe-tempdir /scratch/riadas/.sketch/tmp $(sketch_file_name)"
       end
     end
     
