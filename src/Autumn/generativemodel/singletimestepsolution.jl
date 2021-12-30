@@ -2281,9 +2281,9 @@ function z3_event_search_full(run_id, observed_data_dict, event_vector_dict, par
         elseif option == 7 
           event = "(| (& (& $(event_1) $(event_2)) $(event_3)) $(event_4))"
         elseif option == 8 
-          event = "(| (& $(event_1) $(event_2)) (& $(event_3) $(event_4)))" # "(& $(event_1) (| $(event_2) (& $(event_3) $(event_4))))" # 
-        elseif option == 9 
           event = "(| (& $(event_1) $(event_2)) (| $(event_3) $(event_4)))"
+        elseif option == 9 
+          event = "(| (& $(event_1) $(event_2)) (& $(event_3) $(event_4)))" # "(& $(event_1) (| $(event_2) (& $(event_3) $(event_4))))" # 
         elseif option == 10 
           event = "(| (| $(event_1) $(event_2)) (| $(event_3) $(event_4)))"
         elseif option == 12 

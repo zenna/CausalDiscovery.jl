@@ -3,7 +3,23 @@
 curr_date=$(date '+%Y-%m-%d_%H:%M:%S')
 algorithms=("heuristic")
 # algorithms=("heuristic")
-num_repeats=1
+num_repeats=4
+
+# model_names=("paint"
+#              "lights"
+#              "sand"
+#              "disease"
+#              "bullets"
+#              "gravity_i"
+#              "gravity_iii"
+#              "gravity_iv"
+#              "gravity_ii"
+#              "count_1"
+#              "count_2"
+#              "double_count_1"
+#              "double_count_2"
+#              "count_3"
+#             )
 
 model_names=("paint"
              "lights"
@@ -26,22 +42,29 @@ model_names=("paint"
              "water_plug"
             )
 
-# model_names=("grow"
-#              "mario")
+# model_names=("ice"
+#              "particles"
+#              "ants"
+#              "chase"
+#              "magnets"
+#              "space_invaders"
+#              "sokoban")
 # # "space_invaders"
+# model_names=("double_count_2")
 
-for model_name in ${model_names[@]}
+for  (( i = 1 ; i <= $num_repeats; i++ ))
 do
   for algorithm in ${algorithms[@]}
   do
-    for (( i = 1 ; i <= $num_repeats; i++ )) ### Inner for loop ###
+    for model_name in ${model_names[@]} ### Inner for loop ###
     do
       echo "model_name: $model_name, algorithm: $algorithm, repeat: $i "
-      nohup timeout 86400 /scratch/riadas/julia-1.5.3/bin/julia --project=. src/Autumn/generativemodel/scripts/full_eval.jl $model_name $algorithm $curr_date $i > bg_outs/$model_name.$algorithm.out 2>&1 &
+      nohup timeout 86400 /scratch/riadas/julia-1.5.4/bin/julia --project=. src/Autumn/generativemodel/scripts/full_eval.jl $model_name $algorithm $curr_date $i > bg_outs_heuristic/$model_name.$algorithm.out 2>&1 &
       echo $! >> bg_pids.txt
       sleep 10
     done  
   done
+  sleep 3600
 done
 
 # julia --project=. src/Autumn/generativemodel/scripts/compute_output_accuracy.jl

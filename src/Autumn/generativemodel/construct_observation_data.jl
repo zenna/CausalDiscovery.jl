@@ -595,12 +595,12 @@ function generate_observations_grow(m::Module)
                  82 => "right",
                  83 => "right",
                  85 => (4, 0),
-                 86 => (3, 0),
-                 87 => (2, 0),
-                 89 => (1, 0),
+                 87 => (3, 0),
+                 89 => (2, 0),
+                 91 => (1, 0),
                 ])
 
-  for i in -1:90
+  for i in -1:92
     if i in collect(keys(events))
       event = events[i]
       if event == "left"

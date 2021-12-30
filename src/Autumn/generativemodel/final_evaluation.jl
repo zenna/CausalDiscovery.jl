@@ -198,7 +198,7 @@ function run_model(model_name::String, algorithm, desired_per_matrix_solution_co
                                                              desired_per_matrix_solution_count=10000,
                                                              desired_solution_count=desired_solution_count,
                                                              algorithm=algorithm,
-                                                             sketch_timeout=120 * 60)
+                                                             sketch_timeout=0)
                       # try     
                       # catch e 
                       #   (value=[], time=0)

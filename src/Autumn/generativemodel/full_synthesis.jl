@@ -245,6 +245,18 @@ function synthesis_program_pedro(observations::AbstractArray)
 end
 
 function generate_observations(model_name::String)
+  if occursin(":", model_name)
+    # take from logged dir 
+    observation_file_name = "/Users/riadas/Documents/urop/today_temp/CausalDiscovery.jl/logged_observations/$(model_name).jld"
+    event_file_name = "/Users/riadas/Documents/urop/today_temp/CausalDiscovery.jl/logged_observations/$(model_name)_EVENTS.txt"
+    observations = JLD.load(observation_file_name)["observations"]
+    open(event_file_name,"r") do io
+      user_events = map(line -> line == "nothing" ? nothing : line, filter(x -> x != "", split(read(io, String), "\n")))
+    end
+    
+    return observations, user_events, 16
+  end
+
   if occursin("double_count_", model_name)
     program_expr = compiletojulia(parseautumn(programs["double_count"]))
   elseif occursin("count_", model_name)
@@ -252,6 +264,7 @@ function generate_observations(model_name::String)
   else
     program_expr = compiletojulia(parseautumn(programs[model_name]))  
   end
+
   m = eval(program_expr)
   if model_name == "particles"
     observations, user_events, grid_size = generate_observations_particles(m)

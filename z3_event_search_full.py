@@ -103,8 +103,8 @@ for i in range(len(object_ids)):
   x_or_y_or_z = x | y | z == matching_value # 5 
   w_and_x_and_y_and_z = w & x & y & z == matching_value # 6
   w_and_x_and_y_or_z = w & x & y | z == matching_value # 7
-  w_and_x_or_y_and_z = w & x | y & z == matching_value # 8
-  w_and_x_or_y_or_z = w & x | y | z == matching_value # 9
+  w_and_x_or_y_or_z = w & x | y | z == matching_value # 8
+  w_and_x_or_y_and_z = w & x | y & z == matching_value # 9
   w_or_x_or_y_or_z = w | x | y | z == matching_value # 10
 
   parens_1 = x & (y | z) == matching_value # 11
@@ -127,9 +127,9 @@ for i in range(len(object_ids)):
   elif option == 7:
     s.add(w_and_x_and_y_or_z)
   elif option == 8:
-    s.add(w_and_x_or_y_and_z)
-  elif option == 9:
     s.add(w_and_x_or_y_or_z)
+  elif option == 9:
+    s.add(w_and_x_or_y_and_z)
   elif option == 10:
     s.add(w_or_x_or_y_or_z)
   elif option == 11:
