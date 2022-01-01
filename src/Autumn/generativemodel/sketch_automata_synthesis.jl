@@ -6,7 +6,6 @@ else
   temp_directory = "/Users/riadas/Documents/urop/.sketch/tmp"
 end
 
-
 function generate_on_clauses_SKETCH_SINGLE(run_id, matrix, unformatted_matrix, object_decomposition, user_events, global_event_vector_dict, redundant_events_set, grid_size=16, desired_solution_count=1, desired_per_matrix_solution_count=1, interval_painting_param=false, z3_option="none", time_based=false, z3_timeout=0, sketch_timeout=0, co_occurring_param=false, transition_param=false, co_occurring_distinct=2, co_occurring_same=1, co_occurring_threshold=1, transition_distinct=1, transition_same=1, transition_threshold=1)   
   start_time = Dates.now()
   
@@ -220,6 +219,9 @@ function generate_on_clauses_SKETCH_SINGLE(run_id, matrix, unformatted_matrix, o
         # construct update_function_times_dict for this type_id/co_occurring_event pair 
         for type_id in type_ids
           global_update_functions = global_update_functions_dict[type_id]
+          
+          single_update_func_with_type = (length(global_update_functions) == 1)
+
           for update_function in global_update_functions 
             times_dict = Dict() # form: update function => object_id => times when update function occurred for object_id
             object_ids_with_type = filter(k -> filter(obj -> !isnothing(obj), object_mapping[k])[1].type.id == type_id, collect(keys(object_mapping)))
@@ -241,7 +243,7 @@ function generate_on_clauses_SKETCH_SINGLE(run_id, matrix, unformatted_matrix, o
               true_times = unique(findall(rule -> rule == update_function, vcat(object_trajectory...)))
               ordered_update_functions = ordered_update_functions_dict[type_id]
             end
-            state_solutions = generate_global_automaton_sketch(run_id, update_function, true_times, global_event_vector_dict, object_trajectory, Dict(), global_state_update_times_dict, global_object_decomposition, type_id, desired_per_matrix_solution_count, interval_painting_param, sketch_timeout, ordered_update_functions, global_update_functions, co_occurring_param, co_occurring_distinct, co_occurring_same, co_occurring_threshold, transition_distinct, transition_same, transition_threshold)
+            state_solutions = generate_global_automaton_sketch(run_id, single_update_func_with_type, update_function, true_times, global_event_vector_dict, object_trajectory, Dict(), global_state_update_times_dict, global_object_decomposition, type_id, desired_per_matrix_solution_count, interval_painting_param, sketch_timeout, ordered_update_functions, global_update_functions, co_occurring_param, co_occurring_distinct, co_occurring_same, co_occurring_threshold, transition_distinct, transition_same, transition_threshold)
             if state_solutions == [] || state_solutions[1][1] == []
               failed = true 
               break
@@ -409,8 +411,7 @@ function generate_on_clauses_SKETCH_SINGLE(run_id, matrix, unformatted_matrix, o
           # state_transition_on_clauses = map(trans -> """(on true\n(= addedObjType$(type_id)List (updateObj addedObjType$(type_id)List (--> obj (updateObj (prev obj) "field1" $(trans[2]))) (--> obj $(trans[3])))))""", new_transitions)
           state_transition_on_clauses = map(x -> replace(x, "(filter (--> obj (== (.. obj id) x)) (prev addedObjType$(type_id)List))" => "(list (prev obj))" ), format_state_transition_functions(new_transitions, collect(values(old_to_new_state_values)), type_id=type_id))
   
-          fake_object_field_values = Dict(map(idx -> sort(object_ids)[idx] => [new_start_states[idx] for i in 1:length(object_mapping[object_ids[1]])], 1:length(object_ids)))
-  
+          fake_object_field_values = Dict(map(idx -> sort(object_ids)[idx] => [new_start_states[idx] for i in 1:length(object_mapping[object_ids[1]])], 1:length(object_ids)))    
           new_object_types = deepcopy(object_types)
           new_object_type = filter(type -> type.id == type_id, new_object_types)[1]
           if !("field1" in map(field_tuple -> field_tuple[1], new_object_type.custom_fields))
@@ -461,8 +462,10 @@ function generate_on_clauses_SKETCH_SINGLE(run_id, matrix, unformatted_matrix, o
   solutions
 end
 
-function generate_global_automaton_sketch(run_id, update_rule, update_function_times, event_vector_dict, object_trajectory, init_global_var_dict, state_update_times_dict, object_decomposition, type_id, desired_per_matrix_solution_count, interval_painting_param, sketch_timeout=0, ordered_update_functions=[], global_update_functions = [], co_occurring_param=false, co_occurring_distinct=1, co_occurring_same=1, co_occurring_threshold=1, transition_distinct=1, transition_same=1, transition_threshold=1)
+function generate_global_automaton_sketch(run_id, single_update_func_with_type, update_rule, update_function_times, event_vector_dict, object_trajectory, init_global_var_dict, state_update_times_dict, object_decomposition, type_id, desired_per_matrix_solution_count, interval_painting_param, sketch_timeout=0, ordered_update_functions=[], global_update_functions = [], co_occurring_param=false, co_occurring_distinct=1, co_occurring_same=1, co_occurring_threshold=1, transition_distinct=1, transition_same=1, transition_threshold=1)
   # println("GENERATE_NEW_STATE_SKETCH")
+  # @show run_id 
+  # @show single_update_func_with_type
   # @show update_rule 
   # @show update_function_times
   # @show event_vector_dict 
@@ -833,8 +836,10 @@ function generate_global_automaton_sketch(run_id, update_rule, update_function_t
         curr_state_count = -1
         curr_solution = nothing
         old_state_seqs = []
+
+        max_solution_count = single_update_func_with_type ? 1 : 10
       
-        while first_automaton || ((curr_state_count == min_state_count) && (length(solutions) < 10))
+        while first_automaton || ((curr_state_count == min_state_count) && (length(solutions) < max_solution_count))
           # println("INSIDE AUTOMATA FINDING ENUMERATIVE LOOP")
           # @show length(solutions)
           # @show curr_solution
@@ -876,12 +881,12 @@ function generate_global_automaton_sketch(run_id, update_rule, update_function_t
       
           # run Sketch query
           if sketch_timeout == 0 
-            command = "$(sketch_directory)sketch --bnd-unroll-amnt $(length(sketch_event_trajectory) + 2)  $(sketch_file_name)"
+            command = "$(sketch_directory)sketch --bnd-unroll-amnt $(length(sketch_event_trajectory) + 2) --fe-output-code --fe-tempdir $(temp_directory) $(sketch_file_name)"
           else
             if Sys.islinux() 
-              command = "timeout $(sketch_timeout) $(sketch_directory)sketch --bnd-unroll-amnt $(length(sketch_event_trajectory) + 2) --fe-output-code --fe-tempdir $(temp_directory) $(sketch_file_name)"
+              command = "timeout $(sketch_timeout) $(sketch_directory)sketch --bnd-unroll-amnt $(length(sketch_event_trajectory) + 2) --fe-output-code --fe-output-code --fe-tempdir $(temp_directory) $(sketch_file_name)"
             else
-              command = "gtimeout $(sketch_timeout) $(sketch_directory)sketch --bnd-unroll-amnt $(length(sketch_event_trajectory) + 2) --fe-output-code --fe-tempdir $(temp_directory) $(sketch_file_name)"
+              command = "gtimeout $(sketch_timeout) $(sketch_directory)sketch --bnd-unroll-amnt $(length(sketch_event_trajectory) + 2) --fe-output-code --fe-output-code --fe-tempdir $(temp_directory) $(sketch_file_name)"
             end
           end
           
@@ -1851,17 +1856,17 @@ function generate_object_specific_automaton_sketch(run_id, update_rule, update_f
       ## save sketch program as file 
       sketch_file_name = "automata_sketch_$(run_id).sk"
       open(sketch_file_name,"w") do io
-        println(io, sketch_program)
+        # println(io, sketch_program)
       end
     
       # run Sketch query
       if sketch_timeout == 0 
-        command = "$(sketch_directory)sketch --bnd-unroll-amnt $(length(sketch_update_function_arr[object_ids[1]]) + 2) --fe-output-code --fe-tempdir $(temp_directory) $(sketch_file_name)"
+        command = "$(sketch_directory)sketch --bnd-unroll-amnt $(length(sketch_update_function_arr[object_ids[1]]) + 2) --fe-output-code --fe-output-code --fe-tempdir $(temp_directory) $(sketch_file_name)"
       else
         if Sys.islinux() 
-          command = "timeout $(sketch_timeout) $(sketch_directory)sketch --bnd-unroll-amnt $(length(sketch_update_function_arr[object_ids[1]]) + 2) --fe-output-code --fe-tempdir $(temp_directory) $(sketch_file_name)"
+          command = "timeout $(sketch_timeout) $(sketch_directory)sketch --bnd-unroll-amnt $(length(sketch_update_function_arr[object_ids[1]]) + 2) --fe-output-code --fe-output-code --fe-tempdir $(temp_directory) $(sketch_file_name)"
         else
-          command = "gtimeout $(sketch_timeout) $(sketch_directory)sketch --bnd-unroll-amnt $(length(sketch_update_function_arr[object_ids[1]]) + 2) --fe-output-code --fe-tempdir $(temp_directory) $(sketch_file_name)"
+          command = "gtimeout $(sketch_timeout) $(sketch_directory)sketch --bnd-unroll-amnt $(length(sketch_update_function_arr[object_ids[1]]) + 2) --fe-output-code --fe-output-code --fe-tempdir $(temp_directory) $(sketch_file_name)"
         end
       end
     
@@ -1899,7 +1904,7 @@ function generate_object_specific_automaton_sketch(run_id, update_rule, update_f
         """)
 
         open(cpp_file_name, "w+") do io
-          println(io, modified_cpp_content)
+          # println(io, modified_cpp_content)
         end
     
         # compile modified cpp program 
