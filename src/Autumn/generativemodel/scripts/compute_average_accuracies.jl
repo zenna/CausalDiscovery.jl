@@ -10,11 +10,11 @@ model_folders = filter(x -> !occursin(".DS", x) && !occursin(".txt", x), readdir
 
 # compute averages and write to output file
 for model_folder in model_folders
-  @show model_folder
+  # @show model_folder
   averages = []
   for alg_folder in ["heuristic", "sketch_multi", "sketch_single"]
     if alg_folder in readdir("FINAL_RESULTS/$(curr_result_folder)/$(model_folder)")
-      @show alg_folder
+      # @show alg_folder
       times_file_name = "FINAL_RESULTS/$(curr_result_folder)/$(model_folder)/$(alg_folder)/times.txt"
       try 
         times_file = open(times_file_name, "r")

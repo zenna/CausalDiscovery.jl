@@ -37,8 +37,8 @@ include("test_synthesis.jl")
 #   end
 # end
 
-function run_model(model_name::String, algorithm, desired_per_matrix_solution_count, desired_solution_count)
-  run_id = string(model_name, "_", algorithm)
+function run_model(model_name::String, algorithm, iteration, desired_per_matrix_solution_count, desired_solution_count)
+  run_id = string(model_name, "_", algorithm, "_", iteration)
   # build desired directory structure
   date_string = Dates.format(Dates.now(), "yyyy-mm-dd HH:MM:SS")
 
@@ -89,7 +89,7 @@ function run_model(model_name::String, algorithm, desired_per_matrix_solution_co
   for param_option in param_options
     println("DO YOU SEE ME")
     println("singlecell, time_based, z3_option, co_occurring_param, transition_param")
-    @show param_option 
+    # @show param_option 
 
     singlecell, time_based, z3_option, co_occurring_param, transition_param = param_option
 
@@ -137,7 +137,7 @@ function run_model(model_name::String, algorithm, desired_per_matrix_solution_co
     sols = timed_tuple.value
     
     println("LOOK AT THIS")
-    @show sols
+    # @show sols
     # write solution to file
     save(string(subdirectory_name, "/", string("transition_param_", transition_param, 
                                                 "_co_occurring_", co_occurring_param, 
@@ -158,7 +158,7 @@ function run_model(model_name::String, algorithm, desired_per_matrix_solution_co
     if length(non_random_solutions) >= 1 
       found_enough = true 
       println("FINAL TIME") 
-      @show total_time 
+      # @show total_time 
 
       open(string(subdirectory_name, "/final_time", ".txt"),"a") do io
         println(io, "-----------------------------------------")
@@ -219,7 +219,7 @@ function run_model(model_name::String, algorithm, desired_per_matrix_solution_co
         if length(non_random_solutions) >= 1 
           found_enough = true 
           println("FINAL TIME") 
-          @show total_time 
+          # @show total_time 
           break
         end
   
@@ -326,7 +326,7 @@ end
 
 # # function hack()
 # #   for model_name in global_model_names 
-# #     @show model_name
+# #     # @show model_name
 # #     global model_names = [model_name]
 # #     run()
 # #   end
