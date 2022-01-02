@@ -13,7 +13,7 @@ using Z3
 # m = get_model(s)
 
 # for (k, v) in consts(m)
-#     # println("$(k) = $(get_numeral_int64(v))")
+#     println("$(k) = $(get_numeral_int64(v))")
 # end
 
 function bitarr_to_int(arr, val = 0)

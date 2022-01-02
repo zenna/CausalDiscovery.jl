@@ -2237,9 +2237,9 @@ function z3_event_search_full(run_id, observed_data_dict, event_vector_dict, par
                 end
   
     # parse output
-    # @show command  
-    # @show option
-    # @show z3_output
+    @show command  
+    @show option
+    @show z3_output
 
     while z3_output != "" && split(z3_output, "\n")[1] == "sat"
       # println("INSIDE MINIMIZATION WHILE LOOP")
@@ -2295,9 +2295,9 @@ function z3_event_search_full(run_id, observed_data_dict, event_vector_dict, par
         end
         shortest_length = length(event_1) + length(event_2) + length(event_3) + length(event_4)
       end
-      # @show event 
-      # @show shortest_length 
-      # @show option 
+      @show event 
+      @show shortest_length 
+      @show option 
 
       push!(events, event)
 
@@ -2327,7 +2327,8 @@ function z3_event_search_full(run_id, observed_data_dict, event_vector_dict, par
       break
     end
   end
-  # println("HERES AN EVENT!")
+  println("HERES AN EVENT!")
+  @show events[end]
   events[end]
 end
 

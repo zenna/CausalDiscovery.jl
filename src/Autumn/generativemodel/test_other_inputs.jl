@@ -24,7 +24,7 @@ end
 
 """Check if ground-truth and synthesized programs produce same observations for given user event sequence"""
 function matches_other_input(model_name, new_program_str, user_events)
-  # @show user_events
+  @show user_events
   # currently, the original programs are run via the compiler, instead of the 
   # interpreter; this should be changed, but we temporarily use the compiler here 
   observations_old = generate_observations_custom_input(model_name, user_events)  

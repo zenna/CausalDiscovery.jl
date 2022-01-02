@@ -145,7 +145,7 @@ function synthesize_program_given_decomp(run_id, decomp, observation_tuple, glob
   for solution in solutions 
     if solution[1] != [] 
       on_clauses, new_object_decomposition, global_var_dict = solution
-      # @show on_clauses 
+      @show on_clauses 
       
       program = full_program_given_on_clauses(on_clauses, new_object_decomposition, global_var_dict, grid_size, matrix)
       push!(program_strings, program)
@@ -169,7 +169,7 @@ function synthesize_program(model_name::String;
                             algorithm="heuristic",
                             sketch_timeout=0,
                             )
-  # println(string("CURRENTLY WORKING ON: ", model_name))
+  println(string("CURRENTLY WORKING ON: ", model_name))
   
   run_id = string(model_name, "_", algorithm)
 
@@ -179,7 +179,7 @@ function synthesize_program(model_name::String;
     observations, user_events, grid_size = generate_observations(model_name)
   end
 
-  # @show (observations, user_events, grid_size)
+  @show (observations, user_events, grid_size)
 
   program_strings = []
   global_event_vector_dict = Dict()
@@ -204,11 +204,11 @@ function synthesize_program(model_name::String;
     else 
       error("algorithm $(algorithm) does not exist")
     end
-    # @show solutions
+    @show solutions
     for solution in solutions 
       if solution[1] != [] 
         on_clauses, new_object_decomposition, global_var_dict = solution
-        # @show on_clauses 
+        @show on_clauses 
         
         program = full_program_given_on_clauses(on_clauses, new_object_decomposition, global_var_dict, grid_size, matrix)
         push!(program_strings, program)
@@ -349,9 +349,9 @@ function generate_observations_custom_input(model_name::String, user_events)
   else
     program_expr = compiletojulia(parseautumn(programs[model_name]))  
   end
-  # @show typeof(program_expr)
+  @show typeof(program_expr)
   m = eval(program_expr)
-  # @show typeof(m)
+  @show typeof(m)
   generate_observations_custom_input(m, user_events)
 end
 
@@ -482,15 +482,15 @@ programs = Dict("particles"                                 => """(program
                 "tetris" => ""
                 ,"snake" => ""
                 ,"magnets_i"                                  => """(program
-                                                                (= GRID_SIZE 16)
+                                                                (= GRID_SIZE 18)
                                                                 
                                                                 (object Magnet (: color String) (list (Cell 0 0 color) (Cell 0 1 color)))
                                                                 
                                                                 (: fixedMagnet Magnet)
-                                                                (= fixedMagnet (initnext (Magnet "red" (Position 7 7)) (prev fixedMagnet)))
+                                                                (= fixedMagnet (initnext (Magnet "red" (Position 8 8)) (prev fixedMagnet)))
                                                               
                                                                 (: mobileMagnet Magnet)
-                                                                (= mobileMagnet (initnext (Magnet "blue" (Position 4 7)) (prev mobileMagnet)))
+                                                                (= mobileMagnet (initnext (Magnet "blue" (Position 5 8)) (prev mobileMagnet)))
                                                               
                                                                 (on clicked (= mobileMagnet (rotateNoCollision (prev mobileMagnet))))
                                                                 (on left (= mobileMagnet (moveNoCollision (prev mobileMagnet) -1 0)))

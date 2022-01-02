@@ -87,7 +87,7 @@ function run_model(model_name::String, algorithm, desired_per_matrix_solution_co
   param_options = vec(collect(Base.product(singlecell_vals, time_based_vals, z3_option_vals, co_occurring_param_vals, transition_param_vals)))
 
   for param_option in param_options
-    # println("DO YOU SEE ME")
+    println("DO YOU SEE ME")
     println("singlecell, time_based, z3_option, co_occurring_param, transition_param")
     @show param_option 
 
@@ -136,8 +136,8 @@ function run_model(model_name::String, algorithm, desired_per_matrix_solution_co
                       # end
     sols = timed_tuple.value
     
-    # println("LOOK AT THIS")
-    # @show sols
+    println("LOOK AT THIS")
+    @show sols
     # write solution to file
     save(string(subdirectory_name, "/", string("transition_param_", transition_param, 
                                                 "_co_occurring_", co_occurring_param, 
@@ -157,8 +157,8 @@ function run_model(model_name::String, algorithm, desired_per_matrix_solution_co
     non_random_solutions = filter(x -> !occursin("randomPositions", x) && (!occursin("uniformChoice", x) || occursin("uniformChoice (map", x)), all_sols)
     if length(non_random_solutions) >= 1 
       found_enough = true 
-      # println("FINAL TIME") 
-      # @show total_time 
+      println("FINAL TIME") 
+      @show total_time 
 
       open(string(subdirectory_name, "/final_time", ".txt"),"a") do io
         println(io, "-----------------------------------------")
@@ -209,7 +209,7 @@ function run_model(model_name::String, algorithm, desired_per_matrix_solution_co
         subdirectory_name = string(directory_name, "/", "per_matrix_count_$(desired_per_matrix_solution_count)_solution_count_$(desired_solution_count)")
         save(string(subdirectory_name, "/", string("EXTRA_singlecell_", singlecell, "_time_based_", time_based, "_z3_option_", "full", "_co_occurring_", "false", "_transition_param_", "false", ".jld")), String(model_name), timed_tuple)
         open(string(subdirectory_name, "/program_strings.txt"),"a") do io
-          # println("-----------------------------------------")
+          println("-----------------------------------------")
           println(io, string("EXTRA: time_based=", time_based, ", singlecell=", singlecell, "\n"))
           println(io, join(sols, "\n\n\n\n"))
         end
@@ -218,8 +218,8 @@ function run_model(model_name::String, algorithm, desired_per_matrix_solution_co
         non_random_solutions = filter(x -> !occursin("randomPositions", x) && !occursin("uniformChoice", x), all_sols)
         if length(non_random_solutions) >= 1 
           found_enough = true 
-          # println("FINAL TIME") 
-          # @show total_time 
+          println("FINAL TIME") 
+          @show total_time 
           break
         end
   
@@ -253,11 +253,11 @@ end
 
 # function run_all_models(algorithm, desired_per_matrix_solution_count, desired_solution_count)
 #   # for model_name in model_names 
-#   #   # println(string("CURRENT MODEL:", model_name))
+#   #   println(string("CURRENT MODEL:", model_name))
 #   #   task = @async(run_model(model_name, desired_per_matrix_solution_count, desired_solution_count))  # run everything via myfunc()
 
-#   #   # println("task is started: ", istaskstarted(task))
-#   #   # println("Task is done: ", istaskdone(task))
+#   #   println("task is started: ", istaskstarted(task))
+#   #   println("Task is done: ", istaskdone(task))
 
 #   #   total_time = 0
 #   #   while !istaskdone(task) && total_time < 60*60*3 # 3 hours 
@@ -266,11 +266,11 @@ end
 #   #   end
 
 #   #   if !istaskdone(task)
-#   #       # println("Killing task.")
+#   #       println("Killing task.")
 #   #       @async(Base.throwto(task, DivideError()))
 #   #   end
 
-#   #   # println("all done with $(model_name).")
+#   #   println("all done with $(model_name).")
 #   # end
 #   models = [
 #     # "particles", 
@@ -313,20 +313,20 @@ end
 # end
 
 # # function run()
-# #   # println("BEGIN RUN")
+# #   println("BEGIN RUN")
 # #   for desired_per_matrix_solution_count in [5] # [1, 5]
 # #     for desired_solution_count in [1]
 # #       run_all_models(desired_per_matrix_solution_count, desired_solution_count)
 # #     end
 # #   end
-# #   # println("END RUN")
+# #   println("END RUN")
 # # end
 
 # # global model_names = []
 
 # # function hack()
 # #   for model_name in global_model_names 
-# #     # @show model_name
+# #     @show model_name
 # #     global model_names = [model_name]
 # #     run()
 # #   end

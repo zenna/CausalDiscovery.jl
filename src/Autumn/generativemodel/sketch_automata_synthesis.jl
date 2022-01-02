@@ -881,7 +881,7 @@ function generate_global_automaton_sketch(run_id, single_update_func_with_type, 
       
           # run Sketch query
           if sketch_timeout == 0 
-            command = "$(sketch_directory)sketch --bnd-unroll-amnt $(length(sketch_event_trajectory) + 2) --fe-output-code --fe-tempdir $(temp_directory) $(sketch_file_name)"
+            command = "$(sketch_directory)sketch --bnd-unroll-amnt $(length(sketch_event_trajectory) + 2) --fe-output-code  --fe-output-code --fe-tempdir $(temp_directory) $(sketch_file_name)"
           else
             if Sys.islinux() 
               command = "timeout $(sketch_timeout) $(sketch_directory)sketch --bnd-unroll-amnt $(length(sketch_event_trajectory) + 2) --fe-output-code --fe-output-code --fe-tempdir $(temp_directory) $(sketch_file_name)"
@@ -1856,7 +1856,7 @@ function generate_object_specific_automaton_sketch(run_id, update_rule, update_f
       ## save sketch program as file 
       sketch_file_name = "automata_sketch_$(run_id).sk"
       open(sketch_file_name,"w") do io
-        # println(io, sketch_program)
+        println(io, sketch_program)
       end
     
       # run Sketch query
@@ -1904,7 +1904,7 @@ function generate_object_specific_automaton_sketch(run_id, update_rule, update_f
         """)
 
         open(cpp_file_name, "w+") do io
-          # println(io, modified_cpp_content)
+          println(io, modified_cpp_content)
         end
     
         # compile modified cpp program 

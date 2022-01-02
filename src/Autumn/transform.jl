@@ -152,7 +152,7 @@ function recursub(ϕ, aex::AExpr, stop = stopaftern(100))
       subex = choice(ϕ, nts)
       newex = sub(ϕ, subex)
       aex = update(subex, newex)
-      # println("#### Done\n")
+      println("#### Done\n")
     end
   end
   aex

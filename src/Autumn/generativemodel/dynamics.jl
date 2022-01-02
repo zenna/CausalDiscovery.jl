@@ -85,7 +85,7 @@ function genInt(environment)
   if (choice isa String) || (choice isa Int)
     choice
   else
-    # @show "($(choice[1]) $(join(map(eval, choice[2]), " ")))"  
+    @show "($(choice[1]) $(join(map(eval, choice[2]), " ")))"  
     "($(choice[1]) $(join(map(eval, choice[2]), " ")))"      
   end
 end
