@@ -1856,7 +1856,7 @@ function generate_object_specific_automaton_sketch(run_id, update_rule, update_f
       ## save sketch program as file 
       sketch_file_name = "automata_sketch_$(run_id).sk"
       open(sketch_file_name,"w") do io
-        # println(io, sketch_program)
+        println(io, sketch_program)
       end
     
       # run Sketch query
@@ -1904,7 +1904,7 @@ function generate_object_specific_automaton_sketch(run_id, update_rule, update_f
         """)
 
         open(cpp_file_name, "w+") do io
-          # println(io, modified_cpp_content)
+          println(io, modified_cpp_content)
         end
     
         # compile modified cpp program 
