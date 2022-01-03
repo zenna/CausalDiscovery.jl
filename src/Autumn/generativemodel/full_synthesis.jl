@@ -1139,38 +1139,76 @@ programs = Dict("particles"                                 => """(program
                                                                 
                                                                 )"""
                , "swap"                                    => """(program
-                                                                  (= GRID_SIZE 100)
-                                                                    
-                                                                  (object Button (: color String) (Cell 0 0 color))
-                                                                  (object Blob (list (Cell 0 0 "blue")))
-                                                                  
-                                                                  (: blobs (List Blob))
-                                                                  (= blobs (initnext (list (Blob (Position 49 49))) (prev blobs)))
-                                                                  
-                                                                  (: gravity String)
-                                                                  (= gravity (initnext "left" (prev gravity)))
-                                                                  
-                                                                  (on (== gravity "left") (= blobs (updateObj (prev blobs) (--> obj (move obj -1 0)))))
-                                                                  (on (== gravity "right") (= blobs (updateObj (prev blobs) (--> obj (move obj 1 0)))))
-                                                                  (on (== gravity "up") (= blobs (updateObj (prev blobs) (--> obj (move obj 0 -1)))))
-                                                                  (on (== gravity "down") (= blobs (updateObj (prev blobs) (--> obj (move obj 0 1)))))
-                                                                  
-                                                                  (on (== gravity "diag1") (= blobs (updateObj (prev blobs) (--> obj (move obj -1 -1)))))
-                                                                  (on (== gravity "diag2") (= blobs (updateObj (prev blobs) (--> obj (move obj 1 -1)))))
-                                                                  (on (== gravity "diag3") (= blobs (updateObj (prev blobs) (--> obj (move obj 1 1)))))
-                                                                  (on (== gravity "diag4") (= blobs (updateObj (prev blobs) (--> obj (move obj -1 1)))))
-                                                                  
-                                                                  (on (& left (in (prev gravity) (list "left" "right" "up" "down"))) (= gravity "left"))
-                                                                  (on (& right (in (prev gravity) (list "left" "right" "up" "down"))) (= gravity "right"))
-                                                                  (on (& up (in (prev gravity) (list "left" "right" "up" "down"))) (= gravity "up"))
-                                                                  (on (& down (in (prev gravity) (list "left" "right" "up" "down"))) (= gravity "down"))
-                                                                
-                                                                  (on (& left (in (prev gravity) (list "diag1" "diag2" "diag3" "diag4"))) (= gravity "diag1"))
-                                                                  (on (& right (in (prev gravity) (list "diag1" "diag2" "diag3" "diag4"))) (= gravity "diag2"))
-                                                                  (on (& up (in (prev gravity) (list "diag1" "diag2" "diag3" "diag4"))) (= gravity "diag3"))
-                                                                  (on (& down (in (prev gravity) (list "diag1" "diag2" "diag3" "diag4"))) (= gravity "diag4"))
-                                                                
-                                                                  (on (& clicked (in (prev gravity) (list "diag1" "diag2" "diag3" "diag4"))) (= gravity "left"))
-                                                                  (on (& clicked (in (prev gravity) (list "left" "right" "up" "down"))) (= gravity "diag1"))
-                                                                )"""
+               (= GRID_SIZE 40)
+               (= background "black")
+               
+               (object Blob (map (--> pos (Cell pos "mediumpurple")) (rect (Position 0 0) (Position 1 1))))
+               (object Button (: color String) (Cell 0 0 color))
+               
+               (: button1 Button)
+               (= button1 (initnext (Button "red" (Position 0 3)) (prev button1)))
+               
+               (: button2 Button)
+               (= button2 (initnext (Button "gold" (Position 0 6)) (prev button2)))
+               
+               (: button3 Button)
+               (= button3 (initnext (Button "green" (Position 0 9)) (prev button3)))
+               
+               (: button4 Button)
+               (= button4 (initnext (Button "blue" (Position 0 12)) (prev button4)))
+               
+               (: button5 Button)
+               (= button5 (initnext (Button "red" (Position (- GRID_SIZE 1) 3)) (prev button5)))
+               
+               (: button6 Button)
+               (= button6 (initnext (Button "gold" (Position (- GRID_SIZE 1) 6)) (prev button6)))
+               
+               (: button7 Button)
+               (= button7 (initnext (Button "green" (Position (- GRID_SIZE 1) 9)) (prev button7)))
+             
+               (: button8 Button)
+               (= button8 (initnext (Button "blue" (Position (- GRID_SIZE 1) 12)) (prev button8)))
+               
+               (: swapButton Button)
+               (= swapButton (initnext (Button "red" (Position (/ GRID_SIZE 2) 0)) (prev swapButton)))
+             
+               (: blob Blob)
+               (= blob (initnext (Blob (Position (/ GRID_SIZE 2) (/ GRID_SIZE 2))) (prev blob)))  
+               
+               (: globalState String)
+               (= globalState (initnext "none" (prev globalState)))
+               
+               (: swapState String)
+               (= swapState (initnext 1 (prev swapState)))
+               
+               (on (== globalState "left") (= blob (moveLeftNoCollision blob)))
+               (on (== globalState "right") (= blob (moveRightNoCollision blob)))
+               (on (== globalState "up") (= blob (moveUpNoCollision blob)))
+               (on (== globalState "down") (= blob (moveDownNoCollision blob)))
+               
+               (on (== globalState "left-up") (= blob (moveLeftNoCollision (moveUpNoCollision blob))))
+               (on (== globalState "right-up") (= blob (moveRightNoCollision (moveUpNoCollision blob))))
+               (on (== globalState "left-down") (= blob (moveLeftNoCollision (moveDownNoCollision blob))))
+               (on (== globalState "right-down") (= blob (moveRightNoCollision (moveDownNoCollision blob))))
+             
+               (on (& (== swapState 1) (clicked button1)) (= globalState "left"))
+               (on (& (== swapState 1) (clicked button2)) (= globalState "right"))
+               (on (& (== swapState 1) (clicked button3)) (= globalState "up"))
+               (on (& (== swapState 1) (clicked button4)) (= globalState "down"))
+               
+               (on (& (== swapState 2) (clicked button5)) (= globalState "left-up"))
+               (on (& (== swapState 2) (clicked button6)) (= globalState "right-up"))
+               (on (& (== swapState 2) (clicked button7)) (= globalState "left-down"))
+               (on (& (== swapState 2) (clicked button8)) (= globalState "right-down"))
+               
+               (on (& (== (prev swapState) 1) (clicked swapButton)) 
+                 (let ((= swapState 2)
+                       (= globalState "left-up"))))
+               
+               (on (& (== (prev swapState) 2) (clicked swapButton)) 
+                 (let ((= swapState 1)
+                       (= globalState "left"))))
+             
+             )
+             """
                 )
