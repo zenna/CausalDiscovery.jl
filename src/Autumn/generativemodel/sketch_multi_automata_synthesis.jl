@@ -82,7 +82,7 @@ function generate_on_clauses_SKETCH_MULTI(run_id, matrix, unformatted_matrix, ob
 
   # filtered_matrices = filtered_matrices[22:22]
   # filtered_matrices = filtered_matrices[5:5]
-  # filtered_matrices = filtered_matrices[1:1]
+  filtered_matrices = filtered_matrices[1:1]
 
   for filtered_matrix_index in 1:length(filtered_matrices)
     @show filtered_matrix_index
@@ -943,17 +943,17 @@ function generate_global_multi_automaton_sketch(run_id, co_occurring_event, time
     @show sketch_event_trajectory
 
     # construct sketch event input array
-    distinct_events = sort(unique(sketch_event_trajectory), by=x -> count(y -> y == x, sketch_event_trajectory))
+    distinct_events = sort(unique(sketch_event_trajectory), by=length)
     @show distinct_events 
 
-    if length(distinct_events) > 9
+    if length(distinct_events) > 10 
       return [([], [], [], "")]
     end
 
-    sketch_event_arr = map(e -> findall(x -> x == e, distinct_events)[1], sketch_event_trajectory)
+    sketch_event_arr = map(e -> findall(x -> x == e, distinct_events)[1] - 1, sketch_event_trajectory)
     true_char = "0"
     if "true" in distinct_events 
-      true_char = string(findall(x -> x == "true", distinct_events)[1])
+      true_char = string(findall(x -> x == "true", distinct_events)[1] - 1)
     end
 
     # construct sketch update function input array
@@ -1084,7 +1084,7 @@ function generate_global_multi_automaton_sketch(run_id, co_occurring_event, time
         for grouped_transition in grouped_transitions 
           if grouped_transition != [""]
             start_state = parse(Int, grouped_transition[2])
-            transition_label = distinct_events[parse(Int, grouped_transition[4])]
+            transition_label = distinct_events[parse(Int, grouped_transition[4]) + 1] # HACK
             end_state = parse(Int, grouped_transition[6])
             push!(transitions, (start_state, end_state, transition_label))
           end

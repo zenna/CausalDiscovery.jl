@@ -75,7 +75,7 @@ function generate_on_clauses_GLOBAL(run_id, matrix, unformatted_matrix, object_d
 
   # filtered_matrices = filtered_matrices[22:22]
   # filtered_matrices = filtered_matrices[5:5]
-  # filtered_matrices = filtered_matrices[1:1]
+  filtered_matrices = filtered_matrices[1:1]
   # filtered_matrices = filtered_matrices[2:2]
 
   for filtered_matrix_index in 1:length(filtered_matrices)
