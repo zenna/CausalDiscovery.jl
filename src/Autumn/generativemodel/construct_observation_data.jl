@@ -65,7 +65,7 @@ function generate_observations_ice(m::Module)
     end
     push!(observations, Base.invokelatest(m.render, state.scene))
   end
-  observations, user_events, 8
+  filter_out_of_bounds_cells(observations, 8), user_events, 8
 end
 
 function generate_observations_particles(m::Module)
@@ -1454,7 +1454,7 @@ function generate_observations_bullets(m::Module)
     end
     push!(observations, Base.invokelatest(m.render, state.scene))
   end
-  observations, user_events, 16
+  filter_out_of_bounds_cells(observations, 16), user_events, 16
 end
 
 function generate_observations_double_count_1(m::Module) 

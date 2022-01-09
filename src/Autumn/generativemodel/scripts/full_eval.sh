@@ -1,7 +1,7 @@
 #!/bin/bash
 
 curr_date=$(date '+%Y-%m-%d_%H:%M:%S')
-algorithms=("sketch_single")
+algorithms=("heuristic")
 # algorithms=("heuristic")
 num_repeats=1
 
@@ -50,8 +50,7 @@ num_repeats=1
 #              "space_invaders"
 #              "sokoban")
 # # "space_invaders"
-model_names=("bullets"
-             "grow")
+model_names=("ice")
 
 for  (( i = 1 ; i <= $num_repeats; i++ ))
 do

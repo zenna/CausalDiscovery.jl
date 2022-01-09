@@ -339,6 +339,7 @@ function generate_observations(model_name::String)
   else
     error("model $(model_name) does not exist")
   end
+  filter_out_of_bounds_cells(observations, grid_size), user_events, grid_size
 end
 
 function generate_observations_custom_input(model_name::String, user_events)

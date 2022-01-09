@@ -37,7 +37,7 @@ include("test_synthesis.jl")
 #   end
 # end
 
-function run_model(model_name::String, algorithm, desired_per_matrix_solution_count, desired_solution_count)
+function run_model(model_name::String, algorithm, iteration, desired_per_matrix_solution_count, desired_solution_count)
   run_id = string(model_name, "_", algorithm)
   # build desired directory structure
   date_string = Dates.format(Dates.now(), "yyyy-mm-dd HH:MM:SS")
@@ -52,7 +52,7 @@ function run_model(model_name::String, algorithm, desired_per_matrix_solution_co
     mkdir(directory_name)
   end
 
-  subdirectory_name = string(directory_name, "/", "per_matrix_count_$(desired_per_matrix_solution_count)_solution_count_$(desired_solution_count)")
+  subdirectory_name = string(directory_name, "/", "per_matrix_count_$(desired_per_matrix_solution_count)_solution_count_$(desired_solution_count)_iteration_$(iteration)")
   if !isdir(subdirectory_name)
     mkdir(subdirectory_name)
   end
