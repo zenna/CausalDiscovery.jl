@@ -1,0 +1,168 @@
+ 
+(program
+  (= GRID_SIZE 10)
+  (= background "white")
+  (object ObjType1  (list (Cell 0 0  "yellow" )))
+
+  
+
+  (: addedObjType1List (List ObjType1))
+
+  
+  
+  (= addedObjType1List (initnext (list) (prev addedObjType1List)))
+
+	 (: globalVar1 Int)
+	 (= globalVar1 (initnext 1 (prev globalVar1)))
+
+  (: time Int)
+  (= time (initnext 0 (+ time 1)))
+
+  (on clicked
+(= addedObjType1List (removeObj addedObjType1List (--> obj true))))
+  (on (& (== (prev globalVar1) 1) clicked)
+(let ((= addedObjType1List (addObj addedObjType1List (ObjType1  (Position 0 0))))
+(= addedObjType1List (addObj addedObjType1List (ObjType1  (Position 1 1))))
+(= addedObjType1List (addObj addedObjType1List (ObjType1  (Position 2 2))))
+(= addedObjType1List (addObj addedObjType1List (ObjType1  (Position 3 3))))
+(= addedObjType1List (addObj addedObjType1List (ObjType1  (Position 4 4))))
+(= addedObjType1List (addObj addedObjType1List (ObjType1  (Position 5 5))))
+(= addedObjType1List (addObj addedObjType1List (ObjType1  (Position 6 6))))
+(= addedObjType1List (addObj addedObjType1List (ObjType1  (Position 7 7))))
+(= addedObjType1List (addObj addedObjType1List (ObjType1  (Position 8 8))))
+(= addedObjType1List (addObj addedObjType1List (ObjType1  (Position 9 9)))))))
+  (on (& clicked (== (prev globalVar1) 1))
+(= globalVar1 2))
+  (on (& clicked (== (prev globalVar1) 2))
+(= globalVar1 1)))
+
+
+
+
+
+ 
+(program
+  (= GRID_SIZE 10)
+  (= background "white")
+  (object ObjType1  (list (Cell 0 0  "yellow" )))
+
+  
+
+  (: addedObjType1List (List ObjType1))
+
+  
+  
+  (= addedObjType1List (initnext (list) (prev addedObjType1List)))
+
+	 (: globalVar1 Int)
+	 (= globalVar1 (initnext 1 (prev globalVar1)))
+
+  (: time Int)
+  (= time (initnext 0 (+ time 1)))
+
+  (on clicked
+(= addedObjType1List (removeObj addedObjType1List (--> obj true))))
+  (on (& (== (prev globalVar1) 1) clicked)
+(let ((= addedObjType1List (addObj addedObjType1List (ObjType1  (Position 0 0))))
+(= addedObjType1List (addObj addedObjType1List (ObjType1  (Position 1 1))))
+(= addedObjType1List (addObj addedObjType1List (ObjType1  (Position 2 2))))
+(= addedObjType1List (addObj addedObjType1List (ObjType1  (Position 3 3))))
+(= addedObjType1List (addObj addedObjType1List (ObjType1  (Position 4 4))))
+(= addedObjType1List (addObj addedObjType1List (ObjType1  (Position 5 5))))
+(= addedObjType1List (addObj addedObjType1List (ObjType1  (Position 6 6))))
+(= addedObjType1List (addObj addedObjType1List (ObjType1  (Position 7 7))))
+(= addedObjType1List (addObj addedObjType1List (ObjType1  (Position 8 8))))
+(= addedObjType1List (addObj addedObjType1List (ObjType1  (Position 9 9)))))))
+  (on (& clicked (== (prev globalVar1) 1))
+(= globalVar1 2))
+  (on (& clicked (== (prev globalVar1) 2))
+(= globalVar1 1)))
+
+
+
+
+
+ 
+(program
+  (= GRID_SIZE 10)
+  (= background "white")
+  (object ObjType1  (list (Cell 0 0  "yellow" )))
+
+  
+
+  (: addedObjType1List (List ObjType1))
+
+  
+  
+  (= addedObjType1List (initnext (list) (prev addedObjType1List)))
+
+	 (: globalVar1 Int)
+	 (= globalVar1 (initnext 1 (prev globalVar1)))
+
+  (: time Int)
+  (= time (initnext 0 (+ time 1)))
+
+  (on clicked
+(= addedObjType1List (removeObj addedObjType1List (--> obj true))))
+  (on (& (== (prev globalVar1) 1) clicked)
+(let ((= addedObjType1List (addObj addedObjType1List (ObjType1  (Position 0 0))))
+(= addedObjType1List (addObj addedObjType1List (ObjType1  (Position 1 1))))
+(= addedObjType1List (addObj addedObjType1List (ObjType1  (Position 2 2))))
+(= addedObjType1List (addObj addedObjType1List (ObjType1  (Position 3 3))))
+(= addedObjType1List (addObj addedObjType1List (ObjType1  (Position 4 4))))
+(= addedObjType1List (addObj addedObjType1List (ObjType1  (Position 5 5))))
+(= addedObjType1List (addObj addedObjType1List (ObjType1  (Position 6 6))))
+(= addedObjType1List (addObj addedObjType1List (ObjType1  (Position 7 7))))
+(= addedObjType1List (addObj addedObjType1List (ObjType1  (Position 8 8))))
+(= addedObjType1List (addObj addedObjType1List (ObjType1  (Position 9 9)))))))
+  (on (& clicked (== (prev globalVar1) 1))
+(= globalVar1 2))
+  (on (& clicked (== (prev globalVar1) 2))
+(= globalVar1 1)))
+
+
+
+
+
+ 
+(program
+  (= GRID_SIZE 10)
+  (= background "white")
+  (object ObjType1  (list (Cell 0 0  "yellow" )))
+
+  
+
+  (: addedObjType1List (List ObjType1))
+
+  
+  
+  (= addedObjType1List (initnext (list) (prev addedObjType1List)))
+
+	 (: globalVar1 Int)
+	 (= globalVar1 (initnext 1 (prev globalVar1)))
+
+  (: time Int)
+  (= time (initnext 0 (+ time 1)))
+
+  (on clicked
+(= addedObjType1List (removeObj addedObjType1List (--> obj true))))
+  (on (& (== (prev globalVar1) 1) clicked)
+(let ((= addedObjType1List (addObj addedObjType1List (ObjType1  (Position 0 0))))
+(= addedObjType1List (addObj addedObjType1List (ObjType1  (Position 1 1))))
+(= addedObjType1List (addObj addedObjType1List (ObjType1  (Position 2 2))))
+(= addedObjType1List (addObj addedObjType1List (ObjType1  (Position 3 3))))
+(= addedObjType1List (addObj addedObjType1List (ObjType1  (Position 4 4))))
+(= addedObjType1List (addObj addedObjType1List (ObjType1  (Position 5 5))))
+(= addedObjType1List (addObj addedObjType1List (ObjType1  (Position 6 6))))
+(= addedObjType1List (addObj addedObjType1List (ObjType1  (Position 7 7))))
+(= addedObjType1List (addObj addedObjType1List (ObjType1  (Position 8 8))))
+(= addedObjType1List (addObj addedObjType1List (ObjType1  (Position 9 9)))))))
+  (on (& clicked (== (prev globalVar1) 1))
+(= globalVar1 2))
+  (on (& clicked (== (prev globalVar1) 2))
+(= globalVar1 1)))
+
+
+
+
+
