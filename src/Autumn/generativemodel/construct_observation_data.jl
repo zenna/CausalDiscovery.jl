@@ -1647,7 +1647,7 @@ function generate_observations_gravity4(m::Module)
 end
 
 function generate_observations_swap(m::Module)
-  observations, user_events, grid_size = JLD.load("observations_swap.jld")["observations"]
+  observations, user_events, grid_size = JLD.load("observations_swap_FINAL.jld")["observations"]
   observations, user_events, grid_size
   # state = Base.invokelatest(m.init, nothing, nothing, nothing, nothing, nothing)
   # observations = []
