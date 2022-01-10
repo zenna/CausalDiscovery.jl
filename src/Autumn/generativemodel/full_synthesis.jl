@@ -257,6 +257,14 @@ function generate_observations(model_name::String)
     return observations, user_events, 16
   end
 
+  if model_name == "grow_ii"
+    observations, user_events, grid_size = generate_observations_grow2(nothing)
+    return observations, user_events, grid_size
+  elseif model_name == "mario_ii"
+    observations, user_events, grid_size = generate_observations_mario2(nothing)
+    return observations, user_events, grid_size
+  end
+
   if occursin("double_count_", model_name)
     program_expr = compiletojulia(parseautumn(programs["double_count"]))
   elseif occursin("count_", model_name)
@@ -688,7 +696,7 @@ programs = Dict("particles"                                 => """(program
               )"""
                 ,"mario"                                       => """(program
                                                                       (= GRID_SIZE 16)
-                                                                      (= background "skyblue")
+                                                                      (= background "white")
                                                                       
                                                                       (object Mario (: bullets Int) (Cell 0 0 "red"))
                                                                       (object Step (list (Cell -1 0 "darkorange") (Cell 0 0 "darkorange") (Cell 1 0 "darkorange")))

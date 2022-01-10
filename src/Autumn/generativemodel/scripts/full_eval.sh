@@ -3,7 +3,7 @@
 curr_date=$(date '+%Y-%m-%d_%H:%M:%S')
 algorithms=("heuristic")
 # algorithms=("heuristic")
-num_repeats=1
+num_repeats=2
 
 # model_names=("paint"
 #              "lights"
@@ -50,7 +50,8 @@ num_repeats=1
 #              "space_invaders"
 #              "sokoban")
 # # "space_invaders"
-model_names=("ice")
+model_names=("mario" 
+             "grow")
 
 for  (( i = 1 ; i <= $num_repeats; i++ ))
 do

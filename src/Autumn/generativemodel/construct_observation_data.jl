@@ -1297,6 +1297,16 @@ function generate_observations_count_5(m::Module)
   observations, user_events, 100
 end
 
+function generate_observations_grow2(m)
+  observations, user_events, grid_size = JLD.load("observations_grow_ii.jld")["observations"]
+  observations, user_events, grid_size
+end
+
+function generate_observations_mario2(m)
+  observations, user_events, grid_size = JLD.load("observations_mario_ii.jld")["observations"]
+  observations, user_events, grid_size
+end
+
 function generate_observations_mario(m::Module)
   state = Base.invokelatest(m.init, nothing, nothing, nothing, nothing, nothing)
   observations = []
