@@ -1304,7 +1304,7 @@ end
 
 function generate_observations_mario2(m)
   observations, user_events, grid_size = JLD.load("observations_mario_ii.jld")["observations"]
-  observations, user_events, grid_size
+  user_events, observations, grid_size
 end
 
 function generate_observations_mario(m::Module)

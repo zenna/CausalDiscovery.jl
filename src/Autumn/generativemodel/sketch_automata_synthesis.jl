@@ -806,9 +806,9 @@ function generate_global_automaton_sketch(run_id, single_update_func_with_type, 
         sketch_update_function_arr[time] = string(value)
       end
 
-      # @show distinct_events 
-      # @show sketch_event_arr 
-      # @show sketch_update_function_arr
+      @show distinct_events 
+      @show sketch_event_arr 
+      @show sketch_update_function_arr
 
       solutions = []
       for i in 1:1
@@ -894,7 +894,7 @@ function generate_global_automaton_sketch(run_id, single_update_func_with_type, 
             end
           end
 
-          # @show command 
+          @show command 
           
           sketch_output = try 
                             readchomp(eval(Meta.parse("`$(command)`")))
@@ -902,7 +902,7 @@ function generate_global_automaton_sketch(run_id, single_update_func_with_type, 
                             ""
                           end
 
-          # @show sketch_output
+          @show sketch_output
           if sketch_output == "" || occursin("The sketch could not be resolved.", sketch_output)
             break
           else

@@ -259,10 +259,11 @@ function generate_observations(model_name::String)
 
   if model_name == "grow_ii"
     observations, user_events, grid_size = generate_observations_grow2(nothing)
-    return observations, user_events, grid_size
+    return filter_out_of_bounds_cells(observations, grid_size), user_events, grid_size
+
   elseif model_name == "mario_ii"
     observations, user_events, grid_size = generate_observations_mario2(nothing)
-    return observations, user_events, grid_size
+    return filter_out_of_bounds_cells(observations, grid_size), user_events, grid_size
   end
 
   if occursin("double_count_", model_name)
