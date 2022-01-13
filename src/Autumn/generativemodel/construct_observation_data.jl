@@ -1304,7 +1304,7 @@ end
 
 function generate_observations_mario2(m)
   observations, user_events, grid_size = JLD.load("observations_mario_ii.jld")["observations"]
-  observations, user_events, grid_size
+  user_events, observations, grid_size
 end
 
 function generate_observations_mario(m::Module)
@@ -1394,7 +1394,9 @@ function generate_observations_bullets(m::Module)
                 #  3 => "click 15 0",
                 #  4 => "click 0 0",
                 #  5 => "left",
-                 7 => "click 1 1",
+                 2 => "click 1 1",
+                 4 => "left",
+                 5 => "click 15 15",
                  8 => "up",
                  10 => "click 2 2",
                  11 => "right",
