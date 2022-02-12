@@ -35,7 +35,7 @@ function singletimestepsolution_matrix(observations, user_events, grid_size; sin
 
   object_types, object_mapping, background, _ = object_decomposition
 
-  @show object_decomposition 
+  # @show object_decomposition 
 
   # matrix of update function sets for each object/time pair
   # number of rows = number of objects, number of cols = number of time steps  
@@ -143,6 +143,7 @@ global_iters = 0
 """Synthesize a set of update functions that """
 function synthesize_update_functions(object_id, time, object_decomposition, user_events, prev_used_rules, prev_abstract_positions, grid_size=16, max_iters=11, upd_func_space=1; pedro=false)
   object_types, object_mapping, background, grid_size = object_decomposition
+  type_ids = map(t -> t.id, object_types)
   
   if length(unique(map(k -> length(object_mapping[k]), collect(keys(object_mapping))))) != 1 
     # # @show object_mapping
@@ -202,17 +203,15 @@ function synthesize_update_functions(object_id, time, object_decomposition, user
       
       if (pedro_matching_objects != []) && (isnothing(object_mapping[pedro_matching_objects[1].id][1]) || !(pedro_matching_objects[1].type.id in map(x -> x.id, prev_objects_not_listed))) 
         first_matching_object = pedro_matching_objects[1]
-        disps = map(o -> (next_object.position[1] - o.position[1], next_object.position[2] - o.position[2]), pedro_matching_objects)      
-        abstracted_position = "(.. (uniformChoice (vcat $(join(map(disp -> "(map (--> obj (.. (move obj (Position $(disp[1]) $(disp[2]))) origin)) (prev addedObjType$(first_matching_object.type.id)List))", disps), " ")) (prev addedObjType$(first_matching_object.type.id)List) (prev addedObjType$(first_matching_object.type.id)List) (prev addedObjType$(first_matching_object.type.id)List) (prev addedObjType$(first_matching_object.type.id)List) (prev addedObjType$(first_matching_object.type.id)List) )) origin)"
+        disps = map(o -> (next_object.position[1] - o.position[1], next_object.position[2] - o.position[2]), [first_matching_object])      
+        abstracted_position = "(.. (uniformChoice $(join(map(disp -> "(map (--> obj (.. (move obj (Position $(disp[1]) $(disp[2]))) origin)) (prev addedObjType$(first_matching_object.type.id)List))", disps), " ")) ) origin)"
         println("RANDOM ABSTRACTIONS!")
         @show abstracted_position 
         push!(abstracted_positions, abstracted_position)
-        for matching_object in pedro_matching_objects 
-          disp = (next_object.position[1] - matching_object.position[1], next_object.position[2] - matching_object.position[2]) 
-          pos = "(uniformChoice (map (--> obj (.. (move obj (Position $(disp[1]) $(disp[2]))) origin)) (filter (--> obj (== (.. obj id) $(matching_object.id))) (prev addedObjType$(matching_object.type.id)List))))"
-          @show pos 
-          push!(abstracted_positions, pos)
-        end
+        
+        # disp = (next_object.position[1] - matching_object.position[1], next_object.position[2] - matching_object.position[2]) 
+        # pos = "(uniformChoice (map (--> obj (.. (move obj (Position $(disp[1]) $(disp[2]))) origin)) (filter (--> obj (== (.. obj id) $(matching_object.id))) (prev addedObjType$(matching_object.type.id)List))))"
+
       end
     end
 
@@ -260,13 +259,40 @@ function synthesize_update_functions(object_id, time, object_decomposition, user
     contained_in_list = isnothing(object_mapping[object_id][1]) || (count(id -> (filter(x -> !isnothing(x), object_mapping[id]))[1].type.id == object_mapping[object_id][1].type.id, collect(keys(object_mapping))) > 1)
 
     if contained_in_list # object was added later; contained in addedList
-      update_rules = ["(= addedObjType$(prev_object.type.id)List (removeObj addedObjType$(prev_object.type.id)List (--> obj (== (.. obj id) $(object_id)))))"]
-      update_rules, update_rules, prev_used_rules, prev_abstract_positions
+      if pedro 
+        unformat_rules = []
+        update_rules = []
+        if prev_object.position[2] + 30 > grid_size[2]
+          new_rule = "(= objX (move objX (Position 0 30)))" 
+          push!(unformat_rules, new_rule)
+          update_rule = replace(new_rule, "objX" => "obj$(object_id)")
+          contained_in_list = isnothing(object_mapping[object_id][1]) || (count(id -> (filter(x -> !isnothing(x), object_mapping[id]))[1].type.id == object_mapping[object_id][1].type.id, collect(keys(object_mapping))) > 1)
+          if contained_in_list # object was added later; contained in addedList
+            update_rule_parts = split(update_rule, " ")
+            var1 = replace(update_rule_parts[2], "obj$(object_id)" => "obj")
+            var2 = replace(join(update_rule_parts[3:end], " "), "obj$(object_id)" => "(prev obj)")
+            map_lambda_func = string("(--> ", var1, " ", var2)
+            # map_lambda_func = replace(string("(-->", replace(update_rule, "obj$(object_id)" => "obj")[3:end]), "(prev obj)" => "(prev obj)")
+            push!(update_rules, "(= addedObjType$(prev_object.type.id)List (updateObj addedObjType$(prev_object.type.id)List $(map_lambda_func) (--> obj (== (.. obj id) $(object_id)))))")
+          else # object was present at the start of the program
+            update_rule_parts = filter(x -> x != "", split(update_rule, " "))
+            push!(update_rules, join([update_rule_parts[1], update_rule_parts[2], replace(join(update_rule_parts[3:end], " "), "obj$(object_id)" => "(prev obj$(object_id))" )], " "))
+          end
+          update_rules, unformat_rules, prev_used_rules, prev_abstract_positions
+        else 
+          update_rules = ["(= addedObjType$(prev_object.type.id)List (removeObj addedObjType$(prev_object.type.id)List (--> obj (== (.. obj id) $(object_id)))))"]
+          update_rules, update_rules, prev_used_rules, prev_abstract_positions  
+        end
+      else
+        update_rules = ["(= addedObjType$(prev_object.type.id)List (removeObj addedObjType$(prev_object.type.id)List (--> obj (== (.. obj id) $(object_id)))))"]
+        update_rules, update_rules, prev_used_rules, prev_abstract_positions
+      end
     else # object was present at the start of the program
       update_rules = ["(= obj$(object_id) (removeObj (prev obj$(object_id))))"]
       update_rules, update_rules, prev_used_rules, prev_abstract_positions
     end
   else # actual synthesis problem
+    type_id = prev_object.type.id 
     prev_used_rules_copy = deepcopy(prev_used_rules)
 
     # prev_objects = filter(obj -> !isnothing(obj) && (obj.id != prev_object.id), [object_mapping[id][time - 1] for id in 1:length(collect(keys(object_mapping)))])
@@ -285,33 +311,34 @@ function synthesize_update_functions(object_id, time, object_decomposition, user
     using_prev = false
     while (iters < max_iters) # && length(solutions) < 1
       dist = distance(prev_object.position, next_object.position)
-      if pedro 
-        if dist != 0 
-          x_displacement = next_object.position[1] - prev_object.position[1]
-          y_displacement = next_object.position[2] - prev_object.position[2]
-          new_rule = "(= objX (move objX (Position $(x_displacement) $(y_displacement))))" 
-        else
-          new_rule = "(= objX objX)"
-        end
-        push!(unformatted_solutions, new_rule)
-        update_rule = replace(new_rule, "objX" => "obj$(object_id)")
-        contained_in_list = isnothing(object_mapping[object_id][1]) || (count(id -> (filter(x -> !isnothing(x), object_mapping[id]))[1].type.id == object_mapping[object_id][1].type.id, collect(keys(object_mapping))) > 1)
-        if contained_in_list # object was added later; contained in addedList
-          update_rule_parts = split(update_rule, " ")
-          var1 = replace(update_rule_parts[2], "obj$(object_id)" => "obj")
-          var2 = replace(join(update_rule_parts[3:end], " "), "obj$(object_id)" => "(prev obj)")
-          map_lambda_func = string("(--> ", var1, " ", var2)
-          # map_lambda_func = replace(string("(-->", replace(update_rule, "obj$(object_id)" => "obj")[3:end]), "(prev obj)" => "(prev obj)")
-          push!(solutions, "(= addedObjType$(prev_object.type.id)List (updateObj addedObjType$(prev_object.type.id)List $(map_lambda_func) (--> obj (== (.. obj id) $(object_id)))))")
-        else # object was present at the start of the program
-          update_rule_parts = filter(x -> x != "", split(update_rule, " "))
-          push!(solutions, join([update_rule_parts[1], update_rule_parts[2], replace(join(update_rule_parts[3:end], " "), "obj$(object_id)" => "(prev obj$(object_id))" )], " "))
-        end
+      # if pedro 
+      #   if dist != 0 
+      #     x_displacement = next_object.position[1] - prev_object.position[1]
+      #     y_displacement = next_object.position[2] - prev_object.position[2]
+      #     new_rule = "(= objX (move objX (Position $(x_displacement) $(y_displacement))))" 
+      #   else
+      #     new_rule = "(= objX objX)"
+      #   end
+      #   push!(unformatted_solutions, new_rule)
+      #   update_rule = replace(new_rule, "objX" => "obj$(object_id)")
+      #   contained_in_list = isnothing(object_mapping[object_id][1]) || (count(id -> (filter(x -> !isnothing(x), object_mapping[id]))[1].type.id == object_mapping[object_id][1].type.id, collect(keys(object_mapping))) > 1)
+      #   if contained_in_list # object was added later; contained in addedList
+      #     update_rule_parts = split(update_rule, " ")
+      #     var1 = replace(update_rule_parts[2], "obj$(object_id)" => "obj")
+      #     var2 = replace(join(update_rule_parts[3:end], " "), "obj$(object_id)" => "(prev obj)")
+      #     map_lambda_func = string("(--> ", var1, " ", var2)
+      #     # map_lambda_func = replace(string("(-->", replace(update_rule, "obj$(object_id)" => "obj")[3:end]), "(prev obj)" => "(prev obj)")
+      #     push!(solutions, "(= addedObjType$(prev_object.type.id)List (updateObj addedObjType$(prev_object.type.id)List $(map_lambda_func) (--> obj (== (.. obj id) $(object_id)))))")
+      #   else # object was present at the start of the program
+      #     update_rule_parts = filter(x -> x != "", split(update_rule, " "))
+      #     push!(solutions, join([update_rule_parts[1], update_rule_parts[2], replace(join(update_rule_parts[3:end], " "), "obj$(object_id)" => "(prev obj$(object_id))" )], " "))
+      #   end
 
-        break
-      end
+      #   break
+      # end
 
-      if dist >= 2 
+      # update prev_used_rules 
+      if !pedro && dist >= 2 
         x_displacement = next_object.position[1] - prev_object.position[1]
         y_displacement = next_object.position[2] - prev_object.position[2]
         displacement = (x_displacement, y_displacement)
@@ -322,18 +349,53 @@ function synthesize_update_functions(object_id, time, object_decomposition, user
           prev_used_rules[1] = "(= objX (move objX $(x_displacement) $(y_displacement)))"
           prev_used_rules[2] = "(= objX (moveNoCollision objX $(x_displacement) $(y_displacement)))"
         end
-        
       end
+
+      # update prev_used_rules: PEDRO 
+      if pedro && iters == 0
+        prev_used_rules = [] 
+        if dist != 0 
+          x_displacement = next_object.position[1] - prev_object.position[1]
+          y_displacement = next_object.position[2] - prev_object.position[2]
+          push!(prev_used_rules, "(= objX (move objX (Position $(x_displacement) $(y_displacement))))") 
+          push!(prev_used_rules, "(= objX (moveNoCollision objX $(x_displacement) $(y_displacement)))")
+
+          # add closest-based update functions 
+          unit_size = filter(x -> x != 0, [x_displacement, y_displacement]) != [] ? abs(filter(x -> x != 0, [x_displacement, y_displacement])[1]) : 1 
+          for desc in ["Left", "Right", "Up", "Down"]
+            other_type_ids = filter(x -> x != type_id, type_ids)
+            for other_type_id_1 in other_type_ids # closest w.r.t. single other type 
+              push!(prev_used_rules, "(= objX (move objX (closest$(desc) objX (list ObjType$(other_type_id_1)) $(unit_size))))")
+              for other_type_id_2 in other_type_ids # closest w.r.t. pair of other type's 
+                if other_type_id_1 < other_type_id_2 
+                  push!(prev_used_rules, "(= objX (move objX (closest$(desc) objX (list ObjType$(other_type_id_1) ObjType$(other_type_id_2)) $(unit_size))))")
+                end
+              end
+            end
+          end
+        else
+          push!(prev_used_rules, "(= objX objX)")
+        end
+        max_iters = length(prev_used_rules)
+        println("PEDRO LOOK HERE")
+        @show prev_used_rules 
+        @show max_iters
+      end 
 
       hypothesis_program = program_string_synth_update_rule((object_types, sort([prev_objects..., prev_object], by=(x -> x.id)), background, grid_size))
       if (prev_object.custom_field_values != []) && (next_object.custom_field_values != []) && (prev_object.custom_field_values[1] != next_object.custom_field_values[1])
         update_rule = """(= obj$(object_id) (updateObj obj$(object_id) "color" "$(next_object.custom_field_values[1])"))"""
       elseif prev_used_rules_index <= length(prev_used_rules)
         update_rule = replace(prev_used_rules[prev_used_rules_index], "objX" => "obj$(object_id)")
+        @show update_rule
         using_prev = true
         prev_used_rules_index += 1
         # # @show prev_used_rules_index
       else
+        if pedro 
+          break
+        end
+
         using_prev = false
         update_rule = generate_hypothesis_update_rule(prev_object, (object_types, prev_objects, background, grid_size), p=0.0) # "(= obj1 (moveDownNoCollision (moveDownNoCollision (prev obj1))))"
         println("IS THIS THE REAL LIFE")
@@ -407,6 +469,17 @@ function synthesize_update_functions(object_id, time, object_decomposition, user
           end
 
         else
+
+          if occursin("closestLeft", update_rule)
+            update_rule = replace(update_rule, "closestLeft" => "closestRandom")
+          elseif occursin("closestRight", update_rule)
+            update_rule = replace(update_rule, "closestRight" => "closestRandom")
+          elseif occursin("closestUp", update_rule)
+            update_rule = replace(update_rule, "closestUp" => "closestRandom")
+          elseif occursin("closestDown", update_rule)
+            update_rule = replace(update_rule, "closestDown" => "closestRandom")
+          end
+          # if !occursin("closestRandom", update_rule) || !occursin("closestRandom", join(solutions, "")) # true
           if contained_in_list # object was added later; contained in addedList
             update_rule_parts = split(update_rule, " ")
             var1 = replace(update_rule_parts[2], "obj$(object_id)" => "obj")
@@ -418,6 +491,7 @@ function synthesize_update_functions(object_id, time, object_decomposition, user
             update_rule_parts = filter(x -> x != "", split(update_rule, " "))
             push!(solutions, join([update_rule_parts[1], update_rule_parts[2], replace(join(update_rule_parts[3:end], " "), "obj$(object_id)" => "(prev obj$(object_id))" )], " "))
           end
+          # end
         end
       end
       
@@ -477,11 +551,14 @@ function parse_and_map_objects(observations, gridsize=16; singlecell=false, pedr
   else
     # compute union of all colors seen across observations
     object_types_list = vcat(map(obs -> parsescene_autumn_pedro(obs, gridsize isa Int ? gridsize : gridsize[1], "white")[1], observations)...)
-    shape = object_types_list[1].shape
-    colors = unique(map(t -> t.color, object_types_list))
-    object_types = []
+    all_colors = unique(map(t -> t.color, object_types_list))
+    @show object_types_list 
+    shape = filter(t -> t.color != "black", object_types_list)[1].shape
+    object_types = "black" in all_colors ? [object_types_list[1]] : []
+
+    colors = unique(map(t -> t.color, filter(t -> t.color != "black", object_types_list)))
     for i in 1:length(colors)
-      push!(object_types, ObjType(shape, colors[i], [], i))
+      push!(object_types, ObjType(shape, colors[i], [], "black" in all_colors ? i + 1 : i))
     end
 
     _, objects, _, _ = parsescene_autumn_pedro_given_types(observations[1], object_types, gridsize, "white")
@@ -864,7 +941,7 @@ function abstract_position(position, prev_abstract_positions, user_event, object
   # @show position 
   # @show prev_abstract_positions 
   # @show user_event 
-  # @show object_decomposition 
+  # # @show object_decomposition 
 
   object_types, prev_objects, _, _ = object_decomposition
   solutions = []
@@ -1744,17 +1821,38 @@ function construct_chaos_matrix(unformatted_matrix, object_decomposition)
   chaos_matrix
 end
 
+function construct_brownian_motion_matrices(filtered_matrix, object_decomposition)
+  object_types, object_mapping, _, _ = object_decomposition 
+  brownian_matrices = []
+
+  start_objects = map(k -> object_mapping[k][1], filter(key -> !isnothing(object_mapping[key][1]), collect(keys(object_mapping))))
+  non_list_objects = filter(x -> (count(y -> y.type.id == x.type.id, start_objects) == 1) && (count(obj_id -> filter(z -> !isnothing(z), object_mapping[obj_id])[1].type.id == x.type.id, collect(keys(object_mapping))) == 1), start_objects)
+
+  for object_type in object_types
+    type_id = object_type.id
+    object_ids_with_type = filter(id -> filter(o -> !isnothing(o), object_mapping[id])[1].type.id == type_id,  collect(keys(object_mapping)))    
+
+    update_functions = unique(vcat(vcat(map(id -> filtered_matrix[id, :], object_ids_with_type)...)...))
+
+    
+
+
+  end
+  brownian_matrices
+end
+
 # generate_event, generate_hypothesis_position, generate_hypothesis_position_program 
 ## tricky things: add user events, and fix environment 
 global hypothesis_state = nothing
-function generate_event(anonymized_update_rule, distinct_update_rules, object_id, object_ids, matrix, filtered_matrix, object_decomposition, user_events, state_update_on_clauses, global_var_dict, event_vector_dict, grid_size, redundant_events_set, min_events=1, max_iters=400, z3_option = "none", time_based=true, z3_timeout=0, sketch_timeout=0)
-  println("GENERATE EVENT")
-  # # @show object_decomposition
+function generate_event(run_id, anonymized_update_rule, distinct_update_rules, object_id, object_ids, matrix, filtered_matrix, object_decomposition, user_events, state_update_on_clauses, global_var_dict, event_vector_dict, grid_size, redundant_events_set, min_events=1, max_iters=400, z3_option = "none", time_based=true, z3_timeout=0, sketch_timeout=0)
+  # println("GENERATE EVENT")
+  # # # # # @show object_decomposition
   object_types, object_mapping, background, dim = object_decomposition 
+  @show object_mapping 
   objects = sort(filter(obj -> obj != nothing, [object_mapping[i][1] for i in 1:length(collect(keys(object_mapping)))]), by=(x -> x.id))
   type_id = filter(x -> !isnothing(x), object_mapping[object_ids[1]])[1].type.id
   #println("WHAT 1")
-  ## # @show length(vcat(object_trajectory...))
+  ## # # # @show length(vcat(object_trajectory...))
 
   # construct observed update function times (observation_data)
   observation_data_dict = Dict()
@@ -1779,8 +1877,8 @@ function generate_event(anonymized_update_rule, distinct_update_rules, object_id
     else
       true_times = findall(rule -> rule == update_rule, vcat(object_trajectory...))
     end
-    # # @show true_times 
-    # # @show user_events
+    # # # # @show true_times 
+    # # # # @show user_events
     true_time_events = map(time -> isnothing(user_events[time]) ? user_events[time] : split(user_events[time], " ")[1], true_times)
     false_time_events = map(time -> isnothing(user_events[time]) ? user_events[time] : split(user_events[time], " ")[1], findall(rule -> rule != update_rule, vcat(object_trajectory...)))
   
@@ -1791,8 +1889,8 @@ function generate_event(anonymized_update_rule, distinct_update_rules, object_id
     if !occursin("addObj", update_rule)
       for time in 1:length(object_trajectory)
         rule = object_trajectory[time][1]
-        @show rule
-        @show distinct_update_rules
+        # # @show rule
+        # # @show distinct_update_rules
         if (rule == "") || (findall(r -> replace(r, "obj id) x" => "obj id) $(object_id)") == rule, distinct_update_rules)[1] > update_rule_index) # || occursin("addObj", rule) #
           observation_data[time] = -1
         elseif (findall(r -> replace(r, "obj id) x" => "obj id) $(object_id)") == rule, distinct_update_rules)[1] < update_rule_index)
@@ -1809,10 +1907,10 @@ function generate_event(anonymized_update_rule, distinct_update_rules, object_id
     observation_data_dict[object_id] = observation_data
   end
 
-  println("----------------> LOOK AT ME")
-  # # @show object_decomposition
-  @show observation_data_dict 
-  @show distinct_update_rules 
+  # println("----------------> LOOK AT ME")
+  # # # # # @show object_decomposition
+  # # @show observation_data_dict 
+  # # @show distinct_update_rules 
 
   tried_compound_events = false 
 
@@ -1824,12 +1922,12 @@ function generate_event(anonymized_update_rule, distinct_update_rules, object_id
   @show redundant_events_set 
   new_choices = filter(e -> !(e in redundant_events_set), choices)
   println("STRANGE BEHAVIOR")
-  @show time_based 
+  # # @show time_based 
   @show new_choices
   @show length(new_choices)
-  @show length(collect(keys(event_vector_dict)))
-  @show length(collect(redundant_events_set))
-  @show redundant_events_set
+  # # @show length(collect(keys(event_vector_dict)))
+  # # @show length(collect(redundant_events_set))
+  # # @show redundant_events_set
   events_to_try = sort(unique(vcat(new_choices, collect(keys(event_vector_dict)))), by=length)
   @show length(events_to_try)
   while true
@@ -1837,11 +1935,12 @@ function generate_event(anonymized_update_rule, distinct_update_rules, object_id
       event_is_global = !occursin(".. obj id)", event)
       anonymized_event = event # replace(event, ".. obj id) $(object_ids[1])" => ".. obj id) x")
       @show anonymized_event
-      @show type_id
+      # # @show type_id
       is_event_object_specific_with_correct_type = event_is_global || parse(Int, split(match(r".. obj id x prev addedObjType\dList", replace(replace(anonymized_event, ")" => ""), "(" => "")).match, "addedObjType")[2][1]) == type_id
-      @show is_event_object_specific_with_correct_type
-      @show object_ids
-      if !(occursin("first", anonymized_event) && (nothing in vcat(map(k -> object_mapping[k], collect(keys(object_mapping)))...))) && is_event_object_specific_with_correct_type
+      # # @show is_event_object_specific_with_correct_type
+      # # @show object_ids
+      # !(occursin("first", anonymized_event) && (nothing in vcat(map(k -> object_mapping[k], collect(keys(object_mapping)))...))) && is_event_object_specific_with_correct_type
+      if is_event_object_specific_with_correct_type
         
         if !(anonymized_event in keys(event_vector_dict)) # || !(event_vector_dict[anonymized_event] isa AbstractArray) && intersect(object_ids, collect(keys(event_vector_dict[anonymized_event]))) == [] # event values are not stored
           if event_is_global # if the event is global, only need to evaluate the event on one object_id 
@@ -1851,7 +1950,7 @@ function generate_event(anonymized_update_rule, distinct_update_rules, object_id
             event_vector_dict[anonymized_event] = Dict()
           end
           
-          @show event_object_ids
+          # # @show event_object_ids
           for object_id in event_object_ids 
             formatted_event = replace(event, ".. obj id) x" => ".. obj id) $(object_id)")
             program_str = singletimestepsolution_program_given_matrix_NEW(matrix, object_decomposition, grid_size) # CHANGE BACK TO DIM LATER
@@ -1876,15 +1975,15 @@ function generate_event(anonymized_update_rule, distinct_update_rules, object_id
               program_str = string(program_str[1:end-1], state_update_on_clauses_str, ")")
             end
                       
-            println(program_str)
+            # println(program_str)
             global expr = parseautumn(program_str)
             # global expr = striplines(compiletojulia(parseautumn(program_str)))
-            # ## # @show expr
+            # ## # # # @show expr
             # module_name = Symbol("CompiledProgram$(global_iters)")
             # global expr.args[1].args[2] = module_name
-            # # # # @show expr.args[1].args[2]
+            # # # # # # @show expr.args[1].args[2]
             # global mod = @eval $(expr)
-            # # # # @show repr(mod)
+            # # # # # # @show repr(mod)
       
             user_events_for_interpreter = []
             for e in user_events 
@@ -1914,9 +2013,9 @@ function generate_event(anonymized_update_rule, distinct_update_rules, object_id
             # hypothesis_state = interpret_over_time(expr, length(user_events), user_events_for_interpreter).state
       
             # global hypothesis_state = @eval mod.init(nothing, nothing, nothing, nothing, nothing)
-            # # # @show hypothesis_state
+            # # # # # @show hypothesis_state
             # for time in 1:length(user_events)
-            #   # # @show time
+            #   # # # # @show time
             #   if user_events[time] != nothing && (split(user_events[time], " ")[1] in ["click", "clicked"])
             #     global x = parse(Int, split(user_events[time], " ")[2])
             #     global y = parse(Int, split(user_events[time], " ")[3])
@@ -1959,7 +2058,7 @@ function generate_event(anonymized_update_rule, distinct_update_rules, object_id
           push!(event_values_dicts, (event, event_values_dict))
         else
           # add object-specific event values
-          @show collect(keys(event_vector_dict[anonymized_event]))
+          # # @show collect(keys(event_vector_dict[anonymized_event]))
           event_values_dict = Dict() 
           for object_id in object_ids 
             event_values_dict[object_id] = event_vector_dict[anonymized_event][object_id]
@@ -1978,11 +2077,11 @@ function generate_event(anonymized_update_rule, distinct_update_rules, object_id
         end
       
         # check if event_values match true_times/false_times 
-        println("INSIDE GENERATE_EVENT")
-        # @show anonymized_event
-        # @show observation_data_dict
-        # @show event_values_dicts
-        # @show event_vector_dict
+        # println("INSIDE GENERATE_EVENT")
+        # # # @show anonymized_event
+        # # # @show observation_data_dict
+        # # # @show event_values_dicts
+        # # # @show event_vector_dict
         
         equals = true
         for tuple in event_values_dicts 
@@ -1993,7 +2092,7 @@ function generate_event(anonymized_update_rule, distinct_update_rules, object_id
             for time in 1:length(observation_data)
               if (observation_data[time] != event_values[time]) && (observation_data[time] != -1)
                 equals = false
-                println("NO SUCCESS")
+                # println("NO SUCCESS")
                 break
               end
             end
@@ -2009,7 +2108,7 @@ function generate_event(anonymized_update_rule, distinct_update_rules, object_id
     
         if equals
           push!(found_events, event)
-          println("SUCCESS")
+          # println("SUCCESS")
           if occursin("obj id) x", event)
             push!(final_event_globals, false)
           else
@@ -2028,14 +2127,14 @@ function generate_event(anonymized_update_rule, distinct_update_rules, object_id
 
     event_vector_dict, redundant_events_set = prune_by_observational_equivalence(event_vector_dict, redundant_events_set)
 
-    println("POST PRUNING")
-    @show length(collect(keys(event_vector_dict)))
+    # println("POST PRUNING")
+    # # @show length(collect(keys(event_vector_dict)))
 
     if z3_option in ["none"] # , "partial"
       if length(found_events) < min_events && !tried_compound_events
-        println("entered here")
+        # println("entered here")
         events_to_try = sort(unique(construct_compound_events(collect(keys(event_vector_dict)), event_vector_dict, redundant_events_set, object_decomposition)), by=length)
-        println("exited here")
+        # println("exited here")
         tried_compound_events = true
       else
         if (z3_option == "partial") && length(found_events) < min_events
@@ -2096,11 +2195,11 @@ function generate_event(anonymized_update_rule, distinct_update_rules, object_id
         end
       end
 
-      @show anonymized_update_rule
-      @show observation_data_dict
+      # # @show anonymized_update_rule
+      # # @show observation_data_dict
       if length(found_events) < min_events 
         partial_param = (z3_option == "partial")
-        solution_event = z3_event_search_full(observation_data_dict, z3_event_vector_dict, partial_param, z3_timeout)
+        solution_event = z3_event_search_full(run_id, observation_data_dict, z3_event_vector_dict, partial_param, z3_timeout)
         if solution_event != "" 
           push!(found_events, solution_event)
           if occursin("obj id) x", solution_event)
@@ -2115,16 +2214,16 @@ function generate_event(anonymized_update_rule, distinct_update_rules, object_id
       break
     end
   end
-  # # @show found_events
+  # # # # @show found_events
   found_events, final_event_globals, event_vector_dict, observation_data_dict    
 end
 
 function z3_event_search_partial(observed_data_dict, event_vector_dict, timeout=0)
-  println("Z3_EVENT_SEARCH_PARTIAL")
+  # println("Z3_EVENT_SEARCH_PARTIAL")
   Pickle.store("./observed_data_dict.pkl", observed_data_dict)
   Pickle.store("./event_vector_dict.pkl", event_vector_dict)
-  @show observed_data_dict 
-  @show event_vector_dict
+  # # @show observed_data_dict 
+  # # @show event_vector_dict
 
   # activate autumn environment containing z3
   # command = "conda activate autumn"
@@ -2166,28 +2265,29 @@ function z3_event_search_partial(observed_data_dict, event_vector_dict, timeout=
   event
 end
 
-function z3_event_search_full(observed_data_dict, event_vector_dict, partial=false, timeout=0)
+function z3_event_search_full(run_id, observed_data_dict, event_vector_dict, partial=false, timeout=0)
   println("Z3_EVENT_SEARCH_FULL")
   @show length(collect(keys(event_vector_dict)))
   @show observed_data_dict 
   @show event_vector_dict
-  Pickle.store("./observed_data_dict.pkl", observed_data_dict)
-  Pickle.store("./event_vector_dict.pkl", event_vector_dict)
+  Pickle.store("./observed_data_dict_$(run_id).pkl", observed_data_dict)
+  Pickle.store("./event_vector_dict_$(run_id).pkl", event_vector_dict)
 
   # activate autumn environment containing z3
   # command = "conda activate autumn"
   # output = readchomp(eval(Meta.parse("`$(command)`")))
-  event = ""
+  events = [""]
   # run python command for z3 event search 
   options = partial ? [1, 2] : collect(1:14)
   for option in options
+    shortest_length = 0
     if timeout == 0 
-      command = "python3 z3_event_search_full.py $(option)"
+      command = "python3 z3_event_search_full.py $(option) $(run_id) $(shortest_length)"
     else
       if Sys.islinux() 
-        command = "gtimeout $(timeout) python3 z3_event_search_full.py $(option)"
+        command = "gtimeout $(timeout) python3 z3_event_search_full.py $(option) $(run_id) $(shortest_length)"
       else
-        command = "timeout $(timeout) python3 z3_event_search_full.py $(option)"
+        command = "timeout $(timeout) python3 z3_event_search_full.py $(option) $(run_id) $(shortest_length)"
       end
     end
     z3_output = try 
@@ -2200,59 +2300,95 @@ function z3_event_search_full(observed_data_dict, event_vector_dict, partial=fal
     @show command  
     @show option
     @show z3_output
-    if z3_output != ""
+
+    while z3_output != "" && split(z3_output, "\n")[1] == "sat"
+      # println("INSIDE MINIMIZATION WHILE LOOP")
+      # # @show events
+
       lines = split(z3_output, "\n")
-      @show lines
-      if lines[1] == "sat"
-        if option in [1, 2]
-          event_1 = lines[3]
-          event_2 = lines[4]
-          if option == 1
-            event = "(& $(event_1) $(event_2))"
-          elseif option == 2 
-            event = "(| $(event_1) $(event_2))"
-          end
-        elseif option in [3, 4, 5, 11]
-          event_1 = lines[3]
-          event_2 = lines[4]
-          event_3 = lines[5]
-          if option == 3
-            event = "(& (& $(event_1) $(event_2)) $(event_3))"
-          elseif option == 4 
-            event = "(| (& $(event_1) $(event_2)) $(event_3))"
-          elseif option == 5 
-            event = "(| (| $(event_1) $(event_2)) $(event_3))"
-          elseif option == 11 
-            event = "(& $(event_1) (| $(event_2) $(event_3)))"
-          end
-        elseif option in [6, 7, 8, 9, 10, 12, 13, 14]    
-          event_1 = lines[3]
-          event_2 = lines[4]
-          event_3 = lines[5]
-          event_4 = lines[6]
-          if option == 6
-            event = "(& (& $(event_1) $(event_2)) (& $(event_3) $(event_4)))"
-          elseif option == 7 
-            event = "(| (& (& $(event_1) $(event_2)) $(event_3)) $(event_4))"
-          elseif option == 8 
-            event = "(| (& $(event_1) $(event_2)) (& $(event_3) $(event_4)))" # "(& $(event_1) (| $(event_2) (& $(event_3) $(event_4))))" # 
-          elseif option == 9 
-            event = "(| (& $(event_1) $(event_2)) (| $(event_3) $(event_4)))"
-          elseif option == 10 
-            event = "(| (| $(event_1) $(event_2)) (| $(event_3) $(event_4)))"
-          elseif option == 12 
-            event = "(& $(event_1) (& $(event_2) (| $(event_3) $(event_4))))"
-          elseif option == 13 
-            event = "(& $(event_1) (| $(event_2) (| $(event_3) $(event_4))))"
-          elseif option == 14 
-            event = "(& $(event_1) (| $(event_2) (& $(event_3) $(event_4)) ))"
-          end
+      event = ""
+
+      if option in [1, 2]
+        event_1 = lines[3]
+        event_2 = lines[4]
+        if option == 1
+          event = "(& $(event_1) $(event_2))"
+        elseif option == 2 
+          event = "(| $(event_1) $(event_2))"
         end
-        break
-      end        
+        shortest_length = length(event_1) + length(event_2)
+      elseif option in [3, 4, 5, 11]
+        event_1 = lines[3]
+        event_2 = lines[4]
+        event_3 = lines[5]
+        if option == 3
+          event = "(& (& $(event_1) $(event_2)) $(event_3))"
+        elseif option == 4 
+          event = "(| (& $(event_1) $(event_2)) $(event_3))"
+        elseif option == 5 
+          event = "(| (| $(event_1) $(event_2)) $(event_3))"
+        elseif option == 11 
+          event = "(& $(event_1) (| $(event_2) $(event_3)))"
+        end
+        shortest_length = length(event_1) + length(event_2) + length(event_3)
+      elseif option in [6, 7, 8, 9, 10, 12, 13, 14]    
+        event_1 = lines[3]
+        event_2 = lines[4]
+        event_3 = lines[5]
+        event_4 = lines[6]
+        if option == 6
+          event = "(& (& $(event_1) $(event_2)) (& $(event_3) $(event_4)))"
+        elseif option == 7 
+          event = "(| (& (& $(event_1) $(event_2)) $(event_3)) $(event_4))"
+        elseif option == 8 
+          event = "(| (& $(event_1) $(event_2)) (| $(event_3) $(event_4)))"
+        elseif option == 9 
+          event = "(| (& $(event_1) $(event_2)) (& $(event_3) $(event_4)))" # "(& $(event_1) (| $(event_2) (& $(event_3) $(event_4))))" # 
+        elseif option == 10 
+          event = "(| (| $(event_1) $(event_2)) (| $(event_3) $(event_4)))"
+        elseif option == 12 
+          event = "(& $(event_1) (& $(event_2) (| $(event_3) $(event_4))))"
+        elseif option == 13 
+          event = "(& $(event_1) (| $(event_2) (| $(event_3) $(event_4))))"
+        elseif option == 14 
+          event = "(& $(event_1) (| $(event_2) (& $(event_3) $(event_4)) ))"
+        end
+        shortest_length = length(event_1) + length(event_2) + length(event_3) + length(event_4)
+      end
+      # # @show event 
+      # # @show shortest_length 
+      # # @show option 
+
+      push!(events, event)
+
+      # if option in [1, 2]
+      #   break
+      # end
+
+      # re-run Z3 search with shortest length, for all options > 2
+      if timeout == 0 
+        command = "python3 z3_event_search_full.py $(option) $(run_id) $(shortest_length)"
+      else
+        if Sys.islinux() 
+          command = "gtimeout $(timeout) python3 z3_event_search_full.py $(option) $(run_id) $(shortest_length)"
+        else
+          command = "timeout $(timeout) python3 z3_event_search_full.py $(option) $(run_id) $(shortest_length)"
+        end
+      end
+      z3_output = try 
+                    readchomp(eval(Meta.parse("`$(command)`")))
+                  catch e 
+                    ""
+                  end
+    
+    end
+
+    if length(events) > 1 
+      break
     end
   end
-  event
+  # println("HERES AN EVENT!")
+  events[end]
 end
 
 
@@ -2265,7 +2401,7 @@ function generate_new_state(update_rule, update_function_times, event_vector_dic
   @show object_trajectory    
   @show init_global_var_dict 
   @show state_update_times_dict 
-  @show object_decomposition   
+  # @show object_decomposition   
   init_state_update_times_dict = deepcopy(state_update_times_dict)
   failed = false
   solutions = []
@@ -2705,7 +2841,7 @@ function generate_new_object_specific_state(update_rule, update_function_times_d
   @show update_function_times_dict
   @show event_vector_dict
   @show type_id 
-  @show object_decomposition
+  # @show object_decomposition
   @show init_state_update_times
   state_update_times = deepcopy(init_state_update_times)  
   failed = false

@@ -1,3 +1,4 @@
+using JSON 
 
 # remove out-of-bounds cells from frames 
 function filter_out_of_bounds_cells(observations, grid_size) 
@@ -1656,3 +1657,57 @@ function generate_observations_pedro(game_name)
   observations[1:140], user_events[1:139], [900, 330]
 end
 
+# PEDRO INTERFACE 
+pedro_interface_output_folder = "/Users/riadas/Documents/urop/EMPA_Data_Collection_Interface/traces"
+js_key_codes = Dict(["37" => "left", "38" => "up", "39" => "right", "40" => "down", "32" => "click -1 -1"])
+function generate_observations_pedro_interface(game_name)
+  game_folder = string(pedro_interface_output_folder, "/", game_name)
+  if !isdir(game_folder)
+    return [], [], 0
+  end
+
+  files = reverse(sort(filter(x -> occursin(".json", x), readdir(game_folder))))
+  file_location = string(game_folder, "/", files[1])
+  dict = JSON.parse(JSON.parsefile(file_location))
+  @show dict 
+  observations_raw = dict["history"]
+  user_events_raw = dict["user_events"]
+  grid_size = dict["grid_size"]
+
+  observations = []
+  user_events = []
+  
+  for observation_raw in observations_raw 
+    observation = []
+    objects = observation_raw["objects"]
+    colors = collect(keys(objects))
+    for color in colors 
+      object_ids = collect(keys(objects[color]))
+      for id in object_ids
+        origin_x = Int(round(objects[color][id]["x"] * 1.5))
+        origin_y = Int(round(objects[color][id]["y"] * 1.5))
+        for d_x in 0:29
+          for d_y in 0:29
+            x = origin_x + d_x 
+            y = origin_y + d_y 
+            push!(observation, Autumn.AutumnStandardLibrary.Cell(x, y, lowercase(color)))
+          end
+        end
+      end
+    end
+    push!(observations, observation)
+  end
+
+  for user_event_raw in user_events_raw 
+    event = "nothing"
+    if user_event_raw != [] 
+      user_event_key = user_event_raw[1]
+      if user_event_key in keys(js_key_codes )
+        event = js_key_codes[user_event_key]
+      end
+    end
+    push!(user_events, event)
+  end
+
+  observations, user_events[1:end-1], map(x -> Int(round(x)), grid_size .* 1.5)
+end

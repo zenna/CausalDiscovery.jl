@@ -385,7 +385,7 @@ function generate_on_clauses_SKETCH_SINGLE(matrix, unformatted_matrix, object_de
           state_based_update_func_on_clauses = map(idx -> ("(on true\n$(replace(object_specific_update_functions[idx], "(== (.. obj id) x)" => "(& $(best_co_occurring_event[idx]) (in (.. (prev obj) field1) (list $(join(new_accept_state_dict[object_specific_update_functions[idx]], " ")))))")))", object_specific_update_functions[idx]), 1:length(object_specific_update_functions))
           new_transitions = map(trans -> (trans[1], trans[2], replace(trans[3], "(filter (--> obj (== (.. obj id) x)) (prev addedObjType$(type_id)List))" => "(list (prev obj))")), new_transitions)
           # state_transition_on_clauses = map(trans -> """(on true\n(= addedObjType$(type_id)List (updateObj addedObjType$(type_id)List (--> obj (updateObj (prev obj) "field1" $(trans[2]))) (--> obj $(trans[3])))))""", new_transitions)
-          state_transition_on_clauses = map(x -> replace(x, "(filter (--> obj (== (.. obj id) x)) (prev addedObjType$(type_id)List))" => "(prev obj)"), format_state_transition_functions(new_transitions, collect(values(old_to_new_state_values)), type_id=type_id))
+          state_transition_on_clauses = map(x -> replace(x, "(filter (--> obj (== (.. obj id) x)) (prev addedObjType$(type_id)List))" => "(list (prev obj))"), format_state_transition_functions(new_transitions, collect(values(old_to_new_state_values)), type_id=type_id))
   
           fake_object_field_values = Dict(map(idx -> sort(collect(keys(object_mapping)))[idx] => [new_start_states[idx] for i in 1:length(object_mapping[object_ids[1]])], sort(collect(keys(object_mapping)))))
   
@@ -447,7 +447,7 @@ function generate_global_automaton_sketch(update_rule, update_function_times, ev
   @show object_trajectory    
   @show init_global_var_dict 
   @show state_update_times_dict 
-  @show object_decomposition
+  # @show object_decomposition
   @show type_id 
   @show desired_per_matrix_solution_count
   @show interval_painting_param
@@ -1553,7 +1553,7 @@ function generate_object_specific_automaton_sketch(update_rule, update_function_
   @show update_function_times_dict
   @show event_vector_dict
   @show type_id 
-  @show object_decomposition
+  # @show object_decomposition
   @show init_state_update_times
   state_update_times = deepcopy(init_state_update_times)  
   failed = false

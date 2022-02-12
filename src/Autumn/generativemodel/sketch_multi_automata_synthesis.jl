@@ -607,7 +607,7 @@ function generate_on_clauses_SKETCH_MULTI(matrix, unformatted_matrix, object_dec
             # TODO: something generalization-based needs to happen here 
             state_based_update_func_on_clauses = vcat(map(tuple_idx -> map(upd_func -> ("(on true\n$(replace(upd_func, "(== (.. obj id) x)" => "(& $(best_co_occurring_event[tuple_idx]) (in (.. (prev obj) field1) (list $(join(new_accept_state_dict[tuple_idx][upd_func], " ")))))")))", upd_func), object_specific_update_functions_dict[object_specific_update_function_tuples[tuple_idx]]), 1:length(object_specific_update_function_tuples))...)
             # state_transition_on_clauses = map(trans -> """(on true\n(= addedObjType$(type_id)List (updateObj addedObjType$(type_id)List (--> obj (updateObj (prev obj) "field1" $(trans[2]))) (--> obj $(trans[3])))))""", new_transitions)
-            state_transition_on_clauses = map(x -> replace(x, "(filter (--> obj (== (.. obj id) x)) (prev addedObjType$(type_id)List))" => "(prev obj)"), format_state_transition_functions(new_transitions, collect(values(old_to_new_state_values)), type_id=type_id))
+            state_transition_on_clauses = map(x -> replace(x, "(filter (--> obj (== (.. obj id) x)) (prev addedObjType$(type_id)List))" => "(list (prev obj))"), format_state_transition_functions(new_transitions, collect(values(old_to_new_state_values)), type_id=type_id))
 
 
             fake_object_field_values = Dict(map(idx -> object_ids[idx] => [new_start_states[idx] for i in 1:length(object_mapping[object_ids[1]])], 1:length(object_ids)))
@@ -683,7 +683,7 @@ function generate_global_multi_automaton_sketch(co_occurring_event, times_dict, 
   @show object_trajectory    
   @show init_global_var_dict 
   @show state_update_times_dict  
-  @show object_decomposition 
+  # @show object_decomposition 
   @show type_id
   @show desired_per_matrix_solution_count 
   init_state_update_times_dict = deepcopy(state_update_times_dict)
@@ -1089,7 +1089,7 @@ function generate_object_specific_multi_automaton_sketch(co_occurring_event, upd
   @show times_dict
   @show event_vector_dict
   @show type_id 
-  @show object_decomposition
+  # @show object_decomposition
   @show init_state_update_times
   state_update_times = deepcopy(init_state_update_times)  
   failed = false
