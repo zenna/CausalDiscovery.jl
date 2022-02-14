@@ -1,5 +1,5 @@
 """On-clause generation, where we collect all unsolved (latent state dependent) on-clauses at the end"""
-function generate_on_clauses_GLOBAL(run_id, matrix, unformatted_matrix, object_decomposition, user_events, global_event_vector_dict, redundant_events_set, grid_size=16, desired_solution_count=1, desired_per_matrix_solution_count=1, interval_painting_param=false, sketch=false, z3_option="none", time_based=false, z3_timeout=0, sketch_timeout=0, co_occurring_param=false, transition_param=false, co_occurring_distinct=1, co_occurring_same=1, co_occurring_threshold=1, transition_distinct=1, transition_same=1, transition_threshold=1, num_transition_decisions=15)
+function generate_on_clauses_GLOBAL(run_id, random, matrix, unformatted_matrix, object_decomposition, user_events, global_event_vector_dict, redundant_events_set, grid_size=16, desired_solution_count=1, desired_per_matrix_solution_count=1, interval_painting_param=false, sketch=false, z3_option="none", time_based=false, z3_timeout=0, sketch_timeout=0, co_occurring_param=false, transition_param=false, co_occurring_distinct=1, co_occurring_same=1, co_occurring_threshold=1, transition_distinct=1, transition_same=1, transition_threshold=1, num_transition_decisions=15)
   start_time = Dates.now()
   
   object_types, object_mapping, background, dim = object_decomposition
@@ -12,70 +12,12 @@ function generate_on_clauses_GLOBAL(run_id, matrix, unformatted_matrix, object_d
     return solutions
   end
 
-  filtered_matrices = []
-
-  # add bare-bones matrix as last resort for non-random matrices 
-  pre_filtered_matrix_1 = pre_filter_remove_NoCollision(matrix)
-  if pre_filtered_matrix_1 != false 
-    pre_filtered_non_random_matrix_1 = deepcopy(pre_filtered_matrix_1)
-    for row in 1:size(pre_filtered_non_random_matrix_1)[1]
-      for col in 1:size(pre_filtered_non_random_matrix_1)[2]
-        pre_filtered_non_random_matrix_1[row, col] = filter(x -> !occursin("randomPositions", x), pre_filtered_non_random_matrix_1[row, col])
-      end
-    end
-    filtered_non_random_matrices = filter_update_function_matrix_multiple(pre_filtered_non_random_matrix_1, object_decomposition, multiple=true)
-    push!(filtered_matrices, filtered_non_random_matrices[1:1]...)
-  end
-
-  # add non-random filtered matrices to filtered_matrices
-  non_random_matrix = deepcopy(matrix)
-  for row in 1:size(non_random_matrix)[1]
-    for col in 1:size(non_random_matrix)[2]
-      non_random_matrix[row, col] = filter(x -> !occursin("randomPositions", x), non_random_matrix[row, col])
-    end
-  end
-  filtered_non_random_matrices = filter_update_function_matrix_multiple(non_random_matrix, object_decomposition, multiple=true)
-  # filtered_non_random_matrices = filtered_non_random_matrices[1:min(4, length(filtered_non_random_matrices))]
-  push!(filtered_matrices, filtered_non_random_matrices...)
-  
-
-  # add direction-bias-filtered matrix to filtered_matrices 
-  pre_filtered_matrix = pre_filter_with_direction_biases(deepcopy(non_random_matrix), user_events, object_decomposition) 
-  push!(filtered_matrices, filter_update_function_matrix_multiple(pre_filtered_matrix, object_decomposition, multiple=false)...)
-
-  unique!(filtered_matrices)
-  filtered_matrices = sort_update_function_matrices(filtered_matrices, object_decomposition)
-  
-  # @show length(filtered_matrices)
-
-  if length(filtered_matrices) > 5 
-    filtered_matrices = filtered_matrices[1:5]
-  end 
-
-  # BEGIN RANDOM 
-  # add random filtered matrices to filtered_matrices 
-  random_matrix = deepcopy(matrix)
-  for row in 1:size(random_matrix)[1]
-    for col in 1:size(random_matrix)[2]
-      if filter(x -> occursin("uniformChoice", x) || occursin("randomPositions", x), random_matrix[row, col]) != []
-        random_matrix[row, col] = filter(x -> occursin("uniformChoice", x) || occursin("randomPositions", x), random_matrix[row, col])
-      end
-    end
-  end
-  filtered_random_matrices = filter_update_function_matrix_multiple(random_matrix, object_decomposition, multiple=true)
-  filtered_random_matrices = filtered_random_matrices[1:min(4, length(filtered_random_matrices))]
-  push!(filtered_matrices, filtered_random_matrices...)
-
-  # add "chaos" solution to filtered_matrices 
-  filtered_unformatted_matrix = filter_update_function_matrix_multiple(unformatted_matrix, object_decomposition, multiple=false)[1]
-  push!(filtered_matrices, filter_update_function_matrix_multiple(construct_chaos_matrix(filtered_unformatted_matrix, object_decomposition), object_decomposition, multiple=false)...)
-
-  unique!(filtered_matrices)
+  filtered_matrices = construct_filtered_matrices(matrix, object_decomposition, user_events, random)
   # @show length(filtered_matrices)
 
   # filtered_matrices = filtered_matrices[22:22]
   # filtered_matrices = filtered_matrices[5:5]
-  # filtered_matrices = filtered_matrices[1:1]
+  # filtered_matrices = filtered_matrices[1:2]
   # filtered_matrices = filtered_matrices[4:4]
 
   for filtered_matrix_index in 1:length(filtered_matrices)
@@ -241,16 +183,16 @@ function generate_on_clauses_GLOBAL(run_id, matrix, unformatted_matrix, object_d
           # println("BEFORE")
           # @show co_occurring_events
           if co_occurring_param 
-            co_occurring_events = sort(filter(x -> !occursin("(list)", x[1]) && !occursin("(move ", x[1]) && !occursin("(== (prev addedObjType", x[1]) && !occursin("objClicked", x[1]) && !occursin("intersects (list", x[1]) && (!occursin("&", x[1]) || x[1] == "(& clicked (isFree click))") && !(occursin("(! (in (objClicked click (prev addedObjType3List)) (filter (--> obj (== (.. obj id) x)) (prev addedObjType3List))))", x[1])), co_occurring_events), by=x -> x[2]) # [1][1]
+            co_occurring_events = sort(filter(x -> !occursin("(! (intersects", x[1]) && !occursin("(list)", x[1]) && !occursin("(move ", x[1]) && !occursin("(== (prev addedObjType", x[1]) && !occursin("objClicked", x[1]) && !occursin("intersects (list", x[1]) && (!occursin("&", x[1]) || x[1] == "(& clicked (isFree click))") && !(occursin("(! (in (objClicked click (prev addedObjType3List)) (filter (--> obj (== (.. obj id) x)) (prev addedObjType3List))))", x[1])), co_occurring_events), by=x -> x[2]) # [1][1]
           else
-            co_occurring_events = sort(filter(x -> !occursin("(list)", x[1]) && !occursin("|", x[1]) && !occursin("(== (prev addedObjType", x[1]) && !occursin("objClicked", x[1]) && !occursin("(move ", x[1]) && !occursin("intersects (list", x[1]) && (!occursin("&", x[1]) || x[1] == "(& clicked (isFree click))")  && !(occursin("(! (in (objClicked click (prev addedObjType3List)) (filter (--> obj (== (.. obj id) x)) (prev addedObjType3List))))", x[1])), co_occurring_events), by=x -> x[2]) # [1][1]
+            co_occurring_events = sort(filter(x -> !occursin("(! (intersects", x[1]) && !occursin("(list)", x[1]) && !occursin("|", x[1]) && !occursin("(== (prev addedObjType", x[1]) && !occursin("objClicked", x[1]) && !occursin("(move ", x[1]) && !occursin("intersects (list", x[1]) && (!occursin("&", x[1]) || x[1] == "(& clicked (isFree click))")  && !(occursin("(! (in (objClicked click (prev addedObjType3List)) (filter (--> obj (== (.. obj id) x)) (prev addedObjType3List))))", x[1])), co_occurring_events), by=x -> x[2]) # [1][1]
           end
   
           if state_is_global 
             co_occurring_events = filter(x -> !occursin("obj id) x)", x[1]) || occursin("(clicked (filter (--> obj (== (.. obj id)", x[1]), co_occurring_events)
           end 
   
-          # println("THIS IS WEIRD HUH")
+          println("THIS IS WEIRD HUH")
           # @show type_id 
           # @show update_function
           # @show co_occurring_events
@@ -477,7 +419,14 @@ function generate_on_clauses_GLOBAL(run_id, matrix, unformatted_matrix, object_d
               if sketch 
                 state_solutions = generate_global_multi_automaton_sketch(co_occurring_event, times_dict, global_event_vector_dict, object_trajectory, global_var_dict, global_state_update_times_dict, object_decomposition, type_id, desired_per_matrix_solution_count, interval_painting_param, true)
               else
-                state_solutions = generate_new_state_GLOBAL(co_occurring_event, times_dict, global_event_vector_dict, object_trajectory, global_var_dict, global_state_update_times_dict, object_decomposition, type_id, user_events, desired_per_matrix_solution_count, interval_painting_param, transition_param, ordered_update_functions, transition_distinct, transition_same, transition_threshold, num_transition_decisions)
+                state_solutions = generate_new_state_GLOBAL(co_occurring_event, times_dict, global_event_vector_dict, object_trajectory, global_var_dict, global_state_update_times_dict, object_decomposition, type_id, user_events, desired_per_matrix_solution_count, false, transition_param, ordered_update_functions, transition_distinct, transition_same, transition_threshold, num_transition_decisions)
+                println("DONT STOP ME NOW")
+                @show state_solutions 
+
+                if length(filter(sol -> sol[1] != "", state_solutions)) == 0
+                  state_solutions = generate_new_state_GLOBAL(co_occurring_event, times_dict, global_event_vector_dict, object_trajectory, global_var_dict, global_state_update_times_dict, object_decomposition, type_id, user_events, desired_per_matrix_solution_count, true, transition_param, ordered_update_functions, transition_distinct, transition_same, transition_threshold, num_transition_decisions)
+                end
+              
               end
 
               if length(filter(sol -> sol[1] != "", state_solutions)) == 0 # failure 
@@ -771,7 +720,7 @@ function update_co_occurring_events_dict(co_occurring_events_dict, state_based_u
 end
 
 function generate_new_state_GLOBAL(co_occurring_event, times_dict, event_vector_dict, object_trajectory, init_global_var_dict, state_update_times_dict, object_decomposition, type_id, user_events, desired_per_matrix_solution_count, interval_painting_param=false, transition_param=false, ordered_update_functions=[], transition_distinct=1, transition_same=1, transition_threshold=1, num_transition_decisions=15) 
-  # println("GENERATE_NEW_STATE_GLOBAL")
+  println("GENERATE_NEW_STATE_GLOBAL")
   # @show co_occurring_event
   # @show times_dict 
   # @show event_vector_dict 
@@ -812,6 +761,14 @@ function generate_new_state_GLOBAL(co_occurring_event, times_dict, event_vector_
   # @show co_occurring_event_trajectory
 
   # initialize global_var_dict
+
+  ## remove "empty" global_var_ids 
+  for id in collect(keys(init_global_var_dict))
+    if length(unique(init_global_var_dict[id])) == 1
+      delete!(init_global_var_dict, id)
+    end
+  end
+
   if length(collect(keys(init_global_var_dict))) == 0 
     init_global_var_dict[1] = ones(Int, length(init_state_update_times_dict[1]))
     global_var_id = 1
@@ -1113,12 +1070,14 @@ function generate_new_state_GLOBAL(co_occurring_event, times_dict, event_vector_
               curr_new_problem_contexts = [] 
 
               for pc in new_problem_contexts 
-                push!(curr_new_problem_contexts, deepcopy(pc))
+                # push!(curr_new_problem_contexts, deepcopy(pc))
                 grouped_r, augmented_pt, state_ut, global_vd, extra_gvv = pc 
 
                 # check for intersection 
                 intersecting_times = intersect(collect(interval[1][1]:(interval[2][1] - 1)), false_positive_times)
-                if length(intersecting_times) > 1 
+                if length(intersecting_times) <= 1
+                  push!(curr_new_problem_contexts, deepcopy(pc))
+                else # length(intersecting_times) > 1 
                   first_intersecting_time = intersecting_times[1]
                   push!(augmented_pt, (first_intersecting_time + 1, end_value))
                   sort!(augmented_pt, by=x -> x[1])
@@ -1177,7 +1136,7 @@ function generate_new_state_GLOBAL(co_occurring_event, times_dict, event_vector_
           # @show global_var_value 
           # @show times_dict 
           # @show extra_global_var_values
-    
+          
           possible_interval_painting_stop_points_dict = Dict()
           for false_positive_time in false_positive_times 
             possible_interval_painting_stop_points_dict[false_positive_time] = []
@@ -1208,24 +1167,25 @@ function generate_new_state_GLOBAL(co_occurring_event, times_dict, event_vector_
   
           curr_interval_painting_stop_points_dict = Dict(map(t -> t => [], false_positive_times))
           
-          if count(x -> x > 1, map(v -> length(v), collect(values(possible_interval_painting_stop_points_dict)))) > 0 
+          if interval_painting_param && count(x -> x > 1, map(v -> length(v), collect(values(possible_interval_painting_stop_points_dict)))) > 0 
             # multiplicity handling: add new problem context corresponding to alternative interval painting options 
             for false_positive_time in false_positive_times 
               stop_points = possible_interval_painting_stop_points_dict[false_positive_time]
               if stop_points != []
-                if length(stop_points) >= 2 
-                  curr_interval_painting_stop_points_dict[false_positive_time] = reverse(stop_points)[1:1] # 1:2               
-                else 
-                  curr_interval_painting_stop_points_dict[false_positive_time] = reverse(stop_points)[1:1]
-                end
                 # if length(stop_points) >= 2 
-                #   curr_interval_painting_stop_points_dict[false_positive_time] = reverse(stop_points)[2:2]               
+                #   curr_interval_painting_stop_points_dict[false_positive_time] = reverse(stop_points)[1:1] # 1:2               
                 # else 
                 #   curr_interval_painting_stop_points_dict[false_positive_time] = reverse(stop_points)[1:1]
                 # end
+                if length(stop_points) >= 2 
+                  curr_interval_painting_stop_points_dict[false_positive_time] = reverse(stop_points)[2:2]
+                  possible_interval_painting_stop_points_dict[false_positive_time] = [reverse(stop_points)[2], reverse(stop_points)[1], reverse(stop_points)[3:end]...] # [2:end]
+                else 
+                  curr_interval_painting_stop_points_dict[false_positive_time] = reverse(stop_points)[1:1]
+                  possible_interval_painting_stop_points_dict[false_positive_time] = reverse(stop_points) # [2:end] 
+                end
   
                 # curr_interval_painting_stop_points_dict[false_positive_time] = reverse(stop_points)[1:1]
-                possible_interval_painting_stop_points_dict[false_positive_time] = reverse(stop_points) # [2:end] 
               end
             end
             
@@ -1547,7 +1507,7 @@ function generate_stateless_on_clauses(run_id, update_functions_dict, matrix, fi
 end
 
 function generate_new_object_specific_state_GLOBAL(co_occurring_event, update_functions, times_dict, event_vector_dict, type_id, object_decomposition, init_state_update_times, global_var_dict, transition_param=false, z3_option="none", time_based=false, z3_timeout=0, sketch_timeout=0, transition_distinct=1, transition_same=1, transition_threshold=1, num_transition_decisions=15)
-  # println("GENERATE_NEW_OBJECT_SPECIFIC_STATE")
+  println("GENERATE_NEW_OBJECT_SPECIFIC_STATE")
   # @show co_occurring_event
   # @show update_functions 
   # @show times_dict

@@ -184,11 +184,11 @@ function generate_hypothesis_position(position, environment_vars, pedro)
   # @show length(objects)
   if length(objects) != 0
     if !pedro 
-      push!(choices, ["(.. $(rand(objects)) origin)",
-      "(move (.. $(rand(objects)) origin) (Position $(rand(-1:1)) $(rand(-1:1))))"]...)
+      push!(choices, ["(.. (prev $(rand(objects))) origin)",
+      "(move (.. (prev $(rand(objects))) origin) (Position $(rand(-1:1)) $(rand(-1:1))))"]...)
     else
       push!(choices, ["(.. $(rand(objects)) origin)",
-      "(move (.. $(rand(objects)) origin) (Position $(rand(-30:30)) $(rand(-30:30))))"]...)
+      "(move (.. (prev $(rand(objects))) origin) (Position $(rand(-30:30)) $(rand(-30:30))))"]...)
     end
   end
 

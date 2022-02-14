@@ -1,7 +1,19 @@
+const saved_traces_directory = "/Users/riadas/Documents/urop/today_temp/CausalDiscovery.jl/saved/"
 
 # remove out-of-bounds cells from frames 
 function filter_out_of_bounds_cells(observations, grid_size) 
   map(obs -> filter(cell -> cell.position.x in collect(0:(grid_size - 1)) && cell.position.y in collect(0:(grid_size - 1)), obs), observations)
+end
+
+function generate_observations_interface(model_name)
+  directory_location = string(saved_traces_directory, model_name)
+  index = length(filter(f -> occursin(".jld", f), readdir(directory_location))) # take most recently created file
+  file_location = string(saved_traces_directory, model_name, "/", index, ".jld")
+  observations_dict = JLD.load(file_location)
+  observations = map(obs -> map(cell -> Autumn.AutumnStandardLibrary.Cell(cell[1], cell[2], cell[3]), obs[2:end]), observations_dict["observations"])
+  user_events = observations_dict["user_events"]
+  grid_size = observations_dict["grid_size"]
+  filter_out_of_bounds_cells(observations, grid_size), user_events, grid_size
 end
 
 function generate_observations_custom_input(m::Module, user_events)
@@ -1138,53 +1150,61 @@ function generate_observations_count_4(m::Module)
   push!(observations, Base.invokelatest(m.render, state.scene))
 
   events = Dict([
-                -6 => "left",
-                -3 => "right",
-                -1 => "right",
-                 1 => "left",
+                # -6 => "left",
+                # -3 => "right",
+                # -1 => "right",
+                #  1 => "left",
 
-                 2 => "left",
-                 5 => "left",
-                 8 => "right",
-                12 => "right",
-                14 => "right",
-                16 => "right",
-                18 => "left",
-                20 => "left",
+                #  2 => "left",
+                #  5 => "left",
+                #  8 => "right",
+                # 12 => "right",
+                # 14 => "right",
+                # 16 => "right",
+                # 18 => "left",
+                # 20 => "left",
               
-                22 => "left",
-                25 => "left",
-                28 => "left",
-                31 => "right",
-                35 => "right",
-                39 => "right",
-                43 => "right",
-                45 => "right",
-                47 => "right",
-                50 => "left",
-                52 => "left",
-                54 => "left",
+                # 22 => "left",
+                # 25 => "left",
+                # 28 => "left",
+                # 31 => "right",
+                # 35 => "right",
+                # 39 => "right",
+                # 43 => "right",
+                # 45 => "right",
+                # 47 => "right",
+                # 50 => "left",
+                # 52 => "left",
+                # 54 => "left",
     
-                62 => "left",
-                65 => "left",
-                68 => "left",
-                70 => "left",
-                72 => "right",
-                75 => "right",
-                79 => "right",
-                83 => "right",
-                85 => "right",
+                1 => "left",
+                2 => "left",
+                3 => "left",
+                4 => "left",
+                5 => "left",
+                6 => "left",
+                7 => "right",
+                8 => "right",
+                9 => "right",
+                10 => "right",
+                11 => "right",
+                12 => "right",
 
-                87 => "right",
-                88 => "right",
-                90 => "right",
-                92 => "left",
-                94 => "left",
-                96 => "left",
-                97 => "left",
+                13 => "right",
+                14 => "right",
+                15 => "right",
+                16 => "right",
+                17 => "right",
+                18 => "right",
+                19 => "left",
+                20 => "left",
+                21 => "left",
+                22 => "left",
+                23 => "left",
+                24 => "left",
                 ])
 
-  for i in -7:100
+  for i in 0:27
     if i in collect(keys(events))
       event = events[i]
       if event == "left"

@@ -2,41 +2,6 @@ import Pkg; Pkg.add("Pickle")
 using Autumn
 include("test_synthesis.jl")
 
-# function to be run on remote processes; 
-# function do_work(jobs, results) # define work function everywhere
-#   while true
-#       param_option = take!(jobs)
-#       # do work 
-#       decomp, 
-#       observation_tuple, 
-#       event_vector_dict, 
-#       redundant_events_set, 
-#       algorithm, 
-#       desired_per_matrix_solution_count, 
-#       desired_solution_count, 
-#       singlecell, 
-#       time_based, 
-#       z3_option, 
-#       co_occurring_param, 
-#       transition_param = param_option
-
-#       result = @timed synthesize_program_given_decomp(decomp, 
-#                                                       singlecell, 
-#                                                       deepcopy(observation_tuple),
-#                                                       deepcopy(event_vector_dict),
-#                                                       deepcopy(redundant_events_set), 
-#                                                       upd_func_spaces=[6], 
-#                                                       time_based=time_based,
-#                                                       z3_option=z3_option,
-#                                                       desired_per_matrix_solution_count=desired_per_matrix_solution_count,
-#                                                       desired_solution_count=desired_solution_count,
-#                                                       algorithm=algorithm,
-#                                                       )
-
-#       put!(results, result)
-#   end
-# end
-
 function run_model(model_name::String, algorithm, iteration, desired_per_matrix_solution_count, desired_solution_count)
   run_id = string(model_name, "_", algorithm)
   # build desired directory structure
@@ -58,6 +23,7 @@ function run_model(model_name::String, algorithm, iteration, desired_per_matrix_
   end
 
   # define synthesis parameter options 
+  random_param_vals = [false, true]
   transition_param_vals = [false] # this option exists because of ambiguity in one model :( -- should make this a primitive 
   co_occurring_param_vals = [false] # [false, true]
   z3_option_vals = ["partial", "full"] # ["partial", "full"]
@@ -84,14 +50,14 @@ function run_model(model_name::String, algorithm, iteration, desired_per_matrix_
   all_sols = []
 
   # compute products over all the synthesis parameter options 
-  param_options = vec(collect(Base.product(singlecell_vals, time_based_vals, z3_option_vals, co_occurring_param_vals, transition_param_vals)))
+  param_options = vec(collect(Base.product(singlecell_vals, time_based_vals, z3_option_vals, co_occurring_param_vals, transition_param_vals, random_param_vals)))
 
   for param_option in param_options
     # println("DO YOU SEE ME")
-    println("singlecell, time_based, z3_option, co_occurring_param, transition_param")
+    println("singlecell, time_based, z3_option, co_occurring_param, transition_param, random_param")
     @show param_option 
 
-    singlecell, time_based, z3_option, co_occurring_param, transition_param = param_option
+    singlecell, time_based, z3_option, co_occurring_param, transition_param, random_param = param_option
 
     if singlecell
       if isnothing(singlecell_decomp)
@@ -118,6 +84,7 @@ function run_model(model_name::String, algorithm, iteration, desired_per_matrix_
 
 
     timed_tuple = @timed synthesize_program_given_decomp( run_id, 
+                                                          random_param,
                                                           singlecell ? deepcopy(singlecell_decomp) : deepcopy(multicell_decomp), 
                                                           deepcopy(observation_tuple),
                                                           singlecell ? singlecell_global_event_vector_dict : multicell_global_event_vector_dict,
@@ -188,6 +155,7 @@ function run_model(model_name::String, algorithm, iteration, desired_per_matrix_
                         #                                   sketch_timeout=60 * 120)
 
         timed_tuple = @timed synthesize_program_given_decomp(run_id,
+                                                             false,
                                                              singlecell ? deepcopy(singlecell_decomp) : deepcopy(multicell_decomp), 
                                                              deepcopy(observation_tuple),
                                                              singlecell ? singlecell_global_event_vector_dict : multicell_global_event_vector_dict,

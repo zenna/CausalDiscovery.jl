@@ -6,7 +6,7 @@ else
   temp_directory = "/Users/riadas/Documents/urop/.sketch/tmp"
 end
 
-function generate_on_clauses_SKETCH_MULTI(run_id, matrix, unformatted_matrix, object_decomposition, user_events, global_event_vector_dict, redundant_events_set, grid_size=16, desired_solution_count=1, desired_per_matrix_solution_count=1, interval_painting_param=false, z3_option="none", time_based=false, z3_timeout=0, sketch_timeout=0, co_occurring_param=false, transition_param=false, co_occurring_distinct=1, co_occurring_same=1, co_occurring_threshold=1, transition_distinct=1, transition_same=1, transition_threshold=1)
+function generate_on_clauses_SKETCH_MULTI(run_id, random, matrix, unformatted_matrix, object_decomposition, user_events, global_event_vector_dict, redundant_events_set, grid_size=16, desired_solution_count=1, desired_per_matrix_solution_count=1, interval_painting_param=false, z3_option="none", time_based=false, z3_timeout=0, sketch_timeout=0, co_occurring_param=false, transition_param=false, co_occurring_distinct=1, co_occurring_same=1, co_occurring_threshold=1, transition_distinct=1, transition_same=1, transition_threshold=1)
   start_time = Dates.now()
   
   object_types, object_mapping, background, dim = object_decomposition
@@ -19,73 +19,16 @@ function generate_on_clauses_SKETCH_MULTI(run_id, matrix, unformatted_matrix, ob
     return solutions
   end
 
-  filtered_matrices = []
-
-  # add bare-bones matrix as last resort for non-random matrices 
-  pre_filtered_matrix_1 = pre_filter_remove_NoCollision(matrix)
-  if pre_filtered_matrix_1 != false 
-    pre_filtered_non_random_matrix_1 = deepcopy(pre_filtered_matrix_1)
-    for row in 1:size(pre_filtered_non_random_matrix_1)[1]
-      for col in 1:size(pre_filtered_non_random_matrix_1)[2]
-        pre_filtered_non_random_matrix_1[row, col] = filter(x -> !occursin("randomPositions", x), pre_filtered_non_random_matrix_1[row, col])
-      end
-    end
-    filtered_non_random_matrices = filter_update_function_matrix_multiple(pre_filtered_non_random_matrix_1, object_decomposition, multiple=true)
-    push!(filtered_matrices, filtered_non_random_matrices[1:1]...)
-  end
-
-  # add non-random filtered matrices to filtered_matrices
-  non_random_matrix = deepcopy(matrix)
-  for row in 1:size(non_random_matrix)[1]
-    for col in 1:size(non_random_matrix)[2]
-      non_random_matrix[row, col] = filter(x -> !occursin("randomPositions", x), non_random_matrix[row, col])
-    end
-  end
-  filtered_non_random_matrices = filter_update_function_matrix_multiple(non_random_matrix, object_decomposition, multiple=true)
-  # filtered_non_random_matrices = filtered_non_random_matrices[1:min(4, length(filtered_non_random_matrices))]
-  push!(filtered_matrices, filtered_non_random_matrices...)
+  filtered_matrices = construct_filtered_matrices(matrix, object_decomposition, user_events, random)
   
-
-  # add direction-bias-filtered matrix to filtered_matrices 
-  pre_filtered_matrix = pre_filter_with_direction_biases(deepcopy(non_random_matrix), user_events, object_decomposition) 
-  push!(filtered_matrices, filter_update_function_matrix_multiple(pre_filtered_matrix, object_decomposition, multiple=false)...)
-
-  unique!(filtered_matrices)
-  filtered_matrices = sort_update_function_matrices(filtered_matrices, object_decomposition)
-  
-  # @show length(filtered_matrices)
-
-  if length(filtered_matrices) > 5 
-    filtered_matrices = filtered_matrices[1:5]
-  end 
-
-  # BEGIN RANDOM 
-  # add random filtered matrices to filtered_matrices 
-  random_matrix = deepcopy(matrix)
-  for row in 1:size(random_matrix)[1]
-    for col in 1:size(random_matrix)[2]
-      if filter(x -> occursin("uniformChoice", x) || occursin("randomPositions", x), random_matrix[row, col]) != []
-        random_matrix[row, col] = filter(x -> occursin("uniformChoice", x) || occursin("randomPositions", x), random_matrix[row, col])
-      end
-    end
-  end
-  filtered_random_matrices = filter_update_function_matrix_multiple(random_matrix, object_decomposition, multiple=true)
-  filtered_random_matrices = filtered_random_matrices[1:min(4, length(filtered_random_matrices))]
-  push!(filtered_matrices, filtered_random_matrices...)
-
-  # add "chaos" solution to filtered_matrices 
-  filtered_unformatted_matrix = filter_update_function_matrix_multiple(unformatted_matrix, object_decomposition, multiple=false)[1]
-  push!(filtered_matrices, filter_update_function_matrix_multiple(construct_chaos_matrix(filtered_unformatted_matrix, object_decomposition), object_decomposition, multiple=false)...)
-
-  unique!(filtered_matrices)
   # @show length(filtered_matrices)
 
   # filtered_matrices = filtered_matrices[22:22]
   # filtered_matrices = filtered_matrices[5:5]
-  # filtered_matrices = filtered_matrices[1:1]
+  filtered_matrices = filtered_matrices[1:1]
 
   for filtered_matrix_index in 1:length(filtered_matrices)
-    @show filtered_matrix_index
+    # @show filtered_matrix_index
     # # @show length(filtered_matrices)
     # # @show solutions
     filtered_matrix = filtered_matrices[filtered_matrix_index]
@@ -963,21 +906,37 @@ function generate_global_multi_automaton_sketch(run_id, co_occurring_event, time
       sketch_update_function_arr[time] = string(value)
     end
 
+    # # TRIM sketch_update_function_arr and sketch_event_arr 
+    # if true_char != "0"
+    #   true_event_times = findall(x -> string(x) == true_char, sketch_event_arr)
+    #   sketch_event_arr = filter(x -> string(x) != true_char, sketch_event_arr) # remove all "true" events from event array
+
+    #   # remove all update functions corresponding to "true" events from update function array 
+    #   sketch_update_function_arr = [sketch_update_function_arr[i] for i in 1:length(sketch_update_function_arr) if !(i in true_event_times)]
+    # end
+
     # @show sketch_event_arr 
     # @show sketch_update_function_arr
+
+    min_states = length(unique(filter(x -> x != "0", sketch_update_function_arr)))
+    min_transitions = length(unique(filter(x -> (x[1] != x[2]) && x[1] != "0" && x[2] != "0", collect(zip(sketch_update_function_arr, vcat(sketch_update_function_arr[2:end], -1)))))) - 1
+    start_state = sketch_update_function_arr[1]
 
     sketch_program = """ 
     include "$(sketch_directory)sketchlib/string.skh"; 
     include "$(sketch_directory)test/sk/numerical/mstatemachine.skh";
 
-    bit recognize([int n], char[n] events, int[n] functions, char true_char){
-        return matches(MSM(events, true_char), functions);
+    bit recognize([int n], char[n] events, int[n] functions, char true_char, int min_states, int min_transitions, int start){
+        return matches(MSM(events, true_char, min_states, min_transitions, start), functions);
     }
 
     harness void h() {
       assert recognize( { $(join(map(c -> "'$(c)'", sketch_event_arr), ", ")) }, 
                         { $(join(sketch_update_function_arr, ", ")) }, 
-                        '$(true_char)');
+                        '$(true_char)',
+                        $(min_states),
+                        $(min_transitions),
+                        $(start_state));
     }
     """
 
@@ -998,7 +957,7 @@ function generate_global_multi_automaton_sketch(run_id, co_occurring_event, time
       end
     end
     
-    # @show command 
+    @show command 
 
     sketch_output = try 
                       readchomp(eval(Meta.parse("`$(command)`")))
@@ -1018,9 +977,46 @@ function generate_global_multi_automaton_sketch(run_id, co_occurring_event, time
       cpp_content = read(f, String)
       close(f)
 
+      # @show cpp_content 
+
       modified_cpp_content = string(split(cpp_content, "void intAsChar")[1], """void intAsChar(int x, char& _out) {
         _out = static_cast<char>(x % 10);
         _out = printf("%d", _out);
+      }
+
+      void distinct_state_count(int N, int* state_seq/* len = N */, int& _out) {
+        int _tt31[10] = {1000, 1000, 1000, 1000, 1000, 1000, 1000, 1000, 1000, 1000};
+        int*  distinct_states= new int [10]; CopyArr<int >(distinct_states,_tt31, 10, 10);
+        for (int  i=0;(i) < (N);i = i + 1){
+          int  state=0;
+          state = (state_seq[i]);
+          int  j=0;
+          bool  added=0;
+          while (!(added) && ((j) < (10))) {
+            if ((state) == ((distinct_states[j]))) {
+              added = 1;
+            }
+            if (!(added) && (((distinct_states[j])) == (1000))) {
+              (distinct_states[j]) = state;
+              added = 1;
+            }
+            j = j + 1;
+          }
+        }
+        if (((distinct_states[9])) != (1000)) {
+          _out = 10;
+        delete[] distinct_states;
+          return;
+        }
+        int  distinct_state_count=0;
+        for (int  i_0=0;(i_0) < (10);i_0 = i_0 + 1){
+          if (((distinct_states[i_0])) != (1000)) {
+            distinct_state_count = distinct_state_count + 1;
+          }
+        }
+        _out = distinct_state_count;
+        delete[] distinct_states;
+        return;
       }
       
       }
@@ -1328,12 +1324,27 @@ function generate_object_specific_multi_automaton_sketch(run_id, co_occurring_ev
       end
     end
 
+    # # TRIM sketch_update_function_arr and sketch_event_arr 
+    # if true_char != "0"
+    #   for id in object_ids 
+    #     true_event_times = filter(y -> y != length(sketch_event_arr[id]), findall(x -> string(x) == true_char, sketch_event_arr[id]))
+    #     sketch_event_arr[id] = filter(x -> string(x) != true_char, sketch_event_arr[id]) # remove all "true" events from event array
+  
+    #     # remove all update functions corresponding to "true" events from update function array 
+    #     sketch_update_function_arr[id] = [sketch_update_function_arr[id][i] for i in 1:length(sketch_update_function_arr[id]) if !(i in true_event_times)]
+    #   end
+    # end
+    
+    min_states_dict = Dict(map(id -> id => length(unique(filter(x -> x != "0", sketch_update_function_arr[id]))), object_ids))
+    min_transitions_dict = Dict(map(id -> id => length(unique(filter(x -> (x[1] != x[2]) && (x[1] != "0") && (x[2] != "0"), collect(zip(sketch_update_function_arr[id], vcat(sketch_update_function_arr[id][2:end], -1)))))) - 1, object_ids))
+    start_state_dict = Dict(map(id -> id => sketch_update_function_arr[id][1], object_ids))
+
     sketch_program = """ 
     include "$(sketch_directory)sketchlib/string.skh"; 
     include "$(sketch_directory)test/sk/numerical/mstatemachine.skh";
     
-    bit recognize_obj_specific([int n], char[n] events, int[n] functions, int start, char true_char) {
-        return matches(MSM_obj_specific(events, start, true_char), functions);
+    bit recognize_obj_specific([int n], char[n] events, int[n] functions, int start, char true_char, int min_states, int min_transitions, int start) {
+        return matches(MSM_obj_specific(events, start, true_char, min_states, min_transitions, start), functions);
     }
 
     $(join(map(i -> """harness void h$(i)() {
@@ -1341,7 +1352,10 @@ function generate_object_specific_multi_automaton_sketch(run_id, co_occurring_ev
                           assert recognize_obj_specific({ $(join(map(c -> "'$(c)'", sketch_event_arrs_dict_formatted[object_ids[i]]), ", ")) }, 
                                                         { $(join(sketch_update_function_arr[object_ids[i]], ", ")) }, 
                                                         start, 
-                                                        '$(true_char)');
+                                                        '$(true_char)',
+                                                        $(min_states_dict[object_ids[i]]),
+                                                        $(min_transitions_dict[object_ids[i]]),
+                                                        $(start_state_dict[object_ids[1]]));
                         }""", collect(1:length(object_ids))), "\n\n"))
     """
 
@@ -1362,7 +1376,7 @@ function generate_object_specific_multi_automaton_sketch(run_id, co_occurring_ev
       end
     end
     
-    # @show command 
+    @show command 
 
     sketch_output = try 
                       readchomp(eval(Meta.parse("`$(command)`")))

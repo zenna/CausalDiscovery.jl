@@ -808,6 +808,49 @@ function parsescene_autumn_given_types(render_output::AbstractArray, override_ty
 
 end
 
+function parsescene_autumn_given_types_2x2(render_output::AbstractArray, square_colors::AbstractArray, dim::Int=16, background::String="white")
+  render_output_2x2_colors = sort(filter(cell -> cell.color in square_colors, render_output), by=c -> (c.position.x, c.position.y))
+  render_output_other = filter(cell -> !(cell.color in square_colors) , render_output)
+
+  types_other, objects_other, _, _ = parsescene_autumn(render_output_other, dim, background)
+
+  types_2x2 = [] 
+  objects_2x2 = []
+
+  push!(types_2x2, ObjType([(0, -1), (0, 0), (1, -1), (1, 0)], 
+                           square_colors[1], 
+                           length(square_colors) > 1 ? [("color", "String", square_colors)] : [], 
+                           length(types_other) + 1))
+
+  while !isempty(render_output_2x2_colors)
+    cell = render_output_2x2_colors[1]
+    remaining_cells = unique(filter(c -> c.color == cell.color && 
+                                  ((c.position.x, c.position.y) in [(cell.position.x + 1, cell.position.y),
+                                                                    (cell.position.x, cell.position.y + 1),
+                                                                    (cell.position.x + 1, cell.position.y + 1)])   
+                             , render_output_2x2_colors))
+    if length(remaining_cells) != 3 
+      return ([], [], background, dim)
+    end
+
+    push!(objects_2x2, Obj(types_2x2[1], 
+                           (cell.position.x, cell.position.y + 1), 
+                           length(square_colors) > 1 ? [cell.color] : [], 
+                           length(objects_other) + length(objects_2x2) + 1))
+
+    for c in [cell, remaining_cells...]
+      index = findall(x -> x == c, render_output_2x2_colors)[1]
+      deleteat!(render_output_2x2_colors, index)
+    end
+    # filter!(c -> !(c in [cell, remaining_cells...]), remaining_cells)
+  end
+
+  new_types = [types_other..., types_2x2...]
+  new_objects = [objects_other..., objects_2x2...]
+  
+  (new_types, new_objects, background, dim)
+end
+
 function combine_types_with_same_shape(object_types, objects)
   # println("COMBINE TYPES WITH SAME SHAPE")
   # println(object_types)
