@@ -1,10 +1,11 @@
 #!/bin/bash
 
-game_names=(""
-            ""
-            ""
-            ""
-            "")
+game_names=("Aliens"
+            "Antagonist"
+            "Avoidgeorge"
+            "Butterflies"
+            "bees_and_birds"
+            "Plaqueattack")
 
 
 for game_name in ${game_names[@]}
