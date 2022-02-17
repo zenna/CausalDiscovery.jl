@@ -5,7 +5,7 @@ algorithm = ARGS[2]
 curr_date = ARGS[3]
 iteration = ARGS[4]
 
-println("CURRENTLY WORKING ON $(model_name)")
+# println("CURRENTLY WORKING ON $(model_name)")
 
 directory_name = "FINAL_RESULTS/$(curr_date)"
 if !isdir(directory_name)

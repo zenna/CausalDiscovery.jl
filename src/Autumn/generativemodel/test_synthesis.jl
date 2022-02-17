@@ -36,7 +36,7 @@ function test_synthesis_autumn()
       solutions_dict[model_name] = solutions
       save(string(directory_name, "/", String(model_name), ".jld"), String(model_name), solutions_dict)
     catch e
-      @show e
+      # @show e
       solutions_dict[model_name] = [e]
     end
   end

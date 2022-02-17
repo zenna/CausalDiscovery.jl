@@ -176,12 +176,12 @@ function generate_hypothesis_update_rule(object, object_decomposition; p=0.0)
 end
 
 function generate_hypothesis_position(position, environment_vars, pedro)
-  println("GENERATE_HYPOTHESIS_POSITION")
+  # println("GENERATE_HYPOTHESIS_POSITION")
   objects = map(obj -> "obj$(obj.id)", filter(x -> x isa Obj, environment_vars))
   user_event = filter(x -> !(x isa Obj), environment_vars)[1]
-  @show environment_vars
+  # @show environment_vars
   choices = []
-  @show length(objects)
+  # @show length(objects)
   if length(objects) != 0
     if !pedro 
       push!(choices, ["(.. $(rand(objects)) origin)",
@@ -220,10 +220,10 @@ end
 function generate_hypothesis_string(string, environment_vars, object_types)
   objects = filter(x -> (x isa Obj) && length(x.type.custom_fields) > 0, environment_vars)
   object = rand(objects)
-  @show string
-  @show objects
+  # @show string
+  # @show objects
   x = filter(type -> length(type.custom_fields) > 0 && string in type.custom_fields[1][3], object_types)
-  @show x
+  # @show x
   pair_string = filter(s -> s != string, map(type -> type.custom_fields[1][3], filter(type -> length(type.custom_fields) > 0 && string in type.custom_fields[1][3], object_types))[1])[1]
 
   first_string, second_string = rand() > 0.5 ? (string, pair_string) : (pair_string, string)
@@ -448,25 +448,25 @@ function gen_event_bool_human_prior(object_decomposition, object_id, type_id, us
     end
 
   end
-  println("GEN_EVENT_BOOL_HUMAN_PRIOR")
-  @show unique(choices)
+  # println("GEN_EVENT_BOOL_HUMAN_PRIOR")
+  # @show unique(choices)
   sort(unique(choices), by=length) 
 end
 
 function gen_event_bool(object_decomposition, object_id, type_id, update_rule, user_events, global_var_dict, time_based=true)
-  println("GEN_EVENT_BOOL")
-  # @show object_decomposition 
-  @show object_id 
-  @show type_id 
-  @show update_rule 
-  @show user_events 
-  @show global_var_dict 
+  # println("GEN_EVENT_BOOL")
+  # # @show object_decomposition 
+  # @show object_id 
+  # @show type_id 
+  # @show update_rule 
+  # @show user_events 
+  # @show global_var_dict 
   
   object_types, object_mapping, _, grid_size = object_decomposition
   start_objects = map(k -> object_mapping[k][1], filter(key -> !isnothing(object_mapping[key][1]), collect(keys(object_mapping))))
   non_list_objects = filter(x -> (count(y -> y.type.id == x.type.id, start_objects) == 1) && (count(obj_id -> filter(z -> !isnothing(z), object_mapping[obj_id])[1].type.id == x.type.id, collect(keys(object_mapping))) == 1), start_objects)
   user_events = filter(e -> (e != "") && (e != "nothing") && !isnothing(e), user_events)
-  @show non_list_objects
+  # @show non_list_objects
   # ----- add global events, unrelated to objects -----
   choices = gen_event_bool_human_prior(object_decomposition, object_id, type_id, user_events, global_var_dict, update_rule)
 
@@ -781,16 +781,16 @@ function gen_event_bool(object_decomposition, object_id, type_id, update_rule, u
     # push!(choices, "(== (% (prev time) 16) 1)") 
   end
 
-  println("XYZ")
-  @show choices
-  @show length(choices)
+  # println("XYZ")
+  # @show choices
+  # @show length(choices)
   
   sort(unique(choices), by=length)
 end
 
 function construct_compound_events(choices, event_vector_dict, redundant_events_set, object_decomposition)
-  println("START construct_compound_events")
-  @show event_vector_dict
+  # println("START construct_compound_events")
+  # @show event_vector_dict
   object_specific_events = filter(k -> (k in keys(event_vector_dict)) && !(event_vector_dict[k] isa AbstractArray), choices)
   global_events = filter(k ->  (k in keys(event_vector_dict)) && event_vector_dict[k] isa AbstractArray, choices)
 
@@ -800,14 +800,14 @@ function construct_compound_events(choices, event_vector_dict, redundant_events_
   compound_events = []
 
   # construct global/global compound events and global/object-specific compound events 
-  @show length(nonzero_global_events)
-  @show length(nonzero_object_specific_events)
+  # @show length(nonzero_global_events)
+  # @show length(nonzero_object_specific_events)
   nonzero_global_events = sort(nonzero_global_events, by=length)
-  # @show nonzero_global_events 
+  # # @show nonzero_global_events 
   for i in 1:length(nonzero_global_events) 
-    @show i
+    # @show i
     event_i = nonzero_global_events[i]
-    @show event_i
+    # @show event_i
     for j in (i+1):length(nonzero_global_events)
       event_j = nonzero_global_events[j]
       and_event = "(& $(event_i) $(event_j))"
@@ -858,10 +858,10 @@ function construct_compound_events(choices, event_vector_dict, redundant_events_
 
   end
 
-  @show length(nonzero_object_specific_events)
+  # @show length(nonzero_object_specific_events)
   for i in 1:length(nonzero_object_specific_events)
-    @show i 
-    # @show event_i
+    # @show i 
+    # # @show event_i
     event_i = nonzero_object_specific_events[i]
     object_ids_i = collect(keys(event_vector_dict[event_i]))
     for j in (i+1):length(nonzero_object_specific_events)
@@ -952,10 +952,10 @@ function construct_compound_events(choices, event_vector_dict, redundant_events_
   # push!(compound_events, color_compound_events)
 
   # remove duplicate events that are observationally equivalent
-  println("here i am!")
+  # println("here i am!")
   event_vector_dict, redundant_events_set = prune_by_observational_equivalence(event_vector_dict, redundant_events_set)
-  println("and here?")
-  println("END construct_compound_events")
+  # println("and here?")
+  # println("END construct_compound_events")
   sort(collect(keys(event_vector_dict)), by=length)
 end
 
