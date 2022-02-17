@@ -488,7 +488,7 @@ function color_contiguity_autumn(position_to_color, pos1, pos2)
   length(intersect(position_to_color[pos1], position_to_color[pos2])) > 0
 end
 
-function parsescene_autumn(render_output::AbstractArray, dim::Int=16, background::String="white"; color=true)
+function parsescene_autumn(render_output::AbstractArray, dim, background::String="white"; color=true)
   colors = unique(map(cell -> cell.color, render_output))
 
   objectshapes = []
@@ -926,17 +926,19 @@ function parsescene_autumn_pedro(render_output, gridsize=16, background::String=
   objectshapes = []
   
   render_output_copy = deepcopy(render_output)
-  while !isempty(render_output_copy)
-    min_x = minimum(map(cell -> cell.position.x, render_output_copy))
-    min_y = minimum(map(cell -> cell.position.y, filter(cell -> cell.position.x == min_x, render_output_copy)))
-    color = filter(cell -> cell.position.x == min_x && cell.position.y == min_y, render_output_copy)[1].color
+  wall_cells = filter(cell -> cell.color == "black", render_output_copy)
+  if wall_cells != []
+    push!(objectshapes, map(cell -> ((cell.position.x, cell.position.y), cell.color), wall_cells))
+    filter!(cell -> cell.color != "black", render_output_copy)
+  end
 
-    shape = unique(filter(cell -> (cell.position.x in collect(min_x:min_x + 29)) && (cell.position.y in collect(min_y:min_y + 29)) && cell.color == color, render_output_copy))
-    # remove shape from render_output_copy 
-    for cell in shape 
-      matching_cell_indices = findall(c -> c == cell, render_output_copy)
-      deleteat!(render_output_copy, matching_cell_indices[1])
-    end
+  while !isempty(render_output_copy)
+    min_x = render_output_copy[1].position.x
+    min_y = render_output_copy[1].position.x
+    color = render_output_copy[1].color
+
+    shape = render_output_copy[1:900]
+    render_output_copy = render_output_copy[901:end]
 
     shape = map(cell -> ((cell.position.x, cell.position.y), cell.color), shape)
     push!(objectshapes, shape)    
@@ -945,12 +947,19 @@ function parsescene_autumn_pedro(render_output, gridsize=16, background::String=
 
   types = []
   objects = []
-  # @show length(objectshapes)
-  for objectshape_with_color in objectshapes
+
+  # add wall cells 
+  if wall_cells != []
+    push!(types, ObjType(objectshapes[1], "black", [], 1))
+    push!(objects, Obj(types[1], (0, 0), [], 1))
+  end
+   
+  # # @show length(objectshapes)
+  for objectshape_with_color in objectshapes[(wall_cells != [] ? 2 : 1):end]
     objectcolor = objectshape_with_color[1][2]
     objectshape = map(o -> o[1], objectshape_with_color)
     # @show objectcolor 
-    # @show objectshape
+    # @show length(objectshape)
     translated = map(pos -> dim * pos[2] + pos[1], objectshape)
     translated = length(translated) % 2 == 0 ? translated[1:end-1] : translated # to produce a single median
     centerPos = objectshape[findall(x -> x == median(translated), translated)[1]]
@@ -976,10 +985,11 @@ end
 
 function parsescene_autumn_pedro_given_types(render_output, types, gridsize=16, background::String="white")
   (_, objects, _, _) = parsescene_autumn_pedro(render_output, gridsize, background)
+  has_walls = "black" in map(t -> t.color, types)
 
-  new_objects = []
+  new_objects = has_walls ? objects[1:1] : []
   # reassign types to objects 
-  for object in objects 
+  for object in objects[(has_walls ? 2 : 1):end] 
     type = filter(t -> t.color == object.type.color, types)[1]
     push!(new_objects, Obj(type, object.position, [], object.id))
   end

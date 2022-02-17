@@ -1,9 +1,14 @@
 """On-clause generation, where we collect all unsolved (latent state dependent) on-clauses at the end"""
-function generate_on_clauses_GLOBAL(matrix, unformatted_matrix, object_decomposition, user_events, global_event_vector_dict, redundant_events_set, grid_size=16, desired_solution_count=1, desired_per_matrix_solution_count=1, interval_painting_param=false, sketch=false, z3_option="none", time_based=false, z3_timeout=0, sketch_timeout=0, co_occurring_param=false, transition_param=false, co_occurring_distinct=1, co_occurring_same=1, co_occurring_threshold=1, transition_distinct=1, transition_same=1, transition_threshold=1, num_transition_decisions=15)
+function generate_on_clauses_GLOBAL(run_id, matrix, unformatted_matrix, object_decomposition, user_events, global_event_vector_dict, redundant_events_set, grid_size=16, desired_solution_count=1, desired_per_matrix_solution_count=1, interval_painting_param=false, sketch=false, z3_option="full", time_based=false, z3_timeout=0, sketch_timeout=0, co_occurring_param=false, transition_param=false, co_occurring_distinct=1, co_occurring_same=1, co_occurring_threshold=1, transition_distinct=1, transition_same=1, transition_threshold=1, num_transition_decisions=15, pedro=true)
   start_time = Dates.now()
   
   object_types, object_mapping, background, dim = object_decomposition
   solutions = []
+
+  # if pedro 
+  #   # compute displacements from object_mapping 
+  #   observed_displacements = compute_displacements(object_mapping)
+  # end
 
   # pre_filtered_matrix = pre_filter_with_direction_biases(matrix, user_events, object_decomposition) 
   # filtered_matrix = filter_update_function_matrix_multiple(pre_filtered_matrix, object_decomposition)[1]
@@ -60,8 +65,8 @@ function generate_on_clauses_GLOBAL(matrix, unformatted_matrix, object_decomposi
   random_matrix = deepcopy(matrix)
   for row in 1:size(random_matrix)[1]
     for col in 1:size(random_matrix)[2]
-      if filter(x -> occursin("uniformChoice", x) || occursin("randomPositions", x), random_matrix[row, col]) != []
-        random_matrix[row, col] = filter(x -> occursin("uniformChoice", x) || occursin("randomPositions", x), random_matrix[row, col])
+      if filter(x -> occursin("uniformChoice", x), random_matrix[row, col]) != []
+        random_matrix[row, col] = filter(x -> occursin("uniformChoice", x), random_matrix[row, col]) # || occursin("randomPositions", x)
       end
     end
   end
@@ -76,8 +81,9 @@ function generate_on_clauses_GLOBAL(matrix, unformatted_matrix, object_decomposi
   unique!(filtered_matrices)
   # filtered_matrices = filtered_matrices[22:22]
   # filtered_matrices = filtered_matrices[5:5]
-  # filtered_matrices = filtered_matrices[1:1]
-  
+  # filtered_matrices = filtered_matrices[2:2] # ALIENS
+  # filtered_matrices = filtered_matrices[1:1] # PRECONDITIONS
+
   @show length(filtered_matrices)
 
   if length(filtered_matrices) > 25 
@@ -145,31 +151,35 @@ function generate_on_clauses_GLOBAL(matrix, unformatted_matrix, object_decomposi
     end
 
     # return values: state_based_update_functions_dict has form type_id => [unsolved update functions]
-    new_on_clauses, state_based_update_functions_dict, observation_vectors_dict, addObj_params_dict, global_event_vector_dict, ordered_update_functions_dict = generate_stateless_on_clauses(update_functions_dict, matrix, filtered_matrix, anonymized_filtered_matrix, object_decomposition, user_events, state_update_on_clauses, global_var_dict, global_event_vector_dict, redundant_events_set, z3_option, time_based, z3_timeout, sketch_timeout)
+    new_on_clauses, state_based_update_functions_dict, observation_vectors_dict, addObj_params_dict, global_event_vector_dict, ordered_update_functions_dict = generate_stateless_on_clauses(run_id, update_functions_dict, matrix, filtered_matrix, anonymized_filtered_matrix, object_decomposition, user_events, state_update_on_clauses, global_var_dict, global_event_vector_dict, redundant_events_set, z3_option, time_based, z3_timeout, sketch_timeout)
     
     println("I AM HERE NOW")
     @show new_on_clauses
     @show state_based_update_functions_dict
     @show ordered_update_functions_dict
-    push!(on_clauses, new_on_clauses...)
     @show observation_vectors_dict
  
-    # # TEMP HACK FOR PEDRO: REMOVE LATER 
-    # if true # pedro_random 
-    #   # collect all state-based addObj objects and remove them from state_based_update_functions_dict
-    #   addObj_based_list = filter(x -> occursin("addObj", x), vcat(collect(values(state_based_update_functions_dict))...))
-    #   @show addObj_based_list
-    #   for type_id in keys(state_based_update_functions_dict) 
-    #     state_based_update_functions_dict[type_id] = filter(u -> !(u in addObj_based_list), state_based_update_functions_dict[type_id])
-    #   end
+    # TEMP HACK FOR PEDRO: REMOVE LATER 
+    if true # pedro_random 
+      # collect all state-based addObj objects and remove them from state_based_update_functions_dict
+      addObj_based_list = filter(x -> occursin("addObj", x), vcat(collect(values(state_based_update_functions_dict))...))
+      @show addObj_based_list
+      for type_id in keys(state_based_update_functions_dict) 
+        state_based_update_functions_dict[type_id] = filter(u -> !(u in addObj_based_list), state_based_update_functions_dict[type_id])
+      end
 
-    #   # add on-clauses for the state-based addObj  with non-deterministic events
-    #   for addObj_update_function in addObj_based_list 
-    #     addObj_on_clause = "(on (== (uniformChoice (list 1 2 3 4 5 6 7 8 9 10)) 1) $(addObj_update_function))"
-    #     push!(new_on_clauses, (addObj_on_clause, addObj_update_function))
-    #   end
-    # end
-    # @show new_on_clauses
+      # add on-clauses for the state-based addObj  with non-deterministic events
+      for addObj_update_function in addObj_based_list 
+        addObj_on_clause = "(on (== (uniformChoice (list 1 2 3 4 5 6 7 8 9 10)) 1)\n$(addObj_update_function))"
+        push!(new_on_clauses, (addObj_on_clause, addObj_update_function))
+      end
+    end
+    @show new_on_clauses
+    @show state_based_update_functions_dict 
+
+
+    push!(on_clauses, new_on_clauses...)
+
 
     # check if all update functions were solved; if not, proceed with state generation procedure
     if length(collect(keys(state_based_update_functions_dict))) == 0 
@@ -248,10 +258,17 @@ function generate_on_clauses_GLOBAL(matrix, unformatted_matrix, object_decomposi
           end
           println("BEFORE")
           @show co_occurring_events
+
+          # if co_occurring_param 
+          #   co_occurring_events = sort(filter(x -> !occursin("(list)", x[1]) && !occursin("(move ", x[1]) && !occursin("(== (prev addedObjType", x[1]) && !occursin("objClicked", x[1]) && !occursin("intersects (list", x[1]) && (!occursin("&", x[1]) || x[1] == "(& clicked (isFree click))") && !(occursin("(! (in (objClicked click (prev addedObjType3List)) (filter (--> obj (== (.. obj id) x)) (prev addedObjType3List))))", x[1])), co_occurring_events), by=x -> x[2]) # [1][1]
+          # else
+          #   co_occurring_events = sort(filter(x -> !occursin("(list)", x[1]) && !occursin("|", x[1]) && !occursin("(== (prev addedObjType", x[1]) && !occursin("objClicked", x[1]) && !occursin("(move ", x[1]) && !occursin("intersects (list", x[1]) && (!occursin("&", x[1]) || x[1] == "(& clicked (isFree click))")  && !(occursin("(! (in (objClicked click (prev addedObjType3List)) (filter (--> obj (== (.. obj id) x)) (prev addedObjType3List))))", x[1])), co_occurring_events), by=x -> x[2]) # [1][1]
+          # end
+
           if co_occurring_param 
-            co_occurring_events = sort(filter(x -> !occursin("(list)", x[1]) && !occursin("(move ", x[1]) && !occursin("(== (prev addedObjType", x[1]) && !occursin("objClicked", x[1]) && !occursin("intersects (list", x[1]) && (!occursin("&", x[1]) || x[1] == "(& clicked (isFree click))") && !(occursin("(! (in (objClicked click (prev addedObjType3List)) (filter (--> obj (== (.. obj id) x)) (prev addedObjType3List))))", x[1])), co_occurring_events), by=x -> x[2]) # [1][1]
+            co_occurring_events = sort(filter(x -> !occursin("(list)", x[1]) && !occursin("(== (prev addedObjType", x[1]) && !occursin("objClicked", x[1]) && !occursin("intersects (list", x[1]) && (!occursin("&", x[1]) || x[1] == "(& clicked (isFree click))") && !(occursin("(! (in (objClicked click (prev addedObjType3List)) (filter (--> obj (== (.. obj id) x)) (prev addedObjType3List))))", x[1])), co_occurring_events), by=x -> x[2]) # [1][1]
           else
-            co_occurring_events = sort(filter(x -> !occursin("(list)", x[1]) && !occursin("|", x[1]) && !occursin("(== (prev addedObjType", x[1]) && !occursin("objClicked", x[1]) && !occursin("(move ", x[1]) && !occursin("intersects (list", x[1]) && (!occursin("&", x[1]) || x[1] == "(& clicked (isFree click))")  && !(occursin("(! (in (objClicked click (prev addedObjType3List)) (filter (--> obj (== (.. obj id) x)) (prev addedObjType3List))))", x[1])), co_occurring_events), by=x -> x[2]) # [1][1]
+            co_occurring_events = sort(filter(x -> !occursin("(list)", x[1]) && !occursin("|", x[1]) && !occursin("(== (prev addedObjType", x[1]) && !occursin("objClicked", x[1]) && !occursin("intersects (list", x[1]) && (!occursin("&", x[1]) || x[1] == "(& clicked (isFree click))")  && !(occursin("(! (in (objClicked click (prev addedObjType3List)) (filter (--> obj (== (.. obj id) x)) (prev addedObjType3List))))", x[1])), co_occurring_events), by=x -> x[2]) # [1][1]
           end
   
           if state_is_global 
@@ -391,7 +408,7 @@ function generate_on_clauses_GLOBAL(matrix, unformatted_matrix, object_decomposi
             
             tuples = collect(keys(co_occurring_events_dict))
             multi_id_tuples = sort(filter(t -> t[1] isa Tuple, tuples), by=x -> length(x[2]))
-            single_id_tuples = filter(t -> !(t[1] isa Tuple), tuples)
+            single_id_tuples = sort(filter(t -> !(t[1] isa Tuple), tuples), by=x -> length(x[2]))
             sorted_tuples = vcat(multi_id_tuples..., single_id_tuples...)
             type_id, co_occurring_event = sorted_tuples[1]
 
@@ -594,7 +611,7 @@ function generate_on_clauses_GLOBAL(matrix, unformatted_matrix, object_decomposi
                 println("BAD NAME CHOSEN")
                 @show new_on_clauses 
                 @show new_state_update_on_clauses 
-                @show new_object_decomposition 
+                # @show new_object_decomposition 
                 @show new_object_specific_state_update_times_dict
 
                 # # @show new_object_specific_state_update_times_dict
@@ -654,7 +671,7 @@ function generate_on_clauses_GLOBAL(matrix, unformatted_matrix, object_decomposi
 
             end
 
-            new_on_clauses, state_based_update_functions_dict, _, _, global_event_vector_dict, _ = generate_stateless_on_clauses(update_functions_dict, matrix, filtered_matrix, anonymized_filtered_matrix, global_object_decomposition, user_events, state_update_on_clauses, global_var_dict, global_event_vector_dict, redundant_events_set, z3_option, time_based, z3_timeout, sketch_timeout)          
+            new_on_clauses, state_based_update_functions_dict, _, _, global_event_vector_dict, _ = generate_stateless_on_clauses(run_id, update_functions_dict, matrix, filtered_matrix, anonymized_filtered_matrix, global_object_decomposition, user_events, state_update_on_clauses, global_var_dict, global_event_vector_dict, redundant_events_set, z3_option, time_based, z3_timeout, sketch_timeout)          
             println("WHATS GOING ON NOW")
             @show new_on_clauses 
             @show state_based_update_functions_dict
@@ -716,6 +733,27 @@ function generate_on_clauses_GLOBAL(matrix, unformatted_matrix, object_decomposi
   solutions 
 end
 
+function compute_displacements(object_mapping)
+  observed_displacements = []
+
+  object_ids = collect(keys(object_mapping))
+  sequence_length = length(object_mapping[1])
+  for id in object_ids 
+    for time in 1:(sequence_length-1) 
+      prev_object = object_mapping[id][time]
+      next_object = object_mapping[id][time + 1]
+      if !isnothing(prev_object) && !isnothing(next_object)
+        disp_x = next_object.origin.x - prev_object.origin.x 
+        disp_y = next_object.origin.y - prev_object.origin.y
+        push!(observed_displacements, abs(disp_x))
+        push!(observed_displacements, abs(disp_y))
+      end
+    end
+  end 
+
+  unique(observed_displacements)
+end
+
 function re_order_on_clauses(on_clauses, ordered_update_functions_dict) 
   println("RE-ORDERING")
   @show on_clauses 
@@ -773,7 +811,7 @@ function generate_new_state_GLOBAL(co_occurring_event, times_dict, event_vector_
   @show object_trajectory    
   @show init_global_var_dict 
   @show state_update_times_dict  
-  @show object_decomposition 
+  # @show object_decomposition 
   @show type_id
   @show desired_per_matrix_solution_count 
   @show interval_painting_param 
@@ -902,6 +940,8 @@ function generate_new_state_GLOBAL(co_occurring_event, times_dict, event_vector_
   transition_decision_strings = sort(vec(collect(Base.product([1:(transition_distinct * transition_same) for i in 1:num_transition_decisions]...))), by=tup -> sum(collect(tup)))
   transition_decision_strings = transition_decision_strings[1:min(length(transition_decision_strings), transition_threshold)]
 
+  no_object_times = findall(x -> x == [""] || occursin("addObj", join(x)), object_trajectory)
+
   for transition_decision_string in transition_decision_strings 
     problem_contexts = deepcopy(init_problem_contexts)
 
@@ -955,7 +995,7 @@ function generate_new_state_GLOBAL(co_occurring_event, times_dict, event_vector_
         max_global_var_value = maximum(map(tuple -> tuple[2], augmented_positive_times))
     
         # search for events within range
-        events_in_range = find_state_update_events(small_event_vector_dict, augmented_positive_times, time_ranges, start_value, end_value, global_var_dict, global_var_id, 1)
+        events_in_range = find_state_update_events(small_event_vector_dict, augmented_positive_times, time_ranges, start_value, end_value, global_var_dict, global_var_id, 1, no_object_times)
         println("PRE PRUNING: EVENTS IN RANGE")
   
         @show events_in_range
@@ -1007,7 +1047,7 @@ function generate_new_state_GLOBAL(co_occurring_event, times_dict, event_vector_
     
         else # no event with zero false positives found; use best false-positive event and specialize globalVar values (i.e. add new value)
           # find co-occurring event with fewest false positives 
-          false_positive_events = find_state_update_events_false_positives(small_event_vector_dict, augmented_positive_times, time_ranges, start_value, end_value, global_var_dict, global_var_id, 1)
+          false_positive_events = find_state_update_events_false_positives(small_event_vector_dict, augmented_positive_times, time_ranges, start_value, end_value, global_var_dict, global_var_id, 1, no_object_times)
           false_positive_events_with_state = filter(e -> occursin("globalVar$(global_var_id)", e[1]), false_positive_events) # want the most specific events in the false positive case
           
           events_without_true = filter(tuple -> !occursin("true", tuple[1]) && tuple[2] == minimum(map(t -> t[2], false_positive_events_with_state)), false_positive_events_with_state)
@@ -1379,7 +1419,7 @@ function relabel_via_interval_painting(augmented_positive_times_labeled, global_
   (augmented_positive_times, extra_global_var_values)
 end
 
-function generate_stateless_on_clauses(update_functions_dict, matrix, filtered_matrix, anonymized_filtered_matrix, global_object_decomposition, user_events, state_update_on_clauses, global_var_dict, global_event_vector_dict, redundant_events_set, z3_option="none", time_based=false, z3_timeout=0, sketch_timeout=0)
+function generate_stateless_on_clauses(run_id, update_functions_dict, matrix, filtered_matrix, anonymized_filtered_matrix, global_object_decomposition, user_events, state_update_on_clauses, global_var_dict, global_event_vector_dict, redundant_events_set, z3_option="none", time_based=false, z3_timeout=0, sketch_timeout=0)
   object_types, object_mapping, background, grid_size = global_object_decomposition
   new_on_clauses = []
   observation_vectors_dict = Dict() 
@@ -1435,7 +1475,7 @@ function generate_stateless_on_clauses(update_functions_dict, matrix, filtered_m
       if update_rule != "" && !is_no_change_rule(update_rule)
         println("UPDATE_RULEEE")
         println(update_rule)
-        events, event_is_globals, event_vector_dict, observation_data_dict = generate_event(update_rule, all_update_rules, object_ids[1], object_ids, matrix, filtered_matrix, global_object_decomposition, user_events, state_update_on_clauses, global_var_dict, global_event_vector_dict, grid_size, redundant_events_set, 1, 400, z3_option, time_based, z3_timeout, sketch_timeout)
+        events, event_is_globals, event_vector_dict, observation_data_dict = generate_event(run_id, update_rule, all_update_rules, object_ids[1], object_ids, matrix, filtered_matrix, global_object_decomposition, user_events, state_update_on_clauses, global_var_dict, global_event_vector_dict, grid_size, redundant_events_set, 1, 400, z3_option, time_based, z3_timeout, sketch_timeout)
         global_event_vector_dict = event_vector_dict
         observation_vectors_dict[update_rule] = observation_data_dict
 
@@ -1499,7 +1539,7 @@ function generate_new_object_specific_state_GLOBAL(co_occurring_event, update_fu
   @show times_dict
   @show event_vector_dict
   @show type_id 
-  @show object_decomposition
+  # # @show object_decomposition
   @show init_state_update_times
   @show global_var_dict
   @show transition_distinct 
@@ -1516,7 +1556,7 @@ function generate_new_object_specific_state_GLOBAL(co_occurring_event, update_fu
 
   small_event_vector_dict = deepcopy(event_vector_dict)    
   for e in keys(event_vector_dict)
-    if !(e in atomic_events) # && foldl(|, map(x -> occursin(x, e), atomic_events))
+    if !(e in atomic_events) && e != "true" # && foldl(|, map(x -> occursin(x, e), atomic_events))
       delete!(small_event_vector_dict, e)
     else
       object_specific_event_with_wrong_type = !(event_vector_dict[e] isa AbstractArray) && (Set(collect(keys(event_vector_dict[e]))) != Set(object_ids))
@@ -1525,12 +1565,11 @@ function generate_new_object_specific_state_GLOBAL(co_occurring_event, update_fu
       end
     end
   end
-  println("LETS GO NOW")
-  @show small_event_vector_dict 
+
   # choices, event_vector_dict, redundant_events_set, object_decomposition
   
   for e in keys(event_vector_dict)
-    if (occursin("true", e) || occursin("|", e)) && e in keys(small_event_vector_dict)
+    if (occursin("true", e) && e != "true" || occursin("|", e)) && e in keys(small_event_vector_dict)
       delete!(small_event_vector_dict, e)
     end
   end
@@ -1545,12 +1584,11 @@ function generate_new_object_specific_state_GLOBAL(co_occurring_event, update_fu
 
     small_events = collect(keys(small_event_vector_dict))
     for e in small_events
-      if (occursin("true", e) || occursin("|", e))
+      if (occursin("true", e) && e != "true" || occursin("|", e))
         delete!(small_event_vector_dict, e)
       end
     end
   end
-
 
   @show length(collect(keys(event_vector_dict)))
   @show length(collect(keys(small_event_vector_dict)))
@@ -1643,10 +1681,15 @@ function generate_new_object_specific_state_GLOBAL(co_occurring_event, update_fu
         # events_in_range = find_state_update_events(event_vector_dict, augmented_positive_times, time_ranges, start_value, end_value, global_var_dict, global_var_value)
         events_in_range = find_state_update_events_object_specific(small_event_vector_dict, augmented_positive_times_dict, grouped_range, object_ids, object_mapping, curr_state_value)
       end
+      println("WHERE HAVE YOU BEEN")
       @show events_in_range
       println("# check state_update_times again")
       @show state_update_times
       if length(events_in_range) > 0 # only handling perfect matches currently (UPDATE: <- now generalized)
+        if filter(x -> !occursin("field1", x[1]), events_in_range) != []
+          events_in_range = filter(x -> !occursin("field1", x[1]), events_in_range)
+        end
+        
         index = min(length(events_in_range), transition_decision_index > num_transition_decisions ? 1 : transition_decision_string[transition_decision_index])
         event, event_times = events_in_range[index]
         formatted_event = replace(event, "(filter (--> obj (== (.. obj id) x)) (prev addedObjType$(type_id)List))" => "(list (prev obj))")
@@ -1673,16 +1716,21 @@ function generate_new_object_specific_state_GLOBAL(co_occurring_event, update_fu
         false_positive_events = find_state_update_events_object_specific_false_positives(small_event_vector_dict, augmented_positive_times_dict, grouped_range, object_ids, object_mapping, curr_state_value)      
         false_positive_events_with_state = filter(e -> occursin("field1", e[1]), false_positive_events) # want the most specific events in the false positive case
         @show false_positive_events
-        events_without_true = filter(tuple -> !occursin("true", tuple[1]) && tuple[2] == minimum(map(t -> t[2], false_positive_events_with_state)), false_positive_events_with_state)
-        if events_without_true != []
-          index = min(length(events_without_true), transition_decision_index > num_transition_decisions ? 1 : transition_decision_string[transition_decision_index])
-          false_positive_event, _, true_positive_times, false_positive_times = events_without_true[1] 
-        else
-          # FAILURE CASE: only separating event with false positives is true-based 
-          # false_positive_event, _, true_positive_times, false_positive_times = false_positive_events_with_state[1]
-          failed = true 
-          break  
-        end
+        # events_without_true = filter(tuple -> !occursin("true", tuple[1]) && tuple[2] == minimum(map(t -> t[2], false_positive_events_with_state)), false_positive_events_with_state)
+        # if events_without_true != []
+        #   index = min(length(events_without_true), transition_decision_index > num_transition_decisions ? 1 : transition_decision_string[transition_decision_index])
+        #   false_positive_event, _, true_positive_times, false_positive_times = events_without_true[1] 
+        # else
+        #   # FAILURE CASE: only separating event with false positives is true-based 
+        #   # false_positive_event, _, true_positive_times, false_positive_times = false_positive_events_with_state[1]
+        #   failed = true 
+        #   break  
+        # end
+
+        # index = min(length(events_without_true), transition_decision_index > num_transition_decisions ? 1 : transition_decision_string[transition_decision_index])
+        index = min(length(false_positive_events_with_state), transition_decision_index > num_transition_decisions ? 1 : transition_decision_string[transition_decision_index])
+
+        false_positive_event, _, true_positive_times, false_positive_times = false_positive_events_with_state[index] 
 
         transition_decision_index = 1
   
@@ -1764,6 +1812,10 @@ function generate_new_object_specific_state_GLOBAL(co_occurring_event, update_fu
           end
           augmented_positive_times = map(t -> (t[1], t[2]), filter(tuple -> tuple[3] == "update_function", augmented_positive_times_labeled))      
           augmented_positive_times_dict[id] = augmented_positive_times
+        end
+
+        for id in collect(keys(augmented_positive_times_dict))
+          augmented_positive_times_dict[id] = augmented_positive_times_dict[id][1:end-1]
         end
   
         # compute new ranges 
@@ -1857,7 +1909,7 @@ function generate_new_object_specific_state_GLOBAL(co_occurring_event, update_fu
       end
       new_object_decomposition = new_object_types, new_object_mapping, background, grid_size
   
-      @show new_object_decomposition
+      # @show new_object_decomposition
   
       on_clauses = []
       formatted_co_occurring_event = replace(co_occurring_event, "(filter (--> obj (== (.. obj id) x)) (prev addedObjType$(type_id)List))" => "(list (prev obj))")
