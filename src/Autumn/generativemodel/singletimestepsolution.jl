@@ -14,6 +14,8 @@ displacement_dict = Dict((0, 0) => "(= objX objX)",
                          (1, 0) => "(= objX (moveRight objX))", 
                         )
 
+type_displacements = Dict()
+
 function find_global_index(update_function)
   if is_no_change_rule(update_function)
     1
@@ -34,6 +36,10 @@ function singletimestepsolution_matrix(observations, user_events, grid_size; sin
   object_decomposition = parse_and_map_objects(observations, grid_size, singlecell=singlecell, pedro=pedro)
 
   object_types, object_mapping, background, _ = object_decomposition
+
+  for type in object_types 
+    type_displacements[type.id] = []
+  end
 
   # # @show object_decomposition 
 
@@ -360,10 +366,25 @@ function synthesize_update_functions(object_id, time, object_decomposition, user
           x_displacement = next_object.position[1] - prev_object.position[1]
           y_displacement = next_object.position[2] - prev_object.position[2]
           displacement = (x_displacement, y_displacement)
-          displacement_dict[displacement] = "(= objX (move objX $(x_displacement) $(y_displacement)))"
-          push!(prev_used_rules, "(= objX (move objX $(x_displacement) $(y_displacement)))") 
-          push!(prev_used_rules, "(= objX (moveNoCollision objX $(x_displacement) $(y_displacement)))")
-          push!(prev_used_rules, """(= objX (moveNoCollisionColor objX $(x_displacement) $(y_displacement) "darkgray"))""")
+          
+          push!(type_displacements[type_id], displacement...)
+          unique!(type_displacements[type_id])
+
+          if displacement == (0, 0)
+            displacement_dict[displacement] = "(= objX objX)"
+            push!(prev_used_rules, "(= objX objX)")
+            for scalar in type_displacements[type_id]
+              disps_to_try = [(0, -scalar), (0, scalar), (scalar, 0), (-scalar, 0)]
+              for disp in disps_to_try
+                x, y = disp 
+                # push!(prev_used_rules, "(= objX (moveNoCollision objX $(x) $(y)))")
+              end
+            end
+          else # if observed displacement is nonzero, only need to to try a few options 
+            # push!(prev_used_rules, "(= objX (move objX $(x_displacement) $(y_displacement)))") 
+            # push!(prev_used_rules, "(= objX (moveNoCollision objX $(x_displacement) $(y_displacement)))")
+            push!(prev_used_rules, """(= objX (moveNoCollisionColor objX $(x_displacement) $(y_displacement) "darkgray"))""")
+          end
 
           # add closest-based update functions 
           unit_size = filter(x -> x != 0, [x_displacement, y_displacement]) != [] ? abs(filter(x -> x != 0, [x_displacement, y_displacement])[1]) : 1 
@@ -1500,7 +1521,7 @@ function check_matrix_complete(matrix)
 end
 
 "Select one update function from each matrix cell's update function set, which may contain multiple update functions"
-function filter_update_function_matrix_multiple(matrix, object_decomposition; multiple = true)
+function filter_update_function_matrix_multiple(matrix, object_decomposition; multiple = true, base = 2)
   object_types, object_mapping, _, _ = object_decomposition
 
   matrix_complete = check_matrix_complete(matrix)
@@ -1510,6 +1531,8 @@ function filter_update_function_matrix_multiple(matrix, object_decomposition; mu
 
   new_matrices = []
   type_id_and_colors = []
+  # # @show object_types 
+  # # # @show object_decomposition 
   for type in object_types 
     if length(type.custom_fields) == 0
       push!(type_id_and_colors, (type.id, nothing))
@@ -1517,10 +1540,11 @@ function filter_update_function_matrix_multiple(matrix, object_decomposition; mu
       for color in type.custom_fields[1][3]
         push!(type_id_and_colors, (type.id, color))
       end
+      # push!(type_id_and_colors, (type.id, nothing))
     end
   end
 
-  num_permutations = multiple ? (2^(length(type_id_and_colors)) - 1) : 0
+  num_permutations = multiple ? (base^(length(type_id_and_colors)) - 1) : 0
   standard_update_function_lengths_dict = Dict()
   
   # construct same_type_update_function_sets_dict: 
@@ -1546,18 +1570,18 @@ function filter_update_function_matrix_multiple(matrix, object_decomposition; mu
         same_type_update_function_sets[color] = []
       end
       same_type_update_function_sets[nothing] = []
-      # # # # @show same_type_update_function_sets 
+      # # # # # @show same_type_update_function_sets 
       for other_object_id in 1:size(matrix)[1]
 
         other_object_type = filter(object -> !isnothing(object), object_mapping[other_object_id])[1].type
         
         if other_object_type.id == type.id
-          # # # # @show other_object_id
+          # # # # # @show other_object_id
 
           for time in 1:size(matrix)[2]
             if !isnothing(object_mapping[other_object_id][time])
               color = object_mapping[other_object_id][time].custom_field_values[1]
-              # # # # @show color
+              # # # # # @show color
 
               if !isnothing(object_mapping[other_object_id][time + 1]) && (object_mapping[other_object_id][time + 1].custom_field_values[1] != color)
                 # color change update rules are placed in the `nothing` category
@@ -1580,8 +1604,46 @@ function filter_update_function_matrix_multiple(matrix, object_decomposition; mu
     end
   end
 
+  global_sorted_update_functions_dict = Dict()
+  for object_type in object_types 
+    type_id = object_type.id 
+    if length(object_type.custom_fields) == 0 
+      same_type_update_function_set = same_type_update_function_sets_dict[type_id]
+
+      # perform filtering 
+      global_sorted_update_functions = reverse(sort(filter(z -> z != "", unique(same_type_update_function_set)), by=x -> count(y -> y == x, same_type_update_function_set)))
+      global_sorted_frequencies = map(x -> count(y -> y == x, same_type_update_function_set), global_sorted_update_functions)
+      
+      # sort most-frequent update functions (top functions) by their original order in matrix
+      top_indices = findall(x -> x == maximum(global_sorted_frequencies), global_sorted_frequencies)
+      sorted_top_indices = sort(top_indices, by=i -> find_global_index(global_sorted_update_functions[i])) 
+      top_functions = map(i -> global_sorted_update_functions[i], sorted_top_indices)
+      
+      non_top_functions = filter(x -> !(x in top_functions), global_sorted_update_functions)
+      global_sorted_update_functions = vcat(top_functions, non_top_functions)
+      global_sorted_update_functions_dict[type_id] = global_sorted_update_functions
+    else
+      global_sorted_update_functions_dict[type_id] = Dict()
+      for color in [object_type.custom_fields[1][3]..., nothing]
+
+        global_sorted_update_functions = reverse(sort(filter(x -> x != "", unique(same_type_update_function_sets_dict[object_type.id][color])), by=x -> count(y -> y == x, same_type_update_function_sets_dict[object_type.id][color])))
+        global_sorted_frequencies = map(x -> count(y -> y == x, same_type_update_function_sets_dict[object_type.id][color]), global_sorted_update_functions)
+        
+        # sort most-frequent update functions (top functions) by their original order in matrix
+        top_indices = findall(x -> x == maximum(global_sorted_frequencies), global_sorted_frequencies)
+        sorted_top_indices = sort(top_indices, by=i -> find_global_index(global_sorted_update_functions[i])) 
+        top_functions = map(i -> global_sorted_update_functions[i], sorted_top_indices)
+        
+        non_top_functions = filter(x -> !(x in top_functions), global_sorted_update_functions)
+        global_sorted_update_functions = vcat(top_functions, non_top_functions)
+        global_sorted_update_functions_dict[type_id][color] = global_sorted_update_functions
+      end
+    end
+  end
+
   for perm in 0:num_permutations
-    bits = reverse(bitstring(perm))
+    # bits = reverse(bitstring(perm))
+    bits = join(Base.digits(perm, base = base, pad = 64), "")
     new_matrix = deepcopy(matrix)
 
     # for each row (trajectory) in the update function matrix, filter down its update function sets
@@ -1589,9 +1651,7 @@ function filter_update_function_matrix_multiple(matrix, object_decomposition; mu
       object_type = filter(object -> !isnothing(object), object_mapping[object_id])[1].type
       
       if length(object_type.custom_fields) == 0 # type has no color field
-        same_type_update_function_set = same_type_update_function_sets_dict[object_type.id]
-
-        # perform filtering 
+        global_sorted_update_functions = global_sorted_update_functions_dict[object_type.id]
 
         # multiplicity handling: if bit_value == 1, then consider second-most frequent update function instead of first
         type_index = findall(x -> x[1] == object_type.id, type_id_and_colors)[1]
@@ -1600,96 +1660,47 @@ function filter_update_function_matrix_multiple(matrix, object_decomposition; mu
           update_functions = unique(map(s -> replace(s, "id) $(object_id)" => "id) x"), matrix[object_id, time]))
           if length(update_functions) > 1 
             update_functions = filter(x -> x != "", update_functions)
-            update_function_frequencies = map(func -> count(x -> x == func, same_type_update_function_set), update_functions)
 
-            if length(unique(map(x -> count(y -> y == x, same_type_update_function_set), update_functions))) == 1 
-              global_sorted_update_functions = update_functions
+            sorted_local_update_functions = sort(update_functions, by=x -> findall(y -> y == x, global_sorted_update_functions)[1])
+            if bit_value >= length(sorted_local_update_functions) 
+              top_function = sorted_local_update_functions[end]
             else
-              global_sorted_update_functions = reverse(sort(filter(z -> z != "", unique(same_type_update_function_set)), by=x -> count(y -> y == x, same_type_update_function_set)))
-              global_sorted_frequencies = map(x -> count(y -> y == x, same_type_update_function_set), global_sorted_update_functions)
-              
-              # sort most-frequent update functions (top functions) by their original order in matrix
-              top_indices = findall(x -> x == maximum(global_sorted_frequencies), global_sorted_frequencies)
-              sorted_top_indices = sort(top_indices, by=i -> find_global_index(global_sorted_update_functions[i])) 
-              top_functions = map(i -> global_sorted_update_functions[i], sorted_top_indices)
-              
-              non_top_functions = filter(x -> !(x in top_functions), global_sorted_update_functions)
-              global_sorted_update_functions = vcat(top_functions, non_top_functions)
-            end
-            
-            if (bit_value == 1) && length(global_sorted_update_functions) > 1
-              # swap first and second elements of global_sorted_update_functions
-              temp = global_sorted_update_functions[2]
-              global_sorted_update_functions[2] = global_sorted_update_functions[1]
-              global_sorted_update_functions[1] = temp 
+              top_function = sorted_local_update_functions[bit_value + 1]
             end
 
-            top_function = global_sorted_update_functions[1]
-            if top_function in update_functions 
-              max_id = findall(x -> x == top_function, update_functions)[1]
-            else
-              max_id = findall(x -> x == maximum(update_function_frequencies), update_function_frequencies)[1]
-            end
-
-            new_matrix[object_id, time] = [update_functions[max_id]]
+            new_matrix[object_id, time] = [top_function]
           end
         end
 
       else # type has color field 
-        same_type_update_function_sets = same_type_update_function_sets_dict[object_type.id]
+
         # perform filtering
         for time in 1:size(matrix)[2]
           update_functions = unique(map(s -> replace(s, "id) $(object_id)" => "id) x"), matrix[object_id, time]))
           if length(update_functions) > 1
-            # # println("HERE?")
+            # println("HERE?")
             update_functions = filter(x -> x != "", update_functions)
             object = object_mapping[object_id][time]
             if !isnothing(object)
               color = object.custom_field_values[1]
-
-              # multiplicity handling: if bit_value == 1, then consider second-most frequent update function instead of first
-              type_index = findall(x -> x[1] == object_type.id && x[2] == color, type_id_and_colors)[1]
-              bit_value = parse(Int, bits[type_index])
-              # # # @show bit_value
-
-              update_function_frequencies = map(func -> count(x -> x == func, same_type_update_function_sets[color]), update_functions)
-              if length(unique(map(x -> count(y -> y == x, same_type_update_function_sets_dict[object_type.id][color]), update_functions))) == 1 
-                global_sorted_update_functions = update_functions
-              else
-                global_sorted_update_functions = reverse(sort(filter(x -> x != "", unique(same_type_update_function_sets_dict[object_type.id][color])), by=x -> count(y -> y == x, same_type_update_function_sets_dict[object_type.id][color])))
-                global_sorted_frequencies = map(x -> count(y -> y == x, same_type_update_function_sets_dict[object_type.id][color]), global_sorted_update_functions)
-                
-                # sort most-frequent update functions (top functions) by their original order in matrix
-                top_indices = findall(x -> x == maximum(global_sorted_frequencies), global_sorted_frequencies)
-                sorted_top_indices = sort(top_indices, by=i -> find_global_index(global_sorted_update_functions[i])) 
-                top_functions = map(i -> global_sorted_update_functions[i], sorted_top_indices)
-                
-                non_top_functions = filter(x -> !(x in top_functions), global_sorted_update_functions)
-                global_sorted_update_functions = vcat(top_functions, non_top_functions)
-              end
-              
-              # # # @show bit_value
-              # # # @show length(global_sorted_update_functions)
-              if (bit_value == 1) && length(global_sorted_update_functions) > 1
-                # # println("HELLO")
-                # swap first and second elements of global_sorted_update_functions
-                temp = global_sorted_update_functions[2]
-                global_sorted_update_functions[2] = global_sorted_update_functions[1]
-                global_sorted_update_functions[1] = temp 
-              end
-
-              top_function = global_sorted_update_functions[1]
-              if top_function in update_functions 
-                max_id = findall(x -> x == top_function, update_functions)[1]
-              else
-                max_id = findall(x -> x == maximum(update_function_frequencies), update_function_frequencies)[1]
-              end
-
             else
-              update_function_frequencies = map(func -> count(x -> x == func, same_type_update_function_sets[nothing]), update_functions)
-              max_id = findall(x -> x == maximum(update_function_frequencies), update_function_frequencies)[1]
+              color = nothing
             end
-            new_matrix[object_id, time] = [update_functions[max_id]]
+
+            # multiplicity handling: if bit_value == 1, then consider second-most frequent update function instead of first
+            type_index = isnothing(color) ? (length(type_id_and_colors)) + 1 : findall(x -> x[1] == object_type.id && x[2] == color, type_id_and_colors)[1]
+            bit_value = parse(Int, bits[type_index])
+
+            global_sorted_update_functions = global_sorted_update_functions_dict[object_type.id][color]
+            
+            sorted_local_update_functions = sort(update_functions, by=x -> findall(y -> y == x, global_sorted_update_functions)[1])
+            if bit_value >= length(sorted_local_update_functions) 
+              top_function = sorted_local_update_functions[end]
+            else
+              top_function = sorted_local_update_functions[bit_value + 1]
+            end
+
+            new_matrix[object_id, time] = [top_function]
           end
         end
 
@@ -1700,15 +1711,15 @@ function filter_update_function_matrix_multiple(matrix, object_decomposition; mu
     for row in 1:size(new_matrix)[1]
       for col in 1:size(new_matrix)[2]
           if length(new_matrix[row, col]) == 0 
-              # # # @show row
-              # # # @show col
+              # # # # @show row
+              # # # # @show col
           end
       end
     end
  
     for object_id in 1:size(new_matrix)[1]
-      # # # @show object_id 
-      # # # @show new_matrix[object_id, :]
+      # # # # @show object_id 
+      # # # # @show new_matrix[object_id, :]
       new_matrix[object_id, :] = map(list -> [replace(list[1], " id) $(object_id)" => " id) x")], new_matrix[object_id, :])
     end
     push!(new_matrices, deepcopy(new_matrix))
@@ -1738,8 +1749,8 @@ function filter_update_function_matrix_multiple(matrix, object_decomposition; mu
       new_matrix[object_id, :] = map(list -> [replace(list[1], " id) x" => " id) $(object_id)")], new_matrix[object_id, :])
     end  
   end
-  # # # @show length(new_matrices)
-  # # # @show length(unique(new_matrices))
+  # # # # @show length(new_matrices)
+  # # # # @show length(unique(new_matrices))
 
   unique(new_matrices)
 end
@@ -1771,32 +1782,49 @@ end
 function pre_filter_with_direction_biases(matrix, user_events, object_decomposition)
   object_types, object_mapping, _, _ = object_decomposition 
 
-  new_matrix = deepcopy(matrix)
+  new_matrices = []
+  for type in object_types 
+    new_matrix = deepcopy(matrix)
 
-  for direction in ["left", "right", "up", "down"]
-    event_times = findall(event -> event == direction, user_events)
-    for object_id in 1:size(matrix)[1]
-      type_id = filter(x -> !isnothing(x), object_mapping[object_id])[1].type.id
-      other_object_ids = sort(filter(id -> (id != object_id) && filter(obj -> !isnothing(obj), object_mapping[id])[1].type.id == type_id, collect(keys(object_mapping))))
-      
-      trajectory = matrix[object_id, :]
-      direction_update_at_every_time = foldl(&, map(list -> occursin(string("move", uppercasefirst(direction), "NoCollision"), join(list, "")), trajectory), init=true)
-      for event_time in event_times 
-        direction_update_at_event_time = occursin(string("move", uppercasefirst(direction), "NoCollision"), join(trajectory[event_time], ""))
-
-        deltas = [(!isnothing(object_mapping[id][event_time]) && 
-                   !isnothing(object_mapping[id][event_time + 1]) &&
-                   (object_mapping[id][event_time].position != object_mapping[id][event_time + 1].position)) 
-                   for id in other_object_ids]
-
-        if direction_update_at_event_time && !direction_update_at_every_time && !(1 in deltas)
-          new_matrix[object_id, event_time] = filter(rule -> occursin(string("move", uppercasefirst(direction)), rule), trajectory[event_time])
+    for direction in ["left", "right", "up", "down"]
+      event_times = findall(event -> event == direction, user_events)
+      for object_id in 1:size(matrix)[1]
+        type_id = filter(x -> !isnothing(x), object_mapping[object_id])[1].type.id
+        other_object_ids = sort(filter(id -> (id != object_id) && filter(obj -> !isnothing(obj), object_mapping[id])[1].type.id == type_id, collect(keys(object_mapping))))
+  
+        scalars = type_id in keys(type_displacements) ? type_displacements[type_id] : []
+        if scalars != []
+          scalar = abs(scalars[1]) 
+          if direction == "left"
+            x, y = (-scalar, 0)
+          elseif direction == "right"
+            x, y = (scalar, 0)
+          elseif direction == "up"
+            x, y = (0, -scalar)
+          else
+            x, y = (0, scalar)
+          end
+    
+          trajectory = matrix[object_id, :]
+          direction_update_at_every_time = foldl(&, map(list -> occursin("""$(x) $(y) "darkgray")""", join(list, "")), trajectory), init=true)
+          for event_time in event_times 
+            direction_update_at_event_time = occursin("""$(x) $(y) "darkgray")""", join(trajectory[event_time], ""))
+    
+            deltas = [(!isnothing(object_mapping[id][event_time]) && 
+                       !isnothing(object_mapping[id][event_time + 1]) &&
+                       (object_mapping[id][event_time].position != object_mapping[id][event_time + 1].position)) 
+                       for id in other_object_ids]
+    
+            if direction_update_at_event_time && !direction_update_at_every_time && !(1 in deltas)
+              new_matrix[object_id, event_time] = filter(rule -> occursin("""$(x) $(y) "darkgray")""", rule), trajectory[event_time])
+            end
+          end
         end
       end
     end
+    push!(new_matrices, new_matrix)
   end
-
-  deepcopy(new_matrix)
+  new_matrices
 end
 
 function construct_chaos_matrix(unformatted_matrix, object_decomposition)
@@ -1845,6 +1873,309 @@ function construct_brownian_motion_matrices(filtered_matrix, object_decompositio
 
   end
   brownian_matrices
+end
+
+function construct_filtered_matrices_pedro(matrix, object_decomposition, user_events)
+  object_types, object_mapping, _, grid_size = object_decomposition 
+  
+  filtered_matrices = []
+  
+  # bare-bones non-random matrix 
+  bare_bones_matrix_unfiltered = deepcopy(matrix)
+  for id in 1:size(matrix)[1]
+    for time in 1:size(matrix)[2]
+      bare_bones_matrix_unfiltered[id, time] = filter(rule -> !occursin("closest", rule), bare_bones_matrix_unfiltered[id, time])
+    end
+  end
+  bare_bones_matrix = construct_filtered_matrices(bare_bones_matrix_unfiltered, object_decomposition, user_events)[1]
+  push!(filtered_matrices, bare_bones_matrix)
+
+  # standard top non-random matrix
+  standard_non_random_matrices = construct_filtered_matrices(matrix, object_decomposition, user_events)
+  push!(filtered_matrices, standard_non_random_matrices[1])
+
+  # regularity matrices: non-random and random (type-level)
+  for type in object_types 
+    if !(type.color in ["darkgray", "darkblue"])
+      ids_with_type = filter(id -> filter(obj -> !isnothing(obj), object_mapping[id])[1].type.id == type.id, collect(keys(object_mapping)))
+      object_positions = unique(vcat(map(id -> map(o -> o.position, filter(obj -> !isnothing(obj), object_mapping[id])), ids_with_type)...))
+      if length(object_positions) > 1 
+        regularity_matrix, regularity_unformatted_matrix = construct_regularity_matrix(matrix, unformatted_matrix, object_decomposition, type.id)
+        if !isnothing(regularity_matrix)
+          # non-random 
+          non_random_regularity_matrix = construct_filtered_matrices(regularity_matrix, object_decomposition, user_events)[1]        
+          push!(filtered_matrices, non_random_regularity_matrix)
+  
+          # random 
+          @show type 
+          random_regularity_matrix_unfiltered = construct_random_regularity_matrix(regularity_matrix, regularity_unformatted_matrix, object_decomposition, type.id)
+          @show random_regularity_matrix_unfiltered
+          random_regularity_matrix = construct_filtered_matrices(random_regularity_matrix_unfiltered, object_decomposition, user_events)[1]
+          push!(filtered_matrices, random_regularity_matrix)
+        end
+      end
+    end
+  end
+
+  # fully random (type-level)
+  for type in object_types 
+    if !(type.color in ["darkgray", "darkblue"])
+      ids_with_type = filter(id -> filter(obj -> !isnothing(obj), object_mapping[id])[1].type.id == type.id, collect(keys(object_mapping)))
+      object_positions = unique(vcat(map(id -> map(o -> o.position, filter(obj -> !isnothing(obj), object_mapping[id])), ids_with_type)...))
+      if length(object_positions) > 1 
+      # TODO: do something 
+
+      end
+    end
+  end
+
+  unique!(filtered_matrices)
+  filtered_matrices
+end
+
+function construct_random_regularity_matrix(regularity_matrix, regularity_unformatted_matrix, object_decomposition, type_id)
+  object_types, object_mapping, _, grid_size = object_decomposition 
+  object_ids_with_type = filter(id -> filter(obj -> !isnothing(obj), object_mapping[id])[1].type.id == type_id, collect(keys(object_mapping)))
+  choices = filter(rule -> !occursin("objX objX", rule) && !occursin("closest", rule), unique(vcat(vcat(map(id -> regularity_unformatted_matrix[id, :], object_ids_with_type)...)...)))
+  formatted_choices = map(c -> replace(c, "(= objX " => "")[1:end - 1], choices)
+  formatted_random_choice = """(uniformChoice (list $(join(map(c -> "$(replace(c, "objX" => "(prev obj)"))", formatted_choices), " "))))"""
+
+  object_id = object_ids_with_type[1]
+  start_objects = sort(filter(obj -> obj != nothing, [object_mapping[i][1] for i in 1:length(collect(keys(object_mapping)))]), by=(x -> x.id))
+  contained_in_list = isnothing(object_mapping[object_id][1]) || (count(id -> (filter(x -> !isnothing(x), object_mapping[id]))[1].type.id == object_mapping[object_id][1].type.id, collect(keys(object_mapping))) > 1)
+
+  new_matrix = deepcopy(regularity_matrix)
+  for id in object_ids_with_type 
+    for time in 1:length(matrix[id, :])
+      if contained_in_list && !occursin("--> obj (prev obj)", new_matrix[id, time][1]) && new_matrix[id, time] != ""
+        new_matrix[id, time] = ["(= addedObjType$(type_id)List (updateObj addedObjType$(type_id)List (--> obj $(formatted_random_choice))))"]
+      elseif !contained_in_list&& !occursin("", new_matrix[id, time][1]) && new_matrix[id, time] != ""  
+        new_matrix[id, time] = ["(= obj$(object_ids_with_type[1]) $(formatted_random_choice))"]
+      end
+    end
+  end
+  new_matrix
+end
+
+function construct_regularity_matrix(matrix, unformatted_matrix, object_decomposition, type_id) 
+  object_types, object_mapping, _, grid_size = object_decomposition 
+  object_ids_with_type = filter(id -> filter(obj -> !isnothing(obj), object_mapping[id])[1].type.id == type_id, collect(keys(object_mapping)))
+  
+  # identify wall positions
+  wall_type = filter(t -> t.color == "darkgray", object_types)[1]
+  wall_ids = filter(id -> filter(obj -> !isnothing(obj), object_mapping[id])[1].type.id == wall_type.id, collect(keys(object_mapping)))
+  wall_positions = vcat(map(id -> map(p -> (object_mapping[id][1].position[1] + p[1], object_mapping[id][1].position[2] + p[2]), wall_type.shape), wall_ids)...)
+
+  continuous_segments_dict = Dict()
+  for id in object_ids_with_type
+    @show id 
+    object_values = object_mapping[id]
+    boundary_positions = findall(obj -> isnothing(obj) || is_on_boundary(obj, grid_size) || adjacent_to_wall(obj, wall_positions), object_values)
+    @show boundary_positions
+    continuous_segments_dict[id] = getindex.(Ref(object_values), UnitRange.([1; boundary_positions .+ 1], [boundary_positions .- 1; length(object_values)]))
+    continuous_segments_dict[id] = filter(arr -> length(arr) > 0, continuous_segments_dict[id])
+  end
+  longest_segment = reverse(sort(vcat(map(id -> continuous_segments_dict[id], object_ids_with_type)...), by=arr -> length(arr)))[1]
+  displacements = [displacement(longest_segment[i].position, longest_segment[i + 1].position) for i in 1:(length(longest_segment) - 1)]
+  nonzero_displacement_locations = findall(d -> d != (0, 0), displacements)
+  zero_displacement_segments = getindex.(Ref(displacements), UnitRange.([1; nonzero_displacement_locations .+ 1], [nonzero_displacement_locations .- 1; length(displacements)]))
+  interval_sizes = unique(map(s -> length(s), zero_displacement_segments[2:end-1]))
+  if length(interval_sizes) == 1
+    # regularity observed!
+    interval_size = interval_sizes[1] + 1
+    @show interval_size 
+    new_matrix = deepcopy(matrix) 
+    new_unformatted_matrix = deepcopy(unformatted_matrix)
+    for id in object_ids_with_type 
+      nonzero_disp_time = filter(t -> !isnothing(object_mapping[id][t]) && !isnothing(object_mapping[id][t + 1]) && displacement(object_mapping[id][t].position, object_mapping[id][t + 1].position) != (0, 0),  collect(1:(length(object_mapping[id]) - 1)))[1]
+      all_nonzero_disp_times = filter(t -> t != 0, collect((nonzero_disp_time % interval_size):interval_size:(length(object_mapping[id]) - 1)))
+      @show all_nonzero_disp_times
+      for time in 1:(length(object_mapping[id]) - 1)
+        if !(time in all_nonzero_disp_times) && (new_matrix[id, time] != [""])
+          new_matrix[id, time] = filter(r -> !occursin("NoCollision", r) && !occursin("closest", r), new_matrix[id, time]) # keep only the no-change rule 
+          new_unformatted_matrix[id, time] = filter(r -> !occursin("NoCollision", r) && !occursin("closest", r), new_unformatted_matrix[id, time]) # keep only the no-change rule
+        end
+      end
+    end
+    new_matrix, new_unformatted_matrix 
+  else
+    nothing, nothing
+  end
+end
+
+function is_on_boundary(object, grid_size)  
+  position = object.position
+  shape = object.type.shape
+
+  max_shape_x = sort(shape, by=pos -> pos[1])[end][1]
+  min_shape_x = sort(shape, by=pos -> pos[1])[1][1]
+
+  max_shape_y = sort(shape, by=pos -> pos[2])[end][2]
+  min_shape_y = sort(shape, by=pos -> pos[2])[1][2]
+
+  if !(grid_size isa AbstractArray)
+    dimensions = [grid_size, grid_size]
+  else
+    dimensions = grid_size
+  end
+
+  (position[1] + max_shape_x >= dimensions[1] - 1) || (position[1] + min_shape_x <= 0) || (position[2] + max_shape_y >= dimensions[2] - 1) || (position[2] + min_shape_y <= 0) 
+end
+
+function adjacent_to_wall(object, wall_positions)
+  origin = object.position
+  shape = object.type.shape
+
+  # compute smallest and largest x- and y-positions in shape
+  max_shape_x = sort(shape, by=pos -> pos[1])[end][1]
+  min_shape_x = sort(shape, by=pos -> pos[1])[1][1]
+
+  max_shape_y = sort(shape, by=pos -> pos[2])[end][2]
+  min_shape_y = sort(shape, by=pos -> pos[2])[1][2]
+
+  # compute positions just outside boundary of shape (not including corners)
+  adjacent_positions_to_shape = [map(p -> (p[1] + 1, p[2]), filter(pos -> pos[1] == max_shape_x, shape))..., 
+                                 map(p -> (p[1] - 1, p[2]), filter(pos -> pos[1] == min_shape_x, shape))...,
+                                 map(p -> (p[1], p[2] + 1), filter(pos -> pos[2] == max_shape_y, shape))...,
+                                 map(p -> (p[1], p[2] - 1), filter(pos -> pos[2] == min_shape_y, shape))...,
+                                ]
+  # translate shape adjacent positions by object origin
+  adjacent_positions_to_object = map(pos -> (origin[1] + pos[1], origin[2] + pos[2]), adjacent_positions_to_shape)
+
+  # if object-adjacent positions and wall positions intersect, then object is adjacent to wall
+  ret_val = intersect(adjacent_positions_to_object, wall_positions) != []
+  if ret_val
+    println("WOAH THERE")
+    ret_val
+  else
+    ret_val
+  end
+end
+
+function displacement(position1, position2)
+  (position2[1] - position1[1], position2[2] - position1[2])
+end
+
+function construct_filtered_matrices(matrix, object_decomposition, user_events, random=false, base=2)
+  filtered_matrices = []
+
+  if !random 
+
+    # add non-random filtered matrices to filtered_matrices
+    non_random_matrix = deepcopy(matrix)
+    filtered_non_random_matrices = filter_update_function_matrix_multiple(non_random_matrix, object_decomposition, multiple=true, base=base)
+    # filtered_non_random_matrices = filtered_non_random_matrices[1:min(4, length(filtered_non_random_matrices))]
+    push!(filtered_matrices, filtered_non_random_matrices...)
+
+    # NEW: removing nextLiquid/closest options!
+    # add non-random filtered matrices to filtered_matrices
+    non_random_matrix = deepcopy(matrix)
+    for row in 1:size(non_random_matrix)[1]
+      for col in 1:size(non_random_matrix)[2]
+        non_random_matrix[row, col] = filter(x -> !occursin("closest", x), non_random_matrix[row, col])
+      end
+    end
+    filtered_non_random_matrices = filter_update_function_matrix_multiple(non_random_matrix, object_decomposition, multiple=true)
+    # filtered_non_random_matrices = filtered_non_random_matrices[1:min(4, length(filtered_non_random_matrices))]
+    push!(filtered_matrices, filtered_non_random_matrices...)
+
+
+    # add direction-bias-filtered matrix to filtered_matrices 
+    pre_filtered_matrices = pre_filter_with_direction_biases(deepcopy(non_random_matrix), user_events, object_decomposition)
+    for m in pre_filtered_matrices
+      push!(filtered_matrices, filter_update_function_matrix_multiple(m, object_decomposition, multiple=false)...)
+    end
+
+    unique!(filtered_matrices)
+    filtered_matrices = sort_update_function_matrices(filtered_matrices, object_decomposition)
+    
+    # @show length(filtered_matrices)
+
+    if length(filtered_matrices) > 5 
+      filtered_matrices = filtered_matrices[1:5]
+    end
+    
+  else
+
+    # BEGIN RANDOM 
+    # add random filtered matrices to filtered_matrices 
+    random_matrix = deepcopy(matrix)
+    is_random = false
+    for row in 1:size(random_matrix)[1]
+      for col in 1:size(random_matrix)[2]
+        if filter(x -> (occursin("uniformChoice", x) && !occursin("uniformChoice (map", x)) || occursin("randomPositions", x), random_matrix[row, col]) != []
+          random_matrix[row, col] = filter(x -> occursin("uniformChoice", x) || occursin("randomPositions", x), random_matrix[row, col])
+          is_random = true
+        end
+      end
+    end
+
+    if is_random 
+      filtered_random_matrices = filter_update_function_matrix_multiple(random_matrix, object_decomposition, multiple=true, base=base)
+      filtered_random_matrices = filtered_random_matrices[1:min(4, length(filtered_random_matrices))]
+      push!(filtered_matrices, filtered_random_matrices...)
+  
+      # add "chaos" solution to filtered_matrices 
+      filtered_unformatted_matrix = filter_update_function_matrix_multiple(unformatted_matrix, object_decomposition, multiple=false, base=base)[1]
+      push!(filtered_matrices, filter_update_function_matrix_multiple(construct_chaos_matrix(filtered_unformatted_matrix, object_decomposition), object_decomposition, multiple=false, base=base)...)
+    end
+
+  end
+
+  unique!(filtered_matrices)
+
+  filtered_matrices 
+end
+
+
+function sort_update_function_matrices(matrices, object_decomposition)
+  object_types, object_mapping, _, _ = object_decomposition
+  counts = [] 
+  for matrix in matrices 
+    type_level_counts = []
+    for type in object_types 
+      ids_with_type = filter(id -> filter(o -> !isnothing(o), object_mapping[id])[1].type.id == type.id, collect(keys(object_mapping)))
+      
+      custom_field_names = map(x -> x[1], type.custom_fields)
+      if "color" in custom_field_names 
+        colors = filter(x -> x[1] == "color", type.custom_fields)[1][3]
+        color_functions_dict = Dict(map(c -> c => [], colors))
+        
+        for id in ids_with_type 
+          for time in 1:length(matrix[1, :])
+            if !isnothing(object_mapping[id][time])
+              color = object_mapping[id][time].custom_field_values[end]
+              update_function = matrix[id, time][1]
+              push!(color_functions_dict[color], replace(update_function, "(.. obj id) $(id)" => "(.. obj id) x"))
+            end
+          end
+        end
+        count = sum(map(c -> length(unique(color_functions_dict[c])), colors))
+        push!(type_level_counts, count)
+      else 
+        distinct_update_functions = unique(vcat(vcat(map(id -> map(x -> [replace(x[1], "(.. obj id) $(id)" => "(.. obj id) x")], matrix[id, :]), ids_with_type)...)...))
+        push!(type_level_counts, length(distinct_update_functions))
+      end
+    end
+    push!(counts, sum(type_level_counts))
+  end
+  # @show length(matrices)
+  # @show length(counts)
+
+  # @show matrices 
+  @show counts
+  count_dict = Dict()
+  for i in 1:length(counts)
+    matrix = matrices[i]
+    count = counts[i]
+    if count in keys(count_dict)
+      push!(count_dict[count], matrix)
+    else
+      count_dict[count] = [matrix]
+    end
+  end
+
+  vcat(map(count -> sort(count_dict[count], by=m -> length(join(vcat(vcat(m...)...))) ), sort(collect(keys(count_dict))))...)
 end
 
 # generate_event, generate_hypothesis_position, generate_hypothesis_position_program 
