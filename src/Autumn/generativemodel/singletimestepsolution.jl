@@ -449,7 +449,7 @@ function synthesize_update_functions(object_id, time, object_decomposition, user
       
       if occursin("NoCollision", update_rule) || occursin("closest", update_rule) || occursin("nextLiquid", update_rule) || occursin("color", update_rule)
         hypothesis_program = string(hypothesis_program[1:end-2], "\n\t (on true\n", update_rule, ")\n)")
-        # # println("HYPOTHESIS_PROGRAM")
+        # println("HYPOTHESIS_PROGRAM")
         # println(prev_object)
         # println(hypothesis_program)
         # # # # @show global_iters
@@ -594,19 +594,23 @@ function parse_and_map_objects(observations, gridsize=16; singlecell=false, pedr
     # # println("HERE 2")
     # println(object_types)  
   else
-    # compute union of all colors seen across observations
-    object_types_list = vcat(map(obs -> parsescene_autumn_pedro(obs, gridsize isa Int ? gridsize : gridsize[1], "white")[1], observations)...)
-    all_colors = unique(map(t -> t.color, object_types_list))
-    # @show object_types_list 
-    shape = filter(t -> t.color != "black", object_types_list)[1].shape
-    object_types = "black" in all_colors ? [object_types_list[1]] : []
+    if singlecell 
+      # compute union of all colors seen across observations
+      object_types_list = vcat(map(obs -> parsescene_autumn_pedro(obs, gridsize isa Int ? gridsize : gridsize[1], "white")[1], observations)...)
+      all_colors = unique(map(t -> t.color, object_types_list))
+      # @show object_types_list 
+      shape = filter(t -> t.color != "black", object_types_list)[1].shape
+      object_types = "black" in all_colors ? [object_types_list[1]] : []
 
-    colors = unique(map(t -> t.color, filter(t -> t.color != "black", object_types_list)))
-    for i in 1:length(colors)
-      push!(object_types, ObjType(shape, colors[i], [], "black" in all_colors ? i + 1 : i))
+      colors = unique(map(t -> t.color, filter(t -> t.color != "black", object_types_list)))
+      for i in 1:length(colors)
+        push!(object_types, ObjType(shape, colors[i], [], "black" in all_colors ? i + 1 : i))
+      end
+
+      _, objects, _, _ = parsescene_autumn_pedro_given_types(observations[1], object_types, gridsize, "white")
+    else
+      object_types, objects, _, _ = parsescene_autumn_pedro_multicell(observations[1], gridsize, "white")
     end
-
-    _, objects, _, _ = parsescene_autumn_pedro_given_types(observations[1], object_types, gridsize, "white")
   end
 
   # reassign id's to objects so that id's within a type form disjoint intervals 
@@ -624,7 +628,7 @@ function parse_and_map_objects(observations, gridsize=16; singlecell=false, pedr
   end
   for time in 2:length(observations)
     # # println("HERE 3")
-    # @show time
+    @show time
     # # println(time)
     # # println(object_types)
     if !pedro 
@@ -635,7 +639,12 @@ function parse_and_map_objects(observations, gridsize=16; singlecell=false, pedr
       end
   
     else
-      _, next_objects, _, _ = parsescene_autumn_pedro_given_types(observations[time], deepcopy(object_types), gridsize, "white")
+      if singlecell 
+        _, next_objects, _, _ = parsescene_autumn_pedro_given_types(observations[time], deepcopy(object_types), gridsize, "white")
+      else
+        _, next_objects, _, _ = parsescene_autumn_pedro_multicell_given_types(observations[time], object_types, gridsize, "white")
+      end
+
     end
 
     if time == 30 

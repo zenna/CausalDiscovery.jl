@@ -488,8 +488,14 @@ function color_contiguity_autumn(position_to_color, pos1, pos2)
   length(intersect(position_to_color[pos1], position_to_color[pos2])) > 0
 end
 
-function parsescene_autumn(render_output::AbstractArray, dim, background::String="white"; color=true)
+function parsescene_autumn(render_output::AbstractArray, dim, background::String="white"; color=true, pedro=false)
   colors = unique(map(cell -> cell.color, render_output))
+
+  if dim isa AbstractArray 
+    dim_x, dim_y = dim
+  else
+    dim_x, dim_y = [dim, dim]    
+  end
 
   objectshapes = []
   for c in colors   
@@ -505,7 +511,7 @@ function parsescene_autumn(render_output::AbstractArray, dim, background::String
             pos = dequeue!(q)
             push!(objectshape, (pos, c))
             push!(visited, pos)
-            pos_neighbors = neighbors(pos)
+            pos_neighbors = !pedro ? neighbors(pos) : neighbors_pedro(pos)
             for n in pos_neighbors
               if (n in colored_positions) && !(n in visited) 
                 enqueue!(q, n)
@@ -531,7 +537,7 @@ function parsescene_autumn(render_output::AbstractArray, dim, background::String
     objectshape = map(o -> o[1], objectshape_with_color)
     # # @show objectcolor 
     # # @show objectshape
-    translated = map(pos -> dim * pos[2] + pos[1], objectshape)
+    translated = map(pos -> dim_y * pos[2] + pos[1], objectshape)
     translated = length(translated) % 2 == 0 ? translated[1:end-1] : translated # to produce a single median
     centerPos = objectshape[findall(x -> x == median(translated), translated)[1]]
     translatedShape = unique(map(pos -> (pos[1] - centerPos[1], pos[2] - centerPos[2]), sort(objectshape)))
@@ -549,7 +555,9 @@ function parsescene_autumn(render_output::AbstractArray, dim, background::String
   # println("INSIDE REGULAR PARSER")
   # @show types 
   # @show objects
-  (types, objects) = combine_types_with_same_shape(types, objects)
+  if !pedro 
+    (types, objects) = combine_types_with_same_shape(types, objects)
+  end
 
   (types, objects, background, dim)
 end
@@ -920,6 +928,72 @@ end
 # ----- end functions related to scene parsing ----- #
 
 # ----- PEDRO functions ----- # 
+
+function parsescene_autumn_pedro_multicell(render_output, gridsize=16, background::String="white")
+  # standard parsing of pedro frame into 30x30 blocks
+  original_types, original_objects, _, _ = parsescene_autumn_pedro(render_output, gridsize, background)
+
+  # treat each 30x30 block as a single "cell" and feed into parsescene_autumn for breadth-first search parsing 
+  # at this more abstract level (first remove wall objects; keeping 30x30 blocks for those) 
+  original_objects_without_walls = filter(obj -> obj.type.color != "darkgray", original_objects)
+  original_objects_as_cells = map(obj -> Autumn.AutumnStandardLibrary.Cell(obj.position[1], obj.position[2], obj.type.color), original_objects_without_walls)
+
+  new_types, new_objects, _, _ = parsescene_autumn(original_objects_as_cells, gridsize, background, pedro=true)
+
+  # combine original wall types with transformed (i.e. un-abstracted) versions of new breadth-first types
+  final_types = []
+  wall_type = filter(t -> t.color == "darkgray", original_types)[1]
+  wall_type.id = 1 
+  push!(final_types, wall_type)
+
+  thirty_x_thirty_square_shape = wall_type.shape
+
+  for type in new_types 
+    type.id = length(final_types) + 1 
+    type.shape = vcat(map(cell -> map(p -> (p[1] + cell[1], p[2] + cell[2]), thirty_x_thirty_square_shape), type.shape)...)
+    push!(final_types, type)
+  end
+
+  final_objects = []
+  wall_objects = filter(obj -> obj.type.color == "darkgray", original_objects)
+  push!(final_objects, wall_objects...)
+
+  for object in new_objects 
+    object.type = filter(t -> t.color == object.type.color, final_types)[1]
+    push!(final_objects, object)
+  end
+
+  # re-id objects 
+  for i in 1:length(final_objects) 
+    final_objects[i].id = i 
+  end
+
+  (final_types, final_objects, gridsize, background)
+end
+
+function parsescene_autumn_pedro_multicell_given_types(render_output, object_types, gridsize=16, background::String="white")
+  (_, objects, _, _) = parsescene_autumn_pedro_multicell(render_output, gridsize, background)
+
+  # reassign types to objects 
+  new_objects = []
+  for object in objects 
+    type = filter(t -> t.color == object.type.color, types)[1]
+    push!(new_objects, Obj(type, object.position, [], object.id))
+  end
+  (types, new_objects, background, gridsize) 
+end
+
+function neighbors_pedro(shape::AbstractArray)
+  neighborPositions = vcat(map(pos -> neighbors_pedro(pos), shape)...)
+  unique(filter(pos -> !(pos in shape), neighborPositions))
+end
+
+function neighbors_pedro(position)
+  x = position[1]
+  y = position[2]
+  [(x + 30, y), (x - 30, y), (x, y + 30), (x, y - 30)]
+end
+
 
 function parsescene_autumn_pedro(render_output, gridsize=16, background::String="white")
   dim = gridsize[1]
