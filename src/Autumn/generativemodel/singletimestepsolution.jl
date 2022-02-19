@@ -216,6 +216,9 @@ function synthesize_update_functions(object_id, time, object_decomposition, user
     if (matching_objects != []) && (isnothing(object_mapping[matching_objects[1].id][1]) || !(matching_objects[1].type.id in map(x -> x.id, prev_objects_not_listed))) 
       # matching object is in a list!
 
+      # check if object intersects any other object of other type 
+      ## (= addedObjType$()List (addObj addedObjType$()List (map (--> pos (ObjType$() pos)) (intersect () ()))))
+
       first_matching_object = matching_objects[1]
       push!(abstracted_positions, "(.. (uniformChoice (vcat (prev addedObjType$(first_matching_object.type.id)List) (prev addedObjType$(first_matching_object.type.id)List) (prev addedObjType$(first_matching_object.type.id)List) (prev addedObjType$(first_matching_object.type.id)List) (prev addedObjType$(first_matching_object.type.id)List) (prev addedObjType$(first_matching_object.type.id)List))) origin)")
       for matching_object in matching_objects 
@@ -1814,43 +1817,57 @@ function pre_filter_with_direction_biases(matrix, user_events, object_decomposit
     new_matrix = deepcopy(matrix)
     type_id = type.id 
     object_ids_with_type = filter(id -> filter(obj -> !isnothing(obj), object_mapping[id])[1].type.id == type_id, collect(keys(object_mapping)))
-
-    for direction in ["left", "right", "up", "down"]
-      event_times = findall(event -> event == direction, user_events)
-      for object_id in object_ids_with_type
-        other_object_ids = filter(id -> id != object_id, object_ids_with_type)
-  
-        scalars = type_id in keys(type_displacements) ? type_displacements[type_id] : []
-        if scalars != []
-          scalar = abs(scalars[1]) 
-          if direction == "left"
-            x, y = (-scalar, 0)
-          elseif direction == "right"
-            x, y = (scalar, 0)
-          elseif direction == "up"
-            x, y = (0, -scalar)
-          else
-            x, y = (0, scalar)
-          end
+    if length(object_ids_with_type) == 1
+      changed = false
+      for direction in ["left", "right", "up", "down"]
+        event_times = findall(event -> event == direction, user_events)
+        for object_id in object_ids_with_type
+          other_object_ids = filter(id -> id != object_id, object_ids_with_type)
     
-          trajectory = matrix[object_id, :]
-          direction_update_at_every_time = foldl(&, map(list -> occursin("""$(x) $(y) "darkgray")""", join(list, "")), trajectory), init=true)
-          for event_time in event_times 
-            direction_update_at_event_time = occursin("""$(x) $(y) "darkgray")""", join(trajectory[event_time], ""))
-    
-            deltas = [(!isnothing(object_mapping[id][event_time]) && 
-                       !isnothing(object_mapping[id][event_time + 1]) &&
-                       (object_mapping[id][event_time].position != object_mapping[id][event_time + 1].position)) 
-                       for id in other_object_ids]
-    
-            if direction_update_at_event_time && !direction_update_at_every_time && !(1 in deltas)
-              new_matrix[object_id, event_time] = filter(rule -> occursin("""$(x) $(y) "darkgray")""", rule), trajectory[event_time])
+          scalars = type_id in keys(type_displacements) ? type_displacements[type_id] : []
+          if scalars != []
+            scalar = abs(scalars[1]) 
+            if direction == "left"
+              x, y = (-scalar, 0)
+            elseif direction == "right"
+              x, y = (scalar, 0)
+            elseif direction == "up"
+              x, y = (0, -scalar)
+            else
+              x, y = (0, scalar)
+            end
+      
+            trajectory = matrix[object_id, :]
+            direction_update_at_every_time = foldl(&, map(list -> occursin("""$(x) $(y) "darkgray")""", join(list, "")), trajectory), init=true)
+            for event_time in event_times 
+              direction_update_at_event_time = occursin("""$(x) $(y) "darkgray")""", join(trajectory[event_time], ""))
+      
+              deltas = [(!isnothing(object_mapping[id][event_time]) && 
+                         !isnothing(object_mapping[id][event_time + 1]) &&
+                         (object_mapping[id][event_time].position != object_mapping[id][event_time + 1].position)) 
+                         for id in other_object_ids]
+      
+              if direction_update_at_event_time && !direction_update_at_every_time && !(1 in deltas)
+                new_matrix[object_id, event_time] = filter(rule -> occursin("""$(x) $(y) "darkgray")""", rule), trajectory[event_time])
+                changed = true                
+              end
             end
           end
         end
       end
+
+      if changed 
+        for object_id in object_ids_with_type 
+          for time in 1:(length(object_mapping[object_id]) - 1)
+            if !(user_events[time] in ["left", "right", "up", "down"]) && ("(= obj$(object_id) (prev obj$(object_id)))" in new_matrix[object_id, time])
+              new_matrix[object_id, time] = ["(= obj$(object_id) (prev obj$(object_id)))"]
+            end
+          end
+        end
+      end
+
+      push!(new_matrices, new_matrix)
     end
-    push!(new_matrices, new_matrix)
   end
   new_matrices
 end
@@ -1941,34 +1958,24 @@ function construct_filtered_matrices_pedro(matrix, object_decomposition, user_ev
 
   # initialize return value 
   filtered_matrices = []
-  
-  # bare-bones non-random matrix 
-  bare_bones_matrix_unfiltered = deepcopy(matrix)
-  for id in 1:size(matrix)[1]
-    for time in 1:size(matrix)[2]
-      bare_bones_matrix_unfiltered[id, time] = filter(rule -> !occursin("closest", rule), bare_bones_matrix_unfiltered[id, time])
-    end
-  end
-  bare_bones_matrix = construct_filtered_matrices(bare_bones_matrix_unfiltered, object_decomposition, user_events)[1]
-  push!(filtered_matrices, bare_bones_matrix)
-
-  # standard top non-random matrix
-  standard_non_random_matrix = construct_filtered_matrices(matrix, object_decomposition, user_events)[1]
-  push!(filtered_matrices, standard_non_random_matrix)
 
   # add direction-bias-filtered matrix to filtered_matrices 
   pre_filtered_matrices = pre_filter_with_direction_biases(deepcopy(matrix), user_events, object_decomposition)
   for m in pre_filtered_matrices
     push!(filtered_matrices, filter_update_function_matrix_multiple(m, object_decomposition, multiple=false)...)
   end
+  
 
   # regularity matrices: non-random and random (type-level)
   for type in object_types 
     if !(type.color in ["darkgray", "darkblue"])
       ids_with_type = filter(id -> filter(obj -> !isnothing(obj), object_mapping[id])[1].type.id == type.id, collect(keys(object_mapping)))
       object_positions = unique(vcat(map(id -> map(o -> o.position, filter(obj -> !isnothing(obj), object_mapping[id])), ids_with_type)...))
+      @show type.id
+      @show object_positions 
       if length(object_positions) > 1 
         regularity_matrix, regularity_unformatted_matrix = construct_regularity_matrix(matrix, unformatted_matrix, object_decomposition, type.id)
+        @show regularity_matrix
         if !isnothing(regularity_matrix)
           # non-random 
           non_random_regularity_matrix = construct_filtered_matrices(regularity_matrix, object_decomposition, user_events)[1]        
@@ -1984,6 +1991,20 @@ function construct_filtered_matrices_pedro(matrix, object_decomposition, user_ev
       end
     end
   end
+  
+  # bare-bones non-random matrix 
+  bare_bones_matrix_unfiltered = deepcopy(matrix)
+  for id in 1:size(matrix)[1]
+    for time in 1:size(matrix)[2]
+      bare_bones_matrix_unfiltered[id, time] = filter(rule -> !occursin("closest", rule), bare_bones_matrix_unfiltered[id, time])
+    end
+  end
+  bare_bones_matrix = construct_filtered_matrices(bare_bones_matrix_unfiltered, object_decomposition, user_events)[1]
+  push!(filtered_matrices, bare_bones_matrix)
+
+  # standard top non-random matrix
+  standard_non_random_matrix = construct_filtered_matrices(matrix, object_decomposition, user_events)[1]
+  push!(filtered_matrices, standard_non_random_matrix)
 
   # fully random (type-level)
   for type in object_types 
@@ -2063,8 +2084,8 @@ function construct_regularity_matrix(matrix, unformatted_matrix, object_decompos
         @show all_nonzero_disp_times
         for time in 1:(length(object_mapping[id]) - 1)
           if !(time in all_nonzero_disp_times) && (new_matrix[id, time] != [""])
-            new_matrix[id, time] = filter(r -> !occursin("NoCollision", r) && !occursin("closest", r), new_matrix[id, time]) # keep only the no-change rule 
-            new_unformatted_matrix[id, time] = filter(r -> !occursin("NoCollision", r) && !occursin("closest", r), new_unformatted_matrix[id, time]) # keep only the no-change rule
+            new_matrix[id, time] = filter(r -> !occursin("NoCollision", r), new_matrix[id, time]) # keep only the no-change rule 
+            new_unformatted_matrix[id, time] = filter(r -> !occursin("NoCollision", r), new_unformatted_matrix[id, time]) # keep only the no-change rule
           end
         end
       end

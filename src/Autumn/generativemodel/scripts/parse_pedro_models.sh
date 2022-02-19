@@ -1,12 +1,18 @@
 #!/bin/bash
 
-game_names=("Aliens"
-            "Antagonist"
-            "Avoidgeorge"
-            "Butterflies"
-            "bees_and_birds"
-            "Plaqueattack")
+# game_names=("Aliens"
+#             "Antagonist"
+#             "Avoidgeorge"
+#             "Butterflies"
+#             "bees_and_birds"
+#             "Plaqueattack")
 
+game_names=("Boulderdash"
+            "Corridor"
+            "Chase"
+            "Helper"
+            "closing_gates"
+            "Bait")
 
 for game_name in ${game_names[@]}
 do
