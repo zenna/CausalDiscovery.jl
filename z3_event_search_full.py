@@ -109,8 +109,8 @@ for i in range(len(object_ids)):
 
   parens_1 = x & (y | z) == matching_value # 11
   parens_2 = w & x & (y | z) == matching_value # 12
-  parens_3 = w & (x | y | z) == matching_value # 13
-  parens_4 = w & (x | y & z) == matching_value # 14
+  parens_3 = w & (x | y | z) == matching_value # 14
+  parens_4 = w & (x | y & z) == matching_value # 13
 
   if option == 1:
     s.add(x_and_y)
@@ -136,9 +136,9 @@ for i in range(len(object_ids)):
     s.add(parens_1)
   elif option == 12:
     s.add(parens_2)
-  elif option == 13:
-    s.add(parens_3)
   elif option == 14:
+    s.add(parens_3)
+  elif option == 13:
     s.add(parens_4)
 
 # search for event with length less than shortest_length

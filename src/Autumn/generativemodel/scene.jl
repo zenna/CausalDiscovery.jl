@@ -269,19 +269,34 @@ function program_string_synth(types_and_objects)
 end
 
 function program_string_synth_update_rule(types_and_objects)
-  types, objects, background, gridsize = types_and_objects 
-  """ 
-  (program
-    (= GRID_SIZE $(gridsize isa Int ? gridsize : "(list $(gridsize[1]) $(gridsize[2]))"))
-    (= background "$(background)")
-    $(join(map(t -> "(object ObjType$(t.id) $(join(map(tuple -> "(: $(tuple[1]) $(tuple[2]))", t.custom_fields), " ")) (list $(join(map(cell -> """(Cell $(cell[1]) $(cell[2]) $(t.custom_fields == [] ? """ "$(t.color)" """ : "color"))""", t.shape), " "))))", types), "\n  "))
-
-    $((join(map(obj -> """(: obj$(obj.id) ObjType$(obj.type.id))""", objects), "\n  "))...)
-
-    $((join(map(obj -> obj.position != (-1, -1) ? """(= obj$(obj.id) (initnext (ObjType$(obj.type.id) $(join(map(v -> """ "$(v)" """, obj.custom_field_values), " ")) (Position $(obj.position[1]) $(obj.position[2]))) (prev obj$(obj.id))))"""
-                                                : """(= obj$(obj.id) (initnext (removeObj (ObjType$(obj.type.id) $(join(map(v -> """ "$(v)" """, obj.custom_field_values), " ")) (Position $(obj.position[1]) $(obj.position[2])))) (prev obj$(obj.id))))""", objects), "\n  ")))
-  )
-  """
+  types, objects, background, gridsize = types_and_objects
+  if length(types[1].shape) >= 100 
+    """ 
+    (program
+      (= GRID_SIZE $(gridsize isa Int ? gridsize : "(list $(gridsize[1]) $(gridsize[2]))"))
+      (= background "$(background)")
+      $(join(map(t -> "(object ObjType$(t.id) $(join(map(tuple -> "(: $(tuple[1]) $(tuple[2]))", t.custom_fields), " ")) (map (--> pos (Cell pos $(t.custom_fields == [] ? """ "$(t.color)" """ : "color"))) (rect (Position $(t.shape[1][1]) $(t.shape[1][2])) (Position $(t.shape[end][1]) $(t.shape[end][2])))))", types), "\n  "))
+  
+      $((join(map(obj -> """(: obj$(obj.id) ObjType$(obj.type.id))""", objects), "\n  "))...)
+  
+      $((join(map(obj -> obj.position != (-1, -1) ? """(= obj$(obj.id) (initnext (ObjType$(obj.type.id) $(join(map(v -> """ "$(v)" """, obj.custom_field_values), " ")) (Position $(obj.position[1]) $(obj.position[2]))) (prev obj$(obj.id))))"""
+                                                  : """(= obj$(obj.id) (initnext (removeObj (ObjType$(obj.type.id) $(join(map(v -> """ "$(v)" """, obj.custom_field_values), " ")) (Position $(obj.position[1]) $(obj.position[2])))) (prev obj$(obj.id))))""", objects), "\n  ")))
+    )
+    """
+  else
+    """ 
+    (program
+      (= GRID_SIZE $(gridsize isa Int ? gridsize : "(list $(gridsize[1]) $(gridsize[2]))"))
+      (= background "$(background)")
+      $(join(map(t -> "(object ObjType$(t.id) $(join(map(tuple -> "(: $(tuple[1]) $(tuple[2]))", t.custom_fields), " ")) (list $(join(map(cell -> """(Cell $(cell[1]) $(cell[2]) $(t.custom_fields == [] ? """ "$(t.color)" """ : "color"))""", t.shape), " "))))", types), "\n  "))
+  
+      $((join(map(obj -> """(: obj$(obj.id) ObjType$(obj.type.id))""", objects), "\n  "))...)
+  
+      $((join(map(obj -> obj.position != (-1, -1) ? """(= obj$(obj.id) (initnext (ObjType$(obj.type.id) $(join(map(v -> """ "$(v)" """, obj.custom_field_values), " ")) (Position $(obj.position[1]) $(obj.position[2]))) (prev obj$(obj.id))))"""
+                                                  : """(= obj$(obj.id) (initnext (removeObj (ObjType$(obj.type.id) $(join(map(v -> """ "$(v)" """, obj.custom_field_values), " ")) (Position $(obj.position[1]) $(obj.position[2])))) (prev obj$(obj.id))))""", objects), "\n  ")))
+    )
+    """
+  end
 end
 
 function program_string_synth_standard_groups(object_decomposition)
@@ -303,24 +318,43 @@ function program_string_synth_standard_groups(object_decomposition)
   start_constants_and_lists = sort(start_constants_and_lists, by=x -> x isa Array ? x[1].id : x.id)
 
   other_list_types = filter(k -> (length(start_type_mapping[k]) == 0) || (length(start_type_mapping[k]) == 1 && num_objects_with_type[k] == 1), sort(collect(keys(start_type_mapping))))
-
-  """ 
-  (program
-    (= GRID_SIZE $(gridsize isa Int ? gridsize : "(list $(gridsize[1]) $(gridsize[2]))"))
-    (= background "$(background)")
-    $(join(map(t -> "(object ObjType$(t.id) $(join(map(tuple -> "(: $(tuple[1]) $(tuple[2]))", t.custom_fields), " ")) (list $(join(map(cell -> """(Cell $(cell[1]) $(cell[2]) $(filter(tuple -> tuple[1] == "color", t.custom_fields) == [] ? """ "$(t.color)" """ : "color"))""", t.shape), " "))))", object_types), "\n  "))
-
-    $((join(map(obj -> obj isa Array ? """(: addedObjType$(obj[1].type.id)List (List ObjType$(obj[1].type.id)))""" 
-                                     : """(: obj$(obj.id) ObjType$(obj.type.id))""", start_constants_and_lists), "\n  "))...)
-
-    $((join(map(k -> """(: addedObjType$(k)List (List ObjType$(k)))""", other_list_types), "\n  "))...)
-
-    $((join(map(obj -> obj isa Array ? """(= addedObjType$(obj[1].type.id)List (initnext (list $(join(map(x -> "(ObjType$(x.type.id) $(join(map(v -> v isa String ? """ "$(v)" """ : "$(v)", x.custom_field_values), " ")) (Position $(x.position[1]) $(x.position[2])))", obj), " "))) (prev addedObjType$(obj[1].type.id)List)))"""
-                                     : """(= obj$(obj.id) (initnext (ObjType$(obj.type.id) $(join(map(v -> v isa String ? """ "$(v)" """ : "$(v)", obj.custom_field_values), " ")) (Position $(obj.position[1]) $(obj.position[2]))) (prev obj$(obj.id))))""", start_constants_and_lists), "\n  ")))
-    
-    $(join(map(k -> """(= addedObjType$(k)List (initnext (list) (prev addedObjType$(k)List)))""", other_list_types), "\n  ")...)
-  )
-  """
+  if length(object_types[1].shape) >= 100 
+    """ 
+    (program
+      (= GRID_SIZE $(gridsize isa Int ? gridsize : "(list $(gridsize[1]) $(gridsize[2]))"))
+      (= background "$(background)")
+      $(join(map(t -> "(object ObjType$(t.id) $(join(map(tuple -> "(: $(tuple[1]) $(tuple[2]))", t.custom_fields), " ")) (map (--> pos (Cell pos $(t.custom_fields == [] ? """ "$(t.color)" """ : "color"))) (rect (Position $(t.shape[1][1]) $(t.shape[1][2])) (Position $(t.shape[end][1]) $(t.shape[end][2])))))", object_types), "\n  "))
+  
+      $((join(map(obj -> obj isa Array ? """(: addedObjType$(obj[1].type.id)List (List ObjType$(obj[1].type.id)))""" 
+                                       : """(: obj$(obj.id) ObjType$(obj.type.id))""", start_constants_and_lists), "\n  "))...)
+  
+      $((join(map(k -> """(: addedObjType$(k)List (List ObjType$(k)))""", other_list_types), "\n  "))...)
+  
+      $((join(map(obj -> obj isa Array ? """(= addedObjType$(obj[1].type.id)List (initnext (list $(join(map(x -> "(ObjType$(x.type.id) $(join(map(v -> v isa String ? """ "$(v)" """ : "$(v)", x.custom_field_values), " ")) (Position $(x.position[1]) $(x.position[2])))", obj), " "))) (prev addedObjType$(obj[1].type.id)List)))"""
+                                       : """(= obj$(obj.id) (initnext (ObjType$(obj.type.id) $(join(map(v -> v isa String ? """ "$(v)" """ : "$(v)", obj.custom_field_values), " ")) (Position $(obj.position[1]) $(obj.position[2]))) (prev obj$(obj.id))))""", start_constants_and_lists), "\n  ")))
+      
+      $(join(map(k -> """(= addedObjType$(k)List (initnext (list) (prev addedObjType$(k)List)))""", other_list_types), "\n  ")...)
+    )
+    """
+  else
+    """ 
+    (program
+      (= GRID_SIZE $(gridsize isa Int ? gridsize : "(list $(gridsize[1]) $(gridsize[2]))"))
+      (= background "$(background)")
+      $(join(map(t -> "(object ObjType$(t.id) $(join(map(tuple -> "(: $(tuple[1]) $(tuple[2]))", t.custom_fields), " ")) (list $(join(map(cell -> """(Cell $(cell[1]) $(cell[2]) $(filter(tuple -> tuple[1] == "color", t.custom_fields) == [] ? """ "$(t.color)" """ : "color"))""", t.shape), " "))))", object_types), "\n  "))
+  
+      $((join(map(obj -> obj isa Array ? """(: addedObjType$(obj[1].type.id)List (List ObjType$(obj[1].type.id)))""" 
+                                       : """(: obj$(obj.id) ObjType$(obj.type.id))""", start_constants_and_lists), "\n  "))...)
+  
+      $((join(map(k -> """(: addedObjType$(k)List (List ObjType$(k)))""", other_list_types), "\n  "))...)
+  
+      $((join(map(obj -> obj isa Array ? """(= addedObjType$(obj[1].type.id)List (initnext (list $(join(map(x -> "(ObjType$(x.type.id) $(join(map(v -> v isa String ? """ "$(v)" """ : "$(v)", x.custom_field_values), " ")) (Position $(x.position[1]) $(x.position[2])))", obj), " "))) (prev addedObjType$(obj[1].type.id)List)))"""
+                                       : """(= obj$(obj.id) (initnext (ObjType$(obj.type.id) $(join(map(v -> v isa String ? """ "$(v)" """ : "$(v)", obj.custom_field_values), " ")) (Position $(obj.position[1]) $(obj.position[2]))) (prev obj$(obj.id))))""", start_constants_and_lists), "\n  ")))
+      
+      $(join(map(k -> """(= addedObjType$(k)List (initnext (list) (prev addedObjType$(k)List)))""", other_list_types), "\n  ")...)
+    )
+    """
+  end
 end
 
 function program_string_synth_custom_groups(object_decomposition, group_structure)
@@ -977,10 +1011,10 @@ function parsescene_autumn_pedro_multicell_given_types(render_output, object_typ
   # reassign types to objects 
   new_objects = []
   for object in objects 
-    type = filter(t -> t.color == object.type.color, types)[1]
+    type = filter(t -> t.color == object.type.color, object_types)[1]
     push!(new_objects, Obj(type, object.position, [], object.id))
   end
-  (types, new_objects, background, gridsize) 
+  (object_types, new_objects, background, gridsize) 
 end
 
 function neighbors_pedro(shape::AbstractArray)
@@ -991,11 +1025,12 @@ end
 function neighbors_pedro(position)
   x = position[1]
   y = position[2]
-  [(x + 30, y), (x - 30, y), (x, y + 30), (x, y - 30)]
+  [(x + 10, y), (x - 10, y), (x, y + 10), (x, y - 10)]
 end
 
 
 function parsescene_autumn_pedro(render_output, gridsize=16, background::String="white")
+  println("parsescene_autumn_pedro")
   dim = gridsize[1]
   objectshapes = []
   
@@ -1011,8 +1046,8 @@ function parsescene_autumn_pedro(render_output, gridsize=16, background::String=
     min_y = render_output_copy[1].position.x
     color = render_output_copy[1].color
 
-    shape = render_output_copy[1:900]
-    render_output_copy = render_output_copy[901:end]
+    shape = render_output_copy[1:100]
+    render_output_copy = render_output_copy[101:end]
 
     shape = map(cell -> ((cell.position.x, cell.position.y), cell.color), shape)
     push!(objectshapes, shape)    
