@@ -1683,12 +1683,15 @@ function generate_observations_pedro_interface(game_name)
     objects = observation_raw["objects"]
     colors = collect(keys(objects))
     for color in colors 
+      @show color 
       object_ids = collect(keys(objects[color]))
+      @show object_ids
       for id in object_ids
-        origin_x = Int(round(objects[color][id]["x"] * 1.5))
-        origin_y = Int(round(objects[color][id]["y"] * 1.5))
-        for d_x in 0:29
-          for d_y in 0:29
+        @show id
+        origin_x = Int(round(objects[color][id]["x"] * 0.5))
+        origin_y = Int(round(objects[color][id]["y"] * 0.5))
+        for d_x in 0:9
+          for d_y in 0:9
             x = origin_x + d_x 
             y = origin_y + d_y 
             push!(observation, Autumn.AutumnStandardLibrary.Cell(x, y, lowercase(color)))
@@ -1710,5 +1713,7 @@ function generate_observations_pedro_interface(game_name)
     push!(user_events, event)
   end
 
-  observations, user_events[1:end-1], map(x -> Int(round(x)), grid_size .* 1.5)
+  observations = map(obs -> map(c -> c.color == "black" ? Autumn.AutumnStandardLibrary.Cell(c.position, "darkgray") : c, obs), observations)
+
+  observations, user_events[1:end-1], map(x -> Int(round(x)), grid_size .* 0.5)
 end
