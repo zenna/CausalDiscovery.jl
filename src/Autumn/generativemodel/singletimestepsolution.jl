@@ -208,7 +208,7 @@ function synthesize_update_functions(object_id, time, object_decomposition, user
     # # println("HELLO")
     # # # @show prev_objects
     prev_objects_not_listed = filter(x -> !isnothing(object_mapping[x.id][1]) && count(k -> filter(y -> !isnothing(y), object_mapping[k])[1].type.id == x.type.id, collect(keys(object_mapping))) == 1, prev_objects)
-    abstracted_positions, prev_abstract_positions = abstract_position(next_object.position, prev_abstract_positions, user_events[time - 1], (object_types, sort(prev_objects_not_listed, by = x -> x.id), background, grid_size), pedro)
+    abstracted_positions, prev_abstract_positions = abstract_position(next_object.position, prev_abstract_positions, user_events[time - 1], (object_types, sort(prev_objects_not_listed, by = x -> x.id), background, grid_size), object_mapping, time - 1, pedro)
     # abstracted_positions = [abstracted_positions..., "(uniformChoice (randomPositions $(grid_size) 1))"]
     
     # add uniformChoice option
@@ -972,7 +972,7 @@ function has_dups(list::AbstractArray)
   length(unique(list)) != length(list) 
 end
 
-function abstract_position(position, prev_abstract_positions, user_event, object_decomposition, pedro=false, max_iters=100)
+function abstract_position(position, prev_abstract_positions, user_event, object_decomposition, object_mapping, time, pedro=false, max_iters=100)
   # # println("ABSTRACT POSITION")
   # # @show position 
   # # @show prev_abstract_positions 
@@ -1032,6 +1032,65 @@ function abstract_position(position, prev_abstract_positions, user_event, object
     global global_iters += 1
   end
 
+  # manually-checked abstract positions 
+  start_objects = map(k -> object_mapping[k][1], filter(key -> !isnothing(object_mapping[key][1]), collect(keys(object_mapping))))
+  non_list_objects = filter(x -> (count(y -> y.type.id == x.type.id, start_objects) == 1) && (count(obj_id -> filter(z -> !isnothing(z), object_mapping[obj_id])[1].type.id == x.type.id, collect(keys(object_mapping))) == 1), start_objects)
+  potential_object_types = filter(t -> t.color != "darkgray", object_types)
+  for object_type_1 in potential_object_types 
+    ids_with_type_1 = filter(id -> !isnothing(object_mapping[id][time]) && object_mapping[id][time].type.id == object_type_1.id, collect(keys(object_mapping)))
+    for object_type_2 in potential_object_types 
+      if object_type_1.id != object_type_2.id
+        ids_with_type_2 = filter(id -> !isnothing(object_mapping[id][time]) && object_mapping[id][time].type.id == object_type_2.id, collect(keys(object_mapping))) 
+        # check exact position matches 
+        type_2_objects_matching_ids = filter(id -> object_mapping[id][time].position == position &&
+                                                   filter(d -> abs(d[1]) + abs(d[2]) <= 20, map(id1 -> displacement(position, object_mapping[id1][time].position), ids_with_type_1)) != [], 
+                                             ids_with_type_2)
+
+        for id2 in type_2_objects_matching_ids 
+          contained_in_list = isnothing(object_mapping[ids_with_type_1[1]][1]) || (count(id -> (filter(x -> !isnothing(x), object_mapping[id]))[1].type.id == object_mapping[ids_with_type_1[1]][1].type.id, collect(keys(object_mapping))) > 1)
+          contained_in_list_id2 = isnothing(object_mapping[id2][1]) || (count(id -> (filter(x -> !isnothing(x), object_mapping[id]))[1].type.id == object_mapping[id2][1].type.id, collect(keys(object_mapping))) > 1)
+          if contained_in_list_id2 
+            if contained_in_list 
+              abstracted_expr = "(firstWithDefault (map (--> obj (.. obj origin)) (filter (--> obj (<= (distance (prev obj) (prev addedObjType$(object_type_1.id)List)) 20)) (prev addedObjType$(object_type_2.id)List))))"          
+            else
+              abstracted_expr = "(firstWithDefault (map (--> obj (.. obj origin)) (filter (--> obj (<= (distance (prev obj) (prev obj$(ids_with_type_1[1]))) 20)) (prev addedObjType$(object_type_2.id)List))))"
+            end
+          else
+            abstracted_expr = "(.. (prev obj$(ids_with_type_2[1])) origin)"
+          end
+          push!(solutions, abstracted_expr)
+        end
+ 
+        # check approximate position matches 
+        type_2_objects_matching_ids_prox = []
+        for scalar in type_displacements[object_type_2.id]
+          disps = [(0, scalar), (0, -scalar), (scalar, 0), (-scalar, 0)]
+          matches = filter(id -> displacement(object_mapping[id][time].position, position) in disps &&
+                                 filter(d -> abs(d[1]) + abs(d[2]) <= 20, map(id1 -> displacement(position, object_mapping[id1][time].position), ids_with_type_1)) != [], 
+                           ids_with_type_2)
+          push!(type_2_objects_matching_ids_prox, matches...)
+        end
+
+        for id2 in type_2_objects_matching_ids_prox
+          scalar = abs(sum([displacement(position, object_mapping[id2][time].position)...]))
+          contained_in_list = isnothing(object_mapping[ids_with_type_1[1]][1]) || (count(id -> (filter(x -> !isnothing(x), object_mapping[id]))[1].type.id == object_mapping[ids_with_type_1[1]][1].type.id, collect(keys(object_mapping))) > 1)
+          contained_in_list_id2 = isnothing(object_mapping[id2][1]) || (count(id -> (filter(x -> !isnothing(x), object_mapping[id]))[1].type.id == object_mapping[id2][1].type.id, collect(keys(object_mapping))) > 1)
+
+          if contained_in_list_id2 
+            if contained_in_list 
+              abstracted_expr = "(firstWithDefault (map (--> obj (.. obj origin)) (filter (--> obj (<= (distance (prev obj) (prev addedObjType$(object_type_1.id)List)) 20)) (prev addedObjType$(object_type_2.id)List))))"          
+            else
+              abstracted_expr = "(firstWithDefault (map (--> obj (.. obj origin)) (filter (--> obj (<= (distance (prev obj) (prev obj$(ids_with_type_1[1]))) 20)) (prev addedObjType$(object_type_2.id)List))))"
+            end
+          else
+            abstracted_expr = "(.. (prev obj$(ids_with_type_2[1])) origin)"
+          end
+          push!(solutions, "(move $(abstracted_expr) (uniformChoice (list (Position 0 $(scalar)) (Position 0 -$(scalar)) (Position $(scalar) 0) (Position -$(scalar) 0))))")
+        end
+
+      end
+    end
+  end
   solutions, prev_abstract_positions
 end
 
@@ -1915,7 +1974,7 @@ function construct_brownian_motion_matrix(matrix, unformatted_matrix, object_dec
     type_id = type.id 
     object_ids_with_type = filter(id -> filter(obj -> !isnothing(obj), object_mapping[id])[1].type.id == type_id, collect(keys(object_mapping)))
 
-    choices = map(rule -> replace(rule, "(= objX" => "")[1:end-1], filter(r -> !occursin("addObj", r), unique(vcat(map(id -> vcat(filtered_unformatted_matrix[id, :]...), object_ids_with_type)...))))
+    choices = map(rule -> replace(rule, "(= objX" => "")[1:end-1], filter(r -> !occursin("addObj", r) && !occursin("removeObj", r), unique(vcat(map(id -> vcat(filtered_unformatted_matrix[id, :]...), object_ids_with_type)...))))
     formatted_choices = map(c -> "$(replace(c, "objX" => "(prev objX)"))", choices)
     formatted_random_choice = "(uniformChoice (list $(join(formatted_choices, " "))))"
   
@@ -1926,9 +1985,9 @@ function construct_brownian_motion_matrix(matrix, unformatted_matrix, object_dec
   
     for id in object_ids_with_type 
       for time in 1:length(matrix[id, :])
-        if contained_in_list && new_matrix[id, time][1] != "" && !occursin("addObj", new_matrix[id, time][1])
+        if contained_in_list && new_matrix[id, time][1] != "" && !occursin("addObj", new_matrix[id, time][1]) && !occursin("removeObj", new_matrix[id, time][1])
           new_matrix[id, time] = ["(= addedObjType$(type_id)List (updateObj addedObjType$(type_id)List (--> obj $(formatted_random_choice))) (--> obj (== (.. obj id) $(id))))"]
-        elseif !contained_in_list && new_matrix[id, time][1] != "" && !occursin("addObj", new_matrix[id, time][1])
+        elseif !contained_in_list && new_matrix[id, time][1] != "" && !occursin("addObj", new_matrix[id, time][1]) && !occursin("removeObj", new_matrix[id, time][1])
           new_matrix[id, time] = ["(= obj$(object_ids_with_type[1]) $(formatted_random_choice))"]
         end
       end
@@ -2077,7 +2136,7 @@ function construct_random_regularity_matrix(regularity_matrix, regularity_unform
   for type in regularity_types
     type_id = type.id 
     object_ids_with_type = filter(id -> filter(obj -> !isnothing(obj), object_mapping[id])[1].type.id == type_id, collect(keys(object_mapping)))
-    choices = filter(rule -> !occursin("objX objX", rule) && !occursin("closest", rule) && !occursin("addObj", rule), unique(vcat(vcat(map(id -> regularity_unformatted_matrix[id, :], object_ids_with_type)...)...)))
+    choices = filter(rule -> !occursin("objX objX", rule) && !occursin("closest", rule) && !occursin("addObj", rule) && !occursin("removeObj", rule), unique(vcat(vcat(map(id -> regularity_unformatted_matrix[id, :], object_ids_with_type)...)...)))
     formatted_choices = map(c -> replace(c, "(= objX " => "")[1:end - 1], choices)
     formatted_random_choice = """(uniformChoice (list $(join(map(c -> "$(replace(c, "objX" => "(prev obj)"))", formatted_choices), " "))))"""
   
@@ -2087,9 +2146,9 @@ function construct_random_regularity_matrix(regularity_matrix, regularity_unform
   
     for id in object_ids_with_type 
       for time in 1:length(matrix[id, :])
-        if contained_in_list && !occursin("--> obj (prev obj)", new_matrix[id, time][1]) && new_matrix[id, time][1] != "" && !occursin("addObj", new_matrix[id, time][1])
+        if contained_in_list && !occursin("--> obj (prev obj)", new_matrix[id, time][1]) && new_matrix[id, time][1] != "" && !occursin("addObj", new_matrix[id, time][1]) && !occursin("removeObj", new_matrix[id, time][1])  
           new_matrix[id, time] = ["(= addedObjType$(type_id)List (updateObj addedObjType$(type_id)List (--> obj $(formatted_random_choice))) (--> obj (== (.. obj id) $(id))))"]
-        elseif !contained_in_list && !occursin("", new_matrix[id, time][1]) && new_matrix[id, time][1] != "" && !occursin("addObj", new_matrix[id, time][1])  
+        elseif !contained_in_list && !occursin("", new_matrix[id, time][1]) && new_matrix[id, time][1] != "" && !occursin("addObj", new_matrix[id, time][1]) && !occursin("removeObj", new_matrix[id, time][1])  
           new_matrix[id, time] = ["(= obj$(object_ids_with_type[1]) $(formatted_random_choice))"]
         end
       end
@@ -2165,9 +2224,16 @@ function construct_regularity_matrix(matrix, unformatted_matrix, object_decompos
   end
 end
 
-function compute_regularity_interval_sizes(filtered_matrix, object_decomposition)
+function compute_regularity_interval_sizes(original_filtered_matrix, object_decomposition)
   object_types, object_mapping, _, _ = object_decomposition 
   interval_sizes = []
+
+  filtered_matrix = deepcopy(original_filtered_matrix)
+  for i in 1:size(filtered_matrix)[1]
+    for j in 1:size(filtered_matrix)[2]
+      filtered_matrix[i,j] = [replace(original_filtered_matrix[i, j][1], "id) $(i)" => "id) x")]
+    end
+  end
 
   # standard regularity intervals 
   for object_type in object_types 
@@ -2320,6 +2386,15 @@ function compute_source_objects(object_decomposition)
       end
       addObj_removeObj_data_dict[(type_id, source_type_id)] = (source_exists_event, state_based)
     end
+    
+    if removeObj_ids_prox != []
+      source_object_id = removeObj_ids_prox[1]
+      source_type_id = filter(obj -> !isnothing(obj), object_mapping[source_object_id])[1].type.id
+
+      source_exists_event = "true" 
+      addObj_removeObj_data_dict[(type_id, source_type_id)] = (source_exists_event, false)
+    end
+  
   end
   addObj_removeObj_data_dict
   
@@ -2646,7 +2721,7 @@ function generate_event(run_id, interval_offsets, source_exists_events_dict, ano
               program_str = string(program_str[1:end-1], state_update_on_clauses_str, ")")
             end
                       
-            # # println(program_str)
+            # println(program_str)
             global expr = parseautumn(program_str)
             # global expr = striplines(compiletojulia(parseautumn(program_str)))
             # ## # # # # @show expr

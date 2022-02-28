@@ -26,7 +26,7 @@ function generate_on_clauses_GLOBAL(run_id, matrix, unformatted_matrix, object_d
   # filtered_matrices = filtered_matrices[5:5]
   # filtered_matrices = filtered_matrices[2:2] # SOKOBAN
   filtered_matrices = filtered_matrices[1:1] # PRECONDITIONS, ALIENS
-  # filtered_matrices = filtered_matrices[1:1] # BEES AND BIRDS, ANTAGONIST 
+  # filtered_matrices = filtered_matrices[3:3] # BEES AND BIRDS, ANTAGONIST 
   # filtered_matrices = filtered_matrices[4:4] # CLOSING GATES
 
   @show length(filtered_matrices)
@@ -156,7 +156,7 @@ function generate_on_clauses_GLOBAL(run_id, matrix, unformatted_matrix, object_d
       for addObj_removeObj_pair in keys(source_exists_events_dict)
         addObj_type_id, removeObj_type_id = addObj_removeObj_pair
         source_exists_event, state_based = source_exists_events_dict[addObj_removeObj_pair]
-        addObj_update_functions = filter(u -> occursin("addObj addedObjType$(removeObj_type_id)List", u), all_state_based_update_functions)
+        addObj_update_functions = filter(u -> occursin("addObj addedObjType$(addObj_type_id)List", u), all_state_based_update_functions)
         if addObj_update_functions != []
           ids_with_removeObj_type_id = filter(id -> filter(obj -> !isnothing(obj), object_mapping[id])[1].type.id == removeObj_type_id, collect(keys(object_mapping)))
           removeObj_update_functions = filter(u -> occursin("removeObj addedObjType$(removeObj_type_id)List", u) || occursin("removeObj (prev obj$(ids_with_removeObj_type_id[1]))", u), all_state_based_update_functions)
@@ -264,7 +264,11 @@ function generate_on_clauses_GLOBAL(run_id, matrix, unformatted_matrix, object_d
             time_based_co_occurring_events = filter(e -> occursin("(prev time)", e), map(x -> x[1], co_occurring_events))
             if !isnothing(addObj_removeObj_pair)
               exists_event = source_exists_events_dict[addObj_removeObj_pair][1]
-              source_exists_co_occurring_events = filter(e -> e == exists_event, co_occurring_events)
+              if exists_event != "true"
+                source_exists_co_occurring_events = filter(e -> e == exists_event, map(x -> x[1], co_occurring_events))
+              else
+                source_exists_co_occurring_events = filter(e -> occursin("<= (distance", e), map(x -> x[1], co_occurring_events))
+              end
             else
               source_exists_co_occurring_events = []
             end
@@ -283,10 +287,12 @@ function generate_on_clauses_GLOBAL(run_id, matrix, unformatted_matrix, object_d
                 addObj_on_clause = "(on (== (uniformChoice (list 1 2 3 4 5 6 7 8 9 10)) 1)\n(let ($(update_function) $(removeObj_update_function))))"
               end
 
-              proximity_based_co_occurring_events = filter(e -> occursin("(<= (distance", e), co_occurring_events)
+              println("LOOK AT ME HERE")
+              @show co_occurring_events 
+              proximity_based_co_occurring_events = filter(e -> occursin("(<= (distance", e), map(x -> x[1], co_occurring_events))
               if occursin("firstWithDefault", addObj_on_clause) && proximity_based_co_occurring_events != []
                 parts = split(addObj_on_clause, "\n")
-                original_event = replace(part, "(on " => "")
+                original_event = replace(parts[1], "(on " => "")
                 new_event = "(& $(original_event) $(proximity_based_co_occurring_events[1]))"
                 addObj_on_clause = "(on $(new_event)\n$(parts[2])"          
               end

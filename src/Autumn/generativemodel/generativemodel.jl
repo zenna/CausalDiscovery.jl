@@ -184,16 +184,43 @@ function generate_hypothesis_positions(position, environment_vars, object_types,
   # @show length(objects)
   if length(objects) != 0
     if !pedro 
-      push!(choices, ["(.. $(rand(objects)) origin)",
-      "(move (.. $(rand(objects)) origin) (Position $(rand(-1:1)) $(rand(-1:1))))"]...)
+      for object in objects    
+        push!(choices, ["(.. $(rand(objects)) origin)",
+        "(move (.. $(rand(objects)) origin) (Position $(rand(-10:10)) $(rand(-10:10))))"]...)  
+      end
     else
-      push!(choices, ["(.. $(rand(objects)) origin)",
-      "(move (.. $(rand(objects)) origin) (Position $(rand(-10:10)) $(rand(-10:10))))"]...)
 
+      # for object in objects    
+      #   push!(choices, ["(.. $(rand(objects)) origin)",
+      #                   "(move (.. $(rand(objects)) origin) (Position $(rand(-10:10)) $(rand(-10:10))))"]...)
+        
+      #   # positions of or close to an object that is near other (singular) object 
+      #   for object_type in object_types 
+      #     abstracted_expr = "(firstWithDefault (map (--> obj (.. obj origin)) (filter (--> obj (<= (distance (prev obj) (prev obj$(object))) 20)) (prev addedObjType$(object_type.id)List))))"
+      #     push!(choices, abstracted_expr)                
+      #     for scalar in type_displacements[object_type.id]
+      #       disps = [(0, scalar), (0, -scalar), (scalar, 0), (-scalar, 0)]
+      #       for disp in disps 
+      #         push!(choices, "(move $(abstracted_expr) $(disp[1]) $(disp[2]))")
+      #       end            
+      #     end
+
+      #   end
+      # end
+
+      # # positions of or close to an object that is near other object type  
       # for object_type1 in object_types 
       #   for object_type2 in object_types 
-      #     if object_type1.id != object_type2.id 
-      #       push!(choices, "(firstWithDefault (map (--> obj (.. obj origin)) (filter (--> obj (<= (distance (prev obj) (prev addedObjType$(object_type1.id)List)) 20)) (prev addedObjType$(object_type2.id)List))))")
+      #     if object_type1.id != object_type2.id
+      #       abstracted_expr = "(firstWithDefault (map (--> obj (.. obj origin)) (filter (--> obj (<= (distance (prev obj) (prev addedObjType$(object_type1.id)List)) 20)) (prev addedObjType$(object_type2.id)List))))"
+      #       push!(choices, abstracted_expr)
+      #       for scalar in type_displacements[object_type2.id]
+      #         disps = [(0, scalar), (0, -scalar), (scalar, 0), (-scalar, 0)]
+      #         for disp in disps 
+      #           push!(choices, "(move $(abstracted_expr) $(disp[1]) $(disp[2]))")
+      #         end
+      #       end
+
       #     end
       #   end
       # end
@@ -293,6 +320,10 @@ function gen_event_bool_human_prior(object_decomposition, object_id, type_id, us
     offset, base_ = tuple 
     push!(choices, "(== (% (prev time) $(base_)) $(offset))")
   end
+
+  push!(choices, "(== (prev time) 199)")
+  push!(choices, "(== (prev time) 149)")
+  push!(choices, "(== (prev time) 224)")
 
   for key in collect(keys(source_exists_events_dict))
     exists_event, _ = source_exists_events_dict[key]
@@ -431,11 +462,15 @@ function gen_event_bool_human_prior(object_decomposition, object_id, type_id, us
       if object_type_1.id != object_type_2.id 
         push!(choices, "(intersects $(filtered_list) (prev addedObjType$(object_type_2.id)List))")
 
-        # # addObj-removeObj-related event
-        # ### global event version 
-        # push!(choices, "(!= (filter (--> obj (<= (distance (prev obj) (prev addedObjType$(object_type_1.id)List)) 20)) (prev addedObjType$(object_type_2.id)List)) (list))")
-        # ### object-specific event version 
-        # push!(choices, "(<= (distance $(filtered_list) (prev addedObjType$(object_type_2.id)List)) 20)))")
+        # addObj-removeObj-related event
+        ### global event version 
+        push!(choices, "(!= (filter (--> obj (<= (distance (prev obj) (prev addedObjType$(object_type_1.id)List)) 20)) (prev addedObjType$(object_type_2.id)List)) (list))")
+        ### object-specific event version 
+        push!(choices, "(<= (distance $(filtered_list) (prev addedObjType$(object_type_2.id)List)) 20)")
+
+        for o in non_list_objects 
+          push!(choices, "(<= (distance (prev obj$(o.id)) (prev addedObjType$(object_type_2.id)List)) 20)")
+        end
 
         for disp in displacements 
           push!(choices, "(intersects $(disp) (prev addedObjType$(object_type_2.id)List))")
