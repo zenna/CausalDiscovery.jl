@@ -321,6 +321,8 @@ function gen_event_bool_human_prior(object_decomposition, object_id, type_id, us
     push!(choices, "(== (% (prev time) $(base_)) $(offset))")
   end
 
+  push!(choices, "(== (% (prev time) 99) 100)")
+
   push!(choices, "(== (prev time) 199)")
   push!(choices, "(== (prev time) 149)")
   push!(choices, "(== (prev time) 224)")

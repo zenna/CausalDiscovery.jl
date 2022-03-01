@@ -1,5 +1,5 @@
 """On-clause generation, where we collect all unsolved (latent state dependent) on-clauses at the end"""
-function generate_on_clauses_GLOBAL(run_id, matrix, unformatted_matrix, object_decomposition, user_events, global_event_vector_dict, redundant_events_set, grid_size=16, desired_solution_count=1, desired_per_matrix_solution_count=1, interval_painting_param=false, sketch=false, z3_option="full", time_based=false, z3_timeout=0, sketch_timeout=0, co_occurring_param=false, transition_param=false, co_occurring_distinct=1, co_occurring_same=1, co_occurring_threshold=1, transition_distinct=1, transition_same=1, transition_threshold=1, num_transition_decisions=15, pedro=true)
+function generate_on_clauses_GLOBAL(run_id, matrix, unformatted_matrix, object_decomposition, user_events, global_event_vector_dict, redundant_events_set, grid_size=16, desired_solution_count=1, desired_per_matrix_solution_count=1, interval_painting_param=false, sketch=false, z3_option="partial", time_based=false, z3_timeout=0, sketch_timeout=0, co_occurring_param=false, transition_param=false, co_occurring_distinct=1, co_occurring_same=1, co_occurring_threshold=1, transition_distinct=1, transition_same=1, transition_threshold=1, num_transition_decisions=15, pedro=true)
   start_time = Dates.now()
   
   object_types, object_mapping, background, dim = object_decomposition
@@ -116,6 +116,9 @@ function generate_on_clauses_GLOBAL(run_id, matrix, unformatted_matrix, object_d
     #   state_based_update_functions_dict[type_id] = filter(u -> !(u in addObj_based_list), state_based_update_functions_dict[type_id])
     # end
 
+    double_removeObj_update_functions = compute_double_removeObj_objects(vcat(collect(values(state_based_update_functions_dict))...), 
+                                                                         observation_vectors_dict, 
+                                                                         filtered_matrix)
     # # add on-clauses for the state-based addObj with non-deterministic events
     # for addObj_update_function in addObj_based_list 
     #   addObj_on_clause = "(on (== (uniformChoice (list 1 2 3 4 5 6 7 8 9 10)) 1)\n$(addObj_update_function))"
@@ -162,6 +165,10 @@ function generate_on_clauses_GLOBAL(run_id, matrix, unformatted_matrix, object_d
           removeObj_update_functions = filter(u -> occursin("removeObj addedObjType$(removeObj_type_id)List", u) || occursin("removeObj (prev obj$(ids_with_removeObj_type_id[1]))", u), all_state_based_update_functions)
           push!(linked_removeObj_update_functions, removeObj_update_functions...)
         end
+      end
+
+      for pair in double_removeObj_update_functions 
+        push!(linked_removeObj_update_functions, pair[2])
       end
 
       # compute co-occurring event for each state-based update function 
@@ -308,7 +315,17 @@ function generate_on_clauses_GLOBAL(run_id, matrix, unformatted_matrix, object_d
             println("WOOT YAY")
             @show addObj_on_clause 
             @show on_clauses 
-            handled_via_special_addObj_rules = true              
+            handled_via_special_addObj_rules = true             
+          elseif update_function in vcat(double_removeObj_update_functions...)
+            proximity_based_co_occurring_events = filter(e -> occursin("(<= (distance", e), map(x -> x[1], co_occurring_events)) 
+            linked_update_function = filter(x -> x[1] == update_function, double_removeObj_update_functions)[2]
+            if proximity_based_co_occurring_events != [] 
+              removeObj_on_clause = "(on (& $(proximity_based_co_occurring_events[1]) (== (uniformChoice (list 1 2 3 4 5 6 7 8 9 10)) 1))\n$(update_function) $(linked_update_function))" 
+            else
+              removeObj_on_clause = "(on (== (uniformChoice (list 1 2 3 4 5 6 7 8 9 10)) 1)\n$(update_function) $(linked_update_function))"
+            end
+            push!(on_clauses, (removeObj_on_clause, update_function))
+            push!(on_clauses, (removeObj_on_clause, other_update_function))
           else
             false_positive_counts = sort(unique(map(x -> x[2], co_occurring_events)))
             false_positive_counts = false_positive_counts[1:min(length(false_positive_counts), co_occurring_distinct)]

@@ -2317,6 +2317,30 @@ function compute_source_objects_old(object_decomposition)
   source_objects_dict
 end
 
+function compute_double_removeObj_objects(all_update_functions, observation_vectors_dict, filtered_matrix)
+  removeObj_update_functions = filter(u -> occursin("removeObj", u), all_update_functions)
+  times_to_update_functions_dict = Dict()
+  for update_function in removeObj_update_functions
+    observation_values = observation_vectors_dict[update_function] 
+    if observation_values isa AbstractArray 
+      occurrence_times = findall(x -> x == 1, observation_values)
+    else
+      occurrence_times = unique(vcat(map(id -> findall(x -> x == 1, observation_values[id]), collect(keys(observation_values)))...))
+    end
+
+    if (length(occurrence_times) == 1) && occurrence_times[1] == size(filtered_matrix)[2]
+      time = occurrence_times[1]
+      if time in keys(times_to_update_functions_dict)
+        push!(times_to_update_functions_dict[time], update_function)
+      else
+        times_to_update_functions_dict[time] = [update_function]
+      end
+    end
+  end
+
+  map(k -> times_to_update_functions_dict[k], filter(t -> length(times_to_update_functions_dict[t]) == 2, collect(keys(times_to_update_functions_dict))))
+end
+
 function compute_source_objects(object_decomposition)
   object_types, object_mapping, _, _ = object_decomposition
   start_objects = sort(filter(obj -> obj != nothing, [object_mapping[i][1] for i in 1:length(collect(keys(object_mapping)))]), by=(x -> x.id))
@@ -2946,7 +2970,7 @@ function generate_event(run_id, interval_offsets, source_exists_events_dict, ano
       if length(found_events) < min_events 
         partial_param = (z3_option == "partial")
         @show anonymized_update_rule 
-        solution_event = z3_event_search_full(run_id, observation_data_dict, z3_event_vector_dict, partial_param, z3_timeout)
+        solution_event = z3_event_search_full(run_id, observation_data_dict, z3_event_vector_dict, redundant_events_set, partial_param, z3_timeout)
         if solution_event != "" 
           push!(found_events, solution_event)
           if occursin("obj id) x", solution_event)
@@ -3012,13 +3036,14 @@ function z3_event_search_partial(observed_data_dict, event_vector_dict, timeout=
   event
 end
 
-function z3_event_search_full(run_id, observed_data_dict, event_vector_dict, partial=false, timeout=0)
+function z3_event_search_full(run_id, observed_data_dict, event_vector_dict, redundant_events_set, partial=false, timeout=0)
   println("Z3_EVENT_SEARCH_FULL")
   @show length(collect(keys(event_vector_dict)))
   @show observed_data_dict 
   # @show event_vector_dict
   Pickle.store("./observed_data_dict_$(run_id).pkl", observed_data_dict)
   Pickle.store("./event_vector_dict_$(run_id).pkl", event_vector_dict)
+  Pickle.store("./redundant_events_set_$(run_id).pkl", event_vector_dict)
 
   # activate autumn environment containing z3
   # command = "conda activate autumn"
