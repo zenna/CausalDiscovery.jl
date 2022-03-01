@@ -2038,8 +2038,8 @@ function construct_filtered_matrices_pedro(old_matrix, object_decomposition, use
     end
   end
 
-  # use only bare-bones options for agent object ("sqyliy")
-  agent_type = filter(t -> t.color == "sqyliy", object_types)[1]
+  # use only bare-bones options for agent object ("darkblue")
+  agent_type = filter(t -> t.color == "darkblue", object_types)[1]
   agent_id = filter(id -> filter(obj -> !isnothing(obj), object_mapping[id])[1].type.id == agent_type.id, collect(keys(object_mapping)))[1]
   for time in 1:size(matrix)[2]
     matrix[agent_id, time] = filter(r -> !occursin("closest", r), matrix[agent_id, time])
@@ -2058,7 +2058,7 @@ function construct_filtered_matrices_pedro(old_matrix, object_decomposition, use
   ## collect types that might behave with regularity
   potential_regularity_types = []
   for type in object_types 
-    if !(type.color in ["darkgray", "sqyliy"])
+    if !(type.color in ["darkgray", "darkblue"])
       ids_with_type = filter(id -> filter(obj -> !isnothing(obj), object_mapping[id])[1].type.id == type.id, collect(keys(object_mapping)))
       object_positions = unique(vcat(map(id -> map(o -> o.position, filter(obj -> !isnothing(obj), object_mapping[id])), ids_with_type)...))
       # @show type.id
@@ -2110,7 +2110,7 @@ function construct_filtered_matrices_pedro(old_matrix, object_decomposition, use
   ## collect types that seem to behave according to brownian motion
   potential_brownian_motion_types = []
   for type in object_types 
-    if !(type.color in ["darkgray", "sqyliy"])
+    if !(type.color in ["darkgray", "darkblue"])
       ids_with_type = filter(id -> filter(obj -> !isnothing(obj), object_mapping[id])[1].type.id == type.id, collect(keys(object_mapping)))
       object_positions = unique(vcat(map(id -> map(o -> o.position, filter(obj -> !isnothing(obj), object_mapping[id])), ids_with_type)...))
       if length(object_positions) > length(ids_with_type)
