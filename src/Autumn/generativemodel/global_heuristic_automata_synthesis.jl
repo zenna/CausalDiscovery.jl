@@ -5,6 +5,32 @@ function generate_on_clauses_GLOBAL(run_id, matrix, unformatted_matrix, object_d
   object_types, object_mapping, background, dim = object_decomposition
   solutions = []
 
+    # construct type_displacements
+    for type in object_types 
+      type_displacements[type.id] = []
+    end
+    
+    for object_type in object_types 
+      type_id = object_type.id 
+      object_ids_with_type = filter(id -> filter(obj -> !isnothing(obj), object_mapping[id])[1].type.id == type_id, collect(keys(object_mapping)))
+  
+      for id in object_ids_with_type 
+        for time in 1:(length(object_mapping[id]) - 1)
+          if !isnothing(object_mapping[id][time]) && !isnothing(object_mapping[id][time + 1])
+            disp = displacement(object_mapping[id][time].position, object_mapping[id][time + 1].position)
+            if disp != (0, 0)
+              scalars = map(y -> abs(y), filter(x -> x != 0, [disp...]))
+              push!(type_displacements[type_id], scalars...)
+            end
+          end
+        end
+      end
+    end
+  
+    for type in object_types 
+      type_displacements[type.id] = unique(type_displacements[type.id])
+    end  
+
   # if pedro 
   #   # compute displacements from object_mapping 
   #   observed_displacements = compute_displacements(object_mapping)
@@ -24,7 +50,7 @@ function generate_on_clauses_GLOBAL(run_id, matrix, unformatted_matrix, object_d
 
   # filtered_matrices = filtered_matrices[22:22]
   # filtered_matrices = filtered_matrices[5:5]
-  # filtered_matrices = filtered_matrices[2:2] # SOKOBAN
+  # filtered_matrices = filtered_matrices[2:2] # SOKOBAN, PUSHBOULDERS
   filtered_matrices = filtered_matrices[1:1] # PRECONDITIONS, ALIENS
   # filtered_matrices = filtered_matrices[3:3] # BEES AND BIRDS, ANTAGONIST 
   # filtered_matrices = filtered_matrices[4:4] # CLOSING GATES
@@ -44,7 +70,7 @@ function generate_on_clauses_GLOBAL(run_id, matrix, unformatted_matrix, object_d
     filtered_matrix = filtered_matrices[filtered_matrix_index]
 
     interval_offsets = compute_regularity_interval_sizes(filtered_matrix, object_decomposition)
-    source_exists_events_dict = compute_source_objects(object_decomposition)
+    source_exists_events_dict = compute_source_objects(filtered_matrix, object_decomposition)
 
     # reset global_event_vector_dict and redundant_events_set for each new context:
     # remove events dealing with global or object-specific state
@@ -327,19 +353,52 @@ function generate_on_clauses_GLOBAL(run_id, matrix, unformatted_matrix, object_d
             push!(on_clauses, (removeObj_on_clause, update_function))
             push!(on_clauses, (removeObj_on_clause, other_update_function))
           else
-            false_positive_counts = sort(unique(map(x -> x[2], co_occurring_events)))
-            false_positive_counts = false_positive_counts[1:min(length(false_positive_counts), co_occurring_distinct)]
-            optimal_events = []
-            for false_positive_count in false_positive_counts 
-              events_with_count = map(e -> e[1], sort(filter(tup -> tup[2] == false_positive_count, co_occurring_events), by=t -> length(t[1])))
-              push!(optimal_events, events_with_count[1:min(length(events_with_count), co_occurring_same)]...)
+            
+            special_handling = false
+            if occursin("removeObj", update_function) && filter(e -> occursin("(<= (distance", e), map(x -> x[1], co_occurring_events)) != []
+              proximity_event = filter(e -> occursin("(<= (distance", e), map(x -> x[1], co_occurring_events))[1]
+              involved_types = []
+              
+              # search for substrings of the form "addedObjType$(type_id)List"
+              parts = filter(x -> x != "", split(proximity_event, "addedObjType"))
+              if parts != []
+                for part_index in 2:2:length(parts)
+                  proximity_id = parse(Int, split(parts[part_index], "List")[1]) 
+                  push!(involved_types, proximity_id)
+                end
+              end
+
+              # search for substrings of the form "obj$(id)"
+              singleton_object_match = match(r"obj\d+", proximity_event)
+              if !isnothing(singleton_object_match)
+                singleton_object_id = parse(Int, replace(singleton_object_match.match, "obj" => ""))
+                push!(involved_types, singleton_object_id)
+              end
+
+              if filter(type_id -> object_type_is_brownian(type_id, filtered_matrix, object_decomposition), involved_types) != [] 
+                removeObj_on_clause = "(on (& $(proximity_event) (== (uniformChoice (list 1 2 3 4 5 6 7 8 9 10)) 1))\n$(update_function))"
+                push!(on_clauses, (removeObj_on_clause, update_function))
+                special_handling = true
+              end
             end
-  
-            if type_id in keys(optimal_event_lists_dict) 
-              push!(optimal_event_lists_dict[type_id], (update_function, optimal_events))
-            else 
-              optimal_event_lists_dict[type_id] = [(update_function, optimal_events)]
+
+            if !special_handling 
+              false_positive_counts = sort(unique(map(x -> x[2], co_occurring_events)))
+              false_positive_counts = false_positive_counts[1:min(length(false_positive_counts), co_occurring_distinct)]
+              optimal_events = []
+              for false_positive_count in false_positive_counts 
+                events_with_count = map(e -> e[1], sort(filter(tup -> tup[2] == false_positive_count, co_occurring_events), by=t -> length(t[1])))
+                push!(optimal_events, events_with_count[1:min(length(events_with_count), co_occurring_same)]...)
+              end
+    
+              if type_id in keys(optimal_event_lists_dict) 
+                push!(optimal_event_lists_dict[type_id], (update_function, optimal_events))
+              else 
+                optimal_event_lists_dict[type_id] = [(update_function, optimal_events)]
+              end
             end
+            
+            
           end
 
           # best_co_occurring_events = sort(filter(e -> e[2] == minimum(map(x -> x[2], co_occurring_events)), co_occurring_events), by=z -> length(z[1]))

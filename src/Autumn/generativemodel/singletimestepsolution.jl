@@ -228,27 +228,35 @@ function synthesize_update_functions(object_id, time, object_decomposition, user
     end
 
     if pedro 
-      if type_displacements[next_object.type.id] != []
-        scalar = type_displacements[next_object.type.id][1]
-        pedro_matching_objects = filter(o -> next_object.position in [(o.position[1] + scalar, o.position[2]), 
-                                                                      (o.position[1] - scalar, o.position[2]), 
-                                                                      (o.position[1], o.position[2] + scalar), 
-                                                                      (o.position[1], o.position[2] - scalar),
-                                                                      (o.position[1], o.position[2])], prev_existing_objects)
+      for object_type in object_types 
+        
+        for scalar in type_displacements[object_type.id]
+          prev_existing_objects_of_type = filter(o -> o.type.id == object_type.id, prev_existing_objects)
 
-        if (pedro_matching_objects != []) && (isnothing(object_mapping[pedro_matching_objects[1].id][1]) || !(pedro_matching_objects[1].type.id in map(x -> x.id, prev_objects_not_listed))) 
-          first_matching_object = pedro_matching_objects[1]
-          disps = map(o -> (next_object.position[1] - o.position[1], next_object.position[2] - o.position[2]), [first_matching_object])      
-          abstracted_position = "(.. (uniformChoice $(join(map(disp -> "(map (--> obj (.. (move obj (Position $(disp[1]) $(disp[2]))) origin)) (prev addedObjType$(first_matching_object.type.id)List))", disps), " ")) ) origin)"
-          # # println("RANDOM ABSTRACTIONS!")
-          # @show abstracted_position 
-          push!(abstracted_positions, abstracted_position)
+          pedro_matching_objects = filter(o -> next_object.position in [(o.position[1] + scalar, o.position[2]), 
+                                                                        (o.position[1] - scalar, o.position[2]), 
+                                                                        (o.position[1], o.position[2] + scalar), 
+                                                                        (o.position[1], o.position[2] - scalar),
+                                                                        (o.position[1], o.position[2])], prev_existing_objects_of_type)
 
-          # disp = (next_object.position[1] - matching_object.position[1], next_object.position[2] - matching_object.position[2]) 
-          # pos = "(uniformChoice (map (--> obj (.. (move obj (Position $(disp[1]) $(disp[2]))) origin)) (filter (--> obj (== (.. obj id) $(matching_object.id))) (prev addedObjType$(matching_object.type.id)List))))"
+          if (pedro_matching_objects != []) && (isnothing(object_mapping[pedro_matching_objects[1].id][1]) || !(pedro_matching_objects[1].type.id in map(x -> x.id, prev_objects_not_listed))) 
+            # @show scalar 
+            # @show time
+            # @show pedro_matching_objects 
+            first_matching_object = pedro_matching_objects[1]
+            disps = map(o -> (next_object.position[1] - o.position[1], next_object.position[2] - o.position[2]), [first_matching_object])      
+            abstracted_position = "(.. (uniformChoice $(join(map(disp -> "(map (--> obj (.. (move obj (Position $(disp[1]) $(disp[2]))) origin)) (prev addedObjType$(first_matching_object.type.id)List))", disps), " ")) ) origin)"
+            # # println("RANDOM ABSTRACTIONS!")
+            # @show abstracted_position 
+            push!(abstracted_positions, abstracted_position)
+
+            # disp = (next_object.position[1] - matching_object.position[1], next_object.position[2] - matching_object.position[2]) 
+            # pos = "(uniformChoice (map (--> obj (.. (move obj (Position $(disp[1]) $(disp[2]))) origin)) (filter (--> obj (== (.. obj id) $(matching_object.id))) (prev addedObjType$(matching_object.type.id)List))))"
+          end
         end
 
       end
+    
     end
 
     if length(next_object.custom_field_values) > 0
@@ -256,8 +264,8 @@ function synthesize_update_functions(object_id, time, object_decomposition, user
         """(= addedObjType$(next_object.type.id)List (addObj addedObjType$(next_object.type.id)List (ObjType$(next_object.type.id) $(join(map(v -> """ "$(v)" """, next_object.custom_field_values), " ")) (Position $(next_object.position[1]) $(next_object.position[2])))))""",
       ]
 
-      # add randomPositions option
-      update_rules = vcat(update_rules..., "(= addedObjType$(next_object.type.id)List (addObj addedObjType$(next_object.type.id)List (map (--> pos (ObjType$(next_object.type.id) $(join(map(v -> """ "$(v)" """, next_object.custom_field_values), " ")) pos)) (randomPositions GRID_SIZE 1))))")
+      # # add randomPositions option
+      # update_rules = vcat(update_rules..., "(= addedObjType$(next_object.type.id)List (addObj addedObjType$(next_object.type.id)List (map (--> pos (ObjType$(next_object.type.id) $(join(map(v -> """ "$(v)" """, next_object.custom_field_values), " ")) pos)) (randomPositions GRID_SIZE 1))))")
       
       # perform string abstraction 
       abstracted_strings = [] # abstract_string(next_object.custom_field_values[1], (object_types, sort(prev_objects_not_listed, by = x -> x.id), background, grid_size))
@@ -285,7 +293,7 @@ function synthesize_update_functions(object_id, time, object_decomposition, user
       abstracted_positions)
 
       # add randomPositions option
-      update_rules = vcat(update_rules..., "(= addedObjType$(next_object.type.id)List (addObj addedObjType$(next_object.type.id)List (map (--> pos (ObjType$(next_object.type.id) pos)) (randomPositions GRID_SIZE 1))))")
+      # update_rules = vcat(update_rules..., "(= addedObjType$(next_object.type.id)List (addObj addedObjType$(next_object.type.id)List (map (--> pos (ObjType$(next_object.type.id) pos)) (randomPositions GRID_SIZE 1))))")
       
       update_rules = vcat(update_rules..., "(= addedObjType$(next_object.type.id)List (addObj addedObjType$(next_object.type.id)List (ObjType$(next_object.type.id) $(join(map(v -> """ "$(v)" """, next_object.custom_field_values), " ")) (Position $(next_object.position[1]) $(next_object.position[2])))))")
       update_rules, update_rules, prev_used_rules, prev_abstract_positions
@@ -389,14 +397,23 @@ function synthesize_update_functions(object_id, time, object_decomposition, user
             for desc in ["Left", "Right", "Up", "Down"]
               other_type_ids = filter(x -> x != type_id, type_ids)
               for other_type_id_1 in other_type_ids # closest w.r.t. single other type 
-                push!(prev_used_rules, "(= objX (move objX (closest$(desc) objX (list ObjType$(other_type_id_1)) $(unit_size))))")
+                push!(prev_used_rules, """(= objX (moveNoCollisionColor objX (closest$(desc) objX (list ObjType$(other_type_id_1)) $(unit_size)) "darkgray"))""")
                 for other_type_id_2 in other_type_ids # closest w.r.t. pair of other type's 
                   if other_type_id_1 < other_type_id_2 
-                    push!(prev_used_rules, "(= objX (move objX (closest$(desc) objX (list ObjType$(other_type_id_1) ObjType$(other_type_id_2)) $(unit_size))))")
+                    push!(prev_used_rules, """(= objX (moveNoCollisionColor objX (closest$(desc) objX (list ObjType$(other_type_id_1) ObjType$(other_type_id_2)) $(unit_size)) "darkgray"))""")
                   end
                 end
               end
             end
+
+            # add farthest-based update functions 
+            # unit_size = filter(x -> x != 0, [x_displacement, y_displacement]) != [] ? abs(filter(x -> x != 0, [x_displacement, y_displacement])[1]) : 1 
+            # for desc in ["Left", "Right", "Up", "Down"]
+            #   other_type_ids = filter(x -> x != type_id, type_ids)
+            #   for other_type_id_1 in other_type_ids # closest w.r.t. single other type 
+            #     push!(prev_used_rules, "(= objX (move objX (farthest$(desc) objX (list ObjType$(other_type_id_1)) $(unit_size))))")
+            #   end
+            # end
 
           end
         else # currently using assumption that dark gray blocks never move; this can also be learned by the synthesizer itself
@@ -1705,6 +1722,7 @@ function filter_update_function_matrix_multiple(matrix, object_decomposition; mu
   end
 
   for perm in 0:num_permutations
+    @show perm
     # bits = reverse(bitstring(perm))
     bits = join(Base.digits(perm, base = base, pad = 64), "")
     new_matrix = deepcopy(matrix)
@@ -2256,8 +2274,16 @@ function compute_regularity_interval_sizes(original_filtered_matrix, object_deco
         intervals = unique([addObj_times[i + 1] - addObj_times[i] for i in 1:(length(addObj_times) - 1)])
         if length(intervals) == 1 
           push!(interval_sizes, (addObj_times[1] - 1, intervals[1]))
+        else 
+          distinct_sizes = unique(intervals)
+          unit_size = gcd(distinct_sizes)
+          if unit_size != 1 && unit_size in distinct_sizes
+            # imperfect addObj-regularity intervals
+            push!(interval_sizes, (unit_size - 1, unit_size)) 
+          end
         end
       end 
+
     end
   end
 
@@ -2338,10 +2364,11 @@ function compute_double_removeObj_objects(all_update_functions, observation_vect
     end
   end
 
-  map(k -> times_to_update_functions_dict[k], filter(t -> length(times_to_update_functions_dict[t]) == 2, collect(keys(times_to_update_functions_dict))))
+  pairs = map(k -> times_to_update_functions_dict[k], filter(t -> length(times_to_update_functions_dict[t]) == 2, collect(keys(times_to_update_functions_dict))))
+  filter(p -> object_type_is_brownian(p[1], filtered_matrix, object_decomposition) || object_type_is_brownian(p[2], filtered_matrix, object_decomposition), pairs)
 end
 
-function compute_source_objects(object_decomposition)
+function compute_source_objects(filtered_matrix, object_decomposition)
   object_types, object_mapping, _, _ = object_decomposition
   start_objects = sort(filter(obj -> obj != nothing, [object_mapping[i][1] for i in 1:length(collect(keys(object_mapping)))]), by=(x -> x.id))
 
@@ -2416,12 +2443,21 @@ function compute_source_objects(object_decomposition)
       source_type_id = filter(obj -> !isnothing(obj), object_mapping[source_object_id])[1].type.id
 
       source_exists_event = "true" 
-      addObj_removeObj_data_dict[(type_id, source_type_id)] = (source_exists_event, false)
+      if object_type_is_brownian(type_id, filtered_matrix, object_decomposition) || object_type_is_brownian(source_type_id, filtered_matrix, object_decomposition)
+        addObj_removeObj_data_dict[(type_id, source_type_id)] = (source_exists_event, false)
+      end
+
     end
   
   end
   addObj_removeObj_data_dict
-  
+end
+
+function object_type_is_brownian(type_id, filtered_matrix, object_decomposition)
+  object_types, object_mapping, _, _ = object_decomposition
+
+  object_ids_with_type = filter(id -> filter(obj -> !isnothing(obj), object_mapping[id])[1].type.id == type_id, collect(keys(object_mapping)))
+  occursin("(uniformChoice (list", join(vcat(map(id -> vcat(filtered_matrix[id, :]...), object_ids_with_type)...), ""))
 end
 
 function is_on_boundary(object, grid_size)  
@@ -2704,6 +2740,7 @@ function generate_event(run_id, interval_offsets, source_exists_events_dict, ano
     for event in events_to_try 
       event_is_global = !occursin(".. obj id) x", event)
       anonymized_event = event # replace(event, ".. obj id) $(object_ids[1])" => ".. obj id) x")
+      @show event 
       # @show anonymized_event
       # # # @show type_id
       is_event_object_specific_with_correct_type = event_is_global || parse(Int, split(match(r".. obj id x prev addedObjType\dList", replace(replace(anonymized_event, ")" => ""), "(" => "")).match, "addedObjType")[2][1]) == type_id
@@ -2713,6 +2750,7 @@ function generate_event(run_id, interval_offsets, source_exists_events_dict, ano
       if is_event_object_specific_with_correct_type
         
         if !(anonymized_event in keys(event_vector_dict)) # || !(event_vector_dict[anonymized_event] isa AbstractArray) && intersect(object_ids, collect(keys(event_vector_dict[anonymized_event]))) == [] # event values are not stored
+          @show anonymized_event 
           if event_is_global # if the event is global, only need to evaluate the event on one object_id 
             event_object_ids = object_ids[1]
           else # otherwise, need to evaluate the event on all object_ids
@@ -2979,7 +3017,7 @@ function generate_event(run_id, interval_offsets, source_exists_events_dict, ano
             push!(final_event_globals, true)
           end
         else
-          _ = construct_compound_events(new_choices, event_vector_dict, redundant_events_set, object_decomposition)
+          # _ = construct_compound_events(new_choices, event_vector_dict, redundant_events_set, object_decomposition)
         end
       end
       break
@@ -3043,7 +3081,7 @@ function z3_event_search_full(run_id, observed_data_dict, event_vector_dict, red
   # @show event_vector_dict
   Pickle.store("./observed_data_dict_$(run_id).pkl", observed_data_dict)
   Pickle.store("./event_vector_dict_$(run_id).pkl", event_vector_dict)
-  Pickle.store("./redundant_events_set_$(run_id).pkl", event_vector_dict)
+  Pickle.store("./redundant_events_set_$(run_id).pkl", redundant_events_set)
 
   # activate autumn environment containing z3
   # command = "conda activate autumn"
@@ -3996,8 +4034,9 @@ function full_program(observations, user_events, matrix, grid_size=16; singlecel
   s = full_program_given_on_clauses(on_clauses, new_object_decomposition, global_var_dict, grid_size, matrix)
 end
 
-function format_on_clause_full_program(on_clause, object_decomposition, matrix) 
-  # @show on_clause 
+function format_on_clause_full_program(on_clause, object_decomposition, matrix)
+   
+  @show on_clause 
   object_types, object_mapping, background, _ = object_decomposition
   update_function = split(on_clause, "\n")[2][1:end-1]
   has_let = occursin("let", update_function)
@@ -4012,7 +4051,11 @@ function format_on_clause_full_program(on_clause, object_decomposition, matrix)
     object_type = filter(t -> t.id == type_id, object_types)[1]
     if "field1" in map(tuple -> tuple[1], object_type.custom_fields)
       object_ids_with_type = filter(id -> filter(obj -> !isnothing(obj), object_mapping[id])[1].type.id == type_id, collect(keys(object_mapping)))
-      corresponding_object_ids = filter(id -> update_function in vcat(matrix[id, :]...), object_ids_with_type)
+      if length(filter(x -> x != "", split(update_function, " (="))) > 1
+        corresponding_object_ids = filter(id -> split(update_function, " (=")[1] in vcat(matrix[id, :]...), object_ids_with_type)
+      else
+        corresponding_object_ids = filter(id -> update_function in vcat(matrix[id, :]...), object_ids_with_type)
+      end
 
       field_values = map(i -> filter(obj -> !isnothing(obj), object_mapping[i])[1].custom_field_values[end], filter(id -> isnothing(object_mapping[id][1]), corresponding_object_ids))
       field_value = field_values[1]
