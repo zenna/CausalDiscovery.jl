@@ -377,45 +377,77 @@ function synthesize_update_functions(object_id, time, object_decomposition, user
           y_displacement = next_object.position[2] - prev_object.position[2]
           displacement = (x_displacement, y_displacement)
           
-          if displacement == (0, 0)
+          if type_displacements[object_type.id] == [] 
             displacement_dict[displacement] = "(= objX objX)"
-            push!(prev_used_rules, "(= objX objX)")
-            for scalar in type_displacements[type_id]
-              disps_to_try = [(0, -scalar), (0, scalar), (scalar, 0), (-scalar, 0)]
-              for disp in disps_to_try
-                x, y = disp 
-                push!(prev_used_rules, """(= objX (moveNoCollisionColor objX $(x) $(y) "darkgray"))""")
+            push!(prev_used_rules, "(= objX objX)")            
+          else
+            if displacement == (0, 0)
+              displacement_dict[displacement] = "(= objX objX)"
+              push!(prev_used_rules, "(= objX objX)")
+              for scalar in type_displacements[type_id]
+                disps_to_try = [(0, -scalar), (0, scalar), (scalar, 0), (-scalar, 0)]
+                for disp in disps_to_try
+                  x, y = disp 
+                  push!(prev_used_rules, """(= objX (moveNoCollisionColor objX $(x) $(y) "darkgray"))""")
+                end
+  
+                # add closest-based update functions
+                for unit_size in type_displacements[object_type.id] 
+
+                  for desc in ["Left", "Right", "Up", "Down"]
+                    other_type_ids = filter(x -> x != type_id, type_ids)
+                    for other_type_id_1 in other_type_ids # closest w.r.t. single other type 
+                      push!(prev_used_rules, """(= objX (moveNoCollisionColor objX (closest$(desc) objX (list ObjType$(other_type_id_1)) $(unit_size)) "darkgray"))""")
+                      for other_type_id_2 in other_type_ids # closest w.r.t. pair of other type's 
+                        if other_type_id_1 < other_type_id_2 
+                          push!(prev_used_rules, """(= objX (moveNoCollisionColor objX (closest$(desc) objX (list ObjType$(other_type_id_1) ObjType$(other_type_id_2)) $(unit_size)) "darkgray"))""")
+                        end
+                      end
+                    end
+                  end
+    
+                  # add farthest-based update functions 
+                  for desc in ["Left", "Right", "Up", "Down"]
+                    other_type_ids = filter(x -> x != type_id, type_ids)
+                    for other_type_id_1 in other_type_ids # closest w.r.t. single other type 
+                      push!(prev_used_rules, """(= objX (moveNoCollisionColor objX (farthest$(desc) objX (list ObjType$(other_type_id_1)) $(unit_size)) "darkgray"))""")
+                    end
+                  end
+
+                end
               end
-            end
-          else # if observed displacement is nonzero, only need to to try a few options 
-            # push!(prev_used_rules, "(= objX (move objX $(x_displacement) $(y_displacement)))") 
-            # push!(prev_used_rules, "(= objX (moveNoCollision objX $(x_displacement) $(y_displacement)))")
-            push!(prev_used_rules, """(= objX (moveNoCollisionColor objX $(x_displacement) $(y_displacement) "darkgray"))""")
-          
-            # add closest-based update functions 
-            unit_size = filter(x -> x != 0, [x_displacement, y_displacement]) != [] ? abs(filter(x -> x != 0, [x_displacement, y_displacement])[1]) : 1 
-            for desc in ["Left", "Right", "Up", "Down"]
-              other_type_ids = filter(x -> x != type_id, type_ids)
-              for other_type_id_1 in other_type_ids # closest w.r.t. single other type 
-                push!(prev_used_rules, """(= objX (moveNoCollisionColor objX (closest$(desc) objX (list ObjType$(other_type_id_1)) $(unit_size)) "darkgray"))""")
-                for other_type_id_2 in other_type_ids # closest w.r.t. pair of other type's 
-                  if other_type_id_1 < other_type_id_2 
-                    push!(prev_used_rules, """(= objX (moveNoCollisionColor objX (closest$(desc) objX (list ObjType$(other_type_id_1) ObjType$(other_type_id_2)) $(unit_size)) "darkgray"))""")
+            else # if observed displacement is nonzero, only need to to try a few options 
+              # push!(prev_used_rules, "(= objX (move objX $(x_displacement) $(y_displacement)))") 
+              # push!(prev_used_rules, "(= objX (moveNoCollision objX $(x_displacement) $(y_displacement)))")
+              push!(prev_used_rules, """(= objX (moveNoCollisionColor objX $(x_displacement) $(y_displacement) "darkgray"))""")
+            
+              # add closest-based update functions 
+              unit_size = filter(x -> x != 0, [x_displacement, y_displacement]) != [] ? abs(filter(x -> x != 0, [x_displacement, y_displacement])[1]) : 1 
+              for desc in ["Left", "Right", "Up", "Down"]
+                other_type_ids = filter(x -> x != type_id, type_ids)
+                for other_type_id_1 in other_type_ids # closest w.r.t. single other type 
+                  push!(prev_used_rules, """(= objX (moveNoCollisionColor objX (closest$(desc) objX (list ObjType$(other_type_id_1)) $(unit_size)) "darkgray"))""")
+                  for other_type_id_2 in other_type_ids # closest w.r.t. pair of other type's 
+                    if other_type_id_1 < other_type_id_2 
+                      push!(prev_used_rules, """(= objX (moveNoCollisionColor objX (closest$(desc) objX (list ObjType$(other_type_id_1) ObjType$(other_type_id_2)) $(unit_size)) "darkgray"))""")
+                    end
                   end
                 end
               end
+  
+              # add farthest-based update functions 
+              unit_size = filter(x -> x != 0, [x_displacement, y_displacement]) != [] ? abs(filter(x -> x != 0, [x_displacement, y_displacement])[1]) : 1 
+              for desc in ["Left", "Right", "Up", "Down"]
+                other_type_ids = filter(x -> x != type_id, type_ids)
+                for other_type_id_1 in other_type_ids # closest w.r.t. single other type 
+                  push!(prev_used_rules, """(= objX (moveNoCollisionColor objX (farthest$(desc) objX (list ObjType$(other_type_id_1)) $(unit_size)) "darkgray"))""")
+                end
+              end
+  
             end
-
-            # add farthest-based update functions 
-            # unit_size = filter(x -> x != 0, [x_displacement, y_displacement]) != [] ? abs(filter(x -> x != 0, [x_displacement, y_displacement])[1]) : 1 
-            # for desc in ["Left", "Right", "Up", "Down"]
-            #   other_type_ids = filter(x -> x != type_id, type_ids)
-            #   for other_type_id_1 in other_type_ids # closest w.r.t. single other type 
-            #     push!(prev_used_rules, "(= objX (move objX (farthest$(desc) objX (list ObjType$(other_type_id_1)) $(unit_size))))")
-            #   end
-            # end
-
+  
           end
+
         else # currently using assumption that dark gray blocks never move; this can also be learned by the synthesizer itself
           push!(prev_used_rules, "(= objX objX)")
         end
@@ -444,9 +476,10 @@ function synthesize_update_functions(object_id, time, object_decomposition, user
         update_rule = generate_hypothesis_update_rule(prev_object, (object_types, prev_objects, background, grid_size), p=0.0) # "(= obj1 (moveDownNoCollision (moveDownNoCollision (prev obj1))))"
         # # println("IS THIS THE REAL LIFE")
         # # # @show update_rule 
-      end      
-      
-      if occursin("NoCollision", update_rule) || occursin("closest", update_rule) || occursin("nextLiquid", update_rule) || occursin("color", update_rule)
+      end 
+      # @show time      
+      # @show update_rule 
+      if occursin("NoCollision", update_rule) || occursin("closest", update_rule) || occursin("farthest", update_rule) || occursin("nextLiquid", update_rule) || occursin("color", update_rule)
         hypothesis_program = string(hypothesis_program[1:end-2], "\n\t (on true\n", update_rule, ")\n)")
         # println("HYPOTHESIS_PROGRAM")
         # println(prev_object)
@@ -476,7 +509,7 @@ function synthesize_update_functions(object_id, time, object_decomposition, user
           equals = false
         end        
       end
-
+      # @show equals 
       if equals
         if using_prev
           # # println("HOORAY")
@@ -523,6 +556,17 @@ function synthesize_update_functions(object_id, time, object_decomposition, user
           elseif occursin("closestDown", update_rule)
             update_rule = replace(update_rule, "closestDown" => "closestRandom")
           end
+
+          if occursin("farthestLeft", update_rule)
+            update_rule = replace(update_rule, "farthestLeft" => "farthestRandom")
+          elseif occursin("farthestRight", update_rule)
+            update_rule = replace(update_rule, "farthestRight" => "farthestRandom")
+          elseif occursin("farthestUp", update_rule)
+            update_rule = replace(update_rule, "farthestUp" => "farthestRandom")
+          elseif occursin("farthestDown", update_rule)
+            update_rule = replace(update_rule, "farthestDown" => "farthestRandom")
+          end
+
           # if !occursin("closestRandom", update_rule) || !occursin("closestRandom", join(solutions, "")) # true
           if contained_in_list # object was added later; contained in addedList
             update_rule_parts = split(update_rule, " ")
@@ -2043,24 +2087,24 @@ function construct_filtered_matrices_pedro(old_matrix, object_decomposition, use
     type_displacements[type.id] = unique(type_displacements[type.id])
   end
 
-  # set update function trajectory for all id's that never move to a constant (prev) vector 
-  matrix = deepcopy(old_matrix)
-  for id in collect(keys(object_mapping))
-    positions = unique(filter(pos -> !isnothing(pos), map(obj -> isnothing(obj) ? nothing : obj.position, object_mapping[id])))
-    if length(positions) == 1 
-      for time in 1:size(matrix)[2]
-        if matrix[id, time] != [""] && !occursin("addObj", join(matrix[id, time], "")) && !occursin("removeObj", join(matrix[id, time], ""))
-          matrix[id, time] = filter(r -> occursin("(--> obj (prev obj))", r) || occursin("(= obj$(id) (prev obj$(id)))", r), matrix[id, time])
-        end
-      end
-    end
-  end
+  # # set update function trajectory for all id's that never move to a constant (prev) vector 
+  # matrix = deepcopy(old_matrix)
+  # for id in collect(keys(object_mapping))
+  #   positions = unique(filter(pos -> !isnothing(pos), map(obj -> isnothing(obj) ? nothing : obj.position, object_mapping[id])))
+  #   if length(positions) == 1 
+  #     for time in 1:size(matrix)[2]
+  #       if matrix[id, time] != [""] && !occursin("addObj", join(matrix[id, time], "")) && !occursin("removeObj", join(matrix[id, time], ""))
+  #         matrix[id, time] = filter(r -> occursin("(--> obj (prev obj))", r) || occursin("(= obj$(id) (prev obj$(id)))", r), matrix[id, time])
+  #       end
+  #     end
+  #   end
+  # end
 
   # use only bare-bones options for agent object ("darkblue")
   agent_type = filter(t -> t.color == "darkblue", object_types)[1]
   agent_id = filter(id -> filter(obj -> !isnothing(obj), object_mapping[id])[1].type.id == agent_type.id, collect(keys(object_mapping)))[1]
   for time in 1:size(matrix)[2]
-    matrix[agent_id, time] = filter(r -> !occursin("closest", r), matrix[agent_id, time])
+    matrix[agent_id, time] = filter(r -> !occursin("closest", r) && !occursin("farthest", r), matrix[agent_id, time])
   end
 
   # initialize return value 
@@ -2111,7 +2155,7 @@ function construct_filtered_matrices_pedro(old_matrix, object_decomposition, use
   bare_bones_matrix_unfiltered = deepcopy(matrix)
   for id in 1:size(matrix)[1]
     for time in 1:size(matrix)[2]
-      bare_bones_matrix_unfiltered[id, time] = filter(rule -> !occursin("closest", rule), bare_bones_matrix_unfiltered[id, time]) != [] ? filter(rule -> !occursin("closest", rule), bare_bones_matrix_unfiltered[id, time]) : bare_bones_matrix_unfiltered[id, time] 
+      bare_bones_matrix_unfiltered[id, time] = filter(rule -> !occursin("closest", rule) && !occursin("farthest", rule), bare_bones_matrix_unfiltered[id, time]) != [] ? filter(rule -> !occursin("closest", rule) && !occursin("farthest", rule), bare_bones_matrix_unfiltered[id, time]) : bare_bones_matrix_unfiltered[id, time] 
     end
   end
   bare_bones_matrix = construct_filtered_matrices(bare_bones_matrix_unfiltered, object_decomposition, user_events)[1]
@@ -2154,7 +2198,7 @@ function construct_random_regularity_matrix(regularity_matrix, regularity_unform
   for type in regularity_types
     type_id = type.id 
     object_ids_with_type = filter(id -> filter(obj -> !isnothing(obj), object_mapping[id])[1].type.id == type_id, collect(keys(object_mapping)))
-    choices = filter(rule -> !occursin("objX objX", rule) && !occursin("closest", rule) && !occursin("addObj", rule) && !occursin("removeObj", rule), unique(vcat(vcat(map(id -> regularity_unformatted_matrix[id, :], object_ids_with_type)...)...)))
+    choices = filter(rule -> !occursin("objX objX", rule) && !occursin("closest", rule) && !occursin("farthest", rule) && !occursin("addObj", rule) && !occursin("removeObj", rule), unique(vcat(vcat(map(id -> regularity_unformatted_matrix[id, :], object_ids_with_type)...)...)))
     formatted_choices = map(c -> replace(c, "(= objX " => "")[1:end - 1], choices)
     formatted_random_choice = """(uniformChoice (list $(join(map(c -> "$(replace(c, "objX" => "(prev obj)"))", formatted_choices), " "))))"""
   
@@ -2215,16 +2259,34 @@ function construct_regularity_matrix(matrix, unformatted_matrix, object_decompos
         # regularity observed!
         changed = true
         interval_size = interval_sizes[1] + 1
-        @show interval_size 
+        @show interval_size
+        
+        all_nonzero_disp_times_across_ids = []
         for id in object_ids_with_type 
-          nonzero_disp_time = filter(t -> !isnothing(object_mapping[id][t]) && !isnothing(object_mapping[id][t + 1]) && displacement(object_mapping[id][t].position, object_mapping[id][t + 1].position) != (0, 0),  collect(1:(length(object_mapping[id]) - 1)))[1]
+          first_nonzero_disp_times = filter(t -> !isnothing(object_mapping[id][t]) && !isnothing(object_mapping[id][t + 1]) && displacement(object_mapping[id][t].position, object_mapping[id][t + 1].position) != (0, 0),  collect(1:(length(object_mapping[id]) - 1)))
+          if first_nonzero_disp_times != [] 
+            nonzero_disp_time = first_nonzero_disp_times[1]
+            all_nonzero_disp_times = filter(t -> t != 0, collect((nonzero_disp_time % interval_size):interval_size:(length(object_mapping[id]) - 1)))
+            push!(all_nonzero_disp_times_across_ids, all_nonzero_disp_times...)
+          end
+        end
+        unique!(all_nonzero_disp_times_across_ids)
+        @show all_nonzero_disp_times_across_ids
+        for id in object_ids_with_type 
+          @show id 
+          nonzero_disp_time = filter(t -> !isnothing(object_mapping[id][t]) && !isnothing(object_mapping[id][t + 1]) && displacement(object_mapping[id][t].position, object_mapping[id][t + 1].position) != (0, 0),  collect(1:(length(object_mapping[id]) - 1)))
+          if nonzero_disp_time == [] 
+            nonzero_disp_time = all_nonzero_disp_times_across_ids[1]
+          else
+            nonzero_disp_time = nonzero_disp_time[1]
+          end
           all_nonzero_disp_times = filter(t -> t != 0, collect((nonzero_disp_time % interval_size):interval_size:(length(object_mapping[id]) - 1)))
           @show all_nonzero_disp_times
           for time in 1:(length(object_mapping[id]) - 1)
             if (new_matrix[id, time] != [""])
               if !(time in all_nonzero_disp_times)
-                new_matrix[id, time] = filter(r -> !occursin("NoCollision", r) && !occursin("closest", r), new_matrix[id, time]) # keep only the no-change rule 
-                new_unformatted_matrix[id, time] = filter(r -> !occursin("NoCollision", r) && !occursin("closest", r), new_unformatted_matrix[id, time]) # keep only the no-change rule  
+                new_matrix[id, time] = filter(r -> !occursin("NoCollision", r) && !occursin("closest", r) && !occursin("farthest", r), new_matrix[id, time]) # keep only the no-change rule 
+                new_unformatted_matrix[id, time] = filter(r -> !occursin("NoCollision", r) && !occursin("closest", r) && !occursin("farthest", r), new_unformatted_matrix[id, time]) # keep only the no-change rule  
               elseif length(new_matrix[id, time]) > 1
                 new_matrix[id, time] = filter(r -> !occursin("--> obj (prev obj)", r) && !occursin("= obj$(id) (prev obj$(id))", r), new_matrix[id, time]) # keep only the no-change rule 
                 new_unformatted_matrix[id, time] = filter(r -> !occursin("--> obj (prev obj)", r) && !occursin("= obj$(id) (prev obj$(id))", r), new_unformatted_matrix[id, time]) # keep only the no-change rule  
@@ -2540,7 +2602,7 @@ function construct_filtered_matrices(matrix, object_decomposition, user_events, 
     non_random_matrix = deepcopy(matrix)
     for row in 1:size(non_random_matrix)[1]
       for col in 1:size(non_random_matrix)[2]
-        non_random_matrix[row, col] = filter(x -> !occursin("closest", x), non_random_matrix[row, col])
+        non_random_matrix[row, col] = filter(x -> !occursin("closest", x) && !occursin("farthest", x), non_random_matrix[row, col])
       end
     end
     filtered_non_random_matrices = filter_update_function_matrix_multiple(non_random_matrix, object_decomposition, multiple=true)

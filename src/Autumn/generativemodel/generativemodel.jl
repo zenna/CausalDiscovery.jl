@@ -321,7 +321,9 @@ function gen_event_bool_human_prior(object_decomposition, object_id, type_id, us
     push!(choices, "(== (% (prev time) $(base_)) $(offset))")
   end
 
-  push!(choices, "(== (% (prev time) 99) 100)")
+  push!(choices, "(== (% (prev time) 100) 99)")
+  push!(choices, "(== (% (prev time) 12) 11)")
+  push!(choices, "(== (% (prev time) 16) 15)")
 
   push!(choices, "(== (prev time) 199)")
   push!(choices, "(== (prev time) 149)")
@@ -385,13 +387,13 @@ function gen_event_bool_human_prior(object_decomposition, object_id, type_id, us
           ]...)
           
           # ----- translations (isFree, isWithinBounds, intersects other objects)
-          for disp in displacements 
-            push!(choices, "(intersects $(disp) (prev obj$(object_2.id)))")
-            push!(choices, "(! (intersects $(disp) (prev obj$(object_2.id))))")
-            for key in ["left", "right", "up", "down"]
-              push!(choices, "(& $(key) (intersects $(disp) (prev obj$(object_2.id))))")
-            end
-          end
+          # for disp in displacements 
+          #   push!(choices, "(intersects $(disp) (prev obj$(object_2.id)))")
+          #   push!(choices, "(! (intersects $(disp) (prev obj$(object_2.id))))")
+          #   for key in ["left", "right", "up", "down"]
+          #     push!(choices, "(& $(key) (intersects $(disp) (prev obj$(object_2.id))))")
+          #   end
+          # end
 
         end
       end
@@ -417,9 +419,9 @@ function gen_event_bool_human_prior(object_decomposition, object_id, type_id, us
             push!(choices, "(intersects $(disp) $(filtered_list))")
             push!(choices, "(! (intersects $(disp) (prev addedObjType$(object_type.id)List)))")
             push!(choices, "(! (intersects $(disp) $(filtered_list)))")
-            for key in ["left", "right", "up", "down"]
-              push!(choices, "(& $(key) (intersects $(disp) $(filtered_list)))")
-            end
+            # for key in ["left", "right", "up", "down"]
+            #   push!(choices, "(& $(key) (intersects $(disp) $(filtered_list)))")
+            # end
           end
         end
       end 
