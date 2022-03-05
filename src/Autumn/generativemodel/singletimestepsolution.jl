@@ -406,13 +406,13 @@ function synthesize_update_functions(object_id, time, object_decomposition, user
                     end
                   end
     
-                  # add farthest-based update functions 
-                  for desc in ["Left", "Right", "Up", "Down"]
-                    other_type_ids = filter(x -> x != type_id, type_ids)
-                    for other_type_id_1 in other_type_ids # closest w.r.t. single other type 
-                      push!(prev_used_rules, """(= objX (moveNoCollisionColor objX (farthest$(desc) objX (list ObjType$(other_type_id_1)) $(unit_size)) "darkgray"))""")
-                    end
-                  end
+                  # # add farthest-based update functions 
+                  # for desc in ["Left", "Right", "Up", "Down"]
+                  #   other_type_ids = filter(x -> x != type_id, type_ids)
+                  #   for other_type_id_1 in other_type_ids # closest w.r.t. single other type 
+                  #     push!(prev_used_rules, """(= objX (moveNoCollisionColor objX (farthest$(desc) objX (list ObjType$(other_type_id_1)) $(unit_size)) "darkgray"))""")
+                  #   end
+                  # end
 
                 end
               end
@@ -435,14 +435,14 @@ function synthesize_update_functions(object_id, time, object_decomposition, user
                 end
               end
   
-              # add farthest-based update functions 
-              unit_size = filter(x -> x != 0, [x_displacement, y_displacement]) != [] ? abs(filter(x -> x != 0, [x_displacement, y_displacement])[1]) : 1 
-              for desc in ["Left", "Right", "Up", "Down"]
-                other_type_ids = filter(x -> x != type_id, type_ids)
-                for other_type_id_1 in other_type_ids # closest w.r.t. single other type 
-                  push!(prev_used_rules, """(= objX (moveNoCollisionColor objX (farthest$(desc) objX (list ObjType$(other_type_id_1)) $(unit_size)) "darkgray"))""")
-                end
-              end
+              # # add farthest-based update functions 
+              # unit_size = filter(x -> x != 0, [x_displacement, y_displacement]) != [] ? abs(filter(x -> x != 0, [x_displacement, y_displacement])[1]) : 1 
+              # for desc in ["Left", "Right", "Up", "Down"]
+              #   other_type_ids = filter(x -> x != type_id, type_ids)
+              #   for other_type_id_1 in other_type_ids # closest w.r.t. single other type 
+              #     push!(prev_used_rules, """(= objX (moveNoCollisionColor objX (farthest$(desc) objX (list ObjType$(other_type_id_1)) $(unit_size)) "darkgray"))""")
+              #   end
+              # end
   
             end
   
@@ -2088,7 +2088,7 @@ function construct_filtered_matrices_pedro(old_matrix, object_decomposition, use
   end
 
   # # set update function trajectory for all id's that never move to a constant (prev) vector 
-  # matrix = deepcopy(old_matrix)
+  matrix = deepcopy(old_matrix)
   # for id in collect(keys(object_mapping))
   #   positions = unique(filter(pos -> !isnothing(pos), map(obj -> isnothing(obj) ? nothing : obj.position, object_mapping[id])))
   #   if length(positions) == 1 
@@ -2132,22 +2132,25 @@ function construct_filtered_matrices_pedro(old_matrix, object_decomposition, use
   end
 
   if potential_regularity_types != []
-    regularity_matrix, regularity_unformatted_matrix = construct_regularity_matrix(matrix, unformatted_matrix, object_decomposition, potential_regularity_types)
-    @show regularity_matrix
-    if !isnothing(regularity_matrix)
-      # non-random 
-      non_random_regularity_matrices = construct_filtered_matrices(regularity_matrix, object_decomposition, user_events)
-      if non_random_regularity_matrices != []
-        push!(filtered_matrices, non_random_regularity_matrices[1])
-      end  
-
-      # random 
-      random_regularity_matrix_unfiltered = construct_random_regularity_matrix(regularity_matrix, regularity_unformatted_matrix, object_decomposition, potential_regularity_types)
-      # @show random_regularity_matrix_unfiltered
-      random_regularity_matrices = construct_filtered_matrices(random_regularity_matrix_unfiltered, object_decomposition, user_events)
-      if random_regularity_matrices != []
-        push!(filtered_matrices, random_regularity_matrices[1])
+    for adjacency_barred in [true, false]
+      regularity_matrix, regularity_unformatted_matrix = construct_regularity_matrix(matrix, unformatted_matrix, object_decomposition, potential_regularity_types, adjacency_barred)
+      @show regularity_matrix
+      if !isnothing(regularity_matrix)
+        # non-random 
+        non_random_regularity_matrices = construct_filtered_matrices(regularity_matrix, object_decomposition, user_events)
+        if non_random_regularity_matrices != []
+          push!(filtered_matrices, non_random_regularity_matrices[1])
+        end  
+  
+        # random 
+        random_regularity_matrix_unfiltered = construct_random_regularity_matrix(regularity_matrix, regularity_unformatted_matrix, object_decomposition, potential_regularity_types)
+        # @show random_regularity_matrix_unfiltered
+        random_regularity_matrices = construct_filtered_matrices(random_regularity_matrix_unfiltered, object_decomposition, user_events)
+        if random_regularity_matrices != []
+          push!(filtered_matrices, random_regularity_matrices[1])
+        end
       end
+
     end
   end
   
@@ -2219,7 +2222,7 @@ function construct_random_regularity_matrix(regularity_matrix, regularity_unform
   new_matrix
 end
 
-function construct_regularity_matrix(matrix, unformatted_matrix, object_decomposition, regularity_types) 
+function construct_regularity_matrix(matrix, unformatted_matrix, object_decomposition, regularity_types, adjacency_barred) 
   object_types, object_mapping, _, grid_size = object_decomposition 
 
   new_matrix = deepcopy(matrix) 
@@ -2243,22 +2246,33 @@ function construct_regularity_matrix(matrix, unformatted_matrix, object_decompos
     for id in object_ids_with_type
       @show id 
       object_values = object_mapping[id]
-      boundary_positions = findall(t -> isnothing(object_values[t]) || is_on_boundary(object_values[t], grid_size) || adjacent_to_other_objects(object_values[t], t, object_types, object_mapping), 1:length(object_values))
+      boundary_positions = findall(t -> isnothing(object_values[t]) || is_on_boundary(object_values[t], grid_size) || (adjacency_barred ? adjacent_to_other_objects(object_values[t], t, object_types, object_mapping) : false), 1:length(object_values))
       @show boundary_positions
       continuous_segments_dict[id] = getindex.(Ref(object_values), UnitRange.([1; boundary_positions .+ 1], [boundary_positions .- 1; length(object_values)]))
       continuous_segments_dict[id] = filter(arr -> length(arr) > 0, continuous_segments_dict[id])
     end
     sorted_segments = reverse(sort(vcat(map(id -> continuous_segments_dict[id], object_ids_with_type)...), by=arr -> length(arr)))
+    @show sorted_segments 
     if sorted_segments != []
       longest_segment = sorted_segments[1]
       displacements = [displacement(longest_segment[i].position, longest_segment[i + 1].position) for i in 1:(length(longest_segment) - 1)]
       nonzero_displacement_locations = findall(d -> d != (0, 0), displacements)
       zero_displacement_segments = getindex.(Ref(displacements), UnitRange.([1; nonzero_displacement_locations .+ 1], [nonzero_displacement_locations .- 1; length(displacements)]))
       interval_sizes = unique(map(s -> length(s), zero_displacement_segments[2:end-1]))
-      if (length(interval_sizes) == 1) && interval_sizes[1] != 0 
+      exact_intervals = (length(interval_sizes) == 1) && interval_sizes[1] != 0 
+      inexact_intervals = false
+      if !exact_intervals && length(interval_sizes) > 1
+        interval_size = minimum(interval_sizes)
+        other_interval_sizes = filter(i -> i != interval_size, interval_sizes)
+        if filter(x -> x != 0, unique(map(i -> (i + 1) % (interval_size + 1), other_interval_sizes))) == []
+          inexact_intervals = true
+        end
+      end
+
+      if exact_intervals || inexact_intervals 
         # regularity observed!
         changed = true
-        interval_size = interval_sizes[1] + 1
+        interval_size = minimum(interval_sizes) + 1
         @show interval_size
         
         all_nonzero_disp_times_across_ids = []

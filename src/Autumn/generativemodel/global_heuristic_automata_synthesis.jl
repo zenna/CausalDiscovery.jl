@@ -1,5 +1,5 @@
 """On-clause generation, where we collect all unsolved (latent state dependent) on-clauses at the end"""
-function generate_on_clauses_GLOBAL(run_id, matrix, unformatted_matrix, object_decomposition, user_events, global_event_vector_dict, redundant_events_set, grid_size=16, desired_solution_count=1, desired_per_matrix_solution_count=1, interval_painting_param=false, sketch=false, z3_option="partial", time_based=false, z3_timeout=0, sketch_timeout=0, co_occurring_param=false, transition_param=false, co_occurring_distinct=1, co_occurring_same=1, co_occurring_threshold=1, transition_distinct=1, transition_same=1, transition_threshold=1, num_transition_decisions=15, pedro=true)
+function generate_on_clauses_GLOBAL(run_id, matrix, unformatted_matrix, object_decomposition, user_events, global_event_vector_dict, redundant_events_set, grid_size=16, desired_solution_count=5, desired_per_matrix_solution_count=1, interval_painting_param=false, sketch=false, z3_option="partial", time_based=false, z3_timeout=0, sketch_timeout=0, co_occurring_param=false, transition_param=false, co_occurring_distinct=1, co_occurring_same=1, co_occurring_threshold=1, transition_distinct=1, transition_same=1, transition_threshold=1, num_transition_decisions=15, pedro=true)
   start_time = Dates.now()
   
   object_types, object_mapping, background, dim = object_decomposition
@@ -372,7 +372,8 @@ function generate_on_clauses_GLOBAL(run_id, matrix, unformatted_matrix, object_d
               singleton_object_match = match(r"obj\d+", proximity_event)
               if !isnothing(singleton_object_match)
                 singleton_object_id = parse(Int, replace(singleton_object_match.match, "obj" => ""))
-                push!(involved_types, singleton_object_id)
+                singleton_object_type_id = filter(obj -> !isnothing(obj), object_mapping[singleton_object_id])[1].type.id
+                push!(involved_types, singleton_object_type_id)
               end
 
               if filter(type_id -> object_type_is_brownian(type_id, filtered_matrix, object_decomposition), involved_types) != [] 
