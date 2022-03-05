@@ -406,13 +406,13 @@ function synthesize_update_functions(object_id, time, object_decomposition, user
                     end
                   end
     
-                  # # add farthest-based update functions 
-                  # for desc in ["Left", "Right", "Up", "Down"]
-                  #   other_type_ids = filter(x -> x != type_id, type_ids)
-                  #   for other_type_id_1 in other_type_ids # closest w.r.t. single other type 
-                  #     push!(prev_used_rules, """(= objX (moveNoCollisionColor objX (farthest$(desc) objX (list ObjType$(other_type_id_1)) $(unit_size)) "darkgray"))""")
-                  #   end
-                  # end
+                  # add farthest-based update functions 
+                  for desc in ["Left", "Right", "Up", "Down"]
+                    other_type_ids = filter(x -> x != type_id, type_ids)
+                    for other_type_id_1 in other_type_ids # closest w.r.t. single other type 
+                      push!(prev_used_rules, """(= objX (moveNoCollisionColor objX (farthest$(desc) objX (list ObjType$(other_type_id_1)) $(unit_size)) "darkgray"))""")
+                    end
+                  end
 
                 end
               end
@@ -435,14 +435,14 @@ function synthesize_update_functions(object_id, time, object_decomposition, user
                 end
               end
   
-              # # add farthest-based update functions 
-              # unit_size = filter(x -> x != 0, [x_displacement, y_displacement]) != [] ? abs(filter(x -> x != 0, [x_displacement, y_displacement])[1]) : 1 
-              # for desc in ["Left", "Right", "Up", "Down"]
-              #   other_type_ids = filter(x -> x != type_id, type_ids)
-              #   for other_type_id_1 in other_type_ids # closest w.r.t. single other type 
-              #     push!(prev_used_rules, """(= objX (moveNoCollisionColor objX (farthest$(desc) objX (list ObjType$(other_type_id_1)) $(unit_size)) "darkgray"))""")
-              #   end
-              # end
+              # add farthest-based update functions 
+              unit_size = filter(x -> x != 0, [x_displacement, y_displacement]) != [] ? abs(filter(x -> x != 0, [x_displacement, y_displacement])[1]) : 1 
+              for desc in ["Left", "Right", "Up", "Down"]
+                other_type_ids = filter(x -> x != type_id, type_ids)
+                for other_type_id_1 in other_type_ids # closest w.r.t. single other type 
+                  push!(prev_used_rules, """(= objX (moveNoCollisionColor objX (farthest$(desc) objX (list ObjType$(other_type_id_1)) $(unit_size)) "darkgray"))""")
+                end
+              end
   
             end
   
@@ -2192,6 +2192,22 @@ function construct_filtered_matrices_pedro(old_matrix, object_decomposition, use
 
   unique!(filtered_matrices)
   filtered_matrices
+end
+
+function identify_agent_type(object_decomposition, user_events)
+  object_types, object_mapping, _, grid_size = object_decomposition 
+
+  left_times = findall(e -> e == "left", user_events)
+  right_times = findall(e -> e == "right", user_events)
+  up_times = findall(e -> e == "up", user_events)
+  down_times = findall(e -> e == "down", user_events)
+
+
+
+end
+
+function identify_brownian_types(object_decomposition, user_events)
+  
 end
 
 function construct_random_regularity_matrix(regularity_matrix, regularity_unformatted_matrix, object_decomposition, regularity_types)
