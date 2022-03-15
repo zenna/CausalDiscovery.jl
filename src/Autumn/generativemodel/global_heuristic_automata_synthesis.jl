@@ -605,16 +605,16 @@ function generate_on_clauses_GLOBAL(run_id, matrix, unformatted_matrix, object_d
                 state_solutions = generate_global_multi_automaton_sketch(co_occurring_event, times_dict, global_event_vector_dict, object_trajectory, global_var_dict, global_state_update_times_dict, object_decomposition, type_id, desired_per_matrix_solution_count, interval_painting_param, true)
               else
 
-                state_solutions = generate_new_state_GLOBAL(co_occurring_event, times_dict, global_event_vector_dict, object_trajectory, global_var_dict, global_state_update_times_dict, object_decomposition, type_id, user_events, desired_per_matrix_solution_count, false, false, transition_param, ordered_update_functions, transition_distinct, transition_same, transition_threshold, num_transition_decisions)
+                state_solutions = generate_new_state_GLOBAL(co_occurring_event, times_dict, global_event_vector_dict, object_trajectory, global_var_dict, global_state_update_times_dict, object_decomposition, type_id, user_events, desired_per_matrix_solution_count, interval_offsets, source_exists_events_dict, false, false, transition_param, ordered_update_functions, transition_distinct, transition_same, transition_threshold, num_transition_decisions)
                 println("DONT STOP ME NOW")
                 @show state_solutions 
 
                 if length(filter(sol -> sol[1] != "", state_solutions)) == 0
-                  state_solutions = generate_new_state_GLOBAL(co_occurring_event, times_dict, global_event_vector_dict, object_trajectory, global_var_dict, global_state_update_times_dict, object_decomposition, type_id, user_events, desired_per_matrix_solution_count, false, true, transition_param, ordered_update_functions, transition_distinct, transition_same, transition_threshold, num_transition_decisions)
+                  state_solutions = generate_new_state_GLOBAL(co_occurring_event, times_dict, global_event_vector_dict, object_trajectory, global_var_dict, global_state_update_times_dict, object_decomposition, type_id, user_events, desired_per_matrix_solution_count, interval_offsets, source_exists_events_dict, false, true, transition_param, ordered_update_functions, transition_distinct, transition_same, transition_threshold, num_transition_decisions)
                 end
 
                 if length(filter(sol -> sol[1] != "", state_solutions)) == 0
-                  state_solutions = generate_new_state_GLOBAL(co_occurring_event, times_dict, global_event_vector_dict, object_trajectory, global_var_dict, global_state_update_times_dict, object_decomposition, type_id, user_events, desired_per_matrix_solution_count, true, false, transition_param, ordered_update_functions, transition_distinct, transition_same, transition_threshold, num_transition_decisions)
+                  state_solutions = generate_new_state_GLOBAL(co_occurring_event, times_dict, global_event_vector_dict, object_trajectory, global_var_dict, global_state_update_times_dict, object_decomposition, type_id, user_events, desired_per_matrix_solution_count, interval_offsets, source_exists_events_dict, true, false, transition_param, ordered_update_functions, transition_distinct, transition_same, transition_threshold, num_transition_decisions)
                 end
 
               end
@@ -932,7 +932,7 @@ function update_co_occurring_events_dict(co_occurring_events_dict, state_based_u
   co_occurring_events_dict
 end
 
-function generate_new_state_GLOBAL(co_occurring_event, times_dict, event_vector_dict, object_trajectory, init_global_var_dict, state_update_times_dict, object_decomposition, type_id, user_events, desired_per_matrix_solution_count, user_event_simplified=false, interval_painting_param=false, transition_param=false, ordered_update_functions=[], transition_distinct=1, transition_same=1, transition_threshold=1, num_transition_decisions=15) 
+function generate_new_state_GLOBAL(co_occurring_event, times_dict, event_vector_dict, object_trajectory, init_global_var_dict, state_update_times_dict, object_decomposition, type_id, user_events, desired_per_matrix_solution_count, interval_offsets, source_exists_events_dict, user_event_simplified=false, interval_painting_param=false, transition_param=false, ordered_update_functions=[], transition_distinct=1, transition_same=1, transition_threshold=1, num_transition_decisions=15) 
   println("GENERATE_NEW_STATE_GLOBAL")
   @show co_occurring_event
   @show times_dict 
@@ -959,7 +959,7 @@ function generate_new_state_GLOBAL(co_occurring_event, times_dict, event_vector_
 
   events = filter(e -> event_vector_dict[e] isa AbstractArray, collect(keys(event_vector_dict)))
   @show events 
-  atomic_events = gen_event_bool_human_prior(object_decomposition, "x", type_id isa Tuple ? type_id[1] : type_id, ["nothing"], init_global_var_dict, collect(keys(times_dict))[1])
+  atomic_events = gen_event_bool_human_prior(object_decomposition, "x", type_id isa Tuple ? type_id[1] : type_id, ["nothing"], init_global_var_dict, collect(keys(times_dict))[1], type_displacements, interval_offsets, source_exists_events_dict)
   @show atomic_events 
   small_event_vector_dict = deepcopy(event_vector_dict)    
   deleted = []

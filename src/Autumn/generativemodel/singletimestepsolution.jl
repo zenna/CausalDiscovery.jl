@@ -394,8 +394,12 @@ function synthesize_update_functions(object_id, time, object_decomposition, user
                 # add closest-based update functions
                 for unit_size in type_displacements[object_type.id] 
 
+                  other_type_ids = filter(x -> x != type_id, type_ids)
+                  if filter(t -> t.color == "darkgray", object_types) != []
+                    filter!(t -> t.color != "darkgray", other_type_ids)
+                  end
+
                   for desc in ["Left", "Right", "Up", "Down"]
-                    other_type_ids = filter(x -> x != type_id, type_ids)
                     for other_type_id_1 in other_type_ids # closest w.r.t. single other type 
                       push!(prev_used_rules, """(= objX (moveNoCollisionColor objX (closest$(desc) objX (list ObjType$(other_type_id_1)) $(unit_size)) "darkgray"))""")
                       for other_type_id_2 in other_type_ids # closest w.r.t. pair of other type's 
@@ -408,7 +412,6 @@ function synthesize_update_functions(object_id, time, object_decomposition, user
     
                   # add farthest-based update functions 
                   for desc in ["Left", "Right", "Up", "Down"]
-                    other_type_ids = filter(x -> x != type_id, type_ids)
                     for other_type_id_1 in other_type_ids # closest w.r.t. single other type 
                       push!(prev_used_rules, """(= objX (moveNoCollisionColor objX (farthest$(desc) objX (list ObjType$(other_type_id_1)) $(unit_size)) "darkgray"))""")
                     end
@@ -482,6 +485,8 @@ function synthesize_update_functions(object_id, time, object_decomposition, user
       if occursin("NoCollision", update_rule) || occursin("closest", update_rule) || occursin("farthest", update_rule) || occursin("nextLiquid", update_rule) || occursin("color", update_rule)
         hypothesis_program = string(hypothesis_program[1:end-2], "\n\t (on true\n", update_rule, ")\n)")
         println("HYPOTHESIS_PROGRAM")
+        println(update_rule)
+        println(Dates.now())
         # println(prev_object)
         println(hypothesis_program)
         # push!(lol_programs, hypothesis_program)
