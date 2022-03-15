@@ -2776,11 +2776,11 @@ function construct_filtered_matrices(matrix, object_decomposition, user_events, 
     push!(filtered_matrices, filtered_non_random_matrices...)
 
 
-    # add direction-bias-filtered matrix to filtered_matrices 
-    pre_filtered_matrices = pre_filter_with_direction_biases(deepcopy(non_random_matrix), user_events, object_decomposition)
-    for m in pre_filtered_matrices
-      push!(filtered_matrices, filter_update_function_matrix_multiple(m, object_decomposition, multiple=false)...)
-    end
+    # # add direction-bias-filtered matrix to filtered_matrices 
+    # pre_filtered_matrices = pre_filter_with_direction_biases(deepcopy(non_random_matrix), user_events, object_decomposition)
+    # for m in pre_filtered_matrices
+    #   push!(filtered_matrices, filter_update_function_matrix_multiple(m, object_decomposition, multiple=false)...)
+    # end
 
     unique!(filtered_matrices)
     filtered_matrices = sort_update_function_matrices(filtered_matrices, object_decomposition)
