@@ -148,7 +148,7 @@ function group_ranges(ranges)
     end
   end
 
-  grouped_ranges = sort(map(k -> dict[k], collect(keys(dict))), by=group->group[1][1][1]) # sort by first start time in each group
+  grouped_ranges = sort(map(k -> dict[k], collect(keys(dict))), by=group->minimum(map(r -> r[1][1], group))) # sort by first start time in each group
   grouped_ranges 
 end
 

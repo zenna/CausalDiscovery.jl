@@ -1,5 +1,5 @@
 """On-clause generation, where we collect all unsolved (latent state dependent) on-clauses at the end"""
-function generate_on_clauses_GLOBAL(run_id, matrix, unformatted_matrix, object_decomposition, user_events, global_event_vector_dict, redundant_events_set, grid_size=16, desired_solution_count=5, desired_per_matrix_solution_count=1, interval_painting_param=false, sketch=false, z3_option="partial", time_based=false, z3_timeout=0, sketch_timeout=0, co_occurring_param=false, transition_param=false, co_occurring_distinct=1, co_occurring_same=1, co_occurring_threshold=1, transition_distinct=1, transition_same=1, transition_threshold=1, num_transition_decisions=15, pedro=true)
+function generate_on_clauses_GLOBAL(run_id, matrix, unformatted_matrix, object_decomposition, user_events, global_event_vector_dict, redundant_events_set, grid_size=16, desired_solution_count=5, desired_per_matrix_solution_count=1, interval_painting_param=false, sketch=false, z3_option="full", time_based=false, z3_timeout=0, sketch_timeout=0, co_occurring_param=false, transition_param=false, co_occurring_distinct=1, co_occurring_same=1, co_occurring_threshold=1, transition_distinct=1, transition_same=1, transition_threshold=1, num_transition_decisions=15, pedro=true)
   start_time = Dates.now()
   
   object_types, object_mapping, background, dim = object_decomposition
@@ -200,7 +200,7 @@ function generate_on_clauses_GLOBAL(run_id, matrix, unformatted_matrix, object_d
       # compute co-occurring event for each state-based update function 
       # co_occurring_events_dict = Dict() # keys are tuples (type_id, co-occurring event), values are lists of update_functions with that co-occurring event
       optimal_event_lists_dict = Dict()
-      events = collect(keys(global_event_vector_dict)) # ["left", "right", "up", "down", "clicked", "true"]
+      events = filter(k -> k in ["left", "right", "up", "down", "clicked", "true", map(v -> v[1], collect(values(source_exists_events_dict)))...] || (occursin("<= (distance", k) || occursin("(prev time)", k)) && !occursin("|", k) && !occursin("&", k), collect(keys(global_event_vector_dict))) # 
       @show events 
       @show global_event_vector_dict
       for type_id in collect(keys(state_based_update_functions_dict))
@@ -383,7 +383,15 @@ function generate_on_clauses_GLOBAL(run_id, matrix, unformatted_matrix, object_d
               end
             end
 
+            # # TEMP HACK FOR ALIENS
+            # if update_function == "(= addedObjType1List (removeObj addedObjType1List (--> obj (== (.. obj id) x))))"
+            #   removeObj_on_clause = "(on (== (uniformChoice (list 1 2 3 4 5 6 7 8 9 10) 1))\n$(update_function))"
+            #   push!(on_clauses, (removeObj_on_clause, update_function))
+            #   special_handling = true
+            # end
+
             if !special_handling 
+              co_occurring_events = filter(e -> !occursin("distance", e[1]),  co_occurring_events)
               false_positive_counts = sort(unique(map(x -> x[2], co_occurring_events)))
               false_positive_counts = false_positive_counts[1:min(length(false_positive_counts), co_occurring_distinct)]
               optimal_events = []
@@ -514,7 +522,9 @@ function generate_on_clauses_GLOBAL(run_id, matrix, unformatted_matrix, object_d
             tuples = collect(keys(co_occurring_events_dict))
             multi_id_tuples = sort(filter(t -> t[1] isa Tuple, tuples), by=x -> length(x[2]))
             single_id_tuples = sort(filter(t -> !(t[1] isa Tuple), tuples), by=x -> length(x[2]))
-            sorted_tuples = vcat(multi_id_tuples..., single_id_tuples...)
+            single_id_tuples_with_remove = filter(t -> occursin("removeObj", join(co_occurring_events_dict[t], "")), single_id_tuples)
+            single_id_tuples_without_remove = filter(t -> !occursin("removeObj", join(co_occurring_events_dict[t], "")), single_id_tuples)
+            sorted_tuples = vcat(multi_id_tuples..., single_id_tuples_without_remove..., single_id_tuples_with_remove...)
             type_id, co_occurring_event = sorted_tuples[1]
 
             update_functions = co_occurring_events_dict[(type_id, co_occurring_event)]
@@ -594,7 +604,19 @@ function generate_on_clauses_GLOBAL(run_id, matrix, unformatted_matrix, object_d
               if sketch 
                 state_solutions = generate_global_multi_automaton_sketch(co_occurring_event, times_dict, global_event_vector_dict, object_trajectory, global_var_dict, global_state_update_times_dict, object_decomposition, type_id, desired_per_matrix_solution_count, interval_painting_param, true)
               else
-                state_solutions = generate_new_state_GLOBAL(co_occurring_event, times_dict, global_event_vector_dict, object_trajectory, global_var_dict, global_state_update_times_dict, object_decomposition, type_id, user_events, type_displacements, interval_offsets, source_exists_events_dict, desired_per_matrix_solution_count, interval_painting_param, transition_param, ordered_update_functions, transition_distinct, transition_same, transition_threshold, num_transition_decisions)
+
+                state_solutions = generate_new_state_GLOBAL(co_occurring_event, times_dict, global_event_vector_dict, object_trajectory, global_var_dict, global_state_update_times_dict, object_decomposition, type_id, user_events, desired_per_matrix_solution_count, false, false, transition_param, ordered_update_functions, transition_distinct, transition_same, transition_threshold, num_transition_decisions)
+                println("DONT STOP ME NOW")
+                @show state_solutions 
+
+                if length(filter(sol -> sol[1] != "", state_solutions)) == 0
+                  state_solutions = generate_new_state_GLOBAL(co_occurring_event, times_dict, global_event_vector_dict, object_trajectory, global_var_dict, global_state_update_times_dict, object_decomposition, type_id, user_events, desired_per_matrix_solution_count, false, true, transition_param, ordered_update_functions, transition_distinct, transition_same, transition_threshold, num_transition_decisions)
+                end
+
+                if length(filter(sol -> sol[1] != "", state_solutions)) == 0
+                  state_solutions = generate_new_state_GLOBAL(co_occurring_event, times_dict, global_event_vector_dict, object_trajectory, global_var_dict, global_state_update_times_dict, object_decomposition, type_id, user_events, desired_per_matrix_solution_count, true, false, transition_param, ordered_update_functions, transition_distinct, transition_same, transition_threshold, num_transition_decisions)
+                end
+
               end
 
               if length(filter(sol -> sol[1] != "", state_solutions)) == 0 # failure 
@@ -703,10 +725,12 @@ function generate_on_clauses_GLOBAL(run_id, matrix, unformatted_matrix, object_d
             else 
 
               # construct new object-specific state
+              ordered_update_functions = ordered_update_functions_dict[type_id]
+
               if sketch 
                 new_on_clauses, new_state_update_on_clauses, new_object_decomposition, new_object_specific_state_update_times_dict = generate_object_specific_multi_automaton_sketch(co_occurring_event, update_functions, times_dict, global_event_vector_dict, type_id, global_object_decomposition, object_specific_state_update_times_dict, global_var_dict, true)
               else
-                new_on_clauses, new_state_update_on_clauses, new_object_decomposition, new_object_specific_state_update_times_dict = generate_new_object_specific_state_GLOBAL(co_occurring_event, update_functions, times_dict, global_event_vector_dict, type_id, global_object_decomposition, object_specific_state_update_times_dict, global_var_dict, type_displacements, interval_offsets, source_exists_events_dict, transition_param, z3_option, z3_timeout, sketch_timeout, transition_distinct, transition_same, transition_threshold, num_transition_decisions)
+                new_on_clauses, new_state_update_on_clauses, new_object_decomposition, new_object_specific_state_update_times_dict = generate_new_object_specific_state_GLOBAL(co_occurring_event, update_functions, anonymized_filtered_matrix, times_dict, ordered_update_functions, global_event_vector_dict, type_id, global_object_decomposition, object_specific_state_update_times_dict, global_var_dict, type_displacements, interval_offsets, source_exists_events_dict, transition_param, z3_option, z3_timeout, sketch_timeout, transition_distinct, transition_same, transition_threshold, num_transition_decisions)
               end
 
               if new_on_clauses == []
@@ -908,7 +932,7 @@ function update_co_occurring_events_dict(co_occurring_events_dict, state_based_u
   co_occurring_events_dict
 end
 
-function generate_new_state_GLOBAL(co_occurring_event, times_dict, event_vector_dict, object_trajectory, init_global_var_dict, state_update_times_dict, object_decomposition, type_id, user_events, type_displacements, interval_offsets, source_exists_events_dict, desired_per_matrix_solution_count, interval_painting_param=false, transition_param=false, ordered_update_functions=[], transition_distinct=1, transition_same=1, transition_threshold=1, num_transition_decisions=15) 
+function generate_new_state_GLOBAL(co_occurring_event, times_dict, event_vector_dict, object_trajectory, init_global_var_dict, state_update_times_dict, object_decomposition, type_id, user_events, desired_per_matrix_solution_count, user_event_simplified=false, interval_painting_param=false, transition_param=false, ordered_update_functions=[], transition_distinct=1, transition_same=1, transition_threshold=1, num_transition_decisions=15) 
   println("GENERATE_NEW_STATE_GLOBAL")
   @show co_occurring_event
   @show times_dict 
@@ -935,15 +959,11 @@ function generate_new_state_GLOBAL(co_occurring_event, times_dict, event_vector_
 
   events = filter(e -> event_vector_dict[e] isa AbstractArray, collect(keys(event_vector_dict)))
   @show events 
-  atomic_events = gen_event_bool_human_prior(object_decomposition, "x", type_id isa Tuple ? type_id[1] : type_id, ["nothing"], init_global_var_dict, collect(keys(times_dict))[1], type_displacements, interval_offsets, source_exists_events_dict)
+  atomic_events = gen_event_bool_human_prior(object_decomposition, "x", type_id isa Tuple ? type_id[1] : type_id, ["nothing"], init_global_var_dict, collect(keys(times_dict))[1])
   @show atomic_events 
   small_event_vector_dict = deepcopy(event_vector_dict)    
   deleted = []
   for e in keys(event_vector_dict)
-    if e == "(== (.. (.. (prev obj8) origin) x) 2)" 
-      println("hm")
-      @show !(e in atomic_events) || (!(event_vector_dict[e] isa AbstractArray) && !(e in map(x -> "(clicked (filter (--> obj (== (.. obj id) x)) (prev addedObjType$(x)List)))", map(x -> x.id, object_types))) )
-    end
     if !(e in atomic_events) || (!(event_vector_dict[e] isa AbstractArray) && !(e in map(x -> "(clicked (filter (--> obj (== (.. obj id) x)) (prev addedObjType$(x)List)))", map(x -> x.id, object_types))) )
       push!(deleted, e)
       delete!(small_event_vector_dict, e)    
@@ -954,6 +974,14 @@ function generate_new_state_GLOBAL(co_occurring_event, times_dict, event_vector_
   @show co_occurring_event_trajectory
 
   # initialize global_var_dict
+
+  ## remove "empty" global_var_ids 
+  for id in collect(keys(init_global_var_dict))
+    if length(unique(init_global_var_dict[id])) == 1
+      delete!(init_global_var_dict, id)
+    end
+  end
+
   if length(collect(keys(init_global_var_dict))) == 0 
     init_global_var_dict[1] = ones(Int, length(init_state_update_times_dict[1]))
     global_var_id = 1
@@ -1060,6 +1088,29 @@ function generate_new_state_GLOBAL(co_occurring_event, times_dict, event_vector_
     @show small_event_vector_dict 
     while (length(problem_contexts) > 0) && length(solutions) < desired_per_matrix_solution_count 
       grouped_ranges, augmented_positive_times, new_state_update_times_dict, global_var_dict, extra_global_var_values = problem_contexts[1]
+      filled_augmented_positive_times = deepcopy(augmented_positive_times)
+
+      if user_event_simplified 
+        user_event_times = findall(e -> e != "nothing" && !isnothing(e), user_events)
+        for grouped_range in grouped_ranges 
+          time_ranges = map(r -> (r[1][1], r[2][1] - 1), grouped_range)
+
+          for time_range in time_ranges 
+            matching_times = sort(intersect(user_event_times, collect(time_range[1]:(time_range[2] - 1))))
+            for i in 1:(length(matching_times) - 1)
+              time = matching_times[i]
+              dir = user_events[time]
+              # update direction event in small_event_vector_dict as if earlier events inside range did not happen 
+              if dir in collect(keys(small_event_vector_dict))
+                small_event_vector_dict[dir][time] = 0
+              end
+            end
+          end
+
+        end
+      end
+
+
       problem_contexts = problem_contexts[2:end]
       failed = false
       transition_decision_index = 1
@@ -1100,7 +1151,8 @@ function generate_new_state_GLOBAL(co_occurring_event, times_dict, event_vector_
         max_global_var_value = maximum(map(tuple -> tuple[2], augmented_positive_times))
     
         # search for events within range
-        events_in_range = find_state_update_events(small_event_vector_dict, augmented_positive_times, time_ranges, start_value, end_value, global_var_dict, global_var_id, 1, no_object_times)
+        # TODO: pass filled_augmented_positive_times into events_in_range
+        events_in_range = find_state_update_events(small_event_vector_dict, filled_augmented_positive_times, time_ranges, start_value, end_value, global_var_dict, global_var_id, 1, no_object_times)
         println("PRE PRUNING: EVENTS IN RANGE")
   
         @show events_in_range
@@ -1143,12 +1195,46 @@ function generate_new_state_GLOBAL(co_occurring_event, times_dict, event_vector_
           # construct state update on-clause
           state_update_on_clause = "(on $(state_update_event)\n$(state_update_function))"
           
-          # add to state_update_times 
-          # # @show event_times
-          # # # @show state_update_on_clause  
-          for time in event_times 
-            new_state_update_times_dict[global_var_id][time] = state_update_on_clause
+          # # add to state_update_times 
+          # # # @show event_times
+          # # # # @show state_update_on_clause  
+          # for time in event_times 
+          #   # TODO: update filled_augmented_positive_times
+
+          #   new_state_update_times_dict[global_var_id][time] = state_update_on_clause
+          # end
+
+          for range in grouped_range 
+            start_time = range[1][1]
+            end_time = range[2][1]
+            
+            matching_event_times = filter(t -> t >= start_time && t < end_time, event_times)
+            if matching_event_times != [] 
+              # fill in interval in filled_augmented_positive_times
+              first_event_time = matching_event_times[1]
+              for time in (start_time + 1):(end_time - 1)
+                if time <= first_event_time 
+                  push!(filled_augmented_positive_times, (time, start_value))
+                else 
+                  push!(filled_augmented_positive_times, (time, end_value))
+                end
+              end
+
+              # update state_update_times 
+              if occursin("globalVar", state_update_event)
+                new_state_update_times_dict[global_var_id][first_event_time] = state_update_on_clause
+              else
+                for time in matching_event_times 
+                  new_state_update_times_dict[global_var_id][time] = state_update_on_clause
+                end
+              end
+
+            end
+
           end
+          sort!(filled_augmented_positive_times, by=x->x[1])
+          @show filled_augmented_positive_times 
+          @show augmented_positive_times 
     
         else # no event with zero false positives found; use best false-positive event and specialize globalVar values (i.e. add new value)
           # find co-occurring event with fewest false positives 
@@ -1179,64 +1265,76 @@ function generate_new_state_GLOBAL(co_occurring_event, times_dict, event_vector_
             end
           end
           
-          if length(matching_grouped_ranges) == 1 && length(matching_grouped_ranges[1]) == 1 # false
-            matching_grouped_range = matching_grouped_ranges[1]
-            matching_range = matching_grouped_range[1]
+          if length(matching_grouped_ranges) == 1 # && length(matching_grouped_ranges[1]) == 1 # false
+
+            intervals = matching_grouped_ranges[1]
+            new_problem_contexts = []
+
+            # initialize new_problem_contexts with current context plus current context with grouped_ranges order switched
+            ## copy original problem context
+            new_context_grouped_ranges, new_context_augmented_positive_times, new_context_new_state_update_times_dict = recompute_ranges(deepcopy(augmented_positive_times), 
+                                                                                                                                         deepcopy(new_state_update_times_dict),
+                                                                                                                                         global_var_id, 
+                                                                                                                                         global_var_value,
+                                                                                                                                         deepcopy(global_var_dict),
+                                                                                                                                         deepcopy(true_positive_times), 
+                                                                                                                                         deepcopy(extra_global_var_values),
+                                                                                                                                         true)
+            push!(new_problem_contexts, (deepcopy(new_context_grouped_ranges), deepcopy(new_context_augmented_positive_times), deepcopy(init_state_update_times_dict), deepcopy(global_var_dict), deepcopy(extra_global_var_values)))
+
+            ## add original problem context with two ranges swapped 
+            matching_range = intervals[1]
             matching_values = (matching_range[1][2], matching_range[2][2])
             current_values = (start_value, end_value)
-  
-            # @show matching_grouped_range
-            # @show matching_range
-            # @show matching_values
-            # @show current_values
-  
-            # check that we haven't previously considered this reordering
+
             if !((current_values, matching_values) in split_orders) # && !((matching_values, current_values) in split_orders)
               push!(split_orders, (current_values, matching_values))
-  
-              # create new problem context
-              new_context_grouped_ranges, new_context_augmented_positive_times, new_context_new_state_update_times_dict = recompute_ranges(deepcopy(augmented_positive_times), 
-                                                                                                                                           deepcopy(new_state_update_times_dict),
-                                                                                                                                           global_var_id, 
-                                                                                                                                           global_var_value,
-                                                                                                                                           deepcopy(global_var_dict),
-                                                                                                                                           deepcopy(true_positive_times), 
-                                                                                                                                           deepcopy(extra_global_var_values),
-                                                                                                                                           true)
-              # new_context_grouped_ranges = deepcopy(curr_max_grouped_ranges)
-              # @show grouped_ranges
-              # @show new_context_grouped_ranges
+
               matching_idx = findall(r -> r[1][1][2] == matching_values[1] && r[1][2][2] == matching_values[2], new_context_grouped_ranges)[1]
               curr_idx = findall(r -> r[1][1][2] == current_values[1] && r[1][2][2] == current_values[2], new_context_grouped_ranges)[1]
               
-              new_context_grouped_ranges[curr_idx] = deepcopy(matching_grouped_range) 
-              new_context_grouped_ranges[matching_idx] = deepcopy(grouped_range)
-  
-              # new_context_augmented_positive_times = deepcopy(curr_max_augmented_positive_times)
-              # new_context_new_state_update_times_dict = deepcopy(curr_max_new_state_update_times_dict) 
-              # new_context_curr_max_global_var_dict = deepcopy(curr_max_global_var_dict)
-  
-              # if the false positive intersection with a different range has size greater than 1, try allowing the first false
-              # positive event in that other range to take place, instead of specializing its value
-              intersecting_times = intersect(collect(matching_range[1][1]:(matching_range[2][1] - 1)), false_positive_times)
-              if length(intersecting_times) > 1
-                # update new_context_augmented_positive_times 
-                first_intersecting_time = intersecting_times[1]
-                push!(new_context_augmented_positive_times, (first_intersecting_time + 1, end_value))
-                sort!(new_context_augmented_positive_times, by=x -> x[1])
-                # recompute ranges + state_update_times_dict
-                new_context_grouped_ranges, new_context_augmented_positive_times, new_context_new_state_update_times_dict = recompute_ranges(new_context_augmented_positive_times, 
-                                                                                                                                             deepcopy(init_state_update_times_dict),
-                                                                                                                                             global_var_id, 
-                                                                                                                                             global_var_value,
-                                                                                                                                             deepcopy(global_var_dict),
-                                                                                                                                             true_positive_times, 
-                                                                                                                                             extra_global_var_values,
-                                                                                                                                             true)
-              end
-  
-              push!(problem_contexts, (new_context_grouped_ranges, new_context_augmented_positive_times, deepcopy(init_state_update_times_dict), deepcopy(global_var_dict), deepcopy(extra_global_var_values)))
+              new_swapped_grouped_ranges = deepcopy(new_context_grouped_ranges)
+
+              new_swapped_grouped_ranges[curr_idx] = deepcopy(intervals) 
+              new_swapped_grouped_ranges[matching_idx] = deepcopy(grouped_range)
+
+              push!(new_problem_contexts, (deepcopy(new_swapped_grouped_ranges), deepcopy(new_context_augmented_positive_times), deepcopy(init_state_update_times_dict), deepcopy(global_var_dict), deepcopy(extra_global_var_values)))
             end
+
+            # redefine new_problem_contexts for each interval incrementally
+            for interval in intervals 
+              curr_new_problem_contexts = [] 
+
+              for pc in new_problem_contexts 
+                # push!(curr_new_problem_contexts, deepcopy(pc))
+                grouped_r, augmented_pt, state_ut, global_vd, extra_gvv = pc 
+
+                # check for intersection 
+                intersecting_times = intersect(collect(interval[1][1]:(interval[2][1] - 1)), false_positive_times)
+                if length(intersecting_times) <= 1
+                  push!(curr_new_problem_contexts, deepcopy(pc))
+                else # length(intersecting_times) > 1 
+                  first_intersecting_time = intersecting_times[1]
+                  push!(augmented_pt, (first_intersecting_time + 1, end_value))
+                  sort!(augmented_pt, by=x -> x[1])
+                  # recompute ranges + state_update_times_dict
+                  new_context_grouped_ranges, new_context_augmented_positive_times, new_context_new_state_update_times_dict = recompute_ranges(deepcopy(augmented_pt), 
+                                                                                                                                               deepcopy(state_ut),
+                                                                                                                                               global_var_id, 
+                                                                                                                                               global_var_value,
+                                                                                                                                               deepcopy(global_vd),
+                                                                                                                                               true_positive_times, 
+                                                                                                                                               deepcopy(extra_gvv),
+                                                                                                                                               true)
+
+                  push!(curr_new_problem_contexts, (new_context_grouped_ranges, new_context_augmented_positive_times, deepcopy(init_state_update_times_dict), deepcopy(global_var_dict), deepcopy(extra_global_var_values)))
+                end
+              end
+
+              new_problem_contexts = curr_new_problem_contexts
+            end
+            final_new_problem_contexts = new_problem_contexts[2:end]
+            push!(problem_contexts, final_new_problem_contexts...)            
           end
     
           # construct state update on-clause
@@ -1274,7 +1372,7 @@ function generate_new_state_GLOBAL(co_occurring_event, times_dict, event_vector_
           @show global_var_value 
           @show times_dict 
           @show extra_global_var_values
-    
+          
           possible_interval_painting_stop_points_dict = Dict()
           for false_positive_time in false_positive_times 
             possible_interval_painting_stop_points_dict[false_positive_time] = []
@@ -1305,24 +1403,25 @@ function generate_new_state_GLOBAL(co_occurring_event, times_dict, event_vector_
   
           curr_interval_painting_stop_points_dict = Dict(map(t -> t => [], false_positive_times))
           
-          if count(x -> x > 1, map(v -> length(v), collect(values(possible_interval_painting_stop_points_dict)))) > 0 
+          if interval_painting_param && count(x -> x > 1, map(v -> length(v), collect(values(possible_interval_painting_stop_points_dict)))) > 0 
             # multiplicity handling: add new problem context corresponding to alternative interval painting options 
             for false_positive_time in false_positive_times 
               stop_points = possible_interval_painting_stop_points_dict[false_positive_time]
               if stop_points != []
-                if length(stop_points) >= 2 
-                  curr_interval_painting_stop_points_dict[false_positive_time] = reverse(stop_points)[1:1] # 1:2               
-                else 
-                  curr_interval_painting_stop_points_dict[false_positive_time] = reverse(stop_points)[1:1]
-                end
                 # if length(stop_points) >= 2 
-                #   curr_interval_painting_stop_points_dict[false_positive_time] = reverse(stop_points)[2:2]               
+                #   curr_interval_painting_stop_points_dict[false_positive_time] = reverse(stop_points)[1:1] # 1:2               
                 # else 
                 #   curr_interval_painting_stop_points_dict[false_positive_time] = reverse(stop_points)[1:1]
                 # end
+                if length(stop_points) >= 2 
+                  curr_interval_painting_stop_points_dict[false_positive_time] = reverse(stop_points)[2:2]
+                  possible_interval_painting_stop_points_dict[false_positive_time] = [reverse(stop_points)[2], reverse(stop_points)[1], reverse(stop_points)[3:end]...] # [2:end]
+                else 
+                  curr_interval_painting_stop_points_dict[false_positive_time] = reverse(stop_points)[1:1]
+                  possible_interval_painting_stop_points_dict[false_positive_time] = reverse(stop_points) # [2:end] 
+                end
   
                 # curr_interval_painting_stop_points_dict[false_positive_time] = reverse(stop_points)[1:1]
-                possible_interval_painting_stop_points_dict[false_positive_time] = reverse(stop_points) # [2:end] 
               end
             end
             
@@ -1383,6 +1482,7 @@ function generate_new_state_GLOBAL(co_occurring_event, times_dict, event_vector_
   
           # compute new ranges and find state update events
           grouped_ranges, augmented_positive_times, new_state_update_times_dict = recompute_ranges(augmented_positive_times, new_state_update_times_dict, global_var_id, global_var_value, global_var_dict, true_positive_times, extra_global_var_values, true)
+          filled_augmented_positive_times = deepcopy(augmented_positive_times) # reset filled a_p_t 
           @show new_state_update_times_dict 
         end   
       end
@@ -1419,6 +1519,15 @@ function generate_new_state_GLOBAL(co_occurring_event, times_dict, event_vector_
             on_clause = "(on (& (in (prev globalVar$(global_var_id)) (list $(join([update_function_index, extra_global_var_values[update_function_index]...], " ")))) $(occursin("globalVar$(global_var_id)", co_occurring_event) ? replace(replace(co_occurring_event, "(== globalVar$(global_var_id) $(update_function_index))" => ""), "(&" => "")[1:end-1] : co_occurring_event))\n$(update_function))"
           end
           push!(on_clauses, (on_clause, update_function))
+        end
+
+        if user_event_simplified 
+          for on_clause in on_clauses 
+            c, u = on_clause 
+            if !(occursin("left", c) || occursin("right", c) || occursin("up", c) || occursin("down", c)) || (occursin("left", c) || occursin("right", c) || occursin("up", c) || occursin("down", c)) && occursin("globalVar", c) 
+              return solutions 
+            end
+          end
         end
   
         println("LOOK AT ME")
@@ -1644,7 +1753,7 @@ function generate_stateless_on_clauses(run_id, interval_offsets, source_exists_e
   new_on_clauses, state_based_update_functions_dict, observation_vectors_dict, addObj_params_dict, global_event_vector_dict, ordered_update_functions_dict 
 end
 
-function generate_new_object_specific_state_GLOBAL(co_occurring_event, update_functions, times_dict, event_vector_dict, type_id, object_decomposition, init_state_update_times, global_var_dict, type_displacements, interval_offsets, source_exists_events_dict, transition_param=false, z3_option="none", time_based=false, z3_timeout=0, sketch_timeout=0, transition_distinct=1, transition_same=1, transition_threshold=1, num_transition_decisions=15)
+function generate_new_object_specific_state_GLOBAL(co_occurring_event, update_functions, filtered_matrix, times_dict, ordered_update_functions, event_vector_dict, type_id, object_decomposition, init_state_update_times, global_var_dict, type_displacements, interval_offsets, source_exists_events_dict, transition_param=false, z3_option="none", time_based=false, z3_timeout=0, sketch_timeout=0, transition_distinct=1, transition_same=1, transition_threshold=1, num_transition_decisions=15)
   println("GENERATE_NEW_OBJECT_SPECIFIC_STATE")
   @show co_occurring_event
   @show update_functions 
@@ -1679,9 +1788,15 @@ function generate_new_object_specific_state_GLOBAL(co_occurring_event, update_fu
   end
 
   # choices, event_vector_dict, redundant_events_set, object_decomposition
-  
+
+  # for e in keys(event_vector_dict)
+  #   if !(e == "true" || (occursin("isWithinBounds", e) || occursin("isOutsideBounds", e)))
+  #     delete!(small_event_vector_dict, e)
+  #   end
+  # end
+
   for e in keys(event_vector_dict)
-    if (occursin("true", e) && e != "true" || occursin("|", e)) && e in keys(small_event_vector_dict)
+    if !(e == "true" || (occursin("(move (prev obj) 12 0)", e) || occursin("(move (prev obj) -12 0)", e) || occursin("(move (prev obj) 6 0)", e) || occursin("(move (prev obj) -6 0)", e)) && (occursin("isWithinBounds", e) || occursin("isOutsideBounds", e)))
       delete!(small_event_vector_dict, e)
     end
   end
@@ -1726,9 +1841,32 @@ function generate_new_object_specific_state_GLOBAL(co_occurring_event, update_fu
   update_function_indices = Dict(map(u -> u => findall(x -> x == u, update_functions)[1], update_functions))
   max_state_value = length(update_functions)
 
+
+  # for time in 1:length(co_occurring_event_trajectory)
+  #   if co_occurring_event_trajectory[time] == 1 && !(time in true_positive_times)
+  #     if foldl(&, map(update_rule -> occursin("addObj", update_rule), collect(keys(times_dict))))
+  #       push!(false_positive_times, time)
+  #     elseif (object_trajectory[time][1] != "") # && !(occursin("removeObj", object_trajectory[time][1]))
+        
+  #       rule = object_trajectory[time][1]
+  #       min_index = minimum(findall(r -> r in update_functions, ordered_update_functions))
+
+  #       @show time 
+  #       @show rule 
+  #       @show min_index
+  #       @show findall(r -> r == rule, ordered_update_functions) 
+
+  #       if is_no_change_rule(rule) || findall(r -> r == rule, ordered_update_functions)[1] < min_index 
+  #         push!(false_positive_times, time)
+  #       end
+  #     end     
+  #   end
+  # end
+
   # construct augmented true positive times 
   augmented_positive_times_dict = Dict()
   for object_id in object_ids
+    @show object_id 
     augmented_true_positive_times_dict = Dict(map(u -> u => map(t -> (t, update_function_indices[u]), times_dict[u][object_id]), update_functions))
     augmented_true_positive_times = vcat(collect(values(augmented_true_positive_times_dict))...)
     true_positive_times = map(tuple -> tuple[1], augmented_true_positive_times)  
@@ -1736,13 +1874,26 @@ function generate_new_object_specific_state_GLOBAL(co_occurring_event, update_fu
     false_positive_times = [] # times when user_event happened and update_rule didn't happen
     # construct false_positive_times 
     for time in 1:(length(object_mapping[object_ids[1]])-1)
+      @show time 
       if co_occurring_event_trajectory isa AbstractArray
         if co_occurring_event_trajectory[time] == 1 && !(time in true_positive_times) && !isnothing(object_mapping[object_id][time]) && !isnothing(object_mapping[object_id][time + 1])
-          push!(false_positive_times, time)
+          rule = filtered_matrix[object_id, time][1]
+          min_index = minimum(findall(r -> r in update_functions, ordered_update_functions))           
+          
+          if is_no_change_rule(rule) || findall(r -> r == rule, ordered_update_functions)[1] < min_index 
+            push!(false_positive_times, time)
+          end
         end
+
       else 
         if co_occurring_event_trajectory[object_id][time] == 1 && !(time in true_positive_times) && !isnothing(object_mapping[object_id][time]) && !isnothing(object_mapping[object_id][time + 1])
-          push!(false_positive_times, time)
+          rule = filtered_matrix[object_id, time][1]
+          min_index = minimum(findall(r -> r in update_functions, ordered_update_functions))           
+          
+          if is_no_change_rule(rule) || findall(r -> r == rule, ordered_update_functions)[1] < min_index 
+            push!(false_positive_times, time)
+          end
+
         end
       end
     end
@@ -1752,6 +1903,17 @@ function generate_new_object_specific_state_GLOBAL(co_occurring_event, update_fu
 
     augmented_positive_times_dict[object_id] = augmented_positive_times 
   end
+
+  if co_occurring_event == "true"
+    for object_id in object_ids 
+      all_update_function_tuples = filter(tup -> tup[2] in collect(1:length(update_functions)), augmented_positive_times_dict[object_id])
+      if all_update_function_tuples != [] 
+        last_update_function_time = sort(all_update_function_tuples, by=t -> t[1])[end][1]
+        augmented_positive_times_dict[object_id] = filter(tup -> tup[1] <= last_update_function_time, augmented_positive_times_dict[object_id])
+      end
+    end
+  end
+
   println("# check state_update_times again 4")
   @show state_update_times 
   # compute ranges 
@@ -1765,16 +1927,19 @@ function generate_new_object_specific_state_GLOBAL(co_occurring_event, update_fu
   init_grouped_ranges = deepcopy(grouped_ranges)
   init_augmented_positive_times_dict = deepcopy(augmented_positive_times_dict)
 
-  init_problem_context = (deepcopy(init_grouped_ranges), deepcopy(init_augmented_positive_times_dict), deepcopy(state_update_times), deepcopy(global_var_dict))
+  init_extra_global_var_values = Dict(map(index -> index => [], 1:length(update_functions)))
+
+  init_problem_context = (deepcopy(init_grouped_ranges), deepcopy(init_augmented_positive_times_dict), deepcopy(state_update_times), deepcopy(global_var_dict), deepcopy(init_extra_global_var_values))
 
   for transition_decision_string in transition_decision_strings 
-    grouped_ranges, augmented_positive_times_dict, state_update_times, global_var_dict = init_problem_context
+    grouped_ranges, augmented_positive_times_dict, state_update_times, global_var_dict, extra_global_var_values = init_problem_context
     transition_decision_index = 1
 
     println("# check state_update_times again 5")
     @show state_update_times 
     iters = 0
-    while length(grouped_ranges) > 0 && (iters < 50)
+    while length(grouped_ranges) > 0 && (iters < 500)
+      @show iters
       iters += 1
       grouped_range = grouped_ranges[1]
       grouped_ranges = grouped_ranges[2:end]
@@ -1784,6 +1949,7 @@ function generate_new_object_specific_state_GLOBAL(co_occurring_event, update_fu
       end_value = range[2][2]
   
       max_state_value = maximum(vcat(map(id -> map(tuple -> tuple[2], augmented_positive_times_dict[id]), collect(keys(augmented_positive_times_dict)))...))
+      @show max_state_value
   
       # TODO: try global events too  
       events_in_range = []
@@ -1886,7 +2052,7 @@ function generate_new_object_specific_state_GLOBAL(co_occurring_event, update_fu
           augmented_positive_times_dict_labeled[id] = vcat(map(t -> same_time_tuples_dict[id][t], sort(collect(keys(same_time_tuples_dict[id]))))...)
         end
         # augmented_positive_times_labeled = sort(augmented_positive_times_labeled, by=x->x[1])
-  
+        @show augmented_positive_times_dict_labeled 
         # relabel false positive times 
         # based on relabeling, relabel other existing labels if necessary 
         augmented_positive_times_dict = Dict()
@@ -1899,7 +2065,7 @@ function generate_new_object_specific_state_GLOBAL(co_occurring_event, update_fu
                 prev_tuple = augmented_positive_times_labeled[prev_index]
     
                 # if we have reached a prev_tuple with global_var_value or extra value, then we stop the relabeling based on this event tuple
-                if prev_tuple[2] == curr_state_value # || prev_tuple[2] in extra_global_var_values
+                if prev_tuple[2] != start_value # || prev_tuple[2] in extra_global_var_values
                   break
                   # println("HERE 2")
                   # @show prev_tuple 
@@ -1916,8 +2082,11 @@ function generate_new_object_specific_state_GLOBAL(co_occurring_event, update_fu
                 end
                 
                 # relabel update function prev_tuple with label greater than global_var_value and not an extra value 
-                if (prev_tuple[2] > curr_state_value) && (prev_tuple[3] == "update_function") # && !(prev_tuple[2] in extra_global_var_values)
+                if (prev_tuple[2] == start_value) && (prev_tuple[3] == "update_function") # && !(prev_tuple[2] in extra_global_var_values)
                   augmented_positive_times_labeled[prev_index] = (prev_tuple[1], max_state_value + 1, prev_tuple[3])
+                  if start_value in collect(1:length(update_functions))
+                    push!(extra_global_var_values[start_value], max_state_value + 1)
+                  end
                 end
               end
             end
@@ -1927,12 +2096,26 @@ function generate_new_object_specific_state_GLOBAL(co_occurring_event, update_fu
         end
 
         for id in collect(keys(augmented_positive_times_dict))
-          augmented_positive_times_dict[id] = augmented_positive_times_dict[id][1:end-1]
+          augmented_positive_times_dict[id] = augmented_positive_times_dict[id]
         end
+
+        # if co_occurring_event == "true"
+        #   for object_id in object_ids 
+        #     all_update_function_tuples = filter(tup -> tup[2] in collect(1:length(update_functions)), augmented_positive_times_dict[object_id])
+        #     if all_update_function_tuples != [] 
+        #       last_update_function_time = sort(all_update_function_tuples, by=t -> t[1])[end][1]
+        #       augmented_positive_times_dict[object_id] = filter(tup -> tup[1] <= last_update_function_time, augmented_positive_times_dict[object_id])
+        #     end
+        #   end
+        # end      
   
         # compute new ranges 
         grouped_ranges = recompute_ranges_object_specific(augmented_positive_times_dict, curr_state_value, object_mapping, object_ids)
         state_update_times = deepcopy(init_state_update_times)
+
+        println("NEW STUFF HERE")
+        @show grouped_ranges 
+        @show augmented_positive_times_dict
   
         if length(collect(keys(state_update_times))) == 0 || length(intersect(object_ids, collect(keys(state_update_times)))) == 0
           for id in object_ids
@@ -1947,7 +2130,7 @@ function generate_new_object_specific_state_GLOBAL(co_occurring_event, update_fu
       end
     end
   
-    if iters == 50 
+    if iters == 500 
       failed = true
     end
   
@@ -2042,10 +2225,18 @@ function generate_new_object_specific_state_GLOBAL(co_occurring_event, update_fu
         end
   
         update_function_index = update_function_indices[update_function]
-        if !occursin("field1", formatted_co_occurring_event)
-          on_clause = "(on true\n$(replace(update_function, "(== (.. obj id) x)" => "(& $(curr_formatted_co_occurring_event) (== (.. obj field1) $(update_function_index)))")))"
+        if extra_global_var_values[update_function_index] == [] 
+          if !occursin("field1", formatted_co_occurring_event)
+            on_clause = "(on true\n$(replace(update_function, "(== (.. obj id) x)" => "(& $(curr_formatted_co_occurring_event) (== (.. obj field1) $(update_function_index)))")))"
+          else
+            on_clause = "(on true\n$(replace(update_function, "(== (.. obj id) x)" => curr_formatted_co_occurring_event)))"
+          end
         else
-          on_clause = "(on true\n$(replace(update_function, "(== (.. obj id) x)" => curr_formatted_co_occurring_event)))"
+          if !occursin("field1", formatted_co_occurring_event)
+            on_clause = "(on true\n$(replace(update_function, "(== (.. obj id) x)" => "(& $(curr_formatted_co_occurring_event) (in (.. obj field1) (list $(update_function_index) $(join(extra_global_var_values[update_function_index], " ")))))")))"
+          else
+            on_clause = "(on true\n$(replace(update_function, "(== (.. obj id) x)" => curr_formatted_co_occurring_event)))"
+          end
         end
         push!(on_clauses, (on_clause, update_function))
       end    

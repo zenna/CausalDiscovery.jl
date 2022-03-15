@@ -406,13 +406,13 @@ function synthesize_update_functions(object_id, time, object_decomposition, user
                     end
                   end
     
-                  # # add farthest-based update functions 
-                  # for desc in ["Left", "Right", "Up", "Down"]
-                  #   other_type_ids = filter(x -> x != type_id, type_ids)
-                  #   for other_type_id_1 in other_type_ids # closest w.r.t. single other type 
-                  #     push!(prev_used_rules, """(= objX (moveNoCollisionColor objX (farthest$(desc) objX (list ObjType$(other_type_id_1)) $(unit_size)) "darkgray"))""")
-                  #   end
-                  # end
+                  # add farthest-based update functions 
+                  for desc in ["Left", "Right", "Up", "Down"]
+                    other_type_ids = filter(x -> x != type_id, type_ids)
+                    for other_type_id_1 in other_type_ids # closest w.r.t. single other type 
+                      push!(prev_used_rules, """(= objX (moveNoCollisionColor objX (farthest$(desc) objX (list ObjType$(other_type_id_1)) $(unit_size)) "darkgray"))""")
+                    end
+                  end
 
                 end
               end
@@ -435,14 +435,14 @@ function synthesize_update_functions(object_id, time, object_decomposition, user
                 end
               end
   
-              # # add farthest-based update functions 
-              # unit_size = filter(x -> x != 0, [x_displacement, y_displacement]) != [] ? abs(filter(x -> x != 0, [x_displacement, y_displacement])[1]) : 1 
-              # for desc in ["Left", "Right", "Up", "Down"]
-              #   other_type_ids = filter(x -> x != type_id, type_ids)
-              #   for other_type_id_1 in other_type_ids # closest w.r.t. single other type 
-              #     push!(prev_used_rules, """(= objX (moveNoCollisionColor objX (farthest$(desc) objX (list ObjType$(other_type_id_1)) $(unit_size)) "darkgray"))""")
-              #   end
-              # end
+              # add farthest-based update functions 
+              unit_size = filter(x -> x != 0, [x_displacement, y_displacement]) != [] ? abs(filter(x -> x != 0, [x_displacement, y_displacement])[1]) : 1 
+              for desc in ["Left", "Right", "Up", "Down"]
+                other_type_ids = filter(x -> x != type_id, type_ids)
+                for other_type_id_1 in other_type_ids # closest w.r.t. single other type 
+                  push!(prev_used_rules, """(= objX (moveNoCollisionColor objX (farthest$(desc) objX (list ObjType$(other_type_id_1)) $(unit_size)) "darkgray"))""")
+                end
+              end
   
             end
   
@@ -481,9 +481,10 @@ function synthesize_update_functions(object_id, time, object_decomposition, user
       # @show update_rule 
       if occursin("NoCollision", update_rule) || occursin("closest", update_rule) || occursin("farthest", update_rule) || occursin("nextLiquid", update_rule) || occursin("color", update_rule)
         hypothesis_program = string(hypothesis_program[1:end-2], "\n\t (on true\n", update_rule, ")\n)")
-        # println("HYPOTHESIS_PROGRAM")
+        println("HYPOTHESIS_PROGRAM")
         # println(prev_object)
-        # println(hypothesis_program)
+        println(hypothesis_program)
+        # push!(lol_programs, hypothesis_program)
         # # # # @show global_iters
         # # # # @show update_rule
   
@@ -495,7 +496,9 @@ function synthesize_update_functions(object_id, time, object_decomposition, user
         hypothesis_object = filter(o -> o.id == object_id, hypothesis_frame_state.scene.objects)[1]
         ## # # @show hypothesis_frame_state.scene.objects
         ## # # @show hypothesis_object
-        equals = render_equals(hypothesis_object, next_object)
+        println("render_equals_begin")
+        equals = render_equals(hypothesis_object, next_object, hypothesis_frame_state)
+        println("render_equals_end")
       else
         # update rule does not need evaluation in Autumn program 
         x_displacement = next_object.position[1] - prev_object.position[1]
@@ -948,10 +951,10 @@ function distance(pos1, pos2)
   abs(pos1_x - pos2_x) + abs(pos1_y - pos2_y)
 end
 
-function render_equals(hypothesis_object, actual_object)
-  translated_hypothesis_object = map(cell -> (cell.position.x + hypothesis_object.origin.x, cell.position.y + hypothesis_object.origin.y), hypothesis_object.render)
+function render_equals(hypothesis_object, actual_object, state)
+  translated_hypothesis_object = map(cell -> (cell.position.x + hypothesis_object.origin.x, cell.position.y + hypothesis_object.origin.y), isnothing(hypothesis_object.render) ? state.object_types[hypothesis_object.type].render : hypothesis_object.render)
   translated_actual_object = map(pos -> (pos[1] + actual_object.position[1], pos[2] + actual_object.position[2]), actual_object.type.shape)
-  (sort(translated_hypothesis_object) == sort(translated_actual_object)) && hypothesis_object.alive
+  (translated_hypothesis_object == translated_actual_object) && hypothesis_object.alive
 end
 
 # function singletimestepsolution_program(observations, user_events, grid_size=16)
@@ -1904,11 +1907,11 @@ function pre_filter_remove_non_NoCollision(matrix)
   end
 end
 
-function pre_filter_with_direction_biases(matrix, user_events, object_decomposition)
+function pre_filter_with_direction_biases(matrix, user_events, agent_type, object_decomposition)
   object_types, object_mapping, _, _ = object_decomposition 
 
   new_matrices = []
-  for type in object_types 
+  for type in [agent_type] 
     new_matrix = deepcopy(matrix)
     type_id = type.id 
     object_ids_with_type = filter(id -> filter(obj -> !isnothing(obj), object_mapping[id])[1].type.id == type_id, collect(keys(object_mapping)))
@@ -2101,7 +2104,8 @@ function construct_filtered_matrices_pedro(old_matrix, object_decomposition, use
   # end
 
   # use only bare-bones options for agent object ("darkblue")
-  agent_type = filter(t -> t.color == "darkblue", object_types)[1]
+  # old: agent_type = filter(t -> t.color == "darkblue", object_types)[1]
+  agent_type = identify_agent_type(object_decomposition, user_events)
   agent_id = filter(id -> filter(obj -> !isnothing(obj), object_mapping[id])[1].type.id == agent_type.id, collect(keys(object_mapping)))[1]
   for time in 1:size(matrix)[2]
     matrix[agent_id, time] = filter(r -> !occursin("closest", r) && !occursin("farthest", r), matrix[agent_id, time])
@@ -2111,16 +2115,16 @@ function construct_filtered_matrices_pedro(old_matrix, object_decomposition, use
   filtered_matrices = []
 
   # add direction-bias-filtered matrix to filtered_matrices 
-  pre_filtered_matrices = pre_filter_with_direction_biases(deepcopy(matrix), user_events, object_decomposition)
-  for m in pre_filtered_matrices
-    push!(filtered_matrices, filter_update_function_matrix_multiple(m, object_decomposition, multiple=false)...)
-  end
+  matrix = pre_filter_with_direction_biases(deepcopy(matrix), user_events, agent_type, object_decomposition)[1]
+  # for m in pre_filtered_matrices
+  #   push!(filtered_matrices, filter_update_function_matrix_multiple(m, object_decomposition, multiple=false)...)
+  # end
   
   # regularity matrices: non-random and random (type-level)
   ## collect types that might behave with regularity
   potential_regularity_types = []
   for type in object_types 
-    if !(type.color in ["darkgray", "darkblue"])
+    if !(type.color in ["darkgray", "black", agent_type.color])
       ids_with_type = filter(id -> filter(obj -> !isnothing(obj), object_mapping[id])[1].type.id == type.id, collect(keys(object_mapping)))
       object_positions = unique(vcat(map(id -> map(o -> o.position, filter(obj -> !isnothing(obj), object_mapping[id])), ids_with_type)...))
       # @show type.id
@@ -2131,27 +2135,38 @@ function construct_filtered_matrices_pedro(old_matrix, object_decomposition, use
     end
   end
 
+  regularity_found = false
   if potential_regularity_types != []
     for adjacency_barred in [true, false]
-      regularity_matrix, regularity_unformatted_matrix = construct_regularity_matrix(matrix, unformatted_matrix, object_decomposition, potential_regularity_types, adjacency_barred)
+      regularity_matrix, regularity_unformatted_matrix, actual_regularity_types = construct_regularity_matrix(matrix, unformatted_matrix, object_decomposition, potential_regularity_types, adjacency_barred)
       @show regularity_matrix
       if !isnothing(regularity_matrix)
+        regularity_found = true
         # non-random 
         non_random_regularity_matrices = construct_filtered_matrices(regularity_matrix, object_decomposition, user_events)
-        if non_random_regularity_matrices != []
-          push!(filtered_matrices, non_random_regularity_matrices[1])
-        end  
-  
-        # random 
-        random_regularity_matrix_unfiltered = construct_random_regularity_matrix(regularity_matrix, regularity_unformatted_matrix, object_decomposition, potential_regularity_types)
+        standard_non_random_regularity_matrix = non_random_regularity_matrices[1]
+          
+        possible_brownian_types = identify_brownian_types(object_decomposition, user_events, agent_type, standard_non_random_regularity_matrix, actual_regularity_types)
+        regularity_brownian_types = filter(t -> t.id in map(x -> x.id, actual_regularity_types),  possible_brownian_types)
+        other_brownian_types = [x for x in possible_brownian_types if !(x in regularity_brownian_types)]
+
+        # regularity random 
+        random_regularity_matrix_unfiltered = construct_random_regularity_matrix(regularity_matrix, regularity_unformatted_matrix, object_decomposition, regularity_brownian_types)
+        # fully random (i.e no regularity)
+        random_regularity_matrix_unfiltered = construct_brownian_motion_matrix(random_regularity_matrix_unfiltered, regularity_unformatted_matrix, object_decomposition, other_brownian_types)
+
         # @show random_regularity_matrix_unfiltered
         random_regularity_matrices = construct_filtered_matrices(random_regularity_matrix_unfiltered, object_decomposition, user_events)
-        if random_regularity_matrices != []
-          push!(filtered_matrices, random_regularity_matrices[1])
-        end
+        push!(filtered_matrices, random_regularity_matrices[1])
       end
-
     end
+  end
+
+  if !regularity_found 
+    possible_brownian_types = identify_brownian_types(object_decomposition, user_events, agent_type, matrix, [])
+    brownian_matrix_unfiltered = construct_brownian_motion_matrix(matrix, unformatted_matrix, object_decomposition, possible_brownian_types)
+    brownian_matrix = construct_filtered_matrices(brownian_matrix_unfiltered, object_decomposition, user_events)[1]
+    push!(filtered_matrices, brownian_matrix)
   end
   
   # bare-bones non-random matrix 
@@ -2168,27 +2183,27 @@ function construct_filtered_matrices_pedro(old_matrix, object_decomposition, use
   standard_non_random_matrix = construct_filtered_matrices(matrix, object_decomposition, user_events)[1]
   push!(filtered_matrices, standard_non_random_matrix)
 
-  # sort update functions before adding brownian-motion-style matrices 
-  filtered_matrices = sort_update_function_matrices(filtered_matrices, object_decomposition)
+  # # sort update functions before adding brownian-motion-style matrices 
+  # filtered_matrices = sort_update_function_matrices(filtered_matrices, object_decomposition)
 
-  # fully random (type-level)
-  ## collect types that seem to behave according to brownian motion
-  potential_brownian_motion_types = []
-  for type in object_types 
-    if !(type.color in ["darkgray", "darkblue"])
-      ids_with_type = filter(id -> filter(obj -> !isnothing(obj), object_mapping[id])[1].type.id == type.id, collect(keys(object_mapping)))
-      object_positions = unique(vcat(map(id -> map(o -> o.position, filter(obj -> !isnothing(obj), object_mapping[id])), ids_with_type)...))
-      if length(object_positions) > length(ids_with_type)
-        push!(potential_brownian_motion_types, type)
-      end
-    end
-  end
+  # # fully random (type-level)
+  # ## collect types that seem to behave according to brownian motion
+  # potential_brownian_motion_types = []
+  # for type in object_types 
+  #   if !(type.color in ["darkgray", "darkblue"])
+  #     ids_with_type = filter(id -> filter(obj -> !isnothing(obj), object_mapping[id])[1].type.id == type.id, collect(keys(object_mapping)))
+  #     object_positions = unique(vcat(map(id -> map(o -> o.position, filter(obj -> !isnothing(obj), object_mapping[id])), ids_with_type)...))
+  #     if length(object_positions) > length(ids_with_type)
+  #       push!(potential_brownian_motion_types, type)
+  #     end
+  #   end
+  # end
 
-  if potential_brownian_motion_types != [] 
-    brownian_matrix_unfiltered = construct_brownian_motion_matrix(matrix, unformatted_matrix, object_decomposition, potential_brownian_motion_types)
-    brownian_matrix = construct_filtered_matrices(brownian_matrix_unfiltered, object_decomposition, user_events)[1]
-    push!(filtered_matrices, brownian_matrix)
-  end
+  # if potential_brownian_motion_types != [] 
+  #   brownian_matrix_unfiltered = construct_brownian_motion_matrix(matrix, unformatted_matrix, object_decomposition, potential_brownian_motion_types)
+  #   brownian_matrix = construct_filtered_matrices(brownian_matrix_unfiltered, object_decomposition, user_events)[1]
+  #   push!(filtered_matrices, brownian_matrix)
+  # end
 
   unique!(filtered_matrices)
   filtered_matrices
@@ -2202,12 +2217,128 @@ function identify_agent_type(object_decomposition, user_events)
   up_times = findall(e -> e == "up", user_events)
   down_times = findall(e -> e == "down", user_events)
 
+  types_to_match_fraction = Dict()
+  for object_type in object_types 
+    type_id = object_type.id 
+    object_ids_with_type = filter(id -> filter(obj -> !isnothing(obj), object_mapping[id])[1].type.id == type_id, collect(keys(object_mapping)))
 
+    all_direction_times = 0 
+    matching_direction_times = 0
+    for id in object_ids_with_type 
+      left_times = filter(time -> !isnothing(object_mapping[id][time]) && user_events[time] == "left", collect(1:length(user_events)))
+      left_times_with_left_disp = filter(time -> !isnothing(object_mapping[id][time]) && 
+                                                 !isnothing(object_mapping[id][time + 1]) && 
+                                                 (displacement(object_mapping[id][time].position, object_mapping[id][time + 1].position)[1] < 0) && 
+                                                 (displacement(object_mapping[id][time].position, object_mapping[id][time + 1].position)[2] == 0),
+                                         left_times)
 
+      right_times = filter(time -> !isnothing(object_mapping[id][time]) && user_events[time] == "right", collect(1:length(user_events)))
+      right_times_with_right_disp = filter(time -> !isnothing(object_mapping[id][time]) && 
+                                                !isnothing(object_mapping[id][time + 1]) && 
+                                                (displacement(object_mapping[id][time].position, object_mapping[id][time + 1].position)[1] > 0) && 
+                                                (displacement(object_mapping[id][time].position, object_mapping[id][time + 1].position)[2] == 0),
+                                           right_times)
+
+      up_times = filter(time -> !isnothing(object_mapping[id][time]) && user_events[time] == "up", collect(1:length(user_events)))
+      up_times_with_up_disp = filter(time -> !isnothing(object_mapping[id][time]) && 
+                                                  !isnothing(object_mapping[id][time + 1]) && 
+                                                  (displacement(object_mapping[id][time].position, object_mapping[id][time + 1].position)[1] == 0) && 
+                                                  (displacement(object_mapping[id][time].position, object_mapping[id][time + 1].position)[2] < 0),
+                                     up_times)
+
+      down_times = filter(time -> !isnothing(object_mapping[id][time]) && user_events[time] == "down", collect(1:length(user_events)))
+      down_times_with_down_disp = filter(time -> !isnothing(object_mapping[id][time]) && 
+                                                  !isnothing(object_mapping[id][time + 1]) && 
+                                                  (displacement(object_mapping[id][time].position, object_mapping[id][time + 1].position)[1] == 0) && 
+                                                  (displacement(object_mapping[id][time].position, object_mapping[id][time + 1].position)[2] > 0),
+                                         down_times)                                          
+
+      numerator = (length(left_times_with_left_disp) + length(right_times_with_right_disp) + length(up_times_with_up_disp) + length(down_times_with_down_disp))
+      total = (length(left_times) + length(right_times) + length(up_times) + length(down_times))
+      all_direction_times += total 
+      matching_direction_times += numerator 
+    end
+    types_to_match_fraction[type_id] = (all_direction_times == 0) ? 0 : (matching_direction_times/all_direction_times)
+  end
+
+  best_type_id = filter(t -> types_to_match_fraction[t] == maximum(collect(values(types_to_match_fraction))), collect(keys(types_to_match_fraction)))[1]
+  filter(t -> t.id == best_type_id, object_types)[1] 
 end
 
-function identify_brownian_types(object_decomposition, user_events)
-  
+function identify_brownian_types(object_decomposition, user_events, agent_type, standard_regularity_matrix, regularity_types)
+  object_types, object_mapping, _, grid_size = object_decomposition 
+  possible_brownian_types = deepcopy(object_types)
+
+  filter!(t -> t.id != agent_type.id, possible_brownian_types)
+
+  displacement_dict = Dict()
+
+  object_ids_with_type_dict = Dict()
+  for type in possible_brownian_types 
+    object_ids_with_type = filter(id -> filter(obj -> !isnothing(obj), object_mapping[id])[1].type.id == type.id, collect(keys(object_mapping)))
+    object_ids_with_type_dict[type.id] = object_ids_with_type
+  end
+
+  for type in possible_brownian_types
+    type_id = type.id 
+    object_ids_with_type = object_ids_with_type_dict[type_id]
+    
+    displacement_dict[type_id] = Dict()
+    for object_id in object_ids_with_type 
+      displacement_dict[type_id][object_id] = []
+      for time in 1:length(user_events)
+        if !isnothing(object_mapping[object_id][time]) && !isnothing(object_mapping[object_id][time + 1])
+
+          disp = displacement(object_mapping[object_id][time].position, object_mapping[object_id][time + 1].position)
+          if (disp[1] > 0) && (disp[2] == 0)
+            push!(displacement_dict[type_id][object_id], "left")
+          elseif (disp[1] < 0) && (disp[2] == 0)
+            push!(displacement_dict[type_id][object_id], "right")
+          elseif (disp[1] == 0) && (disp[2] > 0)
+            push!(displacement_dict[type_id][object_id], "up")
+          elseif (disp[1] == 0) && (disp[2] < 0)
+            push!(displacement_dict[type_id][object_id], "down")
+          end
+
+        end
+      end
+    end
+  end
+
+  # keep only types where objects undergo all four directional displacements
+  non_brownian_types = []
+  type_to_distinct_disp_dirs = Dict(map(type -> type.id => unique(vcat(collect(values(displacement_dict[type.id]))...)), possible_brownian_types))
+  for type_id in collect(keys(type_to_distinct_disp_dirs))
+    if length(type_to_distinct_disp_dirs[type_id]) != 4 
+      push!(non_brownian_types, type_id)
+    end
+  end
+  filter!(t -> !(t.id in non_brownian_types), possible_brownian_types)
+
+  # TODO: histogram of directional displacements is close to uniform? 
+
+  # TODO: number of switches between directions is at least 1/4 (or some fraction) of all timesteps?
+
+  ## for each type, check if it is regular: if not, see if closestRandom/farthestRandom/same update function ńappear at every time step; if so, 
+  ## see if closestRandom/farthestRandom/same update function appear at every *regular* time step. if this is false, then keep as potential brownian 
+  ## type; otherwise it is unlikely to be brownian motion. 
+  filtered_standard_matrix = construct_filtered_matrices(standard_regularity_matrix, object_decomposition, user_events)[1]
+  for type in possible_brownian_types 
+    object_ids_with_type = object_ids_with_type_dict[type.id]
+    if type.id in map(t -> t.id, regularity_types) # type has observed regularity; exclude "prev obj" functions from set of distinct update functions
+      update_functions = filter(r -> r != "" && !occursin("addObj", r) && !occursin("removeObj", r) && !occursin("(--> obj (prev obj))", r) && !occursin("(prev obj$(object_ids_with_type[1]))", r), unique(vcat(map(id -> map(x -> replace(replace(x, "obj id) $(id)" => "obj id) x"), "obj$(id)" => "objX"), vcat(filtered_standard_matrix[id, :]...)), object_ids_with_type)...)))
+      if length(update_functions) <= 1 # unlikely to be brownian/random
+        filter!(t -> t.id != type.id, possible_brownian_types)
+      end
+    else # type does not have observed regularity; include "prev obj" functions in set of distinct update functions 
+      update_functions = filter(r -> r != "" && !occursin("addObj", r) && !occursin("removeObj", r), unique(vcat(map(id -> map(x -> replace(replace(x, "obj id) $(id)" => "obj id) x"), "obj$(id)" => "objX"), vcat(filtered_standard_matrix[id, :]...)), object_ids_with_type)...)))
+      if length(update_functions) <= 1 # unlikely to be brownian/random
+        filter!(t -> t.id != type.id, possible_brownian_types)
+      end
+    end
+  end
+
+  possible_brownian_types
 end
 
 function construct_random_regularity_matrix(regularity_matrix, regularity_unformatted_matrix, object_decomposition, regularity_types)
@@ -2243,7 +2374,7 @@ function construct_regularity_matrix(matrix, unformatted_matrix, object_decompos
 
   new_matrix = deepcopy(matrix) 
   new_unformatted_matrix = deepcopy(unformatted_matrix)
-
+  actual_regularity_types = []
   # identify wall positions
   wall_types = filter(t -> t.color == "darkgray", object_types)
   if wall_types == [] 
@@ -2288,6 +2419,7 @@ function construct_regularity_matrix(matrix, unformatted_matrix, object_decompos
       if exact_intervals || inexact_intervals 
         # regularity observed!
         changed = true
+        push!(actual_regularity_types, type)
         interval_size = minimum(interval_sizes) + 1
         @show interval_size
         
@@ -2328,9 +2460,9 @@ function construct_regularity_matrix(matrix, unformatted_matrix, object_decompos
     end
   end
   if changed 
-    new_matrix, new_unformatted_matrix
+    new_matrix, new_unformatted_matrix, actual_regularity_types
   else 
-    nothing, nothing
+    nothing, nothing, []
   end
 end
 

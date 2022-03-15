@@ -367,8 +367,10 @@ function gen_event_bool_human_prior(object_decomposition, object_id, type_id, us
       for disp in displacements 
         push!(choices, "(isFree (.. $(disp) origin) (prev obj$(object_1.id)))")
         push!(choices, "(isWithinBounds $(disp))")
+        push!(choices, "(isOutsideBounds $(disp))")
         push!(choices, "(! (isFree (.. $(disp) origin) (prev obj$(object_1.id))))")
         push!(choices, "(! (isWithinBounds $(disp)))")
+        push!(choices, "(! (isOutsideBounds $(disp)))")
         if occursin("NoCollision", disp)
           push!(choices, "(== (.. $(disp) origin) (.. (prev obj$(object_1.id)) origin))")
           push!(choices, "(!= (.. $(disp) origin) (.. (prev obj$(object_1.id)) origin))")
@@ -416,6 +418,15 @@ function gen_event_bool_human_prior(object_decomposition, object_id, type_id, us
           # ----- translations (intersecting other objects)
           for disp in displacements
             push!(choices, "(intersects $(disp) (prev addedObjType$(object_type.id)List))")
+
+            # TEMP DEBUGGING: DELETE LATER 
+            if filter(x -> x[1] == "field1", object_type.custom_fields) != []
+              field_values = filter(x -> x[1] == "field1", object_type.custom_fields)[1][3]
+              for v in field_values 
+                push!(choices, "(& (intersects $(disp) $(filtered_list)) (in $(v) (map (--> obj (.. obj field1)) $(filtered_list))))")
+              end
+            end
+
             push!(choices, "(intersects $(disp) $(filtered_list))")
             push!(choices, "(! (intersects $(disp) (prev addedObjType$(object_type.id)List)))")
             push!(choices, "(! (intersects $(disp) $(filtered_list)))")
@@ -435,7 +446,8 @@ function gen_event_bool_human_prior(object_decomposition, object_id, type_id, us
     # ----- translations (isFree, isWithinBounds, no change on NoCollisoin, intersects other objects)
     filtered_list = "(filter (--> obj (== (.. obj id) $(object_id))) (prev addedObjType$(object_type_1.id)List))" 
 
-    push!(choices, "(== (prev addedObjType$(object_type_1.id)List) (list))")
+    push!(choices, "(== (filter (--> obj (.. obj alive)) (prev addedObjType$(object_type_1.id)List)) (list))")
+    push!(choices, "(!= (filter (--> obj (.. obj alive)) (prev addedObjType$(object_type_1.id)List)) (list))")
     
     displacements = []
     if type_displacements[object_type_1.id] != []
@@ -454,8 +466,10 @@ function gen_event_bool_human_prior(object_decomposition, object_id, type_id, us
     for disp in displacements 
       push!(choices, "(in true (map (--> obj (isFree (.. obj origin) obj)) $(disp)))")
       push!(choices, "(in true (map (--> obj (isWithinBounds obj)) $(disp)))")
+      push!(choices, "(in true (map (--> obj (isOutsideBounds obj)) $(disp)))")
       push!(choices, "(in false (map (--> obj (isFree (.. obj origin) obj)) $(disp)))")
       push!(choices, "(in false (map (--> obj (isWithinBounds obj)) $(disp)))")
+      push!(choices, "(in false (map (--> obj (isOutsideBounds obj)) $(disp)))")
       if occursin("NoCollision", disp) 
         push!(choices, "(intersects (map (--> obj (.. obj origin)) $(filtered_list)) (map (--> obj (.. obj origin)) $(disp)))")
         push!(choices, "(! (intersects (map (--> obj (.. obj origin)) $(filtered_list)) (map (--> obj (.. obj origin)) $(disp))))")
@@ -481,6 +495,27 @@ function gen_event_bool_human_prior(object_decomposition, object_id, type_id, us
           for o in non_list_objects 
             push!(choices, "(intersects $(disp) (prev obj$(o.id)))")
           end
+
+          # TEMP DEBUGGING: DELETE LATER 
+          if filter(x -> x[1] == "field1", object_type_1.custom_fields) != []
+            field_values = filter(x -> x[1] == "field1", object_type_1.custom_fields)[1][3]
+            for v in field_values 
+              if type_displacements[object_type_1.id] != []
+                scalar = type_displacements[object_type_1.id][1]
+                for x in -3:3 
+                  for y in -3:3
+                    if abs(x) + abs(y) < 3 && (x == 0 || y == 0) 
+                      push!(choices, "(in $(v) (map (--> obj (.. obj field1)) (filter (--> obj (intersects (move (prev obj) $(x) $(y)) (prev addedObjType$(object_type_2.id)List))) (prev addedObjType$(object_type_1.id)List))))")
+                      # push!(displacements, "(map (--> obj (move (prev obj) $(x*scalar) $(y*scalar))) $(filtered_list))")
+                      # push!(displacements, "(map (--> obj (moveNoCollision (prev obj) $(x*scalar) $(y*scalar))) $(filtered_list))")          
+                    end
+                  end
+                end  
+              end
+
+            end
+          end
+
         end
       end
     end
