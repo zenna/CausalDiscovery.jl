@@ -145,25 +145,203 @@ function singletimestepsolution_matrix(observations, user_events, grid_size; sin
   end
   
   prev_abstract_positions = []
-  
-  # # # @show size(matrix)
-  # for each subsequent frame, map objects
-  for time in 2:length(observations)
-    println("WOOT")
-    @show time 
-    # for each object in previous time step, determine a set of update functions  
-    # that takes the previous object to the next object
-    for object_id in 1:num_objects
-      update_functions, unformatted_update_functions, prev_used_rules, prev_abstract_positions = synthesize_update_functions(object_id, time, object_decomposition, user_events, prev_used_rules, prev_abstract_positions, grid_size, max_iters, upd_func_space, pedro=pedro)
-      # # # @show update_functions 
-      if length(update_functions) == 0
-        # # println("HOLY SHIT")
+
+  if !pedro 
+    # # @show size(matrix)
+    # for each subsequent frame, map objects
+    for time in 2:length(observations)
+      println("WOOT")
+      @show time 
+      # for each object in previous time step, determine a set of update functions  
+      # that takes the previous object to the next object
+      for object_id in 1:num_objects
+        update_functions, unformatted_update_functions, prev_used_rules, prev_abstract_positions = synthesize_update_functions(object_id, time, object_decomposition, user_events, prev_used_rules, prev_abstract_positions, grid_size, max_iters, upd_func_space, pedro=pedro)
+        # # # @show update_functions 
+        if length(update_functions) == 0
+          # # println("HOLY SHIT")
+        end
+        matrix[object_id, time - 1] = update_functions 
+        unformatted_matrix[object_id, time - 1] = unformatted_update_functions
       end
-      matrix[object_id, time - 1] = update_functions 
-      unformatted_matrix[object_id, time - 1] = unformatted_update_functions
     end
   end
-  matrix, unformatted_matrix, object_decomposition, prev_used_rules
+
+  if pedro 
+    possible_rules_matrix = [[] for object_id in 1:num_objects, time in 1:(length(observations) - 1)]
+    for time in 2:length(observations)
+      println("WOOT")
+      @show time 
+      # for each object in previous time step, determine a set of update functions  
+      # that takes the previous object to the next object
+      for object_id in 1:num_objects
+        possible_rules = synthesize_update_functions(object_id, time, object_decomposition, user_events, prev_used_rules, prev_abstract_positions, grid_size, max_iters, upd_func_space, pedro=pedro)
+        # # # @show update_functions 
+        # if length(update_functions) == 0
+        #   # # println("HOLY SHIT")
+        # end
+        push!(possible_rules_matrix[object_id, time - 1], possible_rules...)
+  
+        # matrix[object_id, time - 1] = update_functions 
+        # unformatted_matrix[object_id, time - 1] = unformatted_update_functions
+      end
+    end
+    matrix, unformatted_matrix = synthesize_update_functions_bulk(possible_rules_matrix, object_decomposition)  
+  end
+
+  matrix, unformatted_matrix, object_decomposition, []
+end
+
+# PERFORMANCE EXPERIMENTATION 
+function synthesize_update_functions_bulk(possible_rules_matrix, object_decomposition)
+  object_types, object_mapping, background, grid_size = object_decomposition
+  start_objects = sort(filter(obj -> obj != nothing, [object_mapping[i][1] for i in 1:length(collect(keys(object_mapping)))]), by=(x -> x.id))
+
+  matrix = [[] for object_id in 1:length(collect(keys(object_mapping))), time in 1:(length(observations) - 1)]
+  unformatted_matrix = [[] for object_id in 1:length(collect(keys(object_mapping))), time in 1:(length(observations) - 1)]
+
+  # Threads.@threads 
+  for time in 1:size(matrix)[2]
+    possible_rules = possible_rules_matrix[:, time]
+    possible_rules_autumn = map(l -> filter(r -> (occursin("closest", r) || occursin("farthest", r) || occursin("NoCollision", r)) && !occursin("addObj", r) && !occursin("removeObj", r), l), possible_rules)
+    possible_rules_non_autumn = map(l -> filter(r -> !(occursin("closest", r) || occursin("farthest", r)), l), possible_rules)
+
+    # handle update rules that do not need to be evaluated in an Autumn program
+    for object_id in 1:size(matrix)[1]
+      rules = possible_rules_non_autumn[object_id]
+      if rules[1] == ""
+        push!(matrix[object_id, time], rules[1])
+        push!(unformatted_matrix[object_id, time], rules[1])          
+      elseif occursin("addObj", rules[1]) || occursin("removeObj", rules[1])
+        push!(matrix[object_id, time], rules...)
+        push!(unformatted_matrix[object_id, time], rules...)
+      else
+        for update_rule in rules
+          update_rule = replace(update_rule, "objX" => "obj$(object_id)")
+          equals = false
+          # translation equality check 
+          prev_object = object_mapping[object_id][time]
+          next_object = object_mapping[object_id][time + 1]
+
+          if update_rule == "(= obj$(object_id) obj$(object_id))"
+            if prev_object.position == next_object.position 
+              equals = true
+            end
+          else
+            x_displacement = next_object.position[1] - prev_object.position[1]
+            y_displacement = next_object.position[2] - prev_object.position[2]
+            displacement = (x_displacement, y_displacement)
+    
+            update_rule_displacement = Tuple(map(x -> parse(Int, x), filter(s -> s != "", split(split(replace(replace(update_rule, ")" => ""), "(" => ""), "obj$(object_id)")[end], " "))[1:end-1]))
+            if displacement == update_rule_displacement
+              equals = true
+            end
+          end
+
+          if equals
+            push!(unformatted_matrix[object_id, time], replace(update_rule, "obj$(object_id)" => "objX"))
+            # formatting 
+            contained_in_list = isnothing(object_mapping[object_id][1]) || (count(id -> (filter(x -> !isnothing(x), object_mapping[id]))[1].type.id == object_mapping[object_id][1].type.id, collect(keys(object_mapping))) > 1)
+            if contained_in_list # object was added later; contained in addedList
+              update_rule_parts = split(update_rule, " ")
+              var1 = replace(update_rule_parts[2], "obj$(object_id)" => "obj")
+              var2 = replace(join(update_rule_parts[3:end], " "), "obj$(object_id)" => "(prev obj)")
+              map_lambda_func = string("(--> ", var1, " ", var2)
+              # map_lambda_func = replace(string("(-->", replace(update_rule, "obj$(object_id)" => "obj")[3:end]), "(prev obj)" => "(prev obj)")
+              push!(matrix[object_id, time], "(= addedObjType$(prev_object.type.id)List (updateObj addedObjType$(prev_object.type.id)List $(map_lambda_func) (--> obj (== (.. obj id) $(object_id)))))")
+            else # object was present at the start of the program
+              update_rule_parts = filter(x -> x != "", split(update_rule, " "))
+              push!(matrix[object_id, time], join([update_rule_parts[1], update_rule_parts[2], replace(join(update_rule_parts[3:end], " "), "obj$(object_id)" => "(prev obj$(object_id))" )], " "))
+            end
+          end
+
+        end
+    
+      end
+    end
+
+    # handle update rules that need to be evaluated in an Autumn program 
+    if join(vcat(possible_rules_autumn...), "") != ""
+      prev_existing_objects = filter(obj -> !isnothing(obj), [object_mapping[id][time] for id in 1:length(collect(keys(object_mapping)))])
+      prev_removed_object_ids = filter(id -> isnothing(object_mapping[id][time]) && (unique(object_mapping[id][1:time]) != [nothing]), collect(keys(object_mapping)))
+      prev_removed_objects_old = map(id -> filter(obj -> !isnothing(obj), object_mapping[id][1:time])[1], prev_removed_object_ids)
+      prev_removed_objects = map(obj -> Obj(obj.type, (-1, -1), obj.custom_field_values, obj.id), prev_removed_objects_old)
+      # foreach(obj -> obj.position = (-1, -1), prev_removed_objects)
+  
+      prev_objects = vcat(prev_existing_objects..., prev_removed_objects...)
+      
+      while join(vcat(possible_rules_autumn...), "") != ""
+        updated_object_ids = findall(l -> l != [], possible_rules_autumn)
+        update_rules = map(id -> replace(possible_rules_autumn[id][1], "objX" => "obj$(id)"), updated_object_ids)
+        possible_rules_autumn = map(l -> l[2:end], possible_rules_autumn)
+
+        # construct hypothesis program 
+        hypothesis_program = program_string_synth_update_rule((object_types, sort(prev_objects, by=(x -> x.id)), background, grid_size))
+
+        hypothesis_program = string(hypothesis_program[1:end-2], join(map(update_rule -> string("\n\t (on true\n", update_rule, ")\n"), update_rules), ""), ")")
+        # println("HYPOTHESIS_PROGRAM")
+        # println(hypothesis_program)
+  
+        expr = parseautumn(hypothesis_program)
+        hypothesis_frame_state = interpret_over_time(expr, 1).state
+
+        failed = false
+        for i in 1:length(updated_object_ids)
+          object_id = updated_object_ids[i] 
+          hypothesis_object = filter(o -> o.id == object_id, hypothesis_frame_state.scene.objects)[1]
+          next_object = object_mapping[object_id][time + 1]
+          equals = render_equals(hypothesis_object, next_object, hypothesis_frame_state)
+          if equals 
+            # format update function appropriately 
+            update_rule = update_rules[i]
+            generic_update_rule = replace(update_rule, "obj$(object_id)" => "objX") 
+            push!(unformatted_matrix[object_id, time], generic_update_rule) 
+    
+            contained_in_list = isnothing(object_mapping[object_id][1]) || (count(id -> (filter(x -> !isnothing(x), object_mapping[id]))[1].type.id == object_mapping[object_id][1].type.id, collect(keys(object_mapping))) > 1)
+
+            if occursin("closestLeft", update_rule)
+              update_rule = replace(update_rule, "closestLeft" => "closestRandom")
+            elseif occursin("closestRight", update_rule)
+              update_rule = replace(update_rule, "closestRight" => "closestRandom")
+            elseif occursin("closestUp", update_rule)
+              update_rule = replace(update_rule, "closestUp" => "closestRandom")
+            elseif occursin("closestDown", update_rule)
+              update_rule = replace(update_rule, "closestDown" => "closestRandom")
+            end
+  
+            if occursin("farthestLeft", update_rule)
+              update_rule = replace(update_rule, "farthestLeft" => "farthestRandom")
+            elseif occursin("farthestRight", update_rule)
+              update_rule = replace(update_rule, "farthestRight" => "farthestRandom")
+            elseif occursin("farthestUp", update_rule)
+              update_rule = replace(update_rule, "farthestUp" => "farthestRandom")
+            elseif occursin("farthestDown", update_rule)
+              update_rule = replace(update_rule, "farthestDown" => "farthestRandom")
+            end
+  
+            # if !occursin("closestRandom", update_rule) || !occursin("closestRandom", join(solutions, "")) # true
+            if contained_in_list # object was added later; contained in addedList
+              prev_object = object_mapping[object_id][time]
+              update_rule_parts = split(update_rule, " ")
+              var1 = replace(update_rule_parts[2], "obj$(object_id)" => "obj")
+              var2 = replace(join(update_rule_parts[3:end], " "), "obj$(object_id)" => "(prev obj)")
+              map_lambda_func = string("(--> ", var1, " ", var2)
+              # map_lambda_func = replace(string("(-->", replace(update_rule, "obj$(object_id)" => "obj")[3:end]), "(prev obj)" => "(prev obj)")
+              push!(matrix[object_id, time], "(= addedObjType$(prev_object.type.id)List (updateObj addedObjType$(prev_object.type.id)List $(map_lambda_func) (--> obj (== (.. obj id) $(object_id)))))")
+            else # object was present at the start of the program
+              update_rule_parts = filter(x -> x != "", split(update_rule, " "))
+              push!(matrix[object_id, time], join([update_rule_parts[1], update_rule_parts[2], replace(join(update_rule_parts[3:end], " "), "obj$(object_id)" => "(prev obj$(object_id))" )], " "))
+            end
+        
+          end
+        end
+
+      end
+      
+    end
+
+  end
+
+  matrix, unformatted_matrix
 end
 
 expr = nothing
@@ -191,6 +369,10 @@ function synthesize_update_functions(object_id, time, object_decomposition, user
   ## # # @show next_object
   # # # # @show isnothing(prev_object) && isnothing(next_object)
   if isnothing(prev_object) && isnothing(next_object)
+    if pedro 
+      return [""]
+    end
+
     [""], [""], prev_used_rules, prev_abstract_positions
   elseif isnothing(prev_object)
     # perform position abstraction step
@@ -200,8 +382,11 @@ function synthesize_update_functions(object_id, time, object_decomposition, user
     
     prev_existing_objects = filter(obj -> !isnothing(obj), [object_mapping[id][time - 1] for id in 1:length(collect(keys(object_mapping)))])
     prev_removed_object_ids = filter(id -> isnothing(object_mapping[id][time - 1]) && (unique(object_mapping[id][1:time - 1]) != [nothing]), collect(keys(object_mapping)))
-    prev_removed_objects = deepcopy(map(id -> filter(obj -> !isnothing(obj), object_mapping[id][1:time - 1])[1], prev_removed_object_ids))
-    foreach(obj -> obj.position = (-1, -1), prev_removed_objects)
+    prev_removed_objects_old = map(id -> filter(obj -> !isnothing(obj), object_mapping[id][1:time - 1])[1], prev_removed_object_ids)
+    prev_removed_objects = map(obj -> Obj(obj.type, (-1, -1), obj.custom_field_values, obj.id), prev_removed_objects_old)
+    # foreach(obj -> obj.position = (-1, -1), prev_removed_objects)
+
+    prev_objects = vcat(prev_existing_objects..., prev_removed_objects...)
 
     prev_objects = vcat(prev_existing_objects..., prev_removed_objects...)
 
@@ -286,6 +471,9 @@ function synthesize_update_functions(object_id, time, object_decomposition, user
           end
         end
       end
+      if pedro 
+        return reverse(update_rules)
+      end
       reverse(update_rules), reverse(update_rules), prev_used_rules, prev_abstract_positions
     else
       update_rules = map(pos -> 
@@ -296,6 +484,10 @@ function synthesize_update_functions(object_id, time, object_decomposition, user
       # update_rules = vcat(update_rules..., "(= addedObjType$(next_object.type.id)List (addObj addedObjType$(next_object.type.id)List (map (--> pos (ObjType$(next_object.type.id) pos)) (randomPositions GRID_SIZE 1))))")
       
       update_rules = vcat(update_rules..., "(= addedObjType$(next_object.type.id)List (addObj addedObjType$(next_object.type.id)List (ObjType$(next_object.type.id) $(join(map(v -> """ "$(v)" """, next_object.custom_field_values), " ")) (Position $(next_object.position[1]) $(next_object.position[2])))))")
+      if pedro 
+        return update_rules 
+      end
+      
       update_rules, update_rules, prev_used_rules, prev_abstract_positions
     end
   elseif isnothing(next_object)
@@ -304,9 +496,15 @@ function synthesize_update_functions(object_id, time, object_decomposition, user
 
     if contained_in_list # object was added later; contained in addedList
       update_rules = ["(= addedObjType$(prev_object.type.id)List (removeObj addedObjType$(prev_object.type.id)List (--> obj (== (.. obj id) $(object_id)))))"]
+      if pedro 
+        return update_rules 
+      end
       update_rules, update_rules, prev_used_rules, prev_abstract_positions  
     else # object was present at the start of the program
       update_rules = ["(= obj$(object_id) (removeObj (prev obj$(object_id))))"]
+      if pedro 
+        return update_rules
+      end
       update_rules, update_rules, prev_used_rules, prev_abstract_positions
     end
   else # actual synthesis problem
@@ -316,8 +514,9 @@ function synthesize_update_functions(object_id, time, object_decomposition, user
     # prev_objects = filter(obj -> !isnothing(obj) && (obj.id != prev_object.id), [object_mapping[id][time - 1] for id in 1:length(collect(keys(object_mapping)))])
     prev_existing_objects = filter(obj -> !isnothing(obj) && (obj.id != prev_object.id), [object_mapping[id][time - 1] for id in 1:length(collect(keys(object_mapping)))])
     prev_removed_object_ids = filter(id -> isnothing(object_mapping[id][time - 1]) && (unique(object_mapping[id][1:time - 1]) != [nothing]) && (id != prev_object.id), collect(keys(object_mapping)))
-    prev_removed_objects = deepcopy(map(id -> filter(obj -> !isnothing(obj), object_mapping[id][1:time - 1])[1], prev_removed_object_ids))
-    foreach(obj -> obj.position = (-1, -1), prev_removed_objects)
+    prev_removed_objects_old = map(id -> filter(obj -> !isnothing(obj), object_mapping[id][1:time - 1])[1], prev_removed_object_ids)
+    prev_removed_objects = map(obj -> Obj(obj.type, (-1, -1), obj.custom_field_values, obj.id), prev_removed_objects_old)
+    # foreach(obj -> obj.position = (-1, -1), prev_removed_objects)
 
     prev_objects = vcat(prev_existing_objects..., prev_removed_objects...)
 
@@ -459,6 +658,7 @@ function synthesize_update_functions(object_id, time, object_decomposition, user
         # # println("PEDRO LOOK HERE")
         # @show prev_used_rules 
         # @show max_iters
+        return prev_used_rules
       end 
 
       hypothesis_program = program_string_synth_update_rule((object_types, sort([prev_objects..., prev_object], by=(x -> x.id)), background, grid_size))
@@ -1087,7 +1287,7 @@ function abstract_position(position, prev_abstract_positions, user_event, object
       hypothesis_frame_state = interpret_over_time(expr, 1).state
     end
 
-    hypothesis_matches = hypothesis_frame_state.matchesHistory[1]
+    hypothesis_matches = hypothesis_frame_state.histories[:matches][1]
     if hypothesis_matches
       # success 
       # # println("SUCCESS")
@@ -1182,7 +1382,7 @@ function abstract_string(string, object_decomposition, max_iters=25)
       # global mod = @eval $(expr)
       # # # # @show repr(mod)
       hypothesis_frame_state = interpret_over_time(expr, 1).state
-      hypothesis_matches = hypothesis_frame_state.matchesHistory[1]
+      hypothesis_matches = hypothesis_frame_state.histories[:matches][1]
       if hypothesis_matches
         # success 
         push!(solutions, hypothesis_string)
@@ -2778,10 +2978,10 @@ function construct_filtered_matrices(matrix, object_decomposition, user_events, 
 
 
     # add direction-bias-filtered matrix to filtered_matrices 
-    pre_filtered_matrices = pre_filter_with_direction_biases(deepcopy(non_random_matrix), user_events, object_decomposition)
-    for m in pre_filtered_matrices
-      push!(filtered_matrices, filter_update_function_matrix_multiple(m, object_decomposition, multiple=false)...)
-    end
+    # pre_filtered_matrices = pre_filter_with_direction_biases(deepcopy(non_random_matrix), user_events, object_decomposition)
+    # for m in pre_filtered_matrices
+    #   push!(filtered_matrices, filter_update_function_matrix_multiple(m, object_decomposition, multiple=false)...)
+    # end
 
     unique!(filtered_matrices)
     filtered_matrices = sort_update_function_matrices(filtered_matrices, object_decomposition)
@@ -2980,6 +3180,7 @@ function generate_event(run_id, interval_offsets, source_exists_events_dict, ano
         
         if !(anonymized_event in keys(event_vector_dict)) # || !(event_vector_dict[anonymized_event] isa AbstractArray) && intersect(object_ids, collect(keys(event_vector_dict[anonymized_event]))) == [] # event values are not stored
           @show anonymized_event 
+          @show Dates.now()
           if event_is_global # if the event is global, only need to evaluate the event on one object_id 
             event_object_ids = object_ids[1]
           else # otherwise, need to evaluate the event on all object_ids
@@ -3071,7 +3272,7 @@ function generate_event(run_id, interval_offsets, source_exists_events_dict, ano
             #   end
             # end
             if !isnothing(hypothesis_state)
-              event_values = map(key -> hypothesis_state.eventHistory[key], sort(collect(keys(hypothesis_state.eventHistory))))[2:end]
+              event_values = map(key -> hypothesis_state.histories[:event][key], sort(collect(keys(hypothesis_state.histories[:event]))))[2:end]
     
               # update event_vector_dict 
               if event_is_global 
