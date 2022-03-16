@@ -201,6 +201,7 @@ function synthesize_update_functions_bulk(possible_rules_matrix, object_decompos
 
   # Threads.@threads 
   for time in 1:size(matrix)[2]
+    @show time 
     possible_rules = possible_rules_matrix[:, time]
     possible_rules_autumn = map(l -> filter(r -> (occursin("closest", r) || occursin("farthest", r) || occursin("NoCollision", r)) && !occursin("addObj", r) && !occursin("removeObj", r), l), possible_rules)
     possible_rules_non_autumn = map(l -> filter(r -> !(occursin("closest", r) || occursin("farthest", r)), l), possible_rules)
@@ -595,7 +596,7 @@ function synthesize_update_functions(object_id, time, object_decomposition, user
 
                   other_type_ids = filter(x -> x != type_id, type_ids)
                   if filter(t -> t.color == "darkgray", object_types) != []
-                    filter!(t -> t.color != "darkgray", other_type_ids)
+                    filter!(id -> filter(t -> t.id == id, object_types)[1].color != "darkgray", other_type_ids)
                   end
 
                   for desc in ["Left", "Right", "Up", "Down"]
