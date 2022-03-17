@@ -373,10 +373,6 @@ function synthesize_update_functions(object_id, time, object_decomposition, user
     # # println("TERRIBLE WHAT")
   end
 
-  if pedro && (object_type.id in map(t -> t.id, stationary_types))
-    return ["(= objX objX)"]
-  end
-  
   # # # @show object_id 
   # # # @show time
   prev_object = object_mapping[object_id][time - 1]
@@ -527,9 +523,14 @@ function synthesize_update_functions(object_id, time, object_decomposition, user
       update_rules, update_rules, prev_used_rules, prev_abstract_positions
     end
   else # actual synthesis problem
+
     type_id = prev_object.type.id 
     prev_used_rules_copy = deepcopy(prev_used_rules)
 
+    if pedro && (object_type.id in map(t -> t.id, stationary_types))
+      return ["(= objX objX)"]
+    end
+    
     # prev_objects = filter(obj -> !isnothing(obj) && (obj.id != prev_object.id), [object_mapping[id][time - 1] for id in 1:length(collect(keys(object_mapping)))])
     prev_existing_objects = filter(obj -> !isnothing(obj) && (obj.id != prev_object.id), [object_mapping[id][time - 1] for id in 1:length(collect(keys(object_mapping)))])
     prev_removed_object_ids = filter(id -> isnothing(object_mapping[id][time - 1]) && (unique(object_mapping[id][1:time - 1]) != [nothing]) && (id != prev_object.id), collect(keys(object_mapping)))
