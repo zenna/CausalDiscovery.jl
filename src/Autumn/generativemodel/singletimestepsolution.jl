@@ -155,7 +155,7 @@ function singletimestepsolution_matrix(observations, user_events, grid_size; sin
       # for each object in previous time step, determine a set of update functions  
       # that takes the previous object to the next object
       for object_id in 1:num_objects
-        update_functions, unformatted_update_functions, prev_used_rules, prev_abstract_positions = synthesize_update_functions(object_id, time, object_decomposition, user_events, prev_used_rules, prev_abstract_positions, grid_size, max_iters, upd_func_space, pedro=pedro)
+        update_functions, unformatted_update_functions, prev_used_rules, prev_abstract_positions = synthesize_update_functions(object_id, time, object_decomposition, user_events, [], prev_used_rules, prev_abstract_positions, grid_size, max_iters, upd_func_space, pedro=pedro)
         # # # @show update_functions 
         if length(update_functions) == 0
           # # println("HOLY SHIT")
