@@ -168,13 +168,26 @@ function singletimestepsolution_matrix(observations, user_events, grid_size; sin
 
   if pedro 
     possible_rules_matrix = [[] for object_id in 1:num_objects, time in 1:(length(observations) - 1)]
+
+    # compute object types that never move 
+    stationary_types = []
+    for object_type in object_types 
+      object_ids_with_type = filter(id -> filter(obj -> !isnothing(obj), object_mapping[id])[1].type.id == object_type.id, collect(keys(object_mapping)))
+
+      # map each object_id to number of unique positions it occupies
+      unique_position_counts = map(id -> length(unique(map(o -> o.position, filter(obj -> !isnothing(obj), object_mapping[id])))), object_ids_with_type)
+      if unique(unique_position_counts) == [1] # every id occupies exactly one position 
+        push!(stationary_types, object_type)
+      end
+    end
+
     for time in 2:length(observations)
       println("WOOT")
       @show time 
       # for each object in previous time step, determine a set of update functions  
       # that takes the previous object to the next object
       for object_id in 1:num_objects
-        possible_rules = synthesize_update_functions(object_id, time, object_decomposition, user_events, prev_used_rules, prev_abstract_positions, grid_size, max_iters, upd_func_space, pedro=pedro)
+        possible_rules = synthesize_update_functions(object_id, time, object_decomposition, user_events, stationary_types, prev_used_rules, prev_abstract_positions, grid_size, max_iters, upd_func_space, pedro=pedro)
         # # # @show update_functions 
         # if length(update_functions) == 0
         #   # # println("HOLY SHIT")
@@ -201,7 +214,8 @@ function synthesize_update_functions_bulk(possible_rules_matrix, object_decompos
 
   # Threads.@threads 
   for time in 1:size(matrix)[2]
-    @show time 
+    @show time
+    @show Dates.now()
     possible_rules = possible_rules_matrix[:, time]
     possible_rules_autumn = map(l -> filter(r -> (occursin("closest", r) || occursin("farthest", r) || occursin("NoCollision", r)) && !occursin("addObj", r) && !occursin("removeObj", r), l), possible_rules)
     possible_rules_non_autumn = map(l -> filter(r -> !(occursin("closest", r) || occursin("farthest", r)), l), possible_rules)
@@ -349,7 +363,7 @@ expr = nothing
 mod = nothing
 global_iters = 0
 """Synthesize a set of update functions that """
-function synthesize_update_functions(object_id, time, object_decomposition, user_events, prev_used_rules, prev_abstract_positions, grid_size=16, max_iters=11, upd_func_space=1; pedro=false)
+function synthesize_update_functions(object_id, time, object_decomposition, user_events, stationary_types, prev_used_rules, prev_abstract_positions, grid_size=16, max_iters=11, upd_func_space=1; pedro=false)
   object_types, object_mapping, background, grid_size = object_decomposition
   type_ids = map(t -> t.id, object_types)
   object_type = filter(o -> !isnothing(o), object_mapping[object_id])[1].type
@@ -357,6 +371,10 @@ function synthesize_update_functions(object_id, time, object_decomposition, user
   if length(unique(map(k -> length(object_mapping[k]), collect(keys(object_mapping))))) != 1 
     # # # @show object_mapping
     # # println("TERRIBLE WHAT")
+  end
+
+  if pedro && (object_type.id in map(t -> t.id, stationary_types))
+    return ["(= objX objX)"]
   end
   
   # # # @show object_id 
@@ -928,17 +946,27 @@ function parse_and_map_objects(observations, gridsize=16; singlecell=false, pedr
           # # println("IN WHILE LOOP")
           object_id, closest_ids = closest_objects[1]
           if length(intersect(closest_ids, map(o -> o.id, next_objects_with_type))) == 1
+
+            curr_object = filter(o -> o.id == object_id, curr_objects_with_type)[1]
+
             closest_id = intersect(closest_ids, map(o -> o.id, next_objects_with_type))[1] 
             next_object = filter(o -> o.id == closest_id, next_objects_with_type)[1]
 
-            # remove curr and next objects from respective lists
-            filter!(o -> o.id != object_id, curr_objects_with_type)
-            filter!(o -> o.id != closest_id, next_objects_with_type)
-            filter!(t -> t[1] != object_id, closest_objects)
-            
-            # add next object to mapping
-            next_object.id = object_id
-            push!(object_mapping[object_id], next_object)
+            if distance(curr_object.position, next_object.position) < unitSize * 5 
+              # remove curr and next objects from respective lists
+              filter!(o -> o.id != object_id, curr_objects_with_type)
+              filter!(o -> o.id != closest_id, next_objects_with_type)
+              filter!(t -> t[1] != object_id, closest_objects)
+              
+              # add next object to mapping
+              next_object.id = object_id
+              push!(object_mapping[object_id], next_object)
+            else # curr_object is removed and next_object is added 
+              filter!(o -> o.id != object_id, curr_objects_with_type)
+              filter!(t -> t[1] != object_id, closest_objects)
+
+              push!(object_mapping[object_id], [nothing for i in time:length(observations)]...)
+            end
 
           elseif length(intersect(closest_ids, map(o -> o.id, next_objects_with_type))) > 1
             # if there is an object with the same color as the current object among the closest objects, choose that one
@@ -2121,89 +2149,88 @@ function pre_filter_with_direction_biases(matrix, user_events, agent_type, objec
     new_matrix = deepcopy(matrix)
     type_id = type.id 
     object_ids_with_type = filter(id -> filter(obj -> !isnothing(obj), object_mapping[id])[1].type.id == type_id, collect(keys(object_mapping)))
-    if length(object_ids_with_type) == 1
-      changed = false
-      imperfect = false
-      for direction in ["left", "right", "up", "down"]
-        event_times = findall(event -> event == direction, user_events)
-        for object_id in object_ids_with_type
-          other_object_ids = filter(id -> id != object_id, object_ids_with_type)
+
+    changed = false
+    imperfect = false
+    for direction in ["left", "right", "up", "down"]
+      event_times = findall(event -> event == direction, user_events)
+      for object_id in object_ids_with_type
+        other_object_ids = filter(id -> id != object_id, object_ids_with_type)
+  
+        scalars = type_id in keys(type_displacements) ? type_displacements[type_id] : []
+        if scalars != []
+          scalar = abs(scalars[1]) 
+          if direction == "left"
+            x, y = (-scalar, 0)
+          elseif direction == "right"
+            x, y = (scalar, 0)
+          elseif direction == "up"
+            x, y = (0, -scalar)
+          else
+            x, y = (0, scalar)
+          end
     
-          scalars = type_id in keys(type_displacements) ? type_displacements[type_id] : []
-          if scalars != []
-            scalar = abs(scalars[1]) 
-            if direction == "left"
-              x, y = (-scalar, 0)
-            elseif direction == "right"
-              x, y = (scalar, 0)
-            elseif direction == "up"
-              x, y = (0, -scalar)
-            else
-              x, y = (0, scalar)
-            end
-      
-            trajectory = matrix[object_id, :]
-            direction_update_at_every_time = foldl(&, map(list -> occursin("""$(x) $(y) "darkgray")""", join(list, "")), trajectory), init=true)
-            for event_time in event_times 
-              direction_update_at_event_time = occursin("""$(x) $(y) "darkgray")""", join(trajectory[event_time], ""))
-      
-              deltas = [(!isnothing(object_mapping[id][event_time]) && 
-                         !isnothing(object_mapping[id][event_time + 1]) &&
-                         (object_mapping[id][event_time].position != object_mapping[id][event_time + 1].position)) 
-                         for id in other_object_ids]
-      
-              if direction_update_at_event_time && !direction_update_at_every_time && !(1 in deltas)
-                new_matrix[object_id, event_time] = filter(rule -> occursin("""$(x) $(y) "darkgray")""", rule), trajectory[event_time])
-                changed = true 
-              else 
-                imperfect = true
-              end
+          trajectory = matrix[object_id, :]
+          direction_update_at_every_time = foldl(&, map(list -> occursin("""$(x) $(y) "darkgray")""", join(list, "")), trajectory), init=true)
+          for event_time in event_times 
+            direction_update_at_event_time = occursin("""$(x) $(y) "darkgray")""", join(trajectory[event_time], ""))
+    
+            deltas = [(!isnothing(object_mapping[id][event_time]) && 
+                        !isnothing(object_mapping[id][event_time + 1]) &&
+                        (object_mapping[id][event_time].position != object_mapping[id][event_time + 1].position)) 
+                        for id in other_object_ids]
+    
+            if direction_update_at_event_time && !direction_update_at_every_time && !(1 in deltas)
+              new_matrix[object_id, event_time] = filter(rule -> occursin("""$(x) $(y) "darkgray")""", rule), trajectory[event_time])
+              changed = true 
+            else 
+              imperfect = true
             end
           end
         end
       end
+    end
 
-      if changed 
+    if changed 
+      for object_id in object_ids_with_type 
+        for time in 1:(length(object_mapping[object_id]) - 1)
+          if !(user_events[time] in ["left", "right", "up", "down"]) && ("(= obj$(object_id) (prev obj$(object_id)))" in new_matrix[object_id, time])
+            new_matrix[object_id, time] = ["(= obj$(object_id) (prev obj$(object_id)))"]
+          end
+        end
+      end
+      if imperfect 
+        println("IMPERFECT!")
+        wall_types = filter(t -> t.color == "darkgray", object_types)
+        if wall_types == [] 
+          wall_positions = []
+        else
+          wall_type = wall_types[1]
+          wall_ids = filter(id -> filter(obj -> !isnothing(obj), object_mapping[id])[1].type.id == wall_type.id, collect(keys(object_mapping)))
+          wall_positions = vcat(map(id -> map(p -> (object_mapping[id][1].position[1] + p[1], object_mapping[id][1].position[2] + p[2]), wall_type.shape), wall_ids)...)  
+        end
+
+        # change matrix cells corresponding to times moving into walls to "prev" instead of "moveNoCollision"
         for object_id in object_ids_with_type 
           for time in 1:(length(object_mapping[object_id]) - 1)
-            if !(user_events[time] in ["left", "right", "up", "down"]) && ("(= obj$(object_id) (prev obj$(object_id)))" in new_matrix[object_id, time])
-              new_matrix[object_id, time] = ["(= obj$(object_id) (prev obj$(object_id)))"]
-            end
-          end
-        end
-        if imperfect 
-          println("IMPERFECT!")
-          wall_types = filter(t -> t.color == "darkgray", object_types)
-          if wall_types == [] 
-            wall_positions = []
-          else
-            wall_type = wall_types[1]
-            wall_ids = filter(id -> filter(obj -> !isnothing(obj), object_mapping[id])[1].type.id == wall_type.id, collect(keys(object_mapping)))
-            wall_positions = vcat(map(id -> map(p -> (object_mapping[id][1].position[1] + p[1], object_mapping[id][1].position[2] + p[2]), wall_type.shape), wall_ids)...)  
-          end
-
-          # change matrix cells corresponding to times moving into walls to "prev" instead of "moveNoCollision"
-          for object_id in object_ids_with_type 
-            for time in 1:(length(object_mapping[object_id]) - 1)
-              direction_event = user_events[time]
-              if !isnothing(object_mapping[object_id]) && ("(= obj$(object_id) (prev obj$(object_id)))" in matrix[object_id, time])
-                if direction_event == "left" && ((object_mapping[object_id][time].position[1] - 10, object_mapping[object_id][time].position[2]) in wall_positions)
-                  new_matrix[object_id, time] = ["(= obj$(object_id) (prev obj$(object_id)))"]
-                elseif direction_event == "right" && ((object_mapping[object_id][time].position[1] + 10, object_mapping[object_id][time].position[2]) in wall_positions)
-                  new_matrix[object_id, time] = ["(= obj$(object_id) (prev obj$(object_id)))"]
-                elseif direction_event == "up" && ((object_mapping[object_id][time].position[1], object_mapping[object_id][time].position[2] - 10) in wall_positions)
-                  new_matrix[object_id, time] = ["(= obj$(object_id) (prev obj$(object_id)))"]
-                elseif direction_event == "down" && ((object_mapping[object_id][time].position[1], object_mapping[object_id][time].position[2] + 10) in wall_positions) 
-                  new_matrix[object_id, time] = ["(= obj$(object_id) (prev obj$(object_id)))"]
-                end
+            direction_event = user_events[time]
+            if !isnothing(object_mapping[object_id]) && ("(= obj$(object_id) (prev obj$(object_id)))" in matrix[object_id, time])
+              if direction_event == "left" && ((object_mapping[object_id][time].position[1] - 10, object_mapping[object_id][time].position[2]) in wall_positions)
+                new_matrix[object_id, time] = ["(= obj$(object_id) (prev obj$(object_id)))"]
+              elseif direction_event == "right" && ((object_mapping[object_id][time].position[1] + 10, object_mapping[object_id][time].position[2]) in wall_positions)
+                new_matrix[object_id, time] = ["(= obj$(object_id) (prev obj$(object_id)))"]
+              elseif direction_event == "up" && ((object_mapping[object_id][time].position[1], object_mapping[object_id][time].position[2] - 10) in wall_positions)
+                new_matrix[object_id, time] = ["(= obj$(object_id) (prev obj$(object_id)))"]
+              elseif direction_event == "down" && ((object_mapping[object_id][time].position[1], object_mapping[object_id][time].position[2] + 10) in wall_positions) 
+                new_matrix[object_id, time] = ["(= obj$(object_id) (prev obj$(object_id)))"]
               end
             end
           end
         end
       end
-
-      push!(new_matrices, new_matrix)
     end
+
+    push!(new_matrices, new_matrix)
   end
   new_matrices
 end
@@ -2236,12 +2263,12 @@ function construct_chaos_matrix(unformatted_matrix, object_decomposition)
   chaos_matrix
 end
 
-function construct_brownian_motion_matrix(matrix, unformatted_matrix, object_decomposition, regularity_types)
+function construct_brownian_motion_matrix(matrix, unformatted_matrix, object_decomposition, brownian_types)
   object_types, object_mapping, _, _ = object_decomposition 
   new_matrix = deepcopy(matrix)
   filtered_unformatted_matrix = construct_filtered_matrices(unformatted_matrix, object_decomposition, user_events)[1]
 
-  for type in regularity_types
+  for type in brownian_types
     type_id = type.id 
     object_ids_with_type = filter(id -> filter(obj -> !isnothing(obj), object_mapping[id])[1].type.id == type_id, collect(keys(object_mapping)))
 
