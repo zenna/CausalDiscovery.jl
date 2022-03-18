@@ -1658,8 +1658,8 @@ function generate_observations_pedro(game_name)
 end
 
 # PEDRO INTERFACE 
-# pedro_interface_output_folder = "/Users/riadas/Documents/urop/EMPA_Data_Collection_Interface/traces"
-pedro_interface_output_folder = "/scratch/riadas/EMPA_Data_Collection_Interface/traces"
+pedro_interface_output_folder = "/Users/riadas/Documents/urop/EMPA_Data_Collection_Interface/traces"
+# pedro_interface_output_folder = "/scratch/riadas/EMPA_Data_Collection_Interface/traces"
 js_key_codes = Dict(["37" => "left", "38" => "up", "39" => "right", "40" => "down", "32" => "click -1 -1"])
 function generate_observations_pedro_interface(game_name)
   game_folder = string(pedro_interface_output_folder, "/", game_name)

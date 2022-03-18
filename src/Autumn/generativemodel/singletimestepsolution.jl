@@ -184,10 +184,20 @@ function singletimestepsolution_matrix(observations, user_events, grid_size; sin
     for time in 2:length(observations)
       println("WOOT")
       @show time 
+
+      existing_type_ids = []
+      for type in object_types 
+        object_ids_with_type = filter(id -> filter(obj -> !isnothing(obj), object_mapping[id])[1].type.id == object_type.id, collect(keys(object_mapping)))
+
+        if length(filter(obj -> !isnothing(obj), map(id -> object_mapping[id][time - 1], object_ids_with_type))) > 0 
+          push!(existing_types, type.id)
+        end
+      end
+
       # for each object in previous time step, determine a set of update functions  
       # that takes the previous object to the next object
       for object_id in 1:num_objects
-        possible_rules = synthesize_update_functions(object_id, time, object_decomposition, user_events, stationary_types, prev_used_rules, prev_abstract_positions, grid_size, max_iters, upd_func_space, pedro=pedro)
+        possible_rules = synthesize_update_functions(object_id, time, object_decomposition, user_events, stationary_types, existing_type_ids, prev_used_rules, prev_abstract_positions, grid_size, max_iters, upd_func_space, pedro=pedro)
         # # # @show update_functions 
         # if length(update_functions) == 0
         #   # # println("HOLY SHIT")
@@ -363,7 +373,7 @@ expr = nothing
 mod = nothing
 global_iters = 0
 """Synthesize a set of update functions that """
-function synthesize_update_functions(object_id, time, object_decomposition, user_events, stationary_types, prev_used_rules, prev_abstract_positions, grid_size=16, max_iters=11, upd_func_space=1; pedro=false)
+function synthesize_update_functions(object_id, time, object_decomposition, user_events, stationary_types, existing_type_ids, prev_used_rules, prev_abstract_positions, grid_size=16, max_iters=11, upd_func_space=1; pedro=false)
   object_types, object_mapping, background, grid_size = object_decomposition
   type_ids = map(t -> t.id, object_types)
   object_type = filter(o -> !isnothing(o), object_mapping[object_id])[1].type
@@ -613,7 +623,7 @@ function synthesize_update_functions(object_id, time, object_decomposition, user
                 # add closest-based update functions
                 for unit_size in type_displacements[object_type.id] 
 
-                  other_type_ids = filter(x -> x != type_id, type_ids)
+                  other_type_ids = filter(x -> x != type_id, existing_type_ids)
                   if filter(t -> t.color == "darkgray", object_types) != []
                     filter!(id -> filter(t -> t.id == id, object_types)[1].color != "darkgray", other_type_ids)
                   end
@@ -646,7 +656,7 @@ function synthesize_update_functions(object_id, time, object_decomposition, user
               # add closest-based update functions 
               unit_size = filter(x -> x != 0, [x_displacement, y_displacement]) != [] ? abs(filter(x -> x != 0, [x_displacement, y_displacement])[1]) : 1 
               for desc in ["Left", "Right", "Up", "Down"]
-                other_type_ids = filter(x -> x != type_id, type_ids)
+                other_type_ids = filter(x -> x != type_id, existing_type_ids)
                 for other_type_id_1 in other_type_ids # closest w.r.t. single other type 
                   push!(prev_used_rules, """(= objX (moveNoCollisionColor objX (closest$(desc) objX (list ObjType$(other_type_id_1)) $(unit_size)) "darkgray"))""")
                   for other_type_id_2 in other_type_ids # closest w.r.t. pair of other type's 
@@ -2666,14 +2676,14 @@ function construct_regularity_matrix(matrix, unformatted_matrix, object_decompos
             push!(all_nonzero_disp_times_across_ids, all_nonzero_disp_times...)
           end
         end
-        unique!(all_nonzero_disp_times_across_ids)
+        sort!(unique!(all_nonzero_disp_times_across_ids))
         @show all_nonzero_disp_times_across_ids
         for id in object_ids_with_type 
           @show id 
           nonzero_disp_time = filter(t -> !isnothing(object_mapping[id][t]) && !isnothing(object_mapping[id][t + 1]) && displacement(object_mapping[id][t].position, object_mapping[id][t + 1].position) != (0, 0),  collect(1:(length(object_mapping[id]) - 1)))
           if nonzero_disp_time == [] 
             println("oh")
-            if unique(diff(all_nonzero_disp_times_across_ids)) == 1 
+            if length(unique(diff(all_nonzero_disp_times_across_ids))) == [interval_size]
               nonzero_disp_time = all_nonzero_disp_times_across_ids[1]
             else # displacement times are staggered based on time of object addition 
               added_object_ids = filter(new_id -> isnothing(object_mapping[new_id][1]) && id != new_id, object_ids_with_type)
@@ -3268,8 +3278,8 @@ function generate_event(run_id, interval_offsets, source_exists_events_dict, ano
               state_update_on_clauses_str = join(reverse(state_update_on_clauses), "\n  ")
               program_str = string(program_str[1:end-1], state_update_on_clauses_str, ")")
             end
-                      
-            # println(program_str)
+            println("PROGRAM STRING")          
+            println(program_str)
             global expr = parseautumn(program_str)
             # global expr = striplines(compiletojulia(parseautumn(program_str)))
             # ## # # # # @show expr
