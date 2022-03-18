@@ -2673,12 +2673,37 @@ function construct_regularity_matrix(matrix, unformatted_matrix, object_decompos
           nonzero_disp_time = filter(t -> !isnothing(object_mapping[id][t]) && !isnothing(object_mapping[id][t + 1]) && displacement(object_mapping[id][t].position, object_mapping[id][t + 1].position) != (0, 0),  collect(1:(length(object_mapping[id]) - 1)))
           if nonzero_disp_time == [] 
             println("oh")
-            nonzero_disp_time = all_nonzero_disp_times_across_ids[1]
+            if unique(diff(all_nonzero_disp_times_across_ids)) == 1 
+              nonzero_disp_time = all_nonzero_disp_times_across_ids[1]
+            else # displacement times are staggered based on time of object addition 
+              added_object_ids = filter(new_id -> isnothing(object_mapping[new_id][1]) && id != new_id, object_ids_with_type)
+              if added_object_ids != [] && isnothing(object_mapping[id][1])
+                added_object_id = added_object_ids[1]
+
+                addition_time = findall(obj -> !isnothing(obj), object_mapping[added_object_id])[1] - 1
+                nonzero_times_after_addition = filter(t -> (t > addition_time) && !isnothing(object_mapping[added_object_id][t]) && !isnothing(object_mapping[added_object_id][t + 1]) && displacement(object_mapping[added_object_id][t].position, object_mapping[added_object_id][t + 1].position) != (0, 0),  collect(1:(length(object_mapping[added_object_id]) - 1)))
+                if nonzero_times_after_addition != [] 
+                  first_time = nonzero_times_after_addition[1]
+                  current_id_addition_time = findall(obj -> !isnothing(obj), object_mapping[id])[1] - 1
+                  nonzero_disp_time = (first_time - addition_time + current_id_addition_time) # % interval_size
+                else
+                  nonzero_disp_time = all_nonzero_disp_times_across_ids[1]
+                end
+              else
+                nonzero_disp_time = all_nonzero_disp_times_across_ids[1]
+              end
+            end
           else
             nonzero_disp_time = nonzero_disp_time[1]
           end
           @show nonzero_disp_time
-          all_nonzero_disp_times = filter(t -> t != 0, collect((nonzero_disp_time % interval_size):interval_size:(length(object_mapping[id]) - 1)))
+          if !isnothing(object_mapping[id])
+            all_nonzero_disp_times = filter(t -> t != 0, collect((nonzero_disp_time % interval_size):interval_size:(length(object_mapping[id]) - 1)))
+          else
+            current_id_addition_time = findall(obj -> !isnothing(obj), object_mapping[id])[1] - 1
+            all_nonzero_disp_times = filter(t -> t > current_id_addition_time + 1, collect((nonzero_disp_time % interval_size):interval_size:(length(object_mapping[id]) - 1)))
+          end
+
           # @show all_nonzero_disp_times
           for time in 1:(length(object_mapping[id]) - 1)
             if (new_matrix[id, time] != [""])
@@ -3203,7 +3228,7 @@ function generate_event(run_id, interval_offsets, source_exists_events_dict, ano
       @show event 
       # @show anonymized_event
       # # # @show type_id
-      is_event_object_specific_with_correct_type = event_is_global || parse(Int, split(match(r".. obj id x prev addedObjType\dList", replace(replace(anonymized_event, ")" => ""), "(" => "")).match, "addedObjType")[2][1]) == type_id
+      is_event_object_specific_with_correct_type = event_is_global || parse(Int, split(split(match(r".. obj id x prev addedObjType\d+List", replace(replace(anonymized_event, ")" => ""), "(" => "")).match, "addedObjType")[2], "List")[1]) == type_id
       # # # @show is_event_object_specific_with_correct_type
       # # # @show object_ids
       # !(occursin("first", anonymized_event) && (nothing in vcat(map(k -> object_mapping[k], collect(keys(object_mapping)))...))) && is_event_object_specific_with_correct_type
