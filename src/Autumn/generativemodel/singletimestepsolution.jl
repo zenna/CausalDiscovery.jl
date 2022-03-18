@@ -2672,12 +2672,14 @@ function construct_regularity_matrix(matrix, unformatted_matrix, object_decompos
           @show id 
           nonzero_disp_time = filter(t -> !isnothing(object_mapping[id][t]) && !isnothing(object_mapping[id][t + 1]) && displacement(object_mapping[id][t].position, object_mapping[id][t + 1].position) != (0, 0),  collect(1:(length(object_mapping[id]) - 1)))
           if nonzero_disp_time == [] 
+            println("oh")
             nonzero_disp_time = all_nonzero_disp_times_across_ids[1]
           else
             nonzero_disp_time = nonzero_disp_time[1]
           end
+          @show nonzero_disp_time
           all_nonzero_disp_times = filter(t -> t != 0, collect((nonzero_disp_time % interval_size):interval_size:(length(object_mapping[id]) - 1)))
-          @show all_nonzero_disp_times
+          # @show all_nonzero_disp_times
           for time in 1:(length(object_mapping[id]) - 1)
             if (new_matrix[id, time] != [""])
               if !(time in all_nonzero_disp_times)

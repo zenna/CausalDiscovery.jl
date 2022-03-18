@@ -936,7 +936,7 @@ function generate_new_state_GLOBAL(co_occurring_event, times_dict, event_vector_
   println("GENERATE_NEW_STATE_GLOBAL")
   @show co_occurring_event
   @show times_dict 
-  @show event_vector_dict 
+  # @show event_vector_dict 
   @show object_trajectory    
   @show init_global_var_dict 
   @show state_update_times_dict  
@@ -1758,7 +1758,7 @@ function generate_new_object_specific_state_GLOBAL(co_occurring_event, update_fu
   @show co_occurring_event
   @show update_functions 
   @show times_dict
-  @show event_vector_dict
+  # @show event_vector_dict
   @show type_id 
   # # @show object_decomposition
   @show init_state_update_times
@@ -1795,11 +1795,11 @@ function generate_new_object_specific_state_GLOBAL(co_occurring_event, update_fu
   #   end
   # end
 
-  for e in keys(event_vector_dict)
-    if !(e == "true" || (occursin("(move (prev obj) 12 0)", e) || occursin("(move (prev obj) -12 0)", e) || occursin("(move (prev obj) 6 0)", e) || occursin("(move (prev obj) -6 0)", e)) && (occursin("isWithinBounds", e) || occursin("isOutsideBounds", e)))
-      delete!(small_event_vector_dict, e)
-    end
-  end
+  # for e in keys(event_vector_dict)
+  #   if !(e == "true" || (occursin("(move (prev obj) 12 0)", e) || occursin("(move (prev obj) -12 0)", e) || occursin("(move (prev obj) 6 0)", e) || occursin("(move (prev obj) -6 0)", e)) && (occursin("isWithinBounds", e) || occursin("isOutsideBounds", e)))
+  #     delete!(small_event_vector_dict, e)
+  #   end
+  # end
 
   if transition_param 
     small_events = construct_compound_events(collect(keys(small_event_vector_dict)), small_event_vector_dict, Set(), object_decomposition)
