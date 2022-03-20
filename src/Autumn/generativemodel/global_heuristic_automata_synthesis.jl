@@ -1795,11 +1795,11 @@ function generate_new_object_specific_state_GLOBAL(co_occurring_event, update_fu
   #   end
   # end
 
-  for e in keys(event_vector_dict)
-    if !(e == "true" || (occursin("(move (prev obj) 12 0)", e) || occursin("(move (prev obj) -12 0)", e) || occursin("(move (prev obj) 6 0)", e) || occursin("(move (prev obj) -6 0)", e)) && (occursin("isWithinBounds", e) || occursin("isOutsideBounds", e)))
-      delete!(small_event_vector_dict, e)
-    end
-  end
+  # for e in keys(event_vector_dict)
+  #   if !(e == "true" || (occursin("(move (prev obj) 12 0)", e) || occursin("(move (prev obj) -12 0)", e) || occursin("(move (prev obj) 6 0)", e) || occursin("(move (prev obj) -6 0)", e)) && (occursin("isWithinBounds", e) || occursin("isOutsideBounds", e)))
+  #     delete!(small_event_vector_dict, e)
+  #   end
+  # end
 
   if transition_param 
     small_events = construct_compound_events(collect(keys(small_event_vector_dict)), small_event_vector_dict, Set(), object_decomposition)
