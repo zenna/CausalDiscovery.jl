@@ -187,10 +187,10 @@ function singletimestepsolution_matrix(observations, user_events, grid_size; sin
 
       existing_type_ids = []
       for type in object_types 
-        object_ids_with_type = filter(id -> filter(obj -> !isnothing(obj), object_mapping[id])[1].type.id == object_type.id, collect(keys(object_mapping)))
+        object_ids_with_type = filter(id -> filter(obj -> !isnothing(obj), object_mapping[id])[1].type.id == type.id, collect(keys(object_mapping)))
 
         if length(filter(obj -> !isnothing(obj), map(id -> object_mapping[id][time - 1], object_ids_with_type))) > 0 
-          push!(existing_types, type.id)
+          push!(existing_type_ids, type.id)
         end
       end
 
@@ -691,7 +691,7 @@ function synthesize_update_functions(object_id, time, object_decomposition, user
         # # println("PEDRO LOOK HERE")
         # @show prev_used_rules 
         # @show max_iters
-        return prev_used_rules
+        return unique(prev_used_rules)
       end 
 
       hypothesis_program = program_string_synth_update_rule((object_types, sort([prev_objects..., prev_object], by=(x -> x.id)), background, grid_size))
@@ -3443,7 +3443,7 @@ function generate_event(run_id, interval_offsets, source_exists_events_dict, ano
               state_update_on_clauses_str = join(reverse(state_update_on_clauses), "\n  ")
               program_str = string(program_str[1:end-1], state_update_on_clauses_str, ")")
             end
-            println("PROGRAM STRING")          
+            # println("PROGRAM STRING")          
             # println(program_str)
             global expr = parseautumn(program_str)
             # global expr = striplines(compiletojulia(parseautumn(program_str)))

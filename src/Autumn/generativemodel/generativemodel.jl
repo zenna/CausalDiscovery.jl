@@ -389,13 +389,13 @@ function gen_event_bool_human_prior(object_decomposition, object_id, type_id, us
           ]...)
           
           # ----- translations (isFree, isWithinBounds, intersects other objects)
-          # for disp in displacements 
-          #   push!(choices, "(intersects $(disp) (prev obj$(object_2.id)))")
-          #   push!(choices, "(! (intersects $(disp) (prev obj$(object_2.id))))")
-          #   for key in ["left", "right", "up", "down"]
-          #     push!(choices, "(& $(key) (intersects $(disp) (prev obj$(object_2.id))))")
-          #   end
-          # end
+          for disp in displacements 
+            push!(choices, "(intersects $(disp) (prev obj$(object_2.id)))")
+            push!(choices, "(! (intersects $(disp) (prev obj$(object_2.id))))")
+            for key in ["left", "right", "up", "down"]
+              push!(choices, "(& $(key) (intersects $(disp) (prev obj$(object_2.id))))")
+            end
+          end
 
         end
       end
@@ -430,9 +430,14 @@ function gen_event_bool_human_prior(object_decomposition, object_id, type_id, us
             push!(choices, "(intersects $(disp) $(filtered_list))")
             push!(choices, "(! (intersects $(disp) (prev addedObjType$(object_type.id)List)))")
             push!(choices, "(! (intersects $(disp) $(filtered_list)))")
-            # for key in ["left", "right", "up", "down"]
-            #   push!(choices, "(& $(key) (intersects $(disp) $(filtered_list)))")
-            # end
+            for key in ["left", "right", "up", "down"]
+              push!(choices, "(& $(key) (intersects $(disp) $(filtered_list)))")
+            end
+
+            for key in ["left", "right", "up", "down"]
+              push!(choices, "(& $(key) (intersects $(disp) (prev addedObjType$(object_type.id)List)))")
+            end
+
           end
         end
       end 
