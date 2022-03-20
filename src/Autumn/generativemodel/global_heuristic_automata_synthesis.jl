@@ -1914,8 +1914,8 @@ function generate_new_object_specific_state_GLOBAL(co_occurring_event, update_fu
     end
   end
 
-  println("# check state_update_times again 4")
-  @show state_update_times 
+  # println("# check state_update_times again 4")
+  # @show state_update_times 
   # compute ranges 
   grouped_ranges = recompute_ranges_object_specific(augmented_positive_times_dict, 1, object_mapping, object_ids)
 
@@ -1935,8 +1935,8 @@ function generate_new_object_specific_state_GLOBAL(co_occurring_event, update_fu
     grouped_ranges, augmented_positive_times_dict, state_update_times, global_var_dict, extra_global_var_values = init_problem_context
     transition_decision_index = 1
 
-    println("# check state_update_times again 5")
-    @show state_update_times 
+    # println("# check state_update_times again 5")
+    # @show state_update_times 
     iters = 0
     while length(grouped_ranges) > 0 && (iters < 500)
       @show iters
@@ -1953,16 +1953,16 @@ function generate_new_object_specific_state_GLOBAL(co_occurring_event, update_fu
   
       # TODO: try global events too  
       events_in_range = []
-      println("# check state_update_times again 6")
-      @show state_update_times
+      # println("# check state_update_times again 6")
+      # @show state_update_times
       if events_in_range == [] # if no global events are found, try object-specific events 
         # events_in_range = find_state_update_events(event_vector_dict, augmented_positive_times, time_ranges, start_value, end_value, global_var_dict, global_var_value)
         events_in_range = find_state_update_events_object_specific(small_event_vector_dict, augmented_positive_times_dict, grouped_range, object_ids, object_mapping, curr_state_value)
       end
       println("WHERE HAVE YOU BEEN")
       @show events_in_range
-      println("# check state_update_times again")
-      @show state_update_times
+      # println("# check state_update_times again")
+      # @show state_update_times
       if length(events_in_range) > 0 # only handling perfect matches currently (UPDATE: <- now generalized)
         if filter(x -> !occursin("field1", x[1]), events_in_range) != []
           events_in_range = filter(x -> !occursin("field1", x[1]), events_in_range)
@@ -1989,8 +1989,8 @@ function generate_new_object_specific_state_GLOBAL(co_occurring_event, update_fu
         end
         transition_decision_index += 1
       else
-        println("# check state_update_times")
-        @show state_update_times 
+        # println("# check state_update_times")
+        # @show state_update_times 
         false_positive_events = find_state_update_events_object_specific_false_positives(small_event_vector_dict, augmented_positive_times_dict, grouped_range, object_ids, object_mapping, curr_state_value)      
         false_positive_events_with_state = filter(e -> occursin("field1", e[1]), false_positive_events) # want the most specific events in the false positive case
         @show false_positive_events
@@ -2021,7 +2021,7 @@ function generate_new_object_specific_state_GLOBAL(co_occurring_event, update_fu
         end
   
         # add to state_update_times
-        @show state_update_times
+        # @show state_update_times
         for tuple in true_positive_times 
           time, id = tuple
           state_update_times[id][time] = (state_update_on_clause, end_value)
