@@ -3444,7 +3444,7 @@ function generate_event(run_id, interval_offsets, source_exists_events_dict, ano
               program_str = string(program_str[1:end-1], state_update_on_clauses_str, ")")
             end
             println("PROGRAM STRING")          
-            println(program_str)
+            # println(program_str)
             global expr = parseautumn(program_str)
             # global expr = striplines(compiletojulia(parseautumn(program_str)))
             # ## # # # # @show expr
