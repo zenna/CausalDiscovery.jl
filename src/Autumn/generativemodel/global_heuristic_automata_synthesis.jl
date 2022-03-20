@@ -1758,6 +1758,7 @@ function generate_new_object_specific_state_GLOBAL(co_occurring_event, update_fu
   @show co_occurring_event
   @show update_functions 
   @show times_dict
+  @show filtered_matrix 
   # @show event_vector_dict
   @show type_id 
   # # @show object_decomposition

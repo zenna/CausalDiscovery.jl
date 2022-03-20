@@ -411,6 +411,19 @@ function gen_event_bool_human_prior(object_decomposition, object_id, type_id, us
           push!(choices, "(! (intersects (prev obj$(object_1.id)) (prev addedObjType$(object_type.id)List)))")
           push!(choices, "(! (intersects (prev obj$(object_1.id)) $(filtered_list)))")
 
+          if type_displacements[object_type.id] != []
+            scalar = type_displacements[object_type.id][1]
+            for x in -3:3 
+              for y in -3:3
+                if abs(x) + abs(y) < 3 && (x == 0 || y == 0) 
+                  # push!(choices, "(intersects $(filtered_list) (map (--> obj (move (prev obj) $(x*scalar) $(y*scalar))) (prev addedObjType$(object_type.id)List)))")
+                  # push!(displacements, "(map (--> obj (moveNoCollision (prev obj) $(x*scalar) $(y*scalar))) $(filtered_list))")
+                  # PORTALS FIX
+                  push!(choices, "(intersects (prev obj$(object_1.id)) (map (--> obj (move (prev obj) $(x*scalar) $(y*scalar))) (prev addedObjType$(object_type.id)List)))")
+                end
+              end
+            end  
+          end
 
           # ----- adjacent to list object(s)
           # (think this is unecessary for pedro models)
@@ -468,6 +481,9 @@ function gen_event_bool_human_prior(object_decomposition, object_id, type_id, us
       end  
     end
 
+    @show object_type_1
+    @show displacements 
+
     for disp in displacements 
       push!(choices, "(in true (map (--> obj (isFree (.. obj origin) obj)) $(disp)))")
       push!(choices, "(in true (map (--> obj (isWithinBounds obj)) $(disp)))")
@@ -481,8 +497,29 @@ function gen_event_bool_human_prior(object_decomposition, object_id, type_id, us
       end
     end
     
-    for object_type_2 in object_types 
+    for object_type_2 in object_types
+      @show object_type_2  
       if object_type_1.id != object_type_2.id 
+        # PORTALS FIX 
+        push!(choices, "(intersects (unfold (map (--> obj (adjacentObjs (prev obj))) $(filtered_list))) (prev addedObjType$(object_type_2.id)List))")
+        push!(choices, "(! (intersects (unfold (map (--> obj (adjacentObjs (prev obj))) $(filtered_list))) (prev addedObjType$(object_type_2.id)List)))")
+
+        if type_displacements[object_type_2.id] != []
+          scalar = type_displacements[object_type_2.id][1]
+          for x in -3:3 
+            for y in -3:3
+              if abs(x) + abs(y) < 3 && (x == 0 || y == 0) 
+                push!(choices, "(intersects $(filtered_list) (map (--> obj (move (prev obj) $(x*scalar) $(y*scalar))) (prev addedObjType$(object_type_2.id)List)))")
+                # push!(displacements, "(map (--> obj (moveNoCollision (prev obj) $(x*scalar) $(y*scalar))) $(filtered_list))")
+    
+              end
+            end
+          end  
+        end
+    
+
+
+
         push!(choices, "(intersects $(filtered_list) (prev addedObjType$(object_type_2.id)List))")
 
         # addObj-removeObj-related event
@@ -495,7 +532,8 @@ function gen_event_bool_human_prior(object_decomposition, object_id, type_id, us
           push!(choices, "(<= (distance (prev obj$(o.id)) (prev addedObjType$(object_type_2.id)List)) 20)")
         end
 
-        for disp in displacements 
+        for disp in displacements
+          println("YO") 
           push!(choices, "(intersects $(disp) (prev addedObjType$(object_type_2.id)List))")
           for o in non_list_objects 
             push!(choices, "(intersects $(disp) (prev obj$(o.id)))")
