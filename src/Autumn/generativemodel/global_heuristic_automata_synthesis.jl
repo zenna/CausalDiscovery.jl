@@ -1796,11 +1796,11 @@ function generate_new_object_specific_state_GLOBAL(co_occurring_event, update_fu
   #   end
   # end
 
-  for e in keys(event_vector_dict)
-    if !(e in ["true", "left", "right", "up", "down"] || (occursin("(move (prev obj) 12 0)", e) || occursin("(move (prev obj) -12 0)", e) || occursin("(move (prev obj) 6 0)", e) || occursin("(move (prev obj) -6 0)", e)) && (occursin("isWithinBounds", e) || occursin("isOutsideBounds", e)))
-      delete!(small_event_vector_dict, e)
-    end
-  end
+  # for e in keys(event_vector_dict)
+  #   if !(e in ["true", "left", "right", "up", "down"] || (occursin("(move (prev obj) 12 0)", e) || occursin("(move (prev obj) -12 0)", e) || occursin("(move (prev obj) 6 0)", e) || occursin("(move (prev obj) -6 0)", e)) && (occursin("isWithinBounds", e) || occursin("isOutsideBounds", e)))
+  #     delete!(small_event_vector_dict, e)
+  #   end
+  # end
 
   if transition_param 
     small_events = construct_compound_events(collect(keys(small_event_vector_dict)), small_event_vector_dict, Set(), object_decomposition)
@@ -2177,11 +2177,12 @@ function generate_new_object_specific_state_GLOBAL(co_occurring_event, update_fu
       ## add field to correct ObjType in object_types
       new_object_types = deepcopy(object_types)
       new_object_type = filter(type -> type.id == type_id, new_object_types)[1]
+      all_field_values = sort(unique(vcat(collect(values(object_field_values))...)))
       if !("field1" in map(field_tuple -> field_tuple[1], new_object_type.custom_fields))
-        push!(new_object_type.custom_fields, ("field1", "Int", collect(1:2)))
+        push!(new_object_type.custom_fields, ("field1", "Int", all_field_values))
       else
         custom_field_index = findall(field_tuple -> field_tuple[1] == "field1", filter(obj -> !isnothing(obj), object_mapping[object_ids[1]])[1].type.custom_fields)[1]
-        new_object_type.custom_fields[custom_field_index][3] = sort(unique(vcat(new_object_type.custom_fields[custom_field_index][3], collect(1:2))))
+        new_object_type.custom_fields[custom_field_index][3] = sort(unique(vcat(new_object_type.custom_fields[custom_field_index][3], all_field_values)))
       end
       
       ## modify objects in object_mapping

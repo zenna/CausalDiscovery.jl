@@ -228,7 +228,7 @@ function synthesize_update_functions_bulk(possible_rules_matrix, object_decompos
     @show Dates.now()
     possible_rules = possible_rules_matrix[:, time]
     possible_rules_autumn = map(l -> filter(r -> (occursin("closest", r) || occursin("farthest", r) || occursin("NoCollision", r)) && !occursin("addObj", r) && !occursin("removeObj", r), l), possible_rules)
-    possible_rules_non_autumn = map(l -> filter(r -> !(occursin("closest", r) || occursin("farthest", r)), l), possible_rules)
+    possible_rules_non_autumn = map(l -> filter(r -> !(occursin("closest", r) || occursin("farthest", r) || occursin("NoCollision")), l), possible_rules)
 
     # handle update rules that do not need to be evaluated in an Autumn program
     for object_id in 1:size(matrix)[1]
@@ -655,6 +655,7 @@ function synthesize_update_functions(object_id, time, object_decomposition, user
               # push!(prev_used_rules, "(= objX (move objX $(x_displacement) $(y_displacement)))") 
               # push!(prev_used_rules, "(= objX (moveNoCollision objX $(x_displacement) $(y_displacement)))")
               push!(prev_used_rules, """(= objX (moveNoCollisionColor objX $(x_displacement) $(y_displacement) "darkgray"))""")
+              push!(prev_used_rules, """(= objX (move objX $(x_displacement) $(y_displacement)))""")
             
               # add closest-based update functions 
               unit_size = filter(x -> x != 0, [x_displacement, y_displacement]) != [] ? abs(filter(x -> x != 0, [x_displacement, y_displacement])[1]) : 1 
@@ -1416,6 +1417,8 @@ function abstract_position(position, prev_abstract_positions, user_event, object
             abstracted_expr = "(.. (prev obj$(ids_with_type_2[1])) origin)"
           end
           push!(solutions, "(move $(abstracted_expr) (uniformChoice (list (Position 0 $(scalar)) (Position 0 -$(scalar)) (Position $(scalar) 0) (Position -$(scalar) 0))))")
+          disp = displacement(position, object_mapping[id2][time].position)
+          push!(solutions, "(move $(abstracted_expr) (Position $(disp[1]) $(disp[2])))")
         end
 
       end
