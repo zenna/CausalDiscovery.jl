@@ -228,7 +228,7 @@ function synthesize_update_functions_bulk(possible_rules_matrix, object_decompos
     @show Dates.now()
     possible_rules = possible_rules_matrix[:, time]
     possible_rules_autumn = map(l -> filter(r -> (occursin("closest", r) || occursin("farthest", r) || occursin("NoCollision", r)) && !occursin("addObj", r) && !occursin("removeObj", r), l), possible_rules)
-    possible_rules_non_autumn = map(l -> filter(r -> !(occursin("closest", r) || occursin("farthest", r) || occursin("NoCollision"), r), l), possible_rules)
+    possible_rules_non_autumn = map(l -> filter(r -> !(occursin("closest", r) || occursin("farthest", r) || occursin("NoCollision", r)), l), possible_rules)
 
     # handle update rules that do not need to be evaluated in an Autumn program
     for object_id in 1:size(matrix)[1]
@@ -1394,7 +1394,7 @@ function abstract_position(position, prev_abstract_positions, user_event, object
  
         # check approximate position matches 
         type_2_objects_matching_ids_prox = []
-        for scalar in type_displacements[object_type_2.id]
+        for scalar in vcat(type_displacements[object_type_2.id], type_displacements[object_type_1.id])
           disps = [(0, scalar), (0, -scalar), (scalar, 0), (-scalar, 0)]
           matches = filter(id -> displacement(object_mapping[id][time].position, position) in disps &&
                                  filter(d -> abs(d[1]) + abs(d[2]) <= 20, map(id1 -> displacement(position, object_mapping[id1][time].position), ids_with_type_1)) != [], 
@@ -2358,11 +2358,11 @@ function construct_filtered_matrices_pedro(old_matrix, object_decomposition, use
     type_displacements[type.id] = unique(type_displacements[type.id])
   end
 
-  # for i in 1:size(old_matrix)[1]
-  #   for j in 1:size(old_matrix)[2]
-
-  #   end
-  # end
+  for i in 1:size(old_matrix)[1]
+    for j in 1:size(old_matrix)[2]
+      old_matrix[i, j] = unique(old_matrix[i, j])
+    end
+  end
 
   # # set update function trajectory for all id's that never move to a constant (prev) vector 
   matrix = deepcopy(old_matrix)
