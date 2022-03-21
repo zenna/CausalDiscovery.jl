@@ -2486,24 +2486,30 @@ function update_addObj_options(matrix, brownian_types)
     brownian_type_ids = map(t -> t.id, brownian_types)
     for id in 1:size(matrix)[1]
       for time in 1:size(matrix)[2]
-        if occursin("firstWithDefault", join(matrix[id, time]))
-          
-          new_options = []
-          for option in matrix[id, time]
-            
-            if !occursin("firstWithDefault", option) 
-              push!(new_options, option)
-            else
-              first_type_id = parse(Int, split(match(r"distance prev obj prev addedObjType\d+", replace(replace(option, "(" => ""), ")" => "")).match, "addedObjType")[end])
-              second_type_id = parse(Int, split(match(r"20 prev addedObjType\d+", replace(replace(option, "(" => ""), ")" => "")).match, "addedObjType")[end])
+        if occursin("addObj", join(matrix[id, time]))
 
-              if (first_type_id in brownian_type_ids) || (second_type_id in brownian_type_ids)
-                push!(new_options, option)
-              end
-            end
+          # bias-ing bullet-style addObj functions 
+          if filter(r -> occursin("(move (prev obj", r) && !occursin("uniformChoice", r), matrix[id, time]) != []
+            matrix[id, time] = filter(r -> occursin("(move (prev obj", r) && !occursin("uniformChoice", r), matrix[id, time]) 
           end
 
-          matrix[id, time] = new_options
+          if occursin("firstWithDefault", join(matrix[id, time]))          
+            new_options = []
+            for option in matrix[id, time]
+              
+              if !occursin("firstWithDefault", option) 
+                push!(new_options, option)
+              else
+                first_type_id = parse(Int, split(match(r"distance prev obj prev addedObjType\d+", replace(replace(option, "(" => ""), ")" => "")).match, "addedObjType")[end])
+                second_type_id = parse(Int, split(match(r"20 prev addedObjType\d+", replace(replace(option, "(" => ""), ")" => "")).match, "addedObjType")[end])
+  
+                if (first_type_id in brownian_type_ids) || (second_type_id in brownian_type_ids)
+                  push!(new_options, option)
+                end
+              end
+            end
+            matrix[id, time] = new_options
+          end
 
         end
       end

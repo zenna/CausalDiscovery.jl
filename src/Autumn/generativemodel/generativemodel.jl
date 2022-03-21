@@ -189,6 +189,16 @@ function generate_hypothesis_positions(position, environment_vars, object_types,
         "(move (.. $(rand(objects)) origin) (Position $(rand(-10:10)) $(rand(-10:10))))"]...)  
       end
     else
+      for object in filter(x -> x isa Obj, environment_vars)
+        for scalar in type_displacements[object.type.id]
+
+          disps = [(0, scalar), (0, -scalar), (scalar, 0), (-scalar, 0)]
+          for disp in disps 
+            push!(choices, "(move (prev obj$(object.id)) $(disp[1]) $(disp[2]))")
+          end
+          
+        end 
+      end
 
       # for object in objects    
       #   push!(choices, ["(.. $(rand(objects)) origin)",
