@@ -1418,7 +1418,11 @@ function abstract_position(position, prev_abstract_positions, user_event, object
           end
           push!(solutions, "(move $(abstracted_expr) (uniformChoice (list (Position 0 $(scalar)) (Position 0 -$(scalar)) (Position $(scalar) 0) (Position -$(scalar) 0))))")
           disp = displacement(position, object_mapping[id2][time].position)
-          push!(solutions, "(move $(abstracted_expr) (Position $(disp[1]) $(disp[2])))")
+          
+          if !occursin("firstWithDefault", abstracted_expr)
+            push!(solutions, "(move $(abstracted_expr) (Position $(disp[1]) $(disp[2])))")
+          end
+
         end
 
       end
