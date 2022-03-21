@@ -228,7 +228,7 @@ function synthesize_update_functions_bulk(possible_rules_matrix, object_decompos
     @show Dates.now()
     possible_rules = possible_rules_matrix[:, time]
     possible_rules_autumn = map(l -> filter(r -> (occursin("closest", r) || occursin("farthest", r) || occursin("NoCollision", r)) && !occursin("addObj", r) && !occursin("removeObj", r), l), possible_rules)
-    possible_rules_non_autumn = map(l -> filter(r -> !(occursin("closest", r) || occursin("farthest", r) || occursin("NoCollision")), l), possible_rules)
+    possible_rules_non_autumn = map(l -> filter(r -> !(occursin("closest", r) || occursin("farthest", r) || occursin("NoCollision"), r), l), possible_rules)
 
     # handle update rules that do not need to be evaluated in an Autumn program
     for object_id in 1:size(matrix)[1]
@@ -2357,6 +2357,12 @@ function construct_filtered_matrices_pedro(old_matrix, object_decomposition, use
   for type in object_types 
     type_displacements[type.id] = unique(type_displacements[type.id])
   end
+
+  # for i in 1:size(old_matrix)[1]
+  #   for j in 1:size(old_matrix)[2]
+
+  #   end
+  # end
 
   # # set update function trajectory for all id's that never move to a constant (prev) vector 
   matrix = deepcopy(old_matrix)
