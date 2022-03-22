@@ -240,6 +240,10 @@ function synthesize_update_functions_bulk(possible_rules_matrix, object_decompos
         push!(matrix[object_id, time], rules...)
         push!(unformatted_matrix[object_id, time], rules...)
       else
+        println("HERE?")
+        @show rules 
+        @show object_id 
+        @show time 
         for update_rule in rules
           update_rule = replace(update_rule, "objX" => "obj$(object_id)")
           equals = false
@@ -2512,7 +2516,8 @@ function update_addObj_options(matrix, brownian_types)
               
               if !occursin("firstWithDefault", option) 
                 push!(new_options, option)
-              else
+              elseif occursin("List)) 20", option)
+                @show option 
                 first_type_id = parse(Int, split(match(r"distance prev obj prev addedObjType\d+", replace(replace(option, "(" => ""), ")" => "")).match, "addedObjType")[end])
                 second_type_id = parse(Int, split(match(r"20 prev addedObjType\d+", replace(replace(option, "(" => ""), ")" => "")).match, "addedObjType")[end])
   
