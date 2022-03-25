@@ -1,5 +1,8 @@
 include("../final_evaluation.jl")
 
+# first construct matrix 
+include("parse_pedro_model.jl")
+
 model_name = ARGS[1]
 # size = ARGS[2] # "small" or "full"
 

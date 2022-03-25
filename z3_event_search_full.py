@@ -75,6 +75,7 @@ atom_index_1 = Int("atom_index_1")
 atom_index_2 = Int("atom_index_2")
 atom_index_3 = Int("atom_index_3")
 atom_index_4 = Int("atom_index_4")
+atom_index_5 = Int("atom_index_5")
 
 s = Solver()
 s.add(atom_index_1 >= 0)
@@ -89,12 +90,17 @@ s.add(atom_index_3 < len(list(atom_dict.keys())))
 s.add(atom_index_4 >= 0)
 s.add(atom_index_4 < len(list(atom_dict.keys())))
 
+s.add(atom_index_5 >= 0)
+s.add(atom_index_5 < len(list(atom_dict.keys())))
+
 for i in range(len(object_ids)):
   # single_sol = Select(z3_atoms[i], atom_index_1) == BitVecVal(observed_bv_vals_dict[object_ids[i]], len(observed_bv_dict[object_ids[i]]))
   w = Select(z3_atoms[i], atom_index_1) 
   x = Select(z3_atoms[i], atom_index_2)
   y = Select(z3_atoms[i], atom_index_3)
   z = Select(z3_atoms[i], atom_index_4)
+  v = Select(z3_atoms[i], atom_index_5)
+
   matching_value = BitVecVal(observed_bv_vals_dict[object_ids[i]], len(observed_bv_dict[object_ids[i]]))
   x_and_y = x & y == matching_value # 1 
   x_or_y = x | y == matching_value # 2
@@ -111,6 +117,8 @@ for i in range(len(object_ids)):
   parens_2 = w & x & (y | z) == matching_value # 12
   parens_3 = w & (x | y | z) == matching_value # 14
   parens_4 = w & (x | y & z) == matching_value # 13
+
+  big = w | x | y | z | v == matching_value # 15
 
   if option == 1:
     s.add(x_and_y)
@@ -140,6 +148,8 @@ for i in range(len(object_ids)):
     s.add(parens_3)
   elif option == 13:
     s.add(parens_4)
+  elif option == 15:
+    s.add(big)
 
 # search for event with length less than shortest_length
 if shortest_length != 0:
@@ -147,10 +157,12 @@ if shortest_length != 0:
   x_len = Select(z3_atom_lengths, atom_index_2)
   y_len = Select(z3_atom_lengths, atom_index_3)
   z_len = Select(z3_atom_lengths, atom_index_4)
+  v_len = Select(z3_atom_lengths, atom_index_5)
 
   xy_len = x_len + y_len < shortest_length 
   xyz_len = x_len + y_len + z_len < shortest_length 
   wxyz_len = w_len + x_len + y_len + z_len < shortest_length 
+  wxyzv_len = w_len + x_len + y_len + z_len + v_len < shortest_length 
 
   if option in [1, 2]:
     s.add(xy_len)
@@ -158,22 +170,26 @@ if shortest_length != 0:
     s.add(xyz_len)
   elif option in [6, 7, 8, 9, 10, 12, 13, 14]:
     s.add(wxyz_len)
+  elif option in [15]:
+    s.add(wxyzv_len)
 
 res = s.check()
 index_1 = -1
 index_2 = -1
 index_3 = -1
 index_4 = -1
+index_5 = -1
 if res == sat:
   m = s.model()
   index_1 = (m[atom_index_1]).as_long()
   index_2 = (m[atom_index_2]).as_long()
   index_3 = (m[atom_index_3]).as_long()
   index_4 = (m[atom_index_4]).as_long()
+  index_5 = (m[atom_index_5]).as_long()
 
 print(res)
 print("SOLUTION:")
-if index_1 != -1 and index_2 != -1 and index_3 != -1 and index_4 != -1:
+if index_1 != -1 and index_2 != -1 and index_3 != -1 and index_4 != -1 and index_5 != -1:
   if option in [1, 2]:
     print(sorted_atom_events[index_2])
     print(sorted_atom_events[index_3])
@@ -186,3 +202,9 @@ if index_1 != -1 and index_2 != -1 and index_3 != -1 and index_4 != -1:
     print(sorted_atom_events[index_2])
     print(sorted_atom_events[index_3])
     print(sorted_atom_events[index_4])
+  elif option in [15]:
+    print(sorted_atom_events[index_1])
+    print(sorted_atom_events[index_2])
+    print(sorted_atom_events[index_3])
+    print(sorted_atom_events[index_4])
+    print(sorted_atom_events[index_5])

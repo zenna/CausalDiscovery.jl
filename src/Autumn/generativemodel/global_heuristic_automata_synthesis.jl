@@ -136,7 +136,7 @@ function generate_on_clauses_GLOBAL(run_id, matrix, unformatted_matrix, object_d
     # TEMP HACK FOR PEDRO: REMOVE LATER 
     # if true # pedro_random 
     # collect all state-based addObj objects and remove them from state_based_update_functions_dict
-    addObj_based_list = filter(x -> occursin("addObj", x), vcat(collect(values(state_based_update_functions_dict))...))
+    addObj_based_list = filter(x -> occursin("addObj", x) && !(occursin("(move (.. (prev obj", x) && !occursin("uniformChoice", x)), vcat(collect(values(state_based_update_functions_dict))...))
     @show addObj_based_list
     # for type_id in keys(state_based_update_functions_dict) 
     #   state_based_update_functions_dict[type_id] = filter(u -> !(u in addObj_based_list), state_based_update_functions_dict[type_id])
@@ -450,10 +450,14 @@ function generate_on_clauses_GLOBAL(run_id, matrix, unformatted_matrix, object_d
           update_function, type_id = update_function_tup 
           co_occurring_event = event_comb[update_function_tup_index]
 
-          if (type_id, co_occurring_event) in keys(co_occurring_events_dict)
-            push!(co_occurring_events_dict[(type_id, co_occurring_event)], update_function)
+          if occursin("removeObj", update_function) && co_occurring_event == "true"
+            co_occurring_events_dict[(type_id, "(== 1 1)")] = [update_function]            
           else
-            co_occurring_events_dict[(type_id, co_occurring_event)] = [update_function]
+            if (type_id, co_occurring_event) in keys(co_occurring_events_dict)
+              push!(co_occurring_events_dict[(type_id, co_occurring_event)], update_function)
+            else
+              co_occurring_events_dict[(type_id, co_occurring_event)] = [update_function]
+            end
           end
         end
 
@@ -740,7 +744,7 @@ function generate_on_clauses_GLOBAL(run_id, matrix, unformatted_matrix, object_d
                 println("BAD NAME CHOSEN")
                 @show new_on_clauses 
                 @show new_state_update_on_clauses 
-                # @show new_object_decomposition 
+                @show new_object_decomposition 
                 @show new_object_specific_state_update_times_dict
 
                 # # @show new_object_specific_state_update_times_dict
@@ -1177,12 +1181,12 @@ function generate_new_state_GLOBAL(co_occurring_event, times_dict, event_vector_
           if filter(tuple -> !occursin("true", tuple[1]), events_in_range) != []
             if filter(tuple -> !occursin("globalVar", tuple[1]) && !occursin("true", tuple[1]), events_in_range) != []
               min_times = minimum(map(tup -> length(tup[2]), filter(tuple -> !occursin("globalVar", tuple[1]) && !occursin("true", tuple[1]), events_in_range)))
-              events_with_min_times = filter(tup -> length(tup[2]) == min_times, filter(tuple -> !occursin("globalVar", tuple[1]) && !occursin("true", tuple[1]), events_in_range))
+              events_with_min_times = events_in_range # filter(tup -> length(tup[2]) == min_times, filter(tuple -> !occursin("globalVar", tuple[1]) && !occursin("true", tuple[1]), events_in_range))
               # state_update_event, event_times = sort(events_with_min_times, by=x -> length(x[1]))[1] # sort(filter(tuple -> !occursin("globalVar", tuple[1]) && !occursin("true", tuple[1]), events_in_range), by=x -> length(x[2]))[1]
               state_update_event, event_times = sort(events_with_min_times, by=x -> length(x[1]))[min(length(events_with_min_times), transition_decision_index > num_transition_decisions ? 1 : transition_decision_string[transition_decision_index])] # sort(filter(tuple -> !occursin("globalVar", tuple[1]) && !occursin("true", tuple[1]), events_in_range), by=x -> length(x[2]))[1]
             else
               min_times = minimum(map(tup -> length(tup[2]), filter(tuple -> !occursin("true", tuple[1]), events_in_range)))
-              events_with_min_times = filter(tup -> length(tup[2]) == min_times, filter(tuple -> !occursin("true", tuple[1]), events_in_range))
+              events_with_min_times = events_in_range # filter(tup -> length(tup[2]) == min_times, filter(tuple -> !occursin("true", tuple[1]), events_in_range))
               # state_update_event, event_times = sort(events_with_min_times, by=x -> length(x[1]))[1] # sort(filter(tuple -> !occursin("true", tuple[1]), events_in_range), by=x -> length(x[2]))[1]
               state_update_event, event_times = sort(events_with_min_times, by=x -> length(x[1]))[min(length(events_with_min_times), transition_decision_index > num_transition_decisions ? 1 : transition_decision_string[transition_decision_index])] # sort(filter(tuple -> !occursin("true", tuple[1]), events_in_range), by=x -> length(x[2]))[1]
             end
@@ -1769,6 +1773,10 @@ function generate_new_object_specific_state_GLOBAL(co_occurring_event, update_fu
   @show transition_threshold 
   @show num_transition_decisions
 
+  start_objects = map(k -> object_mapping[k][1], filter(key -> !isnothing(object_mapping[key][1]), collect(keys(object_mapping))))
+  non_list_objects = filter(x -> (count(y -> y.type.id == x.type.id, start_objects) == 1) && (count(obj_id -> filter(z -> !isnothing(z), object_mapping[obj_id])[1].type.id == x.type.id, collect(keys(object_mapping))) == 1), start_objects)
+  non_list_object_ids = map(obj -> obj.id, non_list_objects)
+
   state_update_times = deepcopy(init_state_update_times)  
   failed = false
   object_types, object_mapping, background, grid_size = object_decomposition 
@@ -1801,6 +1809,39 @@ function generate_new_object_specific_state_GLOBAL(co_occurring_event, update_fu
   #     delete!(small_event_vector_dict, e)
   #   end
   # end
+
+  displacement_dict = Dict(map(id -> id => [displacement(object_mapping[id][t].position, object_mapping[id][t + 1].position) 
+                                            for t in 1:length(user_events) 
+                                            if !isnothing(object_mapping[id][t]) && !isnothing(object_mapping[id][t + 1])], 
+                               object_ids)) 
+  
+  all_displacements = vcat(collect(values(displacement_dict))...)
+  unique_displacements = reverse(sort(unique(all_displacements), by=tup -> count(x -> x == tup, all_displacements)))
+  extra_transition_substrings = []
+  for disp in unique_displacements[1:min(2, length(unique_displacements))]
+    x, y = disp 
+    push!(extra_transition_substrings, "$(x) $(y)")
+    if x != 0 
+      push!(extra_transition_substrings, ["$(2*x) $(y)", "$(-2*x) $(y)", "$(-1*x) $(y)"]...)
+    end
+
+    if y != 0 
+      push!(extra_transition_substrings, ["$(x) $(2*y)", "$(x) $(-2*y)", "$(x) $(-1*y)"]...)
+    end
+  end
+  unique!(extra_transition_substrings)
+
+  # for e in keys(event_vector_dict)
+  #   if !(e in ["true", "left", "right", "up", "down"] || occursin("(move (prev obj", e) || occursin("(move (prev obj", e) || occursin("(move (prev obj", e) || occursin("(move (prev obj", e))
+  #     delete!(small_event_vector_dict, e)
+  #   end
+  # end
+
+  for e in keys(event_vector_dict)
+    if !(e in ["true", "left", "right", "up", "down"] || foldl(|, map(id -> occursin("(move (prev obj$(id)", e), non_list_object_ids), init=false) || foldl(|, map(str -> occursin(str, e), extra_transition_substrings), init=false) )
+      delete!(small_event_vector_dict, e)
+    end
+  end
 
   if transition_param 
     small_events = construct_compound_events(collect(keys(small_event_vector_dict)), small_event_vector_dict, Set(), object_decomposition)

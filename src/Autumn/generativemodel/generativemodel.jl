@@ -196,7 +196,7 @@ function generate_hypothesis_positions(position, environment_vars, object_types,
           for disp in disps 
             push!(choices, "(move (prev obj$(object.id)) $(disp[1]) $(disp[2]))")
           end
-          
+
         end 
       end
 
@@ -445,7 +445,7 @@ function gen_event_bool_human_prior(object_decomposition, object_id, type_id, us
             # TEMP DEBUGGING: DELETE LATER 
             if filter(x -> x[1] == "field1", object_type.custom_fields) != []
               field_values = filter(x -> x[1] == "field1", object_type.custom_fields)[1][3]
-              for v in field_values 
+              for v in field_values
                 push!(choices, "(& (intersects $(disp) $(filtered_list)) (in $(v) (map (--> obj (.. obj field1)) $(filtered_list))))")
               end
             end
@@ -485,6 +485,15 @@ function gen_event_bool_human_prior(object_decomposition, object_id, type_id, us
           if abs(x) + abs(y) < 3 && (x == 0 || y == 0) 
             push!(displacements, "(map (--> obj (move (prev obj) $(x*scalar) $(y*scalar))) $(filtered_list))")
             # push!(displacements, "(map (--> obj (moveNoCollision (prev obj) $(x*scalar) $(y*scalar))) $(filtered_list))")
+            for object_type_2 in object_types 
+              if object_type_1.id != object_type_2.id 
+                
+                for key in ["left", "right", "up", "down"]
+                  push!(choices, "(& $(key) (intersects (map (--> obj (move (prev obj) $(x*scalar) $(y*scalar))) (prev addedObjType$(object_type_1.id)List)) (prev addedObjType$(object_type_2.id)List)))")
+                end
+
+              end
+            end
 
           end
         end
@@ -545,6 +554,11 @@ function gen_event_bool_human_prior(object_decomposition, object_id, type_id, us
         for disp in displacements
           println("YO") 
           push!(choices, "(intersects $(disp) (prev addedObjType$(object_type_2.id)List))")
+
+          for key in ["left", "right", "up", "down"]
+            push!(choices, "(& $(key) (intersects $(disp) (prev addedObjType$(object_type_2.id)List)))")
+          end
+
           for o in non_list_objects 
             push!(choices, "(intersects $(disp) (prev obj$(o.id)))")
           end
@@ -557,8 +571,11 @@ function gen_event_bool_human_prior(object_decomposition, object_id, type_id, us
                 scalar = type_displacements[object_type_1.id][1]
                 for x in -3:3 
                   for y in -3:3
-                    if abs(x) + abs(y) < 3 && (x == 0 || y == 0) 
-                      push!(choices, "(in $(v) (map (--> obj (.. obj field1)) (filter (--> obj (intersects (move (prev obj) $(x) $(y)) (prev addedObjType$(object_type_2.id)List))) (prev addedObjType$(object_type_1.id)List))))")
+                    if abs(x) + abs(y) < 2 && (x == 0 || y == 0) 
+                      if object_type_1.id == 2 && object_type_2.id == 1 
+                        push!(choices, "(in $(v) (map (--> obj (.. obj field1)) (filter (--> obj (intersects (move (prev obj) $(x*scalar) $(y*scalar)) (filter (--> obj (== (.. obj id) x)) (prev addedObjType$(object_type_2.id)List)))) (prev addedObjType$(object_type_1.id)List))))")
+                        push!(choices, "(in $(v) (map (--> obj (.. obj field1)) (filter (--> obj (intersects (move (prev obj) $(x*scalar) $(y*scalar)) (prev addedObjType$(object_type_2.id)List))) (filter (--> obj (== (.. obj id) x)) (prev addedObjType$(object_type_1.id)List)))))")
+                      end
                       # push!(displacements, "(map (--> obj (move (prev obj) $(x*scalar) $(y*scalar))) $(filtered_list))")
                       # push!(displacements, "(map (--> obj (moveNoCollision (prev obj) $(x*scalar) $(y*scalar))) $(filtered_list))")          
                     end

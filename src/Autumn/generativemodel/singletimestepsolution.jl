@@ -62,6 +62,25 @@ function singletimestepsolution_matrix(observations, user_events, grid_size; sin
     type_displacements[type.id] = unique(type_displacements[type.id])
   end
 
+  # determine object types that intersect darkgray 
+  wall_intersecting_type_ids = []
+  if singlecell 
+    
+    for observation in observations 
+      wall_positions = map(c -> c.position, filter(c -> c.color in ["darkgray", "black", "gray"], observation))
+      for object_type in object_types 
+        if object_type.color != "darkgray"
+          object_type_positions = map(c -> c.position, filter(c -> c.color == object_type.color, observation))
+          if intersect(wall_positions, object_type_positions) != []
+            push!(wall_intersecting_type_ids, object_type.id)
+          end
+        end
+      end 
+    end
+
+  end
+  @show wall_intersecting_type_ids
+
   # @show object_decomposition 
 
   # matrix of update function sets for each object/time pair
@@ -155,7 +174,7 @@ function singletimestepsolution_matrix(observations, user_events, grid_size; sin
       # for each object in previous time step, determine a set of update functions  
       # that takes the previous object to the next object
       for object_id in 1:num_objects
-        update_functions, unformatted_update_functions, prev_used_rules, prev_abstract_positions = synthesize_update_functions(object_id, time, object_decomposition, user_events, [], prev_used_rules, prev_abstract_positions, grid_size, max_iters, upd_func_space, pedro=pedro)
+        update_functions, unformatted_update_functions, prev_used_rules, prev_abstract_positions = synthesize_update_functions(object_id, time, object_decomposition, user_events, [], [], [], prev_used_rules, prev_abstract_positions, grid_size, max_iters, upd_func_space, pedro=pedro)
         # # # @show update_functions 
         if length(update_functions) == 0
           # # println("HOLY SHIT")
@@ -197,7 +216,7 @@ function singletimestepsolution_matrix(observations, user_events, grid_size; sin
       # for each object in previous time step, determine a set of update functions  
       # that takes the previous object to the next object
       for object_id in 1:num_objects
-        possible_rules = synthesize_update_functions(object_id, time, object_decomposition, user_events, stationary_types, existing_type_ids, prev_used_rules, prev_abstract_positions, grid_size, max_iters, upd_func_space, pedro=pedro)
+        possible_rules = synthesize_update_functions(object_id, time, object_decomposition, user_events, stationary_types, existing_type_ids, wall_intersecting_type_ids, prev_used_rules, prev_abstract_positions, grid_size, max_iters, upd_func_space, pedro=pedro)
         # # # @show update_functions 
         # if length(update_functions) == 0
         #   # # println("HOLY SHIT")
@@ -233,59 +252,64 @@ function synthesize_update_functions_bulk(possible_rules_matrix, object_decompos
     # handle update rules that do not need to be evaluated in an Autumn program
     for object_id in 1:size(matrix)[1]
       rules = possible_rules_non_autumn[object_id]
-      if rules[1] == ""
-        push!(matrix[object_id, time], rules[1])
-        push!(unformatted_matrix[object_id, time], rules[1])          
-      elseif occursin("addObj", rules[1]) || occursin("removeObj", rules[1])
-        push!(matrix[object_id, time], rules...)
-        push!(unformatted_matrix[object_id, time], rules...)
-      else
-        println("HERE?")
-        @show rules 
-        @show object_id 
-        @show time 
-        for update_rule in rules
-          update_rule = replace(update_rule, "objX" => "obj$(object_id)")
-          equals = false
-          # translation equality check 
-          prev_object = object_mapping[object_id][time]
-          next_object = object_mapping[object_id][time + 1]
-
-          if update_rule == "(= obj$(object_id) obj$(object_id))"
-            if prev_object.position == next_object.position 
-              equals = true
+      if rules != [] 
+        
+        if rules[1] == ""
+          push!(matrix[object_id, time], rules[1])
+          push!(unformatted_matrix[object_id, time], rules[1])          
+        elseif occursin("addObj", rules[1]) || occursin("removeObj", rules[1])
+          push!(matrix[object_id, time], rules...)
+          push!(unformatted_matrix[object_id, time], rules...)
+        else
+          println("HERE?")
+          @show rules 
+          @show object_id 
+          @show time 
+          for update_rule in rules
+            update_rule = replace(update_rule, "objX" => "obj$(object_id)")
+            equals = false
+            # translation equality check 
+            prev_object = object_mapping[object_id][time]
+            next_object = object_mapping[object_id][time + 1]
+  
+            if update_rule == "(= obj$(object_id) obj$(object_id))"
+              if prev_object.position == next_object.position 
+                equals = true
+              end
+            else
+              x_displacement = next_object.position[1] - prev_object.position[1]
+              y_displacement = next_object.position[2] - prev_object.position[2]
+              displacement = (x_displacement, y_displacement)
+      
+              update_rule_displacement = Tuple(map(x -> parse(Int, x), filter(s -> s != "", split(split(replace(replace(update_rule, ")" => ""), "(" => ""), "obj$(object_id)")[end], " "))[1:end]))
+              if displacement == update_rule_displacement
+                equals = true
+              end
             end
-          else
-            x_displacement = next_object.position[1] - prev_object.position[1]
-            y_displacement = next_object.position[2] - prev_object.position[2]
-            displacement = (x_displacement, y_displacement)
-    
-            update_rule_displacement = Tuple(map(x -> parse(Int, x), filter(s -> s != "", split(split(replace(replace(update_rule, ")" => ""), "(" => ""), "obj$(object_id)")[end], " "))[1:end-1]))
-            if displacement == update_rule_displacement
-              equals = true
+  
+            if equals
+              push!(unformatted_matrix[object_id, time], replace(update_rule, "obj$(object_id)" => "objX"))
+              # formatting 
+              contained_in_list = isnothing(object_mapping[object_id][1]) || (count(id -> (filter(x -> !isnothing(x), object_mapping[id]))[1].type.id == object_mapping[object_id][1].type.id, collect(keys(object_mapping))) > 1)
+              if contained_in_list # object was added later; contained in addedList
+                update_rule_parts = split(update_rule, " ")
+                var1 = replace(update_rule_parts[2], "obj$(object_id)" => "obj")
+                var2 = replace(join(update_rule_parts[3:end], " "), "obj$(object_id)" => "(prev obj)")
+                map_lambda_func = string("(--> ", var1, " ", var2)
+                # map_lambda_func = replace(string("(-->", replace(update_rule, "obj$(object_id)" => "obj")[3:end]), "(prev obj)" => "(prev obj)")
+                push!(matrix[object_id, time], "(= addedObjType$(prev_object.type.id)List (updateObj addedObjType$(prev_object.type.id)List $(map_lambda_func) (--> obj (== (.. obj id) $(object_id)))))")
+              else # object was present at the start of the program
+                update_rule_parts = filter(x -> x != "", split(update_rule, " "))
+                push!(matrix[object_id, time], join([update_rule_parts[1], update_rule_parts[2], replace(join(update_rule_parts[3:end], " "), "obj$(object_id)" => "(prev obj$(object_id))" )], " "))
+              end
             end
+  
           end
-
-          if equals
-            push!(unformatted_matrix[object_id, time], replace(update_rule, "obj$(object_id)" => "objX"))
-            # formatting 
-            contained_in_list = isnothing(object_mapping[object_id][1]) || (count(id -> (filter(x -> !isnothing(x), object_mapping[id]))[1].type.id == object_mapping[object_id][1].type.id, collect(keys(object_mapping))) > 1)
-            if contained_in_list # object was added later; contained in addedList
-              update_rule_parts = split(update_rule, " ")
-              var1 = replace(update_rule_parts[2], "obj$(object_id)" => "obj")
-              var2 = replace(join(update_rule_parts[3:end], " "), "obj$(object_id)" => "(prev obj)")
-              map_lambda_func = string("(--> ", var1, " ", var2)
-              # map_lambda_func = replace(string("(-->", replace(update_rule, "obj$(object_id)" => "obj")[3:end]), "(prev obj)" => "(prev obj)")
-              push!(matrix[object_id, time], "(= addedObjType$(prev_object.type.id)List (updateObj addedObjType$(prev_object.type.id)List $(map_lambda_func) (--> obj (== (.. obj id) $(object_id)))))")
-            else # object was present at the start of the program
-              update_rule_parts = filter(x -> x != "", split(update_rule, " "))
-              push!(matrix[object_id, time], join([update_rule_parts[1], update_rule_parts[2], replace(join(update_rule_parts[3:end], " "), "obj$(object_id)" => "(prev obj$(object_id))" )], " "))
-            end
-          end
-
+      
         end
-    
+
       end
+
     end
 
     # handle update rules that need to be evaluated in an Autumn program 
@@ -377,7 +401,7 @@ expr = nothing
 mod = nothing
 global_iters = 0
 """Synthesize a set of update functions that """
-function synthesize_update_functions(object_id, time, object_decomposition, user_events, stationary_types, existing_type_ids, prev_used_rules, prev_abstract_positions, grid_size=16, max_iters=11, upd_func_space=1; pedro=false)
+function synthesize_update_functions(object_id, time, object_decomposition, user_events, stationary_types, existing_type_ids, wall_intersecting_type_ids, prev_used_rules, prev_abstract_positions, grid_size=16, max_iters=11, upd_func_space=1; pedro=false)
   object_types, object_mapping, background, grid_size = object_decomposition
   type_ids = map(t -> t.id, object_types)
   object_type = filter(o -> !isnothing(o), object_mapping[object_id])[1].type
@@ -659,7 +683,9 @@ function synthesize_update_functions(object_id, time, object_decomposition, user
               # push!(prev_used_rules, "(= objX (move objX $(x_displacement) $(y_displacement)))") 
               # push!(prev_used_rules, "(= objX (moveNoCollision objX $(x_displacement) $(y_displacement)))")
               push!(prev_used_rules, """(= objX (moveNoCollisionColor objX $(x_displacement) $(y_displacement) "darkgray"))""")
-              push!(prev_used_rules, """(= objX (move objX $(x_displacement) $(y_displacement)))""")
+              if object_type.id in wall_intersecting_type_ids 
+                push!(prev_used_rules, """(= objX (move objX $(x_displacement) $(y_displacement)))""")
+              end
             
               # add closest-based update functions 
               unit_size = filter(x -> x != 0, [x_displacement, y_displacement]) != [] ? abs(filter(x -> x != 0, [x_displacement, y_displacement])[1]) : 1 
@@ -1283,7 +1309,7 @@ function singletimestepsolution_program_given_matrix_NEW(matrix, object_decompos
   matrix_copy = deepcopy(matrix)
   for row in 1:size(matrix_copy)[1]
     for col in 1:size(matrix_copy)[2]
-      matrix_copy[row, col] = filter(x -> !occursin("uniformChoice", x) && !occursin("randomPositions", x) && !occursin("Random", x), matrix_copy[row, col])
+      matrix_copy[row, col] = filter(x -> !occursin("uniformChoice", x) && !occursin("randomPositions", x) && !occursin("Random", x) && !occursin("firstWithDefault", x), matrix_copy[row, col])
     end
   end
   
@@ -1421,7 +1447,7 @@ function abstract_position(position, prev_abstract_positions, user_event, object
             abstracted_expr = "(.. (prev obj$(ids_with_type_2[1])) origin)"
           end
           push!(solutions, "(move $(abstracted_expr) (uniformChoice (list (Position 0 $(scalar)) (Position 0 -$(scalar)) (Position $(scalar) 0) (Position -$(scalar) 0))))")
-          disp = displacement(position, object_mapping[id2][time].position)
+          disp = displacement(object_mapping[id2][time].position, position)
           
           if !occursin("firstWithDefault", abstracted_expr)
             push!(solutions, "(move $(abstracted_expr) (Position $(disp[1]) $(disp[2])))")
@@ -1875,11 +1901,16 @@ function format_on_clause(update_rule, event, object_id, object_ids, type_id, gr
         # # println("DID I MAKE IT 2")
         on_clause = "(on $(event)\n$(replace(replace(addObj_rules[1], "randomPositions $(grid_size) 1" => "randomPositions $(grid_size) $(addObj_count)"), "randomPositions GRID_SIZE 1" => "randomPositions GRID_SIZE $(addObj_count)")))"
       elseif occursin("uniformChoice", addObj_rules[1])
-        if addObj_count isa AbstractArray 
-          on_clause = "(on $(event)\n$(addObj_rules[1][1:end-2]) (uniformChoice (list $(join(collect(addObj_count[1]:addObj_count[2]), " ")))))))"
-        else
-          on_clause = "(on $(event)\n$(addObj_rules[1][1:end-2]) $(addObj_count))))"
-        end
+        on_clause = "(on $(event)\n(let ($(join(unique(addObj_rules), "\n")))))"
+        # if addObj_count isa AbstractArray 
+        #   # if occursin("(.. (uniformChoice", update_rule)
+        #   #   on_clause = "(on $(event)\n$(addObj_rules[1][1:end-2]) (uniformChoice (list $(join(collect(addObj_count[1]:addObj_count[2]), " ")))))))"
+        #   # else
+        #   #   on_clause = "(on $(event)\n$(addObj_rules[1][1:end-2]) (uniformChoice (list $(join(collect(addObj_count[1]:addObj_count[2]), " ")))))))"
+        #   # end
+        # else
+        #   on_clause = "(on $(event)\n$(addObj_rules[1][1:end-2]) $(addObj_count))))"
+        # end
       else
         on_clause = "(on $(event)\n(let ($(join(unique(addObj_rules), "\n")))))"
       end
@@ -2428,7 +2459,7 @@ function construct_filtered_matrices_pedro(old_matrix, object_decomposition, use
         non_random_regularity_matrices = construct_filtered_matrices(regularity_matrix, object_decomposition, user_events)
         standard_non_random_regularity_matrix = non_random_regularity_matrices[1]
           
-        possible_brownian_types = identify_brownian_types(object_decomposition, user_events, agent_type, standard_non_random_regularity_matrix, actual_regularity_types)
+        possible_brownian_types = identify_brownian_types(object_decomposition, user_events, agent_type, standard_non_random_regularity_matrix, regularity_matrix, actual_regularity_types)
         regularity_brownian_types = filter(t -> t.id in map(x -> x.id, actual_regularity_types),  possible_brownian_types)
         other_brownian_types = [x for x in possible_brownian_types if !(x in regularity_brownian_types)]
 
@@ -2447,7 +2478,7 @@ function construct_filtered_matrices_pedro(old_matrix, object_decomposition, use
   end
 
   if !regularity_found 
-    possible_brownian_types = identify_brownian_types(object_decomposition, user_events, agent_type, matrix, [])
+    possible_brownian_types = identify_brownian_types(object_decomposition, user_events, agent_type, matrix, matrix, [])
 
     # clean addObj-based options 
     matrix = update_addObj_options(matrix, possible_brownian_types)
@@ -2497,42 +2528,42 @@ function construct_filtered_matrices_pedro(old_matrix, object_decomposition, use
 end
 
 function update_addObj_options(matrix, brownian_types)
-  if brownian_types == []
-    matrix
-  else
-    brownian_type_ids = map(t -> t.id, brownian_types)
-    for id in 1:size(matrix)[1]
-      for time in 1:size(matrix)[2]
-        if occursin("addObj", join(matrix[id, time]))
+  println("what?")
 
-          # bias-ing bullet-style addObj functions 
-          if filter(r -> occursin("(move (prev obj", r) && !occursin("uniformChoice", r), matrix[id, time]) != []
-            matrix[id, time] = filter(r -> occursin("(move (prev obj", r) && !occursin("uniformChoice", r), matrix[id, time]) 
-          end
+  brownian_type_ids = map(t -> t.id, brownian_types)
+  for id in 1:size(matrix)[1]
+    for time in 1:size(matrix)[2]
+      if occursin("addObj", join(matrix[id, time]))
+        println("how?")
+        @show id 
+        @show time 
+        # bias-ing bullet-style addObj functions 
+        if filter(r -> occursin("(move (.. (prev obj", r) && !occursin("uniformChoice", r), matrix[id, time]) != []
+          println("cool")
+          matrix[id, time] = filter(r -> occursin("(move (.. (prev obj", r) && !occursin("uniformChoice", r), matrix[id, time]) 
+        end
 
-          if occursin("firstWithDefault", join(matrix[id, time]))          
-            new_options = []
-            for option in matrix[id, time]
-              
-              if !occursin("firstWithDefault", option) 
+        if occursin("firstWithDefault", join(matrix[id, time]))          
+          new_options = []
+          for option in matrix[id, time]
+            
+            if !occursin("firstWithDefault", option) 
+              push!(new_options, option)
+            elseif occursin("List)) 20", option)
+              @show option 
+              first_type_id = parse(Int, split(match(r"distance prev obj prev addedObjType\d+", replace(replace(option, "(" => ""), ")" => "")).match, "addedObjType")[end])
+              second_type_id = parse(Int, split(match(r"20 prev addedObjType\d+", replace(replace(option, "(" => ""), ")" => "")).match, "addedObjType")[end])
+
+              if (first_type_id in brownian_type_ids) || (second_type_id in brownian_type_ids)
                 push!(new_options, option)
-              elseif occursin("List)) 20", option)
-                @show option 
-                first_type_id = parse(Int, split(match(r"distance prev obj prev addedObjType\d+", replace(replace(option, "(" => ""), ")" => "")).match, "addedObjType")[end])
-                second_type_id = parse(Int, split(match(r"20 prev addedObjType\d+", replace(replace(option, "(" => ""), ")" => "")).match, "addedObjType")[end])
-  
-                if (first_type_id in brownian_type_ids) || (second_type_id in brownian_type_ids)
-                  push!(new_options, option)
-                end
               end
             end
-            matrix[id, time] = new_options
           end
-
+          matrix[id, time] = new_options
         end
+
       end
     end
-
   end
   matrix
 end
@@ -2593,7 +2624,7 @@ function identify_agent_type(object_decomposition, user_events)
   filter(t -> t.id == best_type_id, object_types)[1] 
 end
 
-function identify_brownian_types(object_decomposition, user_events, agent_type, standard_regularity_matrix, regularity_types)
+function identify_brownian_types(object_decomposition, user_events, agent_type, standard_regularity_matrix, regularity_matrix, regularity_types)
   object_types, object_mapping, _, grid_size = object_decomposition 
   possible_brownian_types = deepcopy(object_types)
 
@@ -2634,11 +2665,31 @@ function identify_brownian_types(object_decomposition, user_events, agent_type, 
   end
 
   # keep only types where objects undergo all four directional displacements
+  # and not all object id's undergo just one directional displacement
   non_brownian_types = []
   type_to_distinct_disp_dirs = Dict(map(type -> type.id => unique(vcat(collect(values(displacement_dict[type.id]))...)), possible_brownian_types))
   for type_id in collect(keys(type_to_distinct_disp_dirs))
     if length(type_to_distinct_disp_dirs[type_id]) != 4 
       push!(non_brownian_types, type_id)
+    else
+      object_ids_with_type = object_ids_with_type_dict[type_id]
+      # if all object id's undergo exactly one directional displacement, then the type_id is not brownian 
+      if filter(c -> c > 1, map(object_id -> length(unique(displacement_dict[type_id][object_id])), object_ids_with_type)) == [] 
+        push!(non_brownian_types, type_id)
+
+        for object_id in object_ids_with_type 
+          for time in 1:size(regularity_matrix)[2]
+            if filter(r -> !occursin("Random", r), regularity_matrix[object_id, time]) == [] 
+              println("wowz")
+              
+            else
+              println("wtf")
+              regularity_matrix[object_id, time] = filter(r -> !occursin("Random", r), regularity_matrix[object_id, time])
+            end
+          end
+        end
+
+      end
     end
   end
   filter!(t -> !(t.id in non_brownian_types), possible_brownian_types)
@@ -3444,11 +3495,12 @@ function generate_event(run_id, interval_offsets, source_exists_events_dict, ano
           end
           
           # # # @show event_object_ids
-          for object_id in event_object_ids 
+          for object_id in event_object_ids
+            # @show object_id  
             formatted_event = replace(event, ".. obj id) x" => ".. obj id) $(object_id)")
             program_str = singletimestepsolution_program_given_matrix_NEW(matrix, object_decomposition, grid_size) # CHANGE BACK TO DIM LATER
             program_tokens = split(program_str, """(: time Int)\n  (= time (initnext 0 (+ time 1)))""")
-    
+
             # elements to insert between program_tokens[1] and program_tokens[2]
             insertions = ["""(: time Int)\n  (= time (initnext 0 (+ time 1)))""", "\n\t (: event Bool) \n\t (= event (initnext false $(formatted_event)))\n"]
     
@@ -3682,11 +3734,11 @@ function generate_event(run_id, interval_offsets, source_exists_events_dict, ano
 
       # create event_vector_dict copy for Z3, which is missing compound events 
       z3_event_vector_dict = deepcopy(event_vector_dict)
-      for event in collect(keys(z3_event_vector_dict))
-        if !(event in new_choices)
-          delete!(z3_event_vector_dict, event)
-        end
-      end
+      # for event in collect(keys(z3_event_vector_dict))
+      #   if !(event in new_choices)
+      #     delete!(z3_event_vector_dict, event)
+      #   end
+      # end
 
       # # # @show anonymized_update_rule
       # # # @show observation_data_dict
@@ -3773,7 +3825,7 @@ function z3_event_search_full(run_id, observed_data_dict, event_vector_dict, red
   # output = readchomp(eval(Meta.parse("`$(command)`")))
   events = [""]
   # run python command for z3 event search 
-  options = partial ? [1, 2] : collect(1:14)
+  options = partial ? [1, 2] : collect(1:15)
   for option in options
     shortest_length = 0
     if timeout == 0 
@@ -3849,6 +3901,13 @@ function z3_event_search_full(run_id, observed_data_dict, event_vector_dict, red
           event = "(& $(event_1) (| $(event_2) (& $(event_3) $(event_4)) ))"
         end
         shortest_length = length(event_1) + length(event_2) + length(event_3) + length(event_4)
+      elseif option in [15]
+        event_1 = lines[3]
+        event_2 = lines[4]
+        event_3 = lines[5]
+        event_4 = lines[6]
+        event_5 = lines[7]
+        event = event = "(| $(event_5) (| (| $(event_1) $(event_2)) (| $(event_3) $(event_4))))"
       end
       # # # @show event 
       # # # @show shortest_length 
