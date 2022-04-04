@@ -2347,9 +2347,9 @@ function construct_brownian_motion_matrix(matrix, unformatted_matrix, object_dec
     object_ids_with_type = filter(id -> filter(obj -> !isnothing(obj), object_mapping[id])[1].type.id == type_id, collect(keys(object_mapping)))
 
     # check if all non-addObj-removeObj-null cells have a "closest"-based update function, for every id  
-    closest_every_time = length(filter(id -> findall(l -> l != [""] && !occursin("addObj", join(l)) && !occursin("removeObj", join(l)) && occursin("closest", l), matrix[id, :]) == [], object_ids_with_type)) == length(object_ids_with_type)
+    closest_every_time = length(filter(id -> findall(l -> l != [""] && !occursin("addObj", join(l)) && !occursin("removeObj", join(l)) && occursin("closest", join(l)), matrix[id, :]) == [], object_ids_with_type)) == length(object_ids_with_type)
     # check if all non-addObj-removeObj-null cells have a "farthest"-based update function, for every id  
-    farthest_every_time = length(filter(id -> findall(l -> l != [""] && !occursin("addObj", join(l)) && !occursin("removeObj", join(l)) && occursin("farthest", l), matrix[id, :]) == [], object_ids_with_type)) == length(object_ids_with_type)
+    farthest_every_time = length(filter(id -> findall(l -> l != [""] && !occursin("addObj", join(l)) && !occursin("removeObj", join(l)) && occursin("farthest", join(l)), matrix[id, :]) == [], object_ids_with_type)) == length(object_ids_with_type)
 
     if closest_every_time
       choices = map(rule -> replace(rule, "(= objX" => "")[1:end-1], filter(r -> !occursin("addObj", r) && !occursin("removeObj", r) && occursin("closest"), unique(vcat(map(id -> vcat(filtered_unformatted_matrix[id, :]...), object_ids_with_type)...))))
