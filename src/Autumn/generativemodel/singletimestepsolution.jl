@@ -2346,7 +2346,19 @@ function construct_brownian_motion_matrix(matrix, unformatted_matrix, object_dec
     type_id = type.id 
     object_ids_with_type = filter(id -> filter(obj -> !isnothing(obj), object_mapping[id])[1].type.id == type_id, collect(keys(object_mapping)))
 
-    choices = map(rule -> replace(rule, "(= objX" => "")[1:end-1], filter(r -> !occursin("addObj", r) && !occursin("removeObj", r), unique(vcat(map(id -> vcat(filtered_unformatted_matrix[id, :]...), object_ids_with_type)...))))
+    # check if all non-addObj-removeObj-null cells have a "closest"-based update function, for every id  
+    closest_every_time = length(filter(id -> findall(l -> l != [""] && !occursin("addObj", join(l)) && !occursin("removeObj", join(l)) && occursin("closest", l), matrix[id, :]) == [], object_ids_with_type)) == length(object_ids_with_type)
+    # check if all non-addObj-removeObj-null cells have a "farthest"-based update function, for every id  
+    farthest_every_time = length(filter(id -> findall(l -> l != [""] && !occursin("addObj", join(l)) && !occursin("removeObj", join(l)) && occursin("farthest", l), matrix[id, :]) == [], object_ids_with_type)) == length(object_ids_with_type)
+
+    if closest_every_time
+      choices = map(rule -> replace(rule, "(= objX" => "")[1:end-1], filter(r -> !occursin("addObj", r) && !occursin("removeObj", r) && occursin("closest"), unique(vcat(map(id -> vcat(filtered_unformatted_matrix[id, :]...), object_ids_with_type)...))))
+    elseif farthest_every_time 
+      choices = map(rule -> replace(rule, "(= objX" => "")[1:end-1], filter(r -> !occursin("addObj", r) && !occursin("removeObj", r) && occursin("farthest"), unique(vcat(map(id -> vcat(filtered_unformatted_matrix[id, :]...), object_ids_with_type)...))))
+    else
+      choices = map(rule -> replace(rule, "(= objX" => "")[1:end-1], filter(r -> !occursin("addObj", r) && !occursin("removeObj", r), unique(vcat(map(id -> vcat(filtered_unformatted_matrix[id, :]...), object_ids_with_type)...))))
+    end
+
     formatted_choices = map(c -> "$(replace(c, "objX" => "(prev objX)"))", choices)
     formatted_random_choice = "(uniformChoice (list $(join(formatted_choices, " "))))"
   
@@ -2557,6 +2569,16 @@ function update_addObj_options(matrix, brownian_types)
               if (first_type_id in brownian_type_ids) || (second_type_id in brownian_type_ids)
                 push!(new_options, option)
               end
+
+            elseif occursin(")) 20", option)
+              first_object_id = parse(Int, split(match(r"distance prev obj prev obj\d+", replace(replace(option, "(" => ""), ")" => "")).match, "prev obj")[end])
+              first_type_id = filter(o -> !isnothing(o), object_mapping[first_object_id])[1].type.id
+              second_type_id = parse(Int, split(match(r"20 prev addedObjType\d+", replace(replace(option, "(" => ""), ")" => "")).match, "addedObjType")[end])
+
+              if (first_type_id in brownian_type_ids) || (second_type_id in brownian_type_ids)
+                push!(new_options, option)
+              end
+
             end
           end
           matrix[id, time] = new_options
