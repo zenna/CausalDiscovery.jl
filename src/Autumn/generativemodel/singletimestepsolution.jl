@@ -345,10 +345,7 @@ function synthesize_update_functions_bulk(possible_rules_matrix, object_decompos
           equals = render_equals(hypothesis_object, next_object, hypothesis_frame_state)
           if equals 
             # format update function appropriately 
-            update_rule = update_rules[i]
-            generic_update_rule = replace(update_rule, "obj$(object_id)" => "objX") 
-            push!(unformatted_matrix[object_id, time], generic_update_rule) 
-    
+            update_rule = update_rules[i]    
             contained_in_list = isnothing(object_mapping[object_id][1]) || (count(id -> (filter(x -> !isnothing(x), object_mapping[id]))[1].type.id == object_mapping[object_id][1].type.id, collect(keys(object_mapping))) > 1)
 
             if occursin("closestLeft", update_rule)
@@ -370,6 +367,9 @@ function synthesize_update_functions_bulk(possible_rules_matrix, object_decompos
             elseif occursin("farthestDown", update_rule)
               update_rule = replace(update_rule, "farthestDown" => "farthestRandom")
             end
+
+            generic_update_rule = replace(update_rule, "obj$(object_id)" => "objX") 
+            push!(unformatted_matrix[object_id, time], generic_update_rule) 
   
             # if !occursin("closestRandom", update_rule) || !occursin("closestRandom", join(solutions, "")) # true
             if contained_in_list # object was added later; contained in addedList
@@ -2346,21 +2346,63 @@ function construct_brownian_motion_matrix(matrix, unformatted_matrix, object_dec
     type_id = type.id 
     object_ids_with_type = filter(id -> filter(obj -> !isnothing(obj), object_mapping[id])[1].type.id == type_id, collect(keys(object_mapping)))
 
-    # check if all non-addObj-removeObj-null cells have a "closest"-based update function, for every id  
-    closest_every_time = length(filter(id -> findall(l -> l != [""] && !occursin("addObj", join(l)) && !occursin("removeObj", join(l)) && occursin("closest", join(l)), matrix[id, :]) == [], object_ids_with_type)) == length(object_ids_with_type)
-    # check if all non-addObj-removeObj-null cells have a "farthest"-based update function, for every id  
-    farthest_every_time = length(filter(id -> findall(l -> l != [""] && !occursin("addObj", join(l)) && !occursin("removeObj", join(l)) && occursin("farthest", join(l)), matrix[id, :]) == [], object_ids_with_type)) == length(object_ids_with_type)
+    # avoidgeorge randomness handling: agent is not typical brownian, but rather random over multiple closestRandom options + some noise
+    if length(object_ids_with_type) == 1 
+      # check if all non-addObj-removeObj-null cells have the same "closest"-based update function, for every id  
+      closest_every_time = occursin("closest", join(intersect(map(li -> map(elt -> elt[1:end-15], li), vcat(filter(x -> x != [], map(id -> filter(l -> l != [""] && !occursin("addObj", join(l)) && !occursin("removeObj", join(l)), unformatted_matrix[id, :]), object_ids_with_type))...))...)))
+      # check if all non-addObj-removeObj-null cells have a "farthest"-based update function, for every id  
+      farthest_every_time = occursin("farthest", join(intersect(map(li -> map(elt -> elt[1:end-15], li), vcat(filter(x -> x != [], map(id -> filter(l -> l != [""] && !occursin("addObj", join(l)) && !occursin("removeObj", join(l)), unformatted_matrix[id, :]), object_ids_with_type))...))...)))
 
-    if closest_every_time
-      choices = map(rule -> replace(rule, "(= objX" => "")[1:end-1], filter(r -> !occursin("addObj", r) && !occursin("removeObj", r) && occursin("closest"), unique(vcat(map(id -> vcat(filtered_unformatted_matrix[id, :]...), object_ids_with_type)...))))
-    elseif farthest_every_time 
-      choices = map(rule -> replace(rule, "(= objX" => "")[1:end-1], filter(r -> !occursin("addObj", r) && !occursin("removeObj", r) && occursin("farthest"), unique(vcat(map(id -> vcat(filtered_unformatted_matrix[id, :]...), object_ids_with_type)...))))
+      if closest_every_time
+        closest_fragment = filter(r -> occursin("closest", r), intersect(map(li -> map(elt -> elt[1:end-15], li), vcat(filter(x -> x != [], map(id -> filter(l -> l != [""] && !occursin("addObj", join(l)) && !occursin("removeObj", join(l)), unformatted_matrix[id, :]), object_ids_with_type))...))...))[1]
+        choices = map(rule -> replace(rule, "(= objX" => "")[1:end-1], filter(r -> !occursin("addObj", r) && !occursin("removeObj", r) && occursin(closest_fragment, r), unique(vcat(map(id -> vcat(unformatted_matrix[id, :]...), object_ids_with_type)...))))
+      elseif farthest_every_time 
+        farthest_fragment = filter(r -> occursin("farthest", r), intersect(map(li -> map(elt -> elt[1:end-15], li), vcat(filter(x -> x != [], map(id -> filter(l -> l != [""] && !occursin("addObj", join(l)) && !occursin("removeObj", join(l)), unformatted_matrix[id, :]), object_ids_with_type))...))...))[1]
+        choices = map(rule -> replace(rule, "(= objX" => "")[1:end-1], filter(r -> !occursin("addObj", r) && !occursin("removeObj", r) && occursin(farthest_fragment, r), unique(vcat(map(id -> vcat(unformatted_matrix[id, :]...), object_ids_with_type)...))))
+      else
+        update_functions_for_normal_times = map(li -> map(elt -> elt[1:end-15], li), vcat(filter(x -> x != [], map(id -> filter(l -> l != [""] && !occursin("addObj", join(l)) && !occursin("removeObj", join(l)), unformatted_matrix[id, :]), object_ids_with_type))...))
+        num_times = length(update_functions_for_normal_times)
+        unstructured_update_functions = vcat(update_functions_for_normal_times...)
+        unique_unstructured_update_functions = reverse(sort(unique(unstructured_update_functions), by=u -> count(x -> x == u, unstructured_update_functions)))
+
+        special_handling = false
+        if occursin("closest", join(unstructured_update_functions))
+          best_closest_option_index = findall(u -> occursin("closest", u), unique_unstructured_update_functions)[1]
+          best_closest_option = unique_unstructured_update_functions[best_closest_option_index]
+
+          c = count(u -> u == best_closest_option, unstructured_update_functions)
+          if c/num_times > 0.9 
+            choices = map(rule -> replace(rule, "(= objX" => "")[1:end-1], filter(r -> !occursin("addObj", r) && !occursin("removeObj", r) && occursin(best_closest_option, r), unique(vcat(map(id -> vcat(unformatted_matrix[id, :]...), object_ids_with_type)...))))
+            noise = "(uniformChoice (list $(join(type_displacements[type_id], " ")) $(join(map(x -> -x, type_displacements[type_id]), " "))))"
+            push!(choices, """(moveNoCollisionColor objX $(noise) $(noise) "darkgray")""")
+            special_handling = true
+          end 
+        end
+
+        if !special_handling && occursin("farthest", join(unstructured_update_functions))
+          best_farthest_option_index = findall(u -> occursin("farthest", u), unique_unstructured_update_functions)[1]
+          best_farthest_option = unique_unstructured_update_functions[best_farthest_option_index]
+
+          c = count(u -> u == best_farthest_option, unstructured_update_functions)
+          if c/num_times > 0.9 
+            choices = map(rule -> replace(rule, "(= objX" => "")[1:end-1], filter(r -> !occursin("addObj", r) && !occursin("removeObj", r) && occursin(best_farthest_option, r), unique(vcat(map(id -> vcat(unformatted_matrix[id, :]...), object_ids_with_type)...))))
+            noise = "(uniformChoice (list $(join(type_displacements[type_id], " ")) $(join(map(x -> -x, type_displacements[type_id]), " "))))"
+            push!(choices, """(moveNoCollisionColor objX $(noise) $(noise) "darkgray")""")
+            special_handling = true
+          end 
+
+        end
+
+        if !special_handling 
+          choices = map(rule -> replace(rule, "(= objX" => "")[1:end-1], filter(r -> !occursin("addObj", r) && !occursin("removeObj", r), unique(vcat(map(id -> vcat(filtered_unformatted_matrix[id, :]...), object_ids_with_type)...))))
+        end
+      end
+
     else
       choices = map(rule -> replace(rule, "(= objX" => "")[1:end-1], filter(r -> !occursin("addObj", r) && !occursin("removeObj", r), unique(vcat(map(id -> vcat(filtered_unformatted_matrix[id, :]...), object_ids_with_type)...))))
     end
 
     formatted_choices = map(c -> "$(replace(c, "objX" => "(prev objX)"))", choices)
-    formatted_random_choice = "(uniformChoice (list $(join(formatted_choices, " "))))"
   
     object_id = object_ids_with_type[1]
     start_objects = map(k -> object_mapping[k][1], filter(key -> !isnothing(object_mapping[key][1]), collect(keys(object_mapping))))
@@ -2370,8 +2412,10 @@ function construct_brownian_motion_matrix(matrix, unformatted_matrix, object_dec
     for id in object_ids_with_type 
       for time in 1:length(matrix[id, :])
         if contained_in_list && new_matrix[id, time][1] != "" && !occursin("addObj", new_matrix[id, time][1]) && !occursin("removeObj", new_matrix[id, time][1])
+          formatted_random_choice = "(uniformChoice (list $(join(map(c -> replace(c, "objX" => "obj"), formatted_choices), " "))))"
           new_matrix[id, time] = ["(= addedObjType$(type_id)List (updateObj addedObjType$(type_id)List (--> obj $(formatted_random_choice))) (--> obj (== (.. obj id) $(id))))"]
         elseif !contained_in_list && new_matrix[id, time][1] != "" && !occursin("addObj", new_matrix[id, time][1]) && !occursin("removeObj", new_matrix[id, time][1])
+          formatted_random_choice = "(uniformChoice (list $(join(map(c -> replace(c, "objX" => "obj$(object_ids_with_type[1])"), formatted_choices), " "))))"
           new_matrix[id, time] = ["(= obj$(object_ids_with_type[1]) $(formatted_random_choice))"]
         end
       end
@@ -2444,6 +2488,10 @@ function construct_filtered_matrices_pedro(old_matrix, object_decomposition, use
   # for m in pre_filtered_matrices
   #   push!(filtered_matrices, filter_update_function_matrix_multiple(m, object_decomposition, multiple=false)...)
   # end
+
+  # remove random-based update functions for types where the id's undergo only one nonzero displacement 
+  # (e.g. bullet behavior and boulderdash)
+  matrix = remove_random_behavior_on_single_direction_types(matrix, object_decomposition)
   
   # regularity matrices: non-random and random (type-level)
   ## collect types that might behave with regularity
@@ -2477,7 +2525,7 @@ function construct_filtered_matrices_pedro(old_matrix, object_decomposition, use
 
         # regularity random 
         ## clean addObj-based options 
-        regularity_matrix = update_addObj_options(regularity_matrix, possible_brownian_types)
+        regularity_matrix = update_addObj_options(regularity_matrix, possible_brownian_types, object_mapping)
         random_regularity_matrix_unfiltered = construct_random_regularity_matrix(regularity_matrix, regularity_unformatted_matrix, object_decomposition, regularity_brownian_types)
         # fully random (i.e no regularity)
         random_regularity_matrix_unfiltered = construct_brownian_motion_matrix(random_regularity_matrix_unfiltered, regularity_unformatted_matrix, object_decomposition, other_brownian_types)
@@ -2493,7 +2541,7 @@ function construct_filtered_matrices_pedro(old_matrix, object_decomposition, use
     possible_brownian_types = identify_brownian_types(object_decomposition, user_events, agent_type, matrix, matrix, [])
 
     # clean addObj-based options 
-    matrix = update_addObj_options(matrix, possible_brownian_types)
+    matrix = update_addObj_options(matrix, possible_brownian_types, object_mapping)
     brownian_matrix_unfiltered = construct_brownian_motion_matrix(matrix, unformatted_matrix, object_decomposition, possible_brownian_types)
     brownian_matrix = construct_filtered_matrices(brownian_matrix_unfiltered, object_decomposition, user_events)[1]
     push!(filtered_matrices, brownian_matrix)
@@ -2539,7 +2587,32 @@ function construct_filtered_matrices_pedro(old_matrix, object_decomposition, use
   filtered_matrices
 end
 
-function update_addObj_options(matrix, brownian_types)
+function remove_random_behavior_on_single_direction_types(matrix, object_decomposition)
+  object_types, object_mapping, _, _ = object_decomposition
+
+  for type in object_types 
+    object_ids_with_type = filter(id -> filter(obj -> !isnothing(obj), object_mapping[id])[1].type.id == type.id, collect(keys(object_mapping)))
+    displacement_vector_lengths = map(object_id -> length(unique(filter(x -> x == (0, 0), map(t -> !isnothing(object_mapping[object_id][t]) && !isnothing(object_mapping[object_id][t + 1]) 
+                                                                                            ? 
+                                                                                            displacement(object_mapping[object_id][t].position, object_mapping[object_id][t + 1].position) 
+                                                                                            : 
+                                                                                            (0, 0),
+                                                                                       1:size(matrix)[2])))), 
+                                      object_ids_with_type)
+    displacement_vector_lengths = filter(x -> x == 0, displacement_vector_lengths)
+    # if each non-stationary id undergoes exactly one nonzero displacement across time, remove random-based update functions from matrix
+    if length(unique(displacement_vector_lengths)) == 1
+      for id in object_ids_with_type 
+        for time in 1:size(matrix)[2]
+          matrix[id, time] = filter(r -> !occursin("farthestRandom", r) && !occursin("closestRandom", r), matrix[id, time])
+        end
+      end
+    end
+  end
+  matrix
+end
+
+function update_addObj_options(matrix, brownian_types, object_mapping)
   println("what?")
 
   brownian_type_ids = map(t -> t.id, brownian_types)
@@ -3407,7 +3480,7 @@ end
 # generate_event, generate_hypothesis_position, generate_hypothesis_position_program 
 ## tricky things: add user events, and fix environment 
 global hypothesis_state = nothing
-function generate_event(run_id, interval_offsets, source_exists_events_dict, anonymized_update_rule, distinct_update_rules, object_id, object_ids, matrix, filtered_matrix, object_decomposition, user_events, state_update_on_clauses, global_var_dict, event_vector_dict, grid_size, redundant_events_set, min_events=1, max_iters=400, z3_option = "none", time_based=true, z3_timeout=0, sketch_timeout=0)
+function generate_event(run_id, interval_offsets, source_exists_events_dict, anonymized_update_rule, distinct_update_rules, object_id, object_ids, matrix, filtered_matrix, object_decomposition, user_events, state_update_on_clauses, global_var_dict, event_vector_dict, grid_size, redundant_events_set, min_events=1, max_iters=400, z3_option = "none", time_based=true, z3_timeout=0, sketch_timeout=0; lock=nothing)
   # # # println("GENERATE EVENT")
   # # # # # # @show object_decomposition
   object_types, object_mapping, background, dim = object_decomposition 
@@ -3493,298 +3566,270 @@ function generate_event(run_id, interval_offsets, source_exists_events_dict, ano
   # # # @show redundant_events_set
   events_to_try = sort(unique(vcat(new_choices, collect(keys(event_vector_dict)))), by=length)
   # @show length(events_to_try)
-  while true
-    for event in events_to_try 
-      event_is_global = !occursin(".. obj id) x", event)
-      anonymized_event = event # replace(event, ".. obj id) $(object_ids[1])" => ".. obj id) x")
-      @show event 
-      # @show anonymized_event
-      # # # @show type_id
-      is_event_object_specific_with_correct_type = event_is_global || parse(Int, split(split(match(r".. obj id x prev addedObjType\d+List", replace(replace(anonymized_event, ")" => ""), "(" => "")).match, "addedObjType")[2], "List")[1]) == type_id
-      # # # @show is_event_object_specific_with_correct_type
-      # # # @show object_ids
-      # !(occursin("first", anonymized_event) && (nothing in vcat(map(k -> object_mapping[k], collect(keys(object_mapping)))...))) && is_event_object_specific_with_correct_type
-      if is_event_object_specific_with_correct_type
+
+  for event in events_to_try 
+    event_is_global = !occursin(".. obj id) x", event)
+    anonymized_event = event # replace(event, ".. obj id) $(object_ids[1])" => ".. obj id) x")
+    @show event 
+    # @show anonymized_event
+    # # # @show type_id
+    is_event_object_specific_with_correct_type = event_is_global || parse(Int, split(split(match(r".. obj id x prev addedObjType\d+List", replace(replace(anonymized_event, ")" => ""), "(" => "")).match, "addedObjType")[2], "List")[1]) == type_id
+    # # # @show is_event_object_specific_with_correct_type
+    # # # @show object_ids
+    # !(occursin("first", anonymized_event) && (nothing in vcat(map(k -> object_mapping[k], collect(keys(object_mapping)))...))) && is_event_object_specific_with_correct_type
+    if is_event_object_specific_with_correct_type
+      
+      if !(anonymized_event in keys(event_vector_dict)) # || !(event_vector_dict[anonymized_event] isa AbstractArray) && intersect(object_ids, collect(keys(event_vector_dict[anonymized_event]))) == [] # event values are not stored
+        @show anonymized_event 
+        @show Dates.now()
+        if event_is_global # if the event is global, only need to evaluate the event on one object_id (variable name is "event")
+          event_object_ids = object_ids[1:1]
+          event_string = "\n\t (: event Bool) \n\t (= event (initnext false $(event)))\n"
+        else # otherwise, need to evaluate the event on all object_ids (variable names are "event$(object_id)" for each object_id)
+          event_object_ids = object_ids # collect(keys(object_mapping)) # object_ids; evaluate even for ids not with the current rule's type, for uniformity!!
+          event_vector_dict[anonymized_event] = Dict()
+          event_string = join(map(object_id -> "\n\t (: event$(object_id) Bool) \n\t (= event$(object_id) (initnext false $(replace(event, ".. obj id) x" => ".. obj id) $(object_id)"))))\n", event_object_ids))
+        end
         
-        if !(anonymized_event in keys(event_vector_dict)) # || !(event_vector_dict[anonymized_event] isa AbstractArray) && intersect(object_ids, collect(keys(event_vector_dict[anonymized_event]))) == [] # event values are not stored
-          @show anonymized_event 
-          @show Dates.now()
-          if event_is_global # if the event is global, only need to evaluate the event on one object_id 
-            event_object_ids = object_ids[1]
-          else # otherwise, need to evaluate the event on all object_ids
-            event_object_ids = object_ids # collect(keys(object_mapping)) # object_ids; evaluate even for ids not with the current rule's type, for uniformity!!
-            event_vector_dict[anonymized_event] = Dict()
+        program_str = singletimestepsolution_program_given_matrix_NEW(matrix, object_decomposition, grid_size) # CHANGE BACK TO DIM LATER
+        program_tokens = split(program_str, """(: time Int)\n  (= time (initnext 0 (+ time 1)))""")
+
+        # elements to insert between program_tokens[1] and program_tokens[2]
+        insertions = ["""(: time Int)\n  (= time (initnext 0 (+ time 1)))""", event_string]
+
+        # insert globalVar initialization
+        inits = []
+        for key in collect(keys(global_var_dict))
+          global_var_init_val = global_var_dict[key][1]
+          push!(inits, """\n\t (: globalVar$(key) Int)\n\t (= globalVar$(key) (initnext $(global_var_init_val) (prev globalVar$(key))))""")
+        end
+        insertions = [insertions[1], inits..., insertions[2]]
+
+        program_str = string(program_tokens[1], insertions..., program_tokens[2])
+
+        # insert state update on_clauses 
+        if (state_update_on_clauses != [])
+          state_update_on_clauses_str = join(reverse(state_update_on_clauses), "\n  ")
+          program_str = string(program_str[1:end-1], state_update_on_clauses_str, ")")
+        end
+
+        # global expr = parseautumn(program_str)
+        expr = parseautumn(program_str)
+
+        user_events_for_interpreter = []
+        for e in user_events 
+          if isnothing(e) || e == "nothing"
+            push!(user_events_for_interpreter, Dict())
+          elseif e == "left"
+            push!(user_events_for_interpreter, Dict(:left => true))
+          elseif e == "right"
+            push!(user_events_for_interpreter, Dict(:right => true))
+          elseif e == "up"
+            push!(user_events_for_interpreter, Dict(:up => true))
+          elseif e == "down"
+            push!(user_events_for_interpreter, Dict(:down => true))
+          else
+            x = parse(Int, split(e, " ")[2])
+            y = parse(Int, split(e, " ")[3])
+            push!(user_events_for_interpreter, Dict(:click => AutumnStandardLibrary.Click(x, y)))
           end
-          
-          # # # @show event_object_ids
-          for object_id in event_object_ids
-            # @show object_id  
-            formatted_event = replace(event, ".. obj id) x" => ".. obj id) $(object_id)")
-            program_str = singletimestepsolution_program_given_matrix_NEW(matrix, object_decomposition, grid_size) # CHANGE BACK TO DIM LATER
-            program_tokens = split(program_str, """(: time Int)\n  (= time (initnext 0 (+ time 1)))""")
+        end
 
-            # elements to insert between program_tokens[1] and program_tokens[2]
-            insertions = ["""(: time Int)\n  (= time (initnext 0 (+ time 1)))""", "\n\t (: event Bool) \n\t (= event (initnext false $(formatted_event)))\n"]
-    
-            # insert globalVar initialization
-            inits = []
-            for key in collect(keys(global_var_dict))
-              global_var_init_val = global_var_dict[key][1]
-              push!(inits, """\n\t (: globalVar$(key) Int)\n\t (= globalVar$(key) (initnext $(global_var_init_val) (prev globalVar$(key))))""")
-            end
-            insertions = [insertions[1], inits..., insertions[2]]
-    
-            program_str = string(program_tokens[1], insertions..., program_tokens[2])
-    
-            # insert state update on_clauses 
-            if (state_update_on_clauses != [])
-              state_update_on_clauses_str = join(reverse(state_update_on_clauses), "\n  ")
-              program_str = string(program_str[1:end-1], state_update_on_clauses_str, ")")
-            end
-            # println("PROGRAM STRING")          
-            # println(program_str)
-            global expr = parseautumn(program_str)
-            # global expr = striplines(compiletojulia(parseautumn(program_str)))
-            # ## # # # # @show expr
-            # module_name = Symbol("CompiledProgram$(global_iters)")
-            # global expr.args[1].args[2] = module_name
-            # # # # # # # @show expr.args[1].args[2]
-            # global mod = @eval $(expr)
-            # # # # # # # @show repr(mod)
-      
-            user_events_for_interpreter = []
-            for e in user_events 
-              if isnothing(e) || e == "nothing"
-                push!(user_events_for_interpreter, Dict())
-              elseif e == "left"
-                push!(user_events_for_interpreter, Dict(:left => true))
-              elseif e == "right"
-                push!(user_events_for_interpreter, Dict(:right => true))
-              elseif e == "up"
-                push!(user_events_for_interpreter, Dict(:up => true))
-              elseif e == "down"
-                push!(user_events_for_interpreter, Dict(:down => true))
-              else
-                global x = parse(Int, split(e, " ")[2])
-                global y = parse(Int, split(e, " ")[3])
-                push!(user_events_for_interpreter, Dict(:click => AutumnStandardLibrary.Click(x, y)))
-              end
-            end
+        hypothesis_state = interpret_over_time(expr, length(user_events), user_events_for_interpreter).state
 
-            hypothesis_state = interpret_over_time(expr, length(user_events), user_events_for_interpreter).state
-            # try 
-            #   hypothesis_state = interpret_over_time(expr, length(user_events), user_events_for_interpreter).state
-            # catch e 
-            #   hypothesis_state = nothing
-            # end
-            # hypothesis_state = interpret_over_time(expr, length(user_events), user_events_for_interpreter).state
-      
-            # global hypothesis_state = @eval mod.init(nothing, nothing, nothing, nothing, nothing)
-            # # # # # # @show hypothesis_state
-            # for time in 1:length(user_events)
-            #   # # # # # @show time
-            #   if user_events[time] != nothing && (split(user_events[time], " ")[1] in ["click", "clicked"])
-            #     global x = parse(Int, split(user_events[time], " ")[2])
-            #     global y = parse(Int, split(user_events[time], " ")[3])
-      
-            #     global hypothesis_state = @eval mod.next(hypothesis_state, mod.Click(x, y), nothing, nothing, nothing, nothing)
-            #   elseif user_events[time] == "left"
-            #     global hypothesis_state = @eval mod.next(hypothesis_state, nothing, mod.Left(), nothing, nothing, nothing)
-            #   elseif user_events[time] == "right"
-            #     global hypothesis_state = @eval mod.next(hypothesis_state, nothing, nothing, mod.Right(), nothing, nothing)
-            #   elseif user_events[time] == "up"
-            #     global hypothesis_state = @eval mod.next(hypothesis_state, nothing, nothing, nothing, mod.Up(), nothing)
-            #   elseif user_events[time] == "down"
-            #     global hypothesis_state = @eval mod.next(hypothesis_state, nothing, nothing, nothing, nothing, mod.Down())
-            #   else
-            #     global hypothesis_state = @eval mod.next(hypothesis_state, nothing, nothing, nothing, nothing, nothing)
-            #   end
-            # end
-            if !isnothing(hypothesis_state)
-              event_values = map(key -> hypothesis_state.histories[:event][key], sort(collect(keys(hypothesis_state.histories[:event]))))[2:end]
-    
-              # update event_vector_dict 
-              if event_is_global 
-                event_vector_dict[anonymized_event] = event_values
-              else
-                event_vector_dict[anonymized_event][object_id] = event_values
-              end
+        if !isnothing(hypothesis_state)  
+          # update event_vector_dict 
+          if event_is_global 
+            event_values = map(key -> hypothesis_state.histories[:event][key], sort(collect(keys(hypothesis_state.histories[:event]))))[2:end]
+            event_vector_dict[anonymized_event] = event_values
+          else
+            for object_id in event_object_ids 
+              event_values = map(key -> hypothesis_state.histories[Symbol(string("event", object_id))][key], sort(collect(keys(hypothesis_state.histories[Symbol(string("event", object_id))]))))[2:end]
+              event_vector_dict[anonymized_event][object_id] = event_values
             end
           end
+        end
+
+      end
+    end
+    if (anonymized_event in keys(event_vector_dict)) && is_event_object_specific_with_correct_type
+      # if this is not true, then there was a failure above (the event contained "first" but had nothing's in object_mapping),
+      # or the event is object-specific with the wrong type 
+      event_values_dicts = []
+      if event_vector_dict[anonymized_event] isa AbstractArray 
+        event_values_dict = Dict()
+        for object_id in object_ids 
+          event_values_dict[object_id] = event_vector_dict[anonymized_event]
+        end
+        push!(event_values_dicts, (event, event_values_dict))
+      else
+        # add object-specific event values
+        # # # @show collect(keys(event_vector_dict[anonymized_event]))
+        event_values_dict = Dict() 
+        for object_id in object_ids 
+          event_values_dict[object_id] = event_vector_dict[anonymized_event][object_id]
+        end
+        push!(event_values_dicts, (event, event_values_dict))
+        
+        for object_id in object_ids 
+          # these object-specific events may be treated as global events; each mapping in object_specific dictionary contains same array
+          object_specific_event = replace(event, "obj id) x" => "obj id) $(object_id)") 
+          object_specific_event_values_dict = Dict() 
+          for object_id_2 in object_ids 
+            object_specific_event_values_dict[object_id_2] = event_values_dict[object_id] # array 
+          end
+          push!(event_values_dicts, (object_specific_event, object_specific_event_values_dict))
         end
       end
-      if (anonymized_event in keys(event_vector_dict)) && is_event_object_specific_with_correct_type
-        # if this is not true, then there was a failure above (the event contained "first" but had nothing's in object_mapping),
-        # or the event is object-specific with the wrong type 
-        event_values_dicts = []
-        if event_vector_dict[anonymized_event] isa AbstractArray 
-          event_values_dict = Dict()
-          for object_id in object_ids 
-            event_values_dict[object_id] = event_vector_dict[anonymized_event]
-          end
-          push!(event_values_dicts, (event, event_values_dict))
-        else
-          # add object-specific event values
-          # # # @show collect(keys(event_vector_dict[anonymized_event]))
-          event_values_dict = Dict() 
-          for object_id in object_ids 
-            event_values_dict[object_id] = event_vector_dict[anonymized_event][object_id]
-          end
-          push!(event_values_dicts, (event, event_values_dict))
-          
-          for object_id in object_ids 
-            # these object-specific events may be treated as global events; each mapping in object_specific dictionary contains same array
-            object_specific_event = replace(event, "obj id) x" => "obj id) $(object_id)") 
-            object_specific_event_values_dict = Dict() 
-            for object_id_2 in object_ids 
-              object_specific_event_values_dict[object_id_2] = event_values_dict[object_id] # array 
-            end
-            push!(event_values_dicts, (object_specific_event, object_specific_event_values_dict))
-          end
-        end
+    
+      # check if event_values match true_times/false_times 
+      # # # println("INSIDE GENERATE_EVENT")
+      # # # # @show anonymized_event
+      # # # # @show observation_data_dict
+      # # # # @show event_values_dicts
+      # # # # @show event_vector_dict
       
-        # check if event_values match true_times/false_times 
-        # # # println("INSIDE GENERATE_EVENT")
-        # # # # @show anonymized_event
-        # # # # @show observation_data_dict
-        # # # # @show event_values_dicts
-        # # # # @show event_vector_dict
-        
-        equals = true
-        for tuple in event_values_dicts 
-          e, event_values_dict = tuple
-          for object_id in object_ids 
-            observation_data = observation_data_dict[object_id]
-            event_values = event_values_dict[object_id]  
-            for time in 1:length(observation_data)
-              if (observation_data[time] != event_values[time]) && (observation_data[time] != -1)
-                equals = false
-                # # # println("NO SUCCESS")
-                break
-              end
-            end
-            if !equals # if the event fails for one of the object_ids, no need to check other object_ids
+      equals = true
+      for tuple in event_values_dicts 
+        e, event_values_dict = tuple
+        for object_id in object_ids 
+          observation_data = observation_data_dict[object_id]
+          event_values = event_values_dict[object_id]  
+          for time in 1:length(observation_data)
+            if (observation_data[time] != event_values[time]) && (observation_data[time] != -1)
+              equals = false
+              # # # println("NO SUCCESS")
               break
             end
           end
-          if equals # if the event works for all of the object_ids, no need to check other events  
-            event = e 
+          if !equals # if the event fails for one of the object_ids, no need to check other object_ids
             break
           end
         end
-    
-        if equals
-          push!(found_events, event)
-          # # # println("SUCCESS")
-          if occursin("obj id) x", event)
-            push!(final_event_globals, false)
-          else
-            push!(final_event_globals, true)
-          end
+        if equals # if the event works for all of the object_ids, no need to check other events  
+          event = e 
           break
         end
       end
   
-    end
-
-    # remove duplicate events that are observationally equivalent
-    # # println("PRE PRUNING")
-    # @show length(collect(keys(event_vector_dict)))
-    # @show event_vector_dict
-
-    event_vector_dict, redundant_events_set = prune_by_observational_equivalence(event_vector_dict, redundant_events_set)
-
-    # # # println("POST PRUNING")
-    # # # @show length(collect(keys(event_vector_dict)))
-
-    if z3_option in ["none"] # , "partial"
-      if length(found_events) < min_events && !tried_compound_events
-        # # # println("entered here")
-        events_to_try = sort(unique(construct_compound_events(collect(keys(event_vector_dict)), event_vector_dict, redundant_events_set, object_decomposition)), by=length)
-        # # # println("exited here")
-        tried_compound_events = true
-      else
-        if (z3_option == "partial") && length(found_events) < min_events
-
-          # ensure that event_vector_dict does not contain BitArray type
-          for event in keys(event_vector_dict)
-            event_values = event_vector_dict[event]
-            if event_values isa AbstractArray 
-              if event_values isa BitArray 
-                event_vector_dict[event] = Array{Int}(event_values)
-              end
-            else
-              for object_id in keys(event_values)
-                if event_values[object_id] isa BitArray 
-                  event_vector_dict[event][object_id] = Array{Int}(event_values[object_id])
-                end
-              end
-            end
-          end
-
-          solution_event = z3_event_search_partial(observation_data_dict, event_vector_dict, z3_timeout)
-          if solution_event != "" 
-            push!(found_events, solution_event)
-            if occursin("obj id) x", solution_event)
-              push!(final_event_globals, false)
-            else
-              push!(final_event_globals, true)
-            end
-  
-          end
+      if equals
+        push!(found_events, event)
+        # # # println("SUCCESS")
+        if occursin("obj id) x", event)
+          push!(final_event_globals, false)
+        else
+          push!(final_event_globals, true)
         end
-
         break
       end
-    elseif z3_option in ["full", "partial"]
+    end
 
-      # ensure that event_vector_dict does not contain BitArray type
-      for event in keys(event_vector_dict)
-        event_values = event_vector_dict[event]
-        if event_values isa AbstractArray 
-          if event_values isa BitArray 
-            event_vector_dict[event] = Array{Int}(event_values)
-          end
-        else
-          for object_id in keys(event_values)
-            if event_values[object_id] isa BitArray 
-              event_vector_dict[event][object_id] = Array{Int}(event_values[object_id])
-            end
-          end
+  end
+
+  # remove duplicate events that are observationally equivalent
+  # # println("PRE PRUNING")
+  # @show length(collect(keys(event_vector_dict)))
+  # @show event_vector_dict
+
+  event_vector_dict, redundant_events_set = prune_by_observational_equivalence(event_vector_dict, redundant_events_set)
+
+  # # # println("POST PRUNING")
+  # # # @show length(collect(keys(event_vector_dict)))
+
+  # ensure that event_vector_dict does not contain BitArray type
+  for event in keys(event_vector_dict)
+    event_values = event_vector_dict[event]
+    if event_values isa AbstractArray 
+      if event_values isa BitArray 
+        event_vector_dict[event] = Array{Int}(event_values)
+      end
+    else
+      for object_id in keys(event_values)
+        if event_values[object_id] isa BitArray 
+          event_vector_dict[event][object_id] = Array{Int}(event_values[object_id])
         end
       end
-
-      # create event_vector_dict copy for Z3, which is missing compound events 
-      z3_event_vector_dict = deepcopy(event_vector_dict)
-      # for event in collect(keys(z3_event_vector_dict))
-      #   if !(event in new_choices)
-      #     delete!(z3_event_vector_dict, event)
-      #   end
-      # end
-
-      # # # @show anonymized_update_rule
-      # # # @show observation_data_dict
-      if length(found_events) < min_events 
-        partial_param = (z3_option == "partial")
-        @show anonymized_update_rule 
-        solution_event = z3_event_search_full(run_id, observation_data_dict, z3_event_vector_dict, redundant_events_set, partial_param, z3_timeout)
-        if solution_event != "" 
-          push!(found_events, solution_event)
-          if occursin("obj id) x", solution_event)
-            push!(final_event_globals, false)
-          else
-            push!(final_event_globals, true)
-          end
-        else
-          # _ = construct_compound_events(new_choices, event_vector_dict, redundant_events_set, object_decomposition)
-        end
-      end
-      break
     end
   end
+
+  # create event_vector_dict copy for Z3, which is missing compound events 
+  z3_event_vector_dict = deepcopy(event_vector_dict)
+  # for event in collect(keys(z3_event_vector_dict))
+  #   if !(event in new_choices)
+  #     delete!(z3_event_vector_dict, event)
+  #   end
+  # end
+
+  # # # @show anonymized_update_rule
+  # # # @show observation_data_dict
+  if length(found_events) < min_events 
+    partial_param = (z3_option == "partial")
+    @show anonymized_update_rule 
+    solution_event = z3_event_search_full(run_id, observation_data_dict, z3_event_vector_dict, redundant_events_set, partial_param, z3_timeout)
+    if solution_event != "" 
+      push!(found_events, solution_event)
+      if occursin("obj id) x", solution_event)
+        push!(final_event_globals, false)
+      else
+        push!(final_event_globals, true)
+      end
+    else
+      # _ = construct_compound_events(new_choices, event_vector_dict, redundant_events_set, object_decomposition)
+    end
+  end
+
   # # # # # @show found_events
   found_events, final_event_globals, event_vector_dict, observation_data_dict    
 end
+
+function generate_event_parallel(run_id, interval_offsets, source_exists_events_dict, anonymized_update_rule, distinct_update_rules, object_id, object_ids, matrix, filtered_matrix, object_decomposition, user_events, state_update_on_clauses, global_var_dict, event_vector_dict, grid_size, redundant_events_set, min_events=1, max_iters=400, z3_option = "none", time_based=true, z3_timeout=0, sketch_timeout=0)
+  num_threads = Threads.nthreads()
+
+  if num_threads == 1 
+    generate_event_parallel(run_id, interval_offsets, source_exists_events_dict, anonymized_update_rule, distinct_update_rules, object_id, object_ids, matrix, filtered_matrix, object_decomposition, user_events, state_update_on_clauses, global_var_dict, event_vector_dict, grid_size, redundant_events_set, min_events, max_iters, z3_option, time_based, z3_timeout, sketch_timeout)
+  else
+    lk_dict = Threads.ReentrantLock()
+    lk_success = Threads.ReentrantLock()
+  
+    new_events = filter(e -> !(e in keys(event_vector_dict)), global_or_correct_type_events)
+    grouped_new_events = collect(Iterators.partition(new_events, num_threads > 1 ? (num_threads - 1) : num_threads))
+    success = false
+    tasks = []
+  
+    for thread_index in 2:num_threads
+      task = Threads.@spawn something_else()  
+      push!(tasks, task)
+    end # all thread_id's
+    
+    task = Threads.@spawn something()  
+    output = fetch(task)
+  
+    if output == good 
+      # get lk_dict and then kill all background processes 
+  
+    end
+    output
+  end
+end
+
+"""
+events_to_try = grouped_new_events[thread_index]
+for event in events_to_try 
+  # check if search is already done
+  search_finished = lock(lk_success) do 
+                      return success 
+                    end
+
+  if search_finished 
+    break
+  else
+    event_values = evaluate_event(event, )
+    lock(lk_dict) do 
+      event_vector_dict[event] = event_values
+    end
+  end
+end
+"""
 
 function z3_event_search_partial(observed_data_dict, event_vector_dict, timeout=0)
   # # # println("Z3_EVENT_SEARCH_PARTIAL")
@@ -3873,7 +3918,7 @@ function z3_event_search_full(run_id, observed_data_dict, event_vector_dict, red
     while z3_output != "" && split(z3_output, "\n")[1] == "sat"
       # # # println("INSIDE MINIMIZATION WHILE LOOP")
       # # # @show events
-
+      
       lines = split(z3_output, "\n")
       event = ""
 
@@ -3930,12 +3975,17 @@ function z3_event_search_full(run_id, observed_data_dict, event_vector_dict, red
         event_4 = lines[6]
         event_5 = lines[7]
         event = event = "(| $(event_5) (| (| $(event_1) $(event_2)) (| $(event_3) $(event_4))))"
+        shortest_length = length(event_1) + length(event_2) + length(event_3) + length(event_4) + length(event_5)
       end
       # # # @show event 
       # # # @show shortest_length 
       # # # @show option 
 
       push!(events, event)
+
+      if option in [15]
+        break 
+      end
 
       # if option in [1, 2]
       #   break

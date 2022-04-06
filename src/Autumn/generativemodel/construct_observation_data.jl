@@ -1677,7 +1677,9 @@ function generate_observations_pedro_interface(game_name)
 
   observations = []
   user_events = []
-  
+
+  @show user_events_raw
+
   for observation_raw in observations_raw 
     observation = []
     objects = observation_raw["objects"]
@@ -1710,10 +1712,15 @@ function generate_observations_pedro_interface(game_name)
         event = js_key_codes[user_event_key]
       end
     end
-    push!(user_events, event)
+    if event == "click -1 -1"
+      user_events[end] = event 
+      push!(user_events, "nothing")
+    else
+      push!(user_events, event)
+    end
   end
 
-  observations = map(obs -> map(c -> c.color == "black" ? Autumn.AutumnStandardLibrary.Cell(c.position, "darkgray") : c, obs), observations)
+  observations = map(obs -> map(c -> c.color in ["black", "gray"] ? Autumn.AutumnStandardLibrary.Cell(c.position, "darkgray") : c, obs), observations)
 
   observations, user_events[1:end-1], map(x -> Int(round(x)), grid_size .* 0.5)
 end

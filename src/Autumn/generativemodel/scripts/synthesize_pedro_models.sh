@@ -1,13 +1,15 @@
 #!/bin/bash
 
-game_names=("Aliens"
-            "Butterflies"
-            "Chase"
-            "Corridor"
-            "Lemmings"
-            "MyAliens"
-            "Plaqueattack"
-            "Survivezombies")
+# game_names=("Aliens"
+#             "Butterflies"
+#             "Chase"
+#             "Corridor"
+#             "Lemmings"
+#             "MyAliens"
+#             "Plaqueattack"
+#             "Survivezombies")
+
+game_names=("Preconditions")
 
 for game_name in ${game_names[@]}
 do
