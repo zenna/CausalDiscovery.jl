@@ -56,7 +56,7 @@ function generate_on_clauses_GLOBAL(run_id, matrix, unformatted_matrix, object_d
   # filtered_matrices = filtered_matrices[22:22]
   # filtered_matrices = filtered_matrices[5:5]
   # filtered_matrices = filtered_matrices[2:2] # SOKOBAN, PUSHBOULDERS
-  filtered_matrices = filtered_matrices[1:1] # PRECONDITIONS, ALIENS
+  filtered_matrices = filtered_matrices[2:2] # PRECONDITIONS, ALIENS
   # filtered_matrices = filtered_matrices[3:3] # BEES AND BIRDS, ANTAGONIST 
   # filtered_matrices = filtered_matrices[4:4] # CLOSING GATES
 
@@ -282,7 +282,7 @@ function generate_on_clauses_GLOBAL(run_id, matrix, unformatted_matrix, object_d
             co_occurring_events = filter(x -> !occursin("globalVar", x[1]), co_occurring_events)
           end
 
-          specially_handled_on_clauses = special_addObj_removeObj_handling(update_function, co_occurring_events, addObj_based_list, double_removeObj_update_functions, source_exists_events_dict, object_decomposition)
+          specially_handled_on_clauses = special_addObj_removeObj_handling(update_function, filtered_matrix, co_occurring_events, addObj_based_list, double_removeObj_update_functions, linked_removeObj_update_functions, source_exists_events_dict, object_decomposition)
           if specially_handled_on_clauses != [] 
             push!(on_clauses, specially_handled_on_clauses...)
           else
