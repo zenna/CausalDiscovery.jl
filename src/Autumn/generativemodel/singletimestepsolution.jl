@@ -1297,8 +1297,8 @@ function distance(pos1, pos2)
 end
 
 function render_equals(hypothesis_object, actual_object, state)
-  translated_hypothesis_object = map(cell -> (cell.position.x + hypothesis_object.origin.x, cell.position.y + hypothesis_object.origin.y), isnothing(hypothesis_object.render) ? state.object_types[hypothesis_object.type].render : hypothesis_object.render)
-  translated_actual_object = map(pos -> (pos[1] + actual_object.position[1], pos[2] + actual_object.position[2]), actual_object.type.shape)
+  translated_hypothesis_object = sort(map(cell -> (cell.position.x + hypothesis_object.origin.x, cell.position.y + hypothesis_object.origin.y), isnothing(hypothesis_object.render) ? state.object_types[hypothesis_object.type].render : hypothesis_object.render))
+  translated_actual_object = sort(map(pos -> (pos[1] + actual_object.position[1], pos[2] + actual_object.position[2]), actual_object.type.shape))
   (translated_hypothesis_object == translated_actual_object) && hypothesis_object.alive
 end
 
