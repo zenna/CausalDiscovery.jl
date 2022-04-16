@@ -56,7 +56,7 @@ function generate_on_clauses_GLOBAL(run_id, matrix, unformatted_matrix, object_d
   # filtered_matrices = filtered_matrices[22:22]
   # filtered_matrices = filtered_matrices[5:5]
   # filtered_matrices = filtered_matrices[2:2] # SOKOBAN, PUSHBOULDERS
-  filtered_matrices = filtered_matrices[2:2] # PRECONDITIONS, ALIENS
+  filtered_matrices = filtered_matrices[1:1] # PRECONDITIONS, ALIENS
   # filtered_matrices = filtered_matrices[3:3] # BEES AND BIRDS, ANTAGONIST 
   # filtered_matrices = filtered_matrices[4:4] # CLOSING GATES
 

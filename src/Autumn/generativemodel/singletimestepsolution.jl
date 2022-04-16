@@ -2575,7 +2575,7 @@ function construct_filtered_matrices_pedro(old_matrix, object_decomposition, use
             
             for id in object_ids_with_type
               for time in 1:size(matrix)[2]
-                filter!(r -> !occursin("farthest", r), regularity_matrix[id, time])
+                filter!(r -> !occursin("farthest", r) && !occursin("closest", r), regularity_matrix[id, time])
               end
             end
 
@@ -2613,7 +2613,7 @@ function construct_filtered_matrices_pedro(old_matrix, object_decomposition, use
       
       for id in object_ids_with_type
         for time in 1:size(matrix)[2]
-          filter!(r -> !occursin("farthest", r), matrix[id, time])
+          filter!(r -> !occursin("farthest", r) && !occursin("closest", r), matrix[id, time])
         end
       end
     end
@@ -2886,7 +2886,18 @@ function identify_brownian_types(object_decomposition, user_events, agent_type, 
       update_functions = filter(r -> r != "" && !occursin("addObj", r) && !occursin("removeObj", r), unique(vcat(map(id -> map(x -> replace(replace(x, "obj id) $(id)" => "obj id) x"), "obj$(id)" => "objX"), vcat(filtered_standard_matrix[id, :]...)), object_ids_with_type)...)))
       if length(update_functions) <= 1 # unlikely to be brownian/random
         filter!(t -> t.id != type.id, possible_brownian_types)
+      else
+        # non-regular brownian types should be moving very frequently, not just once in a while 
+        num_alive_times_across_ids = sum(map(id -> count(obj -> !isnothing(obj), object_mapping[id]), object_ids_with_type))
+        @show type.id
+        @show num_alive_times_across_ids
+        @show length(vcat(collect(values(displacement_dict[type.id]))...))
+        if (length(vcat(collect(values(displacement_dict[type.id]))...))/num_alive_times_across_ids) < 1/8
+          filter!(t -> t.id != type.id, possible_brownian_types)
+        end
+      
       end
+    
     end
   end
 
