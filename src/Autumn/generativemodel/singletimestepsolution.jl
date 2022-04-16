@@ -344,28 +344,39 @@ function synthesize_update_functions_bulk(possible_rules_matrix, object_decompos
           next_object = object_mapping[object_id][time + 1]
           equals = render_equals(hypothesis_object, next_object, hypothesis_frame_state)
           if equals 
+            # @show object_id 
+            # @show equals 
             # format update function appropriately 
             update_rule = update_rules[i]    
             contained_in_list = isnothing(object_mapping[object_id][1]) || (count(id -> (filter(x -> !isnothing(x), object_mapping[id]))[1].type.id == object_mapping[object_id][1].type.id, collect(keys(object_mapping))) > 1)
 
-            if occursin("closestLeft", update_rule)
-              update_rule = replace(update_rule, "closestLeft" => "closestRandom")
-            elseif occursin("closestRight", update_rule)
-              update_rule = replace(update_rule, "closestRight" => "closestRandom")
-            elseif occursin("closestUp", update_rule)
-              update_rule = replace(update_rule, "closestUp" => "closestRandom")
-            elseif occursin("closestDown", update_rule)
-              update_rule = replace(update_rule, "closestDown" => "closestRandom")
+            # @show update_rule
+            if occursin("closest", update_rule) && displacement(object_mapping[object_id][time].position, next_object.position) != (0, 0)
+              
+              if occursin("closestLeft", update_rule)
+                update_rule = replace(update_rule, "closestLeft" => "closestRandom")
+              elseif occursin("closestRight", update_rule)
+                update_rule = replace(update_rule, "closestRight" => "closestRandom")
+              elseif occursin("closestUp", update_rule)
+                update_rule = replace(update_rule, "closestUp" => "closestRandom")
+              elseif occursin("closestDown", update_rule)
+                update_rule = replace(update_rule, "closestDown" => "closestRandom")
+              end
+            
             end
-  
-            if occursin("farthestLeft", update_rule)
-              update_rule = replace(update_rule, "farthestLeft" => "farthestRandom")
-            elseif occursin("farthestRight", update_rule)
-              update_rule = replace(update_rule, "farthestRight" => "farthestRandom")
-            elseif occursin("farthestUp", update_rule)
-              update_rule = replace(update_rule, "farthestUp" => "farthestRandom")
-            elseif occursin("farthestDown", update_rule)
-              update_rule = replace(update_rule, "farthestDown" => "farthestRandom")
+
+            if occursin("farthest", update_rule) && displacement(object_mapping[object_id][time].position, next_object.position) != (0, 0)
+              
+              if occursin("farthestLeft", update_rule)
+                update_rule = replace(update_rule, "farthestLeft" => "farthestRandom")
+              elseif occursin("farthestRight", update_rule)
+                update_rule = replace(update_rule, "farthestRight" => "farthestRandom")
+              elseif occursin("farthestUp", update_rule)
+                update_rule = replace(update_rule, "farthestUp" => "farthestRandom")
+              elseif occursin("farthestDown", update_rule)
+                update_rule = replace(update_rule, "farthestDown" => "farthestRandom")
+              end
+
             end
 
             generic_update_rule = replace(update_rule, "obj$(object_id)" => "objX") 
@@ -386,6 +397,39 @@ function synthesize_update_functions_bulk(possible_rules_matrix, object_decompos
             end
         
           end
+        end
+
+      end
+
+      for object_id in 1:size(matrix)[1]
+        # if any of the below appear, that means the object did not move in this time step
+        if occursin("closestLeft", join(matrix[object_id, time])) || occursin("closestRight", join(matrix[object_id, time])) || occursin("closestUp", join(matrix[object_id, time])) || occursin("closestDown", join(matrix[object_id, time]))
+          closest_update_functions = filter(r -> occursin("closestLeft", r) || occursin("closestRight", r) || occursin("closestUp", r) || occursin("closestDown", r), matrix[object_id, time])
+          closest_update_functions_collapsed = map(r -> replace(replace(replace(replace(r, "closestLeft" => "closestRandom"), "closestRight" => "closestRandom"), "closestUp" => "closestRandom"), "closestDown" => "closestRandom"), closest_update_functions)
+
+          for update_func in unique(closest_update_functions_collapsed)
+            c = count(x -> x == update_func, closest_update_functions_collapsed)
+            if c != 4 
+              filter!(r -> r != update_func, closest_update_functions_collapsed)
+            end
+          end
+          filter!(r -> !(r in closest_update_functions), matrix[object_id, time])
+          push!(matrix[object_id, time], closest_update_functions_collapsed...)
+        end
+
+        # if any of the below appear, that means the object did not move in this time step
+        if occursin("farthestLeft", join(matrix[object_id, time])) || occursin("farthestRight", join(matrix[object_id, time])) || occursin("farthestUp", join(matrix[object_id, time])) || occursin("farthestDown", join(matrix[object_id, time]))
+          farthest_update_functions = filter(r -> occursin("farthestLeft", r) || occursin("farthestRight", r) || occursin("farthestUp", r) || occursin("farthestDown", r), matrix[object_id, time])
+          farthest_update_functions_collapsed = map(r -> replace(replace(replace(replace(r, "farthestLeft" => "farthestRandom"), "farthestRight" => "farthestRandom"), "farthestUp" => "farthestRandom"), "farthestDown" => "farthestRandom"), farthest_update_functions)
+
+          for update_func in unique(farthest_update_functions_collapsed)
+            c = count(x -> x == update_func, farthest_update_functions_collapsed)
+            if c != 4 
+              filter!(r -> r != update_func, farthest_update_functions_collapsed)
+            end
+          end
+          filter!(r -> !(r in farthest_update_functions), matrix[object_id, time])
+          push!(matrix[object_id, time], farthest_update_functions_collapsed...)
         end
 
       end
@@ -449,10 +493,14 @@ function synthesize_update_functions(object_id, time, object_decomposition, user
     abstracted_positions, prev_abstract_positions = abstract_position(next_object.position, prev_abstract_positions, user_events[time - 1], (object_types, sort(prev_objects_not_listed, by = x -> x.id), background, grid_size), object_mapping, time - 1, pedro)
     # abstracted_positions = [abstracted_positions..., "(uniformChoice (randomPositions $(grid_size) 1))"]
     
+    @show time 
+    @show next_object.position 
+    @show abstracted_positions 
+
     # add uniformChoice option
     matching_objects = filter(o -> o.position == next_object.position, prev_existing_objects)
 
-    if (matching_objects != []) && (isnothing(object_mapping[matching_objects[1].id][1]) || !(matching_objects[1].type.id in map(x -> x.id, prev_objects_not_listed))) 
+    if (matching_objects != []) && (isnothing(object_mapping[matching_objects[1].id][1]) || !(matching_objects[1].type.id in map(x -> x.type.id, prev_objects_not_listed))) 
       # matching object is in a list!
 
       # check if object intersects any other object of other type 
@@ -480,7 +528,7 @@ function synthesize_update_functions(object_id, time, object_decomposition, user
                                                                         (o.position[1], o.position[2] - scalar),
                                                                         (o.position[1], o.position[2])], prev_existing_objects_of_type)
 
-          if (pedro_matching_objects != []) && (isnothing(object_mapping[pedro_matching_objects[1].id][1]) || !(pedro_matching_objects[1].type.id in map(x -> x.id, prev_objects_not_listed))) 
+          if (pedro_matching_objects != []) && (isnothing(object_mapping[pedro_matching_objects[1].id][1]) || !(pedro_matching_objects[1].type.id in map(x -> x.type.id, prev_objects_not_listed))) 
             # @show scalar 
             # @show time
             # @show pedro_matching_objects 
@@ -1334,11 +1382,11 @@ function has_dups(list::AbstractArray)
 end
 
 function abstract_position(position, prev_abstract_positions, user_event, object_decomposition, object_mapping, time, pedro=false, max_iters=100)
-  # # println("ABSTRACT POSITION")
-  # # @show position 
-  # # @show prev_abstract_positions 
-  # # @show user_event 
-  # # # @show object_decomposition 
+  println("ABSTRACT POSITION")
+  @show position 
+  @show prev_abstract_positions 
+  @show user_event 
+  # @show object_decomposition 
 
   object_types, prev_objects, _, _ = object_decomposition
   solutions = []
@@ -1347,6 +1395,7 @@ function abstract_position(position, prev_abstract_positions, user_event, object
   using_prev = false
 
   hypothesis_positions = generate_hypothesis_positions(position, vcat(prev_objects, user_event), object_types, pedro)
+  @show hypothesis_positions 
   for hypothesis_position in hypothesis_positions 
     # hypothesis_position_program = generate_hypothesis_position_program(hypothesis_position, position, object_decomposition)
     hypothesis_position_program = program_string_synth_update_rule(object_decomposition)
@@ -1371,6 +1420,7 @@ function abstract_position(position, prev_abstract_positions, user_event, object
     # global mod = @eval $(expr)
     # # # # # @show repr(mod)
     # @show user_event
+    
     if !isnothing(user_event) && occursin("click", split(user_event, " ")[1])
       global x = parse(Int, split(user_event, " ")[2])
       global y = parse(Int, split(user_event, " ")[3])
@@ -1431,6 +1481,8 @@ function abstract_position(position, prev_abstract_positions, user_event, object
                            ids_with_type_2)
           push!(type_2_objects_matching_ids_prox, matches...)
         end
+        noise = "(uniformChoice (list $(join(sort(unique(vcat(type_displacements[object_type_2.id], type_displacements[object_type_1.id]))), " "))))"
+        negative_noise = "(uniformChoice (list $(join(map(i -> -i, sort(unique(vcat(type_displacements[object_type_2.id], type_displacements[object_type_1.id])))), " "))))"
 
         for id2 in type_2_objects_matching_ids_prox
           scalar = abs(sum([displacement(position, object_mapping[id2][time].position)...]))
@@ -1446,7 +1498,7 @@ function abstract_position(position, prev_abstract_positions, user_event, object
           else
             abstracted_expr = "(.. (prev obj$(ids_with_type_2[1])) origin)"
           end
-          push!(solutions, "(move $(abstracted_expr) (uniformChoice (list (Position 0 $(scalar)) (Position 0 -$(scalar)) (Position $(scalar) 0) (Position -$(scalar) 0))))")
+          push!(solutions, "(move $(abstracted_expr) (uniformChoice (list (Position 0 $(noise)) (Position 0 $(negative_noise)) (Position $(noise) 0) (Position $(negative_noise) 0))))")
           disp = displacement(object_mapping[id2][time].position, position)
           
           if !occursin("firstWithDefault", abstracted_expr)
@@ -2043,35 +2095,36 @@ function filter_update_function_matrix_multiple(matrix, object_decomposition; mu
   for object_type in object_types 
     type_id = object_type.id 
     if length(object_type.custom_fields) == 0 
-      same_type_update_function_set = same_type_update_function_sets_dict[type_id]
+      global_sorted_update_functions_dict[type_id] = []
+      same_type_update_function_set = sort(same_type_update_function_sets_dict[type_id], by=length)
 
       # perform filtering 
       global_sorted_update_functions = reverse(sort(filter(z -> z != "", unique(same_type_update_function_set)), by=x -> count(y -> y == x, same_type_update_function_set)))
       global_sorted_frequencies = map(x -> count(y -> y == x, same_type_update_function_set), global_sorted_update_functions)
       
       # sort most-frequent update functions (top functions) by their original order in matrix
-      top_indices = findall(x -> x == maximum(global_sorted_frequencies), global_sorted_frequencies)
-      sorted_top_indices = sort(top_indices, by=i -> find_global_index(global_sorted_update_functions[i])) 
-      top_functions = map(i -> global_sorted_update_functions[i], sorted_top_indices)
-      
-      non_top_functions = filter(x -> !(x in top_functions), global_sorted_update_functions)
-      global_sorted_update_functions = vcat(top_functions, non_top_functions)
-      global_sorted_update_functions_dict[type_id] = global_sorted_update_functions
+      for freq in reverse(sort(unique(global_sorted_frequencies)))
+        top_indices = findall(x -> x == freq, global_sorted_frequencies)
+        sorted_top_indices = sort(top_indices, by=i -> length(global_sorted_update_functions[i])) # sort(top_indices, by=i -> find_global_index(global_sorted_update_functions[i])) 
+        top_functions = map(i -> global_sorted_update_functions[i], sorted_top_indices)
+        push!(global_sorted_update_functions_dict[type_id], top_functions...)
+      end
     else
       global_sorted_update_functions_dict[type_id] = Dict()
       for color in [object_type.custom_fields[1][3]..., nothing]
+        global_sorted_update_functions_dict[type_id][color] = []
 
         global_sorted_update_functions = reverse(sort(filter(x -> x != "", unique(same_type_update_function_sets_dict[object_type.id][color])), by=x -> count(y -> y == x, same_type_update_function_sets_dict[object_type.id][color])))
         global_sorted_frequencies = map(x -> count(y -> y == x, same_type_update_function_sets_dict[object_type.id][color]), global_sorted_update_functions)
         
         # sort most-frequent update functions (top functions) by their original order in matrix
-        top_indices = findall(x -> x == maximum(global_sorted_frequencies), global_sorted_frequencies)
-        sorted_top_indices = sort(top_indices, by=i -> find_global_index(global_sorted_update_functions[i])) 
-        top_functions = map(i -> global_sorted_update_functions[i], sorted_top_indices)
+        for freq in reverse(sort(unique(global_sorted_frequencies)))
+          top_indices = findall(x -> x == freq, global_sorted_frequencies)
+          sorted_top_indices = sort(top_indices, by=i -> length(global_sorted_update_functions[i])) # sort(top_indices, by=i -> find_global_index(global_sorted_update_functions[i])) 
+          top_functions = map(i -> global_sorted_update_functions[i], sorted_top_indices)
+          push!(global_sorted_update_functions_dict[type_id][color], top_functions...)
+        end
         
-        non_top_functions = filter(x -> !(x in top_functions), global_sorted_update_functions)
-        global_sorted_update_functions = vcat(top_functions, non_top_functions)
-        global_sorted_update_functions_dict[type_id][color] = global_sorted_update_functions
       end
     end
   end
@@ -2340,7 +2393,6 @@ end
 function construct_brownian_motion_matrix(matrix, unformatted_matrix, object_decomposition, brownian_types)
   object_types, object_mapping, _, _ = object_decomposition 
   new_matrix = deepcopy(matrix)
-  filtered_unformatted_matrix = construct_filtered_matrices(unformatted_matrix, object_decomposition, user_events)[1]
 
   for type in brownian_types
     type_id = type.id 
@@ -2394,12 +2446,12 @@ function construct_brownian_motion_matrix(matrix, unformatted_matrix, object_dec
         end
 
         if !special_handling 
-          choices = map(rule -> replace(rule, "(= objX" => "")[1:end-1], filter(r -> !occursin("addObj", r) && !occursin("removeObj", r), unique(vcat(map(id -> vcat(filtered_unformatted_matrix[id, :]...), object_ids_with_type)...))))
+          choices = map(rule -> replace(rule, "(= objX" => "")[1:end-1], filter(r -> !occursin("addObj", r) && !occursin("removeObj", r) && !occursin("closest", r) && !occursin("farthest", r), unique(vcat(map(id -> vcat(unformatted_matrix[id, :]...), object_ids_with_type)...))))
         end
       end
 
     else
-      choices = map(rule -> replace(rule, "(= objX" => "")[1:end-1], filter(r -> !occursin("addObj", r) && !occursin("removeObj", r), unique(vcat(map(id -> vcat(filtered_unformatted_matrix[id, :]...), object_ids_with_type)...))))
+      choices = map(rule -> replace(rule, "(= objX" => "")[1:end-1], filter(r -> !occursin("addObj", r) && !occursin("removeObj", r) && !occursin("closest", r) && !occursin("farthest", r), unique(vcat(map(id -> vcat(unformatted_matrix[id, :]...), object_ids_with_type)...))))
     end
 
     formatted_choices = map(c -> "$(replace(c, "objX" => "(prev objX)"))", choices)
@@ -2515,6 +2567,21 @@ function construct_filtered_matrices_pedro(old_matrix, object_decomposition, use
       @show regularity_matrix
       if !isnothing(regularity_matrix)
         regularity_found = true
+
+        # only regularity types can use farthestRandom 
+        for t in object_types 
+          if !(t.id in map(x -> x.id, actual_regularity_types))
+            object_ids_with_type = filter(id -> filter(obj -> !isnothing(obj), object_mapping[id])[1].type.id == t.id, collect(keys(object_mapping)))
+            
+            for id in object_ids_with_type
+              for time in 1:size(matrix)[2]
+                filter!(r -> !occursin("farthest", r), regularity_matrix[id, time])
+              end
+            end
+
+          end
+        end
+
         # non-random 
         non_random_regularity_matrices = construct_filtered_matrices(regularity_matrix, object_decomposition, user_events)
         standard_non_random_regularity_matrix = non_random_regularity_matrices[1]
@@ -2539,6 +2606,17 @@ function construct_filtered_matrices_pedro(old_matrix, object_decomposition, use
 
   if !regularity_found 
     possible_brownian_types = identify_brownian_types(object_decomposition, user_events, agent_type, matrix, matrix, [])
+
+    # only regularity types can use farthestRandom 
+    for t in object_types 
+      object_ids_with_type = filter(id -> filter(obj -> !isnothing(obj), object_mapping[id])[1].type.id == t.id, collect(keys(object_mapping)))
+      
+      for id in object_ids_with_type
+        for time in 1:size(matrix)[2]
+          filter!(r -> !occursin("farthest", r), matrix[id, time])
+        end
+      end
+    end
 
     # clean addObj-based options 
     matrix = update_addObj_options(matrix, possible_brownian_types, object_mapping)
@@ -3361,7 +3439,7 @@ function construct_filtered_matrices(matrix, object_decomposition, user_events, 
 
     # add non-random filtered matrices to filtered_matrices
     non_random_matrix = deepcopy(matrix)
-    filtered_non_random_matrices = filter_update_function_matrix_multiple(non_random_matrix, object_decomposition, multiple=true, base=base)
+    filtered_non_random_matrices = filter_update_function_matrix_multiple(non_random_matrix, object_decomposition, multiple=false, base=base)
     # filtered_non_random_matrices = filtered_non_random_matrices[1:min(4, length(filtered_non_random_matrices))]
     push!(filtered_matrices, filtered_non_random_matrices...)
 
@@ -3373,7 +3451,7 @@ function construct_filtered_matrices(matrix, object_decomposition, user_events, 
         non_random_matrix[row, col] = filter(x -> !occursin("closest", x) && !occursin("farthest", x), non_random_matrix[row, col])
       end
     end
-    filtered_non_random_matrices = filter_update_function_matrix_multiple(non_random_matrix, object_decomposition, multiple=true)
+    filtered_non_random_matrices = filter_update_function_matrix_multiple(non_random_matrix, object_decomposition, multiple=false)
     # filtered_non_random_matrices = filtered_non_random_matrices[1:min(4, length(filtered_non_random_matrices))]
     push!(filtered_matrices, filtered_non_random_matrices...)
 
@@ -3480,7 +3558,7 @@ end
 # generate_event, generate_hypothesis_position, generate_hypothesis_position_program 
 ## tricky things: add user events, and fix environment 
 global hypothesis_state = nothing
-function generate_event(run_id, interval_offsets, source_exists_events_dict, anonymized_update_rule, distinct_update_rules, object_id, object_ids, matrix, filtered_matrix, object_decomposition, user_events, state_update_on_clauses, global_var_dict, event_vector_dict, grid_size, redundant_events_set, min_events=1, max_iters=400, z3_option = "none", time_based=true, z3_timeout=0, sketch_timeout=0; lock=nothing)
+function generate_event(run_id, interval_offsets, source_exists_events_dict, anonymized_update_rule, distinct_update_rules, object_id, object_ids, matrix, filtered_matrix, object_decomposition, user_events, state_update_on_clauses, global_var_dict, event_vector_dict, grid_size, redundant_events_set, min_events=1, max_iters=400, z3_option = "none", time_based=true, z3_timeout=0, sketch_timeout=0; lk=nothing)
   # # # println("GENERATE EVENT")
   # # # # # # @show object_decomposition
   object_types, object_mapping, background, dim = object_decomposition 
@@ -3564,8 +3642,13 @@ function generate_event(run_id, interval_offsets, source_exists_events_dict, ano
   # # # @show length(collect(keys(event_vector_dict)))
   # # # @show length(collect(redundant_events_set))
   # # # @show redundant_events_set
-  events_to_try = sort(unique(vcat(new_choices, collect(keys(event_vector_dict)))), by=length)
-  # @show length(events_to_try)
+  if !isnothing(lk)
+    lock(lk) do 
+      events_to_try = sort(unique(vcat(new_choices, collect(keys(event_vector_dict)))), by=length)
+    end
+  else
+    events_to_try = sort(unique(vcat(new_choices, collect(keys(event_vector_dict)))), by=length)
+  end
 
   for event in events_to_try 
     event_is_global = !occursin(".. obj id) x", event)
@@ -3578,8 +3661,15 @@ function generate_event(run_id, interval_offsets, source_exists_events_dict, ano
     # # # @show object_ids
     # !(occursin("first", anonymized_event) && (nothing in vcat(map(k -> object_mapping[k], collect(keys(object_mapping)))...))) && is_event_object_specific_with_correct_type
     if is_event_object_specific_with_correct_type
-      
-      if !(anonymized_event in keys(event_vector_dict)) # || !(event_vector_dict[anonymized_event] isa AbstractArray) && intersect(object_ids, collect(keys(event_vector_dict[anonymized_event]))) == [] # event values are not stored
+      if !isnothing(lk)
+        lock(lk) do 
+          current_event_vector_dict_keys = keys(event_vector_dict)
+        end
+      else
+        current_event_vector_dict_keys = keys(event_vector_dict)
+      end
+
+      if !(anonymized_event in current_event_vector_dict_keys) # || !(event_vector_dict[anonymized_event] isa AbstractArray) && intersect(object_ids, collect(keys(event_vector_dict[anonymized_event]))) == [] # event values are not stored
         @show anonymized_event 
         @show Dates.now()
         if event_is_global # if the event is global, only need to evaluate the event on one object_id (variable name is "event")
@@ -3587,7 +3677,14 @@ function generate_event(run_id, interval_offsets, source_exists_events_dict, ano
           event_string = "\n\t (: event Bool) \n\t (= event (initnext false $(event)))\n"
         else # otherwise, need to evaluate the event on all object_ids (variable names are "event$(object_id)" for each object_id)
           event_object_ids = object_ids # collect(keys(object_mapping)) # object_ids; evaluate even for ids not with the current rule's type, for uniformity!!
-          event_vector_dict[anonymized_event] = Dict()
+          if !isnothing(lk)
+            lock(lk) do 
+              event_vector_dict[anonymized_event] = Dict()
+            end
+          else
+            event_vector_dict[anonymized_event] = Dict()
+          end
+          
           event_string = join(map(object_id -> "\n\t (: event$(object_id) Bool) \n\t (= event$(object_id) (initnext false $(replace(event, ".. obj id) x" => ".. obj id) $(object_id)"))))\n", event_object_ids))
         end
         
@@ -3641,25 +3738,59 @@ function generate_event(run_id, interval_offsets, source_exists_events_dict, ano
           # update event_vector_dict 
           if event_is_global 
             event_values = map(key -> hypothesis_state.histories[:event][key], sort(collect(keys(hypothesis_state.histories[:event]))))[2:end]
-            event_vector_dict[anonymized_event] = event_values
-          else
-            for object_id in event_object_ids 
-              event_values = map(key -> hypothesis_state.histories[Symbol(string("event", object_id))][key], sort(collect(keys(hypothesis_state.histories[Symbol(string("event", object_id))]))))[2:end]
-              event_vector_dict[anonymized_event][object_id] = event_values
+            if !isnothing(lk)
+              lock(lk) do 
+                event_vector_dict[anonymized_event] = event_values
+              end
+            else
+              event_vector_dict[anonymized_event] = event_values
             end
+          else
+            if !isnothing(lk)
+              lock(lk) do 
+                for object_id in event_object_ids 
+                  event_values = map(key -> hypothesis_state.histories[Symbol(string("event", object_id))][key], sort(collect(keys(hypothesis_state.histories[Symbol(string("event", object_id))]))))[2:end]
+                  event_vector_dict[anonymized_event][object_id] = event_values
+                end
+              end
+  
+            else
+              for object_id in event_object_ids 
+                event_values = map(key -> hypothesis_state.histories[Symbol(string("event", object_id))][key], sort(collect(keys(hypothesis_state.histories[Symbol(string("event", object_id))]))))[2:end]
+                event_vector_dict[anonymized_event][object_id] = event_values
+              end
+            end
+
           end
         end
 
       end
     end
-    if (anonymized_event in keys(event_vector_dict)) && is_event_object_specific_with_correct_type
+
+    if !isnothing(lk)
+      lock(lk) do 
+        current_event_vector_dict_keys = keys(event_vector_dict)
+      end
+    else
+      current_event_vector_dict_keys = keys(event_vector_dict)
+    end
+    
+    if (anonymized_event in current_event_vector_dict_keys) && is_event_object_specific_with_correct_type
       # if this is not true, then there was a failure above (the event contained "first" but had nothing's in object_mapping),
       # or the event is object-specific with the wrong type 
       event_values_dicts = []
-      if event_vector_dict[anonymized_event] isa AbstractArray 
+      if !isnothing(lk)
+        lock(lk) do 
+          event_vals = event_vector_dict[anonymized_event]
+        end
+      else
+        event_vals = event_vector_dict[anonymized_event]
+      end
+      
+      if event_vals isa AbstractArray 
         event_values_dict = Dict()
         for object_id in object_ids 
-          event_values_dict[object_id] = event_vector_dict[anonymized_event]
+          event_values_dict[object_id] = event_vals
         end
         push!(event_values_dicts, (event, event_values_dict))
       else
@@ -3667,7 +3798,7 @@ function generate_event(run_id, interval_offsets, source_exists_events_dict, ano
         # # # @show collect(keys(event_vector_dict[anonymized_event]))
         event_values_dict = Dict() 
         for object_id in object_ids 
-          event_values_dict[object_id] = event_vector_dict[anonymized_event][object_id]
+          event_values_dict[object_id] = event_vals[object_id]
         end
         push!(event_values_dicts, (event, event_values_dict))
         
@@ -3731,29 +3862,55 @@ function generate_event(run_id, interval_offsets, source_exists_events_dict, ano
   # @show length(collect(keys(event_vector_dict)))
   # @show event_vector_dict
 
-  event_vector_dict, redundant_events_set = prune_by_observational_equivalence(event_vector_dict, redundant_events_set)
+  if !isnothing(lk)
+    lock(lk) do 
+      event_vector_dict, redundant_events_set = prune_by_observational_equivalence(event_vector_dict, redundant_events_set)
+    end
+  else
+    event_vector_dict, redundant_events_set = prune_by_observational_equivalence(event_vector_dict, redundant_events_set)
+  end
 
   # # # println("POST PRUNING")
   # # # @show length(collect(keys(event_vector_dict)))
 
   # ensure that event_vector_dict does not contain BitArray type
-  for event in keys(event_vector_dict)
-    event_values = event_vector_dict[event]
-    if event_values isa AbstractArray 
-      if event_values isa BitArray 
-        event_vector_dict[event] = Array{Int}(event_values)
+  if !isnothing(lk)
+    lock(lk) do 
+      for event in keys(event_vector_dict)
+        event_values = event_vector_dict[event]
+        if event_values isa AbstractArray 
+          if event_values isa BitArray 
+            event_vector_dict[event] = Array{Int}(event_values)
+          end
+        else
+          for object_id in keys(event_values)
+            if event_values[object_id] isa BitArray 
+              event_vector_dict[event][object_id] = Array{Int}(event_values[object_id])
+            end
+          end
+        end
       end
-    else
-      for object_id in keys(event_values)
-        if event_values[object_id] isa BitArray 
-          event_vector_dict[event][object_id] = Array{Int}(event_values[object_id])
+      z3_event_vector_dict = deepcopy(event_vector_dict)
+    end
+  else
+    for event in keys(event_vector_dict)
+      event_values = event_vector_dict[event]
+      if event_values isa AbstractArray 
+        if event_values isa BitArray 
+          event_vector_dict[event] = Array{Int}(event_values)
+        end
+      else
+        for object_id in keys(event_values)
+          if event_values[object_id] isa BitArray 
+            event_vector_dict[event][object_id] = Array{Int}(event_values[object_id])
+          end
         end
       end
     end
+    z3_event_vector_dict = deepcopy(event_vector_dict)
   end
 
   # create event_vector_dict copy for Z3, which is missing compound events 
-  z3_event_vector_dict = deepcopy(event_vector_dict)
   # for event in collect(keys(z3_event_vector_dict))
   #   if !(event in new_choices)
   #     delete!(z3_event_vector_dict, event)
@@ -3786,29 +3943,146 @@ function generate_event_parallel(run_id, interval_offsets, source_exists_events_
   num_threads = Threads.nthreads()
 
   if num_threads == 1 
-    generate_event_parallel(run_id, interval_offsets, source_exists_events_dict, anonymized_update_rule, distinct_update_rules, object_id, object_ids, matrix, filtered_matrix, object_decomposition, user_events, state_update_on_clauses, global_var_dict, event_vector_dict, grid_size, redundant_events_set, min_events, max_iters, z3_option, time_based, z3_timeout, sketch_timeout)
+    generate_event(run_id, interval_offsets, source_exists_events_dict, anonymized_update_rule, distinct_update_rules, object_id, object_ids, matrix, filtered_matrix, object_decomposition, user_events, state_update_on_clauses, global_var_dict, event_vector_dict, grid_size, redundant_events_set, min_events, max_iters, z3_option, time_based, z3_timeout, sketch_timeout)
   else
-    lk_dict = Threads.ReentrantLock()
-    lk_success = Threads.ReentrantLock()
+    lk = Threads.ReentrantLock()  
+    bulk_evaluation_tasks = []
+
+    # START --- identify full set of events to be bulk-evaluated (i.e. those events not present in event_vector_dict already)
+    choices = gen_event_bool(object_decomposition, "x", type_id, anonymized_update_rule, filter(e -> e != "", unique(user_events)), global_var_dict, type_displacements, interval_offsets, source_exists_events_dict, time_based)
+    new_choices = filter(e -> !(e in redundant_events_set), choices)
   
-    new_events = filter(e -> !(e in keys(event_vector_dict)), global_or_correct_type_events)
-    grouped_new_events = collect(Iterators.partition(new_events, num_threads > 1 ? (num_threads - 1) : num_threads))
-    success = false
-    tasks = []
+    if !isnothing(lk)
+      lock(lk) do 
+        current_event_vector_dict_keys = keys(event_vector_dict)
+      end
+    else
+      current_event_vector_dict_keys = keys(event_vector_dict)
+    end
+  
+    new_events = [e for e in new_choices if !(e in current_event_vector_dict_keys)]
+    new_events_with_right_type = []
+    for event in new_events 
+      event_is_global = !occursin(".. obj id) x", event)
+      anonymized_event = event # replace(event, ".. obj id) $(object_ids[1])" => ".. obj id) x")
+      @show event 
+      is_event_object_specific_with_correct_type = event_is_global || parse(Int, split(split(match(r".. obj id x prev addedObjType\d+List", replace(replace(anonymized_event, ")" => ""), "(" => "")).match, "addedObjType")[2], "List")[1]) == type_id
+      if is_event_object_specific_with_correct_type
+        push!(new_events_with_right_type, event)
+      end
+    end
+    # END --- identify full set of events to be bulk-evaluated (i.e. those events not present in event_vector_dict already)
   
     for thread_index in 2:num_threads
-      task = Threads.@spawn something_else()  
-      push!(tasks, task)
+      interval = num_threads - 1
+      events_for_thread = new_events_with_right_type[1:interval:end]      
+      task = Threads.@spawn bulk_event_evaluation(events_for_thread, object_decomposition, user_events, state_update_on_clauses, global_var_dict, event_vector_dict, grid_size, lk)
+      push!(bulk_evaluation_tasks, task)
     end # all thread_id's
     
-    task = Threads.@spawn something()  
+    task = Threads.@spawn generate_event(run_id, interval_offsets, source_exists_events_dict, anonymized_update_rule, distinct_update_rules, object_id, object_ids, matrix, filtered_matrix, object_decomposition, user_events, state_update_on_clauses, global_var_dict, event_vector_dict, grid_size, redundant_events_set, min_events, max_iters, z3_option, time_based, z3_timeout, sketch_timeout, lk=lk)
     output = fetch(task)
   
-    if output == good 
+    if output[1] != [] # success!
       # get lk_dict and then kill all background processes 
-  
+      lock(lk) do 
+        
+        for task in bulk_evaluation_tasks
+          schedule(task, ErrorException("stop"), error=true)
+        end
+
+      end
     end
     output
+  end
+end
+
+function bulk_event_evaluation(events, object_decomposition, user_events, state_update_on_clauses, global_var_dict, event_vector_dict, grid_size, lk)
+  object_ids_with_type = sort(filter(id -> filter(obj -> !isnothing(obj), object_mapping[id])[1].type.id == type_id, collect(keys(object_mapping))))
+
+  event_id_in_program_to_event_dict = Dict()
+  event_strings = []
+  counter = 1
+  for event in events 
+    event_is_global = !occursin(".. obj id) x", event)
+    if event_is_global
+      push!(event_strings, "\n\t (: event$(counter) Bool) \n\t (= event$(counter) (initnext false $(event)))\n")
+      event_id_in_program_to_event_dict[counter] = (event, -1)
+      counter += 1
+    else
+      for object_id in object_ids_with_type
+        push!(event_strings, "\n\t (: event$(counter) Bool) \n\t (= event$(counter) (initnext false $(replace(event, ".. obj id) x" => ".. obj id) $(object_id)"))))\n")
+        event_id_in_program_to_event_dict[counter] = (event, object_id)
+        counter += 1
+      end
+    end
+  end
+
+  # join event_strings together
+  event_string = join(event_strings)
+
+  program_str = singletimestepsolution_program_given_matrix_NEW(matrix, object_decomposition, grid_size) # CHANGE BACK TO DIM LATER
+  program_tokens = split(program_str, """(: time Int)\n  (= time (initnext 0 (+ time 1)))""")
+
+  # elements to insert between program_tokens[1] and program_tokens[2]
+  insertions = ["""(: time Int)\n  (= time (initnext 0 (+ time 1)))""", event_string]
+
+  # insert globalVar initialization
+  inits = []
+  for key in collect(keys(global_var_dict))
+    global_var_init_val = global_var_dict[key][1]
+    push!(inits, """\n\t (: globalVar$(key) Int)\n\t (= globalVar$(key) (initnext $(global_var_init_val) (prev globalVar$(key))))""")
+  end
+  insertions = [insertions[1], inits..., insertions[2]]
+
+  program_str = string(program_tokens[1], insertions..., program_tokens[2])
+
+  # insert state update on_clauses 
+  if (state_update_on_clauses != [])
+    state_update_on_clauses_str = join(reverse(state_update_on_clauses), "\n  ")
+    program_str = string(program_str[1:end-1], state_update_on_clauses_str, ")")
+  end
+
+  # global expr = parseautumn(program_str)
+  expr = parseautumn(program_str)
+
+  user_events_for_interpreter = []
+  for e in user_events 
+    if isnothing(e) || e == "nothing"
+      push!(user_events_for_interpreter, Dict())
+    elseif e == "left"
+      push!(user_events_for_interpreter, Dict(:left => true))
+    elseif e == "right"
+      push!(user_events_for_interpreter, Dict(:right => true))
+    elseif e == "up"
+      push!(user_events_for_interpreter, Dict(:up => true))
+    elseif e == "down"
+      push!(user_events_for_interpreter, Dict(:down => true))
+    else
+      x = parse(Int, split(e, " ")[2])
+      y = parse(Int, split(e, " ")[3])
+      push!(user_events_for_interpreter, Dict(:click => AutumnStandardLibrary.Click(x, y)))
+    end
+  end
+
+  hypothesis_state = interpret_over_time(expr, length(user_events), user_events_for_interpreter).state
+
+  # update event_vector_dict
+  lock(lk) do 
+    for i in 1:collect(keys(event_id_in_program_to_event_dict))
+      generic_event, object_id = event_id_in_program_to_event_dict[i]
+      event_values = map(key -> hypothesis_state.histories[Symbol(string("event", i))][key], sort(collect(keys(hypothesis_state.histories[Symbol(string("event", i))]))))[2:end]
+
+      if object_id == -1 # event is global 
+        event_vector_dict[generic_event] = event_values
+      else
+        if !(generic_event in keys(event_vector_dict))
+          event_vector_dict[generic_event] = Dict()
+        end
+        event_vector_dict[generic_event][object_id] = event_values
+      end
+
+    end
   end
 end
 

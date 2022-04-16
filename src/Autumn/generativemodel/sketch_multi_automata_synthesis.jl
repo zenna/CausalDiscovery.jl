@@ -1,98 +1,67 @@
 if Sys.islinux() 
   sketch_directory = "/scratch/riadas/sketch-1.7.6/sketch-frontend/"
+  temp_directory = "/scratch/riadas/.sketch/tmp"
 else
   sketch_directory = "/Users/riadas/Documents/urop/sketch-1.7.6/sketch-frontend/"
+  temp_directory = "/Users/riadas/Documents/urop/.sketch/tmp"
 end
 
-function generate_on_clauses_SKETCH_MULTI(matrix, unformatted_matrix, object_decomposition, user_events, global_event_vector_dict, redundant_events_set, grid_size=16, desired_solution_count=1, desired_per_matrix_solution_count=1, interval_painting_param=false, z3_option="none", time_based=false, z3_timeout=0, sketch_timeout=0, co_occurring_param=false, transition_param=false, co_occurring_distinct=1, co_occurring_same=1, co_occurring_threshold=1, transition_distinct=1, transition_same=1, transition_threshold=1)
+function generate_on_clauses_SKETCH_MULTI(run_id, matrix, unformatted_matrix, object_decomposition, user_events, global_event_vector_dict, redundant_events_set, grid_size=16, desired_solution_count=1, desired_per_matrix_solution_count=1, interval_painting_param=false, z3_option="none", time_based=false, z3_timeout=0, sketch_timeout=0, co_occurring_param=false, transition_param=false, co_occurring_distinct=1, co_occurring_same=1, co_occurring_threshold=1, transition_distinct=1, transition_same=1, transition_threshold=1)
   start_time = Dates.now()
   
   object_types, object_mapping, background, dim = object_decomposition
   solutions = []
 
+  # construct type_displacements
+  type_displacements = Dict()
+  for type in object_types 
+    type_displacements[type.id] = []
+  end
+  
+  for object_type in object_types 
+    type_id = object_type.id 
+    object_ids_with_type = filter(id -> filter(obj -> !isnothing(obj), object_mapping[id])[1].type.id == type_id, collect(keys(object_mapping)))
+
+    for id in object_ids_with_type 
+      for time in 1:(length(object_mapping[id]) - 1)
+        if !isnothing(object_mapping[id][time]) && !isnothing(object_mapping[id][time + 1])
+          disp = displacement(object_mapping[id][time].position, object_mapping[id][time + 1].position)
+          if disp != (0, 0)
+            scalars = map(y -> abs(y), filter(x -> x != 0, [disp...]))
+            push!(type_displacements[type_id], scalars...)
+          end
+        end
+      end
+    end
+  end
+
+  for type in object_types 
+    type_displacements[type.id] = unique(type_displacements[type.id])
+  end    
+
   # pre_filtered_matrix = pre_filter_with_direction_biases(matrix, user_events, object_decomposition) 
   # filtered_matrix = filter_update_function_matrix_multiple(pre_filtered_matrix, object_decomposition)[1]
   
-  filtered_matrices = []
-
-  pre_filtered_matrix_1 = pre_filter_remove_NoCollision(matrix)
-  if pre_filtered_matrix_1 != false 
-    pre_filtered_non_random_matrix_1 = deepcopy(pre_filtered_matrix_1)
-    for row in 1:size(pre_filtered_non_random_matrix_1)[1]
-      for col in 1:size(pre_filtered_non_random_matrix_1)[2]
-        pre_filtered_non_random_matrix_1[row, col] = filter(x -> !occursin("randomPositions", x), pre_filtered_non_random_matrix_1[row, col])
-      end
-    end
-    filtered_non_random_matrices = filter_update_function_matrix_multiple(pre_filtered_non_random_matrix_1, object_decomposition, multiple=true)
-    push!(filtered_matrices, filtered_non_random_matrices...)
+  if !check_matrix_complete(matrix)
+    return solutions
   end
 
-  # pre filter by removing non-NoCollision update functions 
-  pre_filtered_matrix_1 = pre_filter_remove_non_NoCollision(matrix)
-  if pre_filtered_matrix_1 != false 
-    pre_filtered_non_random_matrix_1 = deepcopy(pre_filtered_matrix_1)
-    for row in 1:size(pre_filtered_non_random_matrix_1)[1]
-      for col in 1:size(pre_filtered_non_random_matrix_1)[2]
-        pre_filtered_non_random_matrix_1[row, col] = filter(x -> !occursin("randomPositions", x), pre_filtered_non_random_matrix_1[row, col])
-      end
-    end
-    filtered_non_random_matrices = filter_update_function_matrix_multiple(pre_filtered_non_random_matrix_1, object_decomposition, multiple=true)
-    push!(filtered_matrices, filtered_non_random_matrices...)
-  end
-
-
-  # add non-random filtered matrices to filtered_matrices
-  non_random_matrix = deepcopy(matrix)
-  for row in 1:size(non_random_matrix)[1]
-    for col in 1:size(non_random_matrix)[2]
-      non_random_matrix[row, col] = filter(x -> !occursin("randomPositions", x), non_random_matrix[row, col])
-    end
-  end
-  filtered_non_random_matrices = filter_update_function_matrix_multiple(non_random_matrix, object_decomposition, multiple=true)
-  # filtered_non_random_matrices = filtered_non_random_matrices[1:min(4, length(filtered_non_random_matrices))]
-  push!(filtered_matrices, filtered_non_random_matrices...)
+  filtered_matrices = construct_filtered_matrices_pedro(matrix, object_decomposition, user_events)
   
+  # @show length(filtered_matrices)
 
-  # add direction-bias-filtered matrix to filtered_matrices 
-  pre_filtered_matrix = pre_filter_with_direction_biases(deepcopy(matrix), user_events, object_decomposition) 
-  push!(filtered_matrices, filter_update_function_matrix_multiple(pre_filtered_matrix, object_decomposition, multiple=false)...)
-
-  # add random filtered matrices to filtered_matrices 
-  random_matrix = deepcopy(matrix)
-  for row in 1:size(random_matrix)[1]
-    for col in 1:size(random_matrix)[2]
-      if filter(x -> occursin("uniformChoice", x) || occursin("randomPositions", x), random_matrix[row, col]) != []
-        random_matrix[row, col] = filter(x -> occursin("uniformChoice", x) || occursin("randomPositions", x), random_matrix[row, col])
-      end
-    end
-  end
-  filtered_random_matrices = filter_update_function_matrix_multiple(random_matrix, object_decomposition, multiple=true)
-  filtered_random_matrices = filtered_random_matrices[1:min(4, length(filtered_random_matrices))]
-  push!(filtered_matrices, filtered_random_matrices...)
-
-  # add "chaos" solution to filtered_matrices 
-  # filtered_unformatted_matrix = filter_update_function_matrix_multiple(unformatted_matrix, object_decomposition, multiple=false)[1]
-  # push!(filtered_matrices, filter_update_function_matrix_multiple(construct_chaos_matrix(filtered_unformatted_matrix, object_decomposition), object_decomposition, multiple=false)...)
-
-  unique!(filtered_matrices)
   # filtered_matrices = filtered_matrices[22:22]
   # filtered_matrices = filtered_matrices[5:5]
-  # filtered_matrices = filtered_matrices[2:2]
-  # filtered_matrices = filtered_matrices[1:1] # gravity
-
-  # @show length(filtered_matrices)
-
-  if length(filtered_matrices) > 25 
-    filtered_matrices = filtered_matrices[1:25]
-  end 
-
-  # @show length(filtered_matrices)
+  filtered_matrices = filtered_matrices[1:1]
 
   for filtered_matrix_index in 1:length(filtered_matrices)
     # @show filtered_matrix_index
     # # @show length(filtered_matrices)
     # # @show solutions
     filtered_matrix = filtered_matrices[filtered_matrix_index]
+
+    interval_offsets = compute_regularity_interval_sizes(filtered_matrix, object_decomposition)
+    source_exists_events_dict = compute_source_objects(filtered_matrix, object_decomposition)
     
     # reset global_event_vector_dict and redundant_events_set for each new context:
     # remove events dealing with global or object-specific state
@@ -109,7 +78,7 @@ function generate_on_clauses_SKETCH_MULTI(matrix, unformatted_matrix, object_dec
     end
 
 
-    if (length(filter(x -> x[1] != [], solutions)) >= desired_solution_count) || Dates.value(Dates.now() - start_time) > 3600 * 2 * 1000 # || ((length(filter(x -> x[1] != [], solutions)) > 0) && length(filter(x -> occursin("randomPositions", x), vcat(vcat(filtered_matrix...)...))) > 0) 
+    if (length(filter(x -> x[1] != [], solutions)) >= desired_solution_count) # || Dates.value(Dates.now() - start_time) > 3600 * 2 * 1000 # || ((length(filter(x -> x[1] != [], solutions)) > 0) && length(filter(x -> occursin("randomPositions", x), vcat(vcat(filtered_matrix...)...))) > 0) 
       # if we have reached a sufficient solution count or have found a solution before trying random solutions, exit
       # println("BREAKING")
       # println("elapsed time: $(Dates.value(Dates.now() - start_time) > 3600 * 2 * 1000)")
@@ -147,17 +116,39 @@ function generate_on_clauses_SKETCH_MULTI(matrix, unformatted_matrix, object_dec
     end
 
     # return values: state_based_update_functions_dict has form type_id => [unsolved update functions]
-    new_on_clauses, state_based_update_functions_dict, observation_vectors_dict, addObj_params_dict, global_event_vector_dict, ordered_update_functions_dict = generate_stateless_on_clauses(update_functions_dict, matrix, filtered_matrix, anonymized_filtered_matrix, object_decomposition, user_events, state_update_on_clauses, global_var_dict, global_event_vector_dict, redundant_events_set, z3_option, time_based, z3_timeout, sketch_timeout)
+    new_on_clauses, state_based_update_functions_dict, observation_vectors_dict, addObj_params_dict, global_event_vector_dict, ordered_update_functions_dict = generate_stateless_on_clauses(run_id, interval_offsets, source_exists_events_dict, update_functions_dict, matrix, filtered_matrix, anonymized_filtered_matrix, object_decomposition, user_events, state_update_on_clauses, global_var_dict, global_event_vector_dict, redundant_events_set, z3_option, time_based, z3_timeout, sketch_timeout)
     
-    # println("I AM HERE NOW")
-    # @show new_on_clauses
-    # @show state_based_update_functions_dict
-    # @show ordered_update_functions_dict
-    push!(on_clauses, new_on_clauses...)
-    # @show observation_vectors_dict
-    # # @show redundant_events_set
-    # # @show global_event_vector_dict
+    println("I AM HERE NOW")
+    @show new_on_clauses
+    @show state_based_update_functions_dict
+    @show ordered_update_functions_dict
+    @show observation_vectors_dict
  
+    # TEMP HACK FOR PEDRO: REMOVE LATER 
+    # if true # pedro_random 
+    # collect all state-based addObj objects and remove them from state_based_update_functions_dict
+    addObj_based_list = filter(x -> occursin("addObj", x) && !(occursin("(move (.. (prev obj", x) && !occursin("uniformChoice", x)), vcat(collect(values(state_based_update_functions_dict))...))
+    @show addObj_based_list
+    # for type_id in keys(state_based_update_functions_dict) 
+    #   state_based_update_functions_dict[type_id] = filter(u -> !(u in addObj_based_list), state_based_update_functions_dict[type_id])
+    # end
+
+    double_removeObj_update_functions = compute_double_removeObj_objects(vcat(collect(values(state_based_update_functions_dict))...), 
+                                                                         observation_vectors_dict, 
+                                                                         filtered_matrix)
+    # # add on-clauses for the state-based addObj with non-deterministic events
+    # for addObj_update_function in addObj_based_list 
+    #   addObj_on_clause = "(on (== (uniformChoice (list 1 2 3 4 5 6 7 8 9 10)) 1)\n$(addObj_update_function))"
+    #   push!(new_on_clauses, (addObj_on_clause, addObj_update_function))
+    # end
+    # end
+    @show new_on_clauses
+    @show state_based_update_functions_dict 
+
+
+    push!(on_clauses, new_on_clauses...)
+
+
     # check if all update functions were solved; if not, proceed with state generation procedure
     if length(collect(keys(state_based_update_functions_dict))) == 0 
 
@@ -180,14 +171,31 @@ function generate_on_clauses_SKETCH_MULTI(matrix, unformatted_matrix, object_dec
         end
       end
 
+      linked_removeObj_update_functions = []
+      all_state_based_update_functions = vcat(collect(values(state_based_update_functions_dict))...)
+      for addObj_removeObj_pair in keys(source_exists_events_dict)
+        addObj_type_id, removeObj_type_id = addObj_removeObj_pair
+        source_exists_event, state_based = source_exists_events_dict[addObj_removeObj_pair]
+        addObj_update_functions = filter(u -> occursin("addObj addedObjType$(addObj_type_id)List", u), all_state_based_update_functions)
+        if addObj_update_functions != []
+          ids_with_removeObj_type_id = filter(id -> filter(obj -> !isnothing(obj), object_mapping[id])[1].type.id == removeObj_type_id, collect(keys(object_mapping)))
+          removeObj_update_functions = filter(u -> occursin("removeObj addedObjType$(removeObj_type_id)List", u) || occursin("removeObj (prev obj$(ids_with_removeObj_type_id[1]))", u), all_state_based_update_functions)
+          push!(linked_removeObj_update_functions, removeObj_update_functions...)
+        end
+      end
+
+      for pair in double_removeObj_update_functions 
+        push!(linked_removeObj_update_functions, pair[2])
+      end
+
       # compute co-occurring event for each state-based update function 
       # co_occurring_events_dict = Dict() # keys are tuples (type_id, co-occurring event), values are lists of update_functions with that co-occurring event
       optimal_event_lists_dict = Dict()
-      events = collect(keys(global_event_vector_dict)) # ["left", "right", "up", "down", "clicked", "true"]
-      # @show events 
-      # @show global_event_vector_dict
+      events = filter(k -> k in ["left", "right", "up", "down", "clicked", "true", map(v -> v[1], collect(values(source_exists_events_dict)))...] || (occursin("<= (distance", k) || occursin("(prev time)", k)) && !occursin("|", k) && !occursin("&", k), collect(keys(global_event_vector_dict))) # 
+      @show events 
+      @show global_event_vector_dict
       for type_id in collect(keys(state_based_update_functions_dict))
-        update_functions = state_based_update_functions_dict[type_id]
+        update_functions = filter(u -> !(u in linked_removeObj_update_functions), state_based_update_functions_dict[type_id])
         for update_function in update_functions 
           if type_id isa Tuple 
             object_ids_with_type = filter(k -> filter(obj -> !isnothing(obj), object_mapping[k])[1].type.id in collect(type_id), collect(keys(object_mapping)))
@@ -202,8 +210,8 @@ function generate_on_clauses_SKETCH_MULTI(matrix, unformatted_matrix, object_dec
             for time in 1:length(user_events)
               observation_values = map(id -> observation_vectors_dict[update_function][id][time], object_ids_with_type)
               if (0 in observation_values) && (1 in observation_values)
-                # @show update_function 
-                # @show time 
+                @show update_function 
+                @show time 
                 state_is_global = false
                 break
               end
@@ -214,7 +222,7 @@ function generate_on_clauses_SKETCH_MULTI(matrix, unformatted_matrix, object_dec
           update_function_times_dict = Dict(map(obj_id -> obj_id => findall(r -> r == [update_function], anonymized_filtered_matrix[obj_id, :]), object_ids_with_type))
           co_occurring_events = []
           for event in events
-            # @show event 
+            @show event 
             if global_event_vector_dict[event] isa AbstractArray
               event_vector = global_event_vector_dict[event]
               co_occurring = foldl(&, map(update_function_times -> is_co_occurring(event, event_vector, update_function_times), collect(values(update_function_times_dict))), init=true)      
@@ -233,42 +241,168 @@ function generate_on_clauses_SKETCH_MULTI(matrix, unformatted_matrix, object_dec
               end
             end
           end
-          # println("BEFORE")
-          # @show co_occurring_events
+          println("BEFORE")
+          @show co_occurring_events
+
+          # if co_occurring_param 
+          #   co_occurring_events = sort(filter(x -> !occursin("(list)", x[1]) && !occursin("(move ", x[1]) && !occursin("(== (prev addedObjType", x[1]) && !occursin("objClicked", x[1]) && !occursin("intersects (list", x[1]) && (!occursin("&", x[1]) || x[1] == "(& clicked (isFree click))") && !(occursin("(! (in (objClicked click (prev addedObjType3List)) (filter (--> obj (== (.. obj id) x)) (prev addedObjType3List))))", x[1])), co_occurring_events), by=x -> x[2]) # [1][1]
+          # else
+          #   co_occurring_events = sort(filter(x -> !occursin("(list)", x[1]) && !occursin("|", x[1]) && !occursin("(== (prev addedObjType", x[1]) && !occursin("objClicked", x[1]) && !occursin("(move ", x[1]) && !occursin("intersects (list", x[1]) && (!occursin("&", x[1]) || x[1] == "(& clicked (isFree click))")  && !(occursin("(! (in (objClicked click (prev addedObjType3List)) (filter (--> obj (== (.. obj id) x)) (prev addedObjType3List))))", x[1])), co_occurring_events), by=x -> x[2]) # [1][1]
+          # end
+
           if co_occurring_param 
-            co_occurring_events = sort(filter(x -> !occursin("(list)", x[1]) && !occursin("(move ", x[1]) && !occursin("(== (prev addedObjType", x[1]) && !occursin("objClicked", x[1]) && !occursin("intersects (list", x[1]) && (!occursin("&", x[1]) || x[1] == "(& clicked (isFree click))") && !(occursin("(! (in (objClicked click (prev addedObjType3List)) (filter (--> obj (== (.. obj id) x)) (prev addedObjType3List))))", x[1])), co_occurring_events), by=x -> x[2]) # [1][1]
+            co_occurring_events = sort(filter(x -> !occursin("(list)", x[1]) && !occursin("(== (prev addedObjType", x[1]) && !occursin("objClicked", x[1]) && !occursin("intersects (list", x[1]) && (!occursin("&", x[1]) || x[1] == "(& clicked (isFree click))") && !(occursin("(! (in (objClicked click (prev addedObjType3List)) (filter (--> obj (== (.. obj id) x)) (prev addedObjType3List))))", x[1])), co_occurring_events), by=x -> x[2]) # [1][1]
           else
-            co_occurring_events = sort(filter(x -> !occursin("(list)", x[1]) && !occursin("|", x[1]) && !occursin("(== (prev addedObjType", x[1]) && !occursin("objClicked", x[1]) && !occursin("(move ", x[1]) && !occursin("intersects (list", x[1]) && (!occursin("&", x[1]) || x[1] == "(& clicked (isFree click))")  && !(occursin("(! (in (objClicked click (prev addedObjType3List)) (filter (--> obj (== (.. obj id) x)) (prev addedObjType3List))))", x[1])), co_occurring_events), by=x -> x[2]) # [1][1]
+            co_occurring_events = sort(filter(x -> !occursin("(list)", x[1]) && !occursin("|", x[1]) && !occursin("(== (prev addedObjType", x[1]) && !occursin("objClicked", x[1]) && !occursin("intersects (list", x[1]) && (!occursin("&", x[1]) || x[1] == "(& clicked (isFree click))")  && !(occursin("(! (in (objClicked click (prev addedObjType3List)) (filter (--> obj (== (.. obj id) x)) (prev addedObjType3List))))", x[1])), co_occurring_events), by=x -> x[2]) # [1][1]
           end
   
           if state_is_global 
             co_occurring_events = filter(x -> !occursin("obj id) x)", x[1]) || occursin("(clicked (filter (--> obj (== (.. obj id)", x[1]), co_occurring_events)
           end 
   
-          # println("THIS IS WEIRD HUH")
-          # @show type_id 
-          # @show update_function
-          # @show co_occurring_events
+          println("THIS IS WEIRD HUH")
+          @show type_id 
+          @show update_function
+          @show co_occurring_events
           if filter(x -> !occursin("globalVar", x[1]), co_occurring_events) != []
             co_occurring_events = filter(x -> !occursin("globalVar", x[1]), co_occurring_events)
           end
 
-          false_positive_counts = sort(unique(map(x -> x[2], co_occurring_events)))
-          false_positive_counts = false_positive_counts[1:min(length(false_positive_counts), co_occurring_distinct)]
-          optimal_events = []
-          for false_positive_count in false_positive_counts 
-            events_with_count = map(e -> e[1], sort(filter(tup -> tup[2] == false_positive_count, co_occurring_events), by=t -> length(t[1])))
-            push!(optimal_events, events_with_count[1:min(length(events_with_count), co_occurring_same)]...)
-          end
 
-          if type_id in keys(optimal_event_lists_dict) 
-            push!(optimal_event_lists_dict[type_id], (update_function, optimal_events))
-          else 
-            optimal_event_lists_dict[type_id] = [(update_function, optimal_events)]
+          if update_function in addObj_based_list
+            println("SPECIAL ADDOBJ HANDLING")
+            @show update_function 
+            addObj_type_id = parse(Int, split(split(update_function, "addObj addedObjType")[2], "List")[1])
+            matching_add_remove_pairs = filter(p -> p[1] == addObj_type_id, collect(keys(source_exists_events_dict)))
+            if matching_add_remove_pairs != [] 
+              addObj_removeObj_pair = matching_add_remove_pairs[1]
+              removeObj_type_id = matching_add_remove_pairs[1][2]
+            else
+              addObj_removeObj_pair = nothing
+              removeObj_type_id = nothing
+            end
+
+            # if there is no associated removeObj rule or the pair of addObj/removeObj is not state-based, 
+            # construct appropriate random trigger event 
+            # if isnothing(addObj_removeObj_pair) || !source_exists_events_dict[addObj_removeObj_pair][2]
+            time_based_co_occurring_events = filter(e -> occursin("(prev time)", e), map(x -> x[1], co_occurring_events))
+            if !isnothing(addObj_removeObj_pair)
+              exists_event = source_exists_events_dict[addObj_removeObj_pair][1]
+              if exists_event != "true"
+                source_exists_co_occurring_events = filter(e -> e == exists_event, map(x -> x[1], co_occurring_events))
+              else
+                source_exists_co_occurring_events = filter(e -> occursin("<= (distance", e), map(x -> x[1], co_occurring_events))
+              end
+            else
+              source_exists_co_occurring_events = []
+            end
+
+            if !isnothing(addObj_removeObj_pair)
+              ids_with_removeObj_type_id = filter(id -> filter(obj -> !isnothing(obj), object_mapping[id])[1].type.id == removeObj_type_id, collect(keys(object_mapping)))
+              removeObj_update_function = filter(u -> occursin("removeObj addedObjType$(removeObj_type_id)List", u) || occursin("removeObj (prev obj$(ids_with_removeObj_type_id[1]))", u), linked_removeObj_update_functions)[1]
+              
+              if time_based_co_occurring_events != [] && source_exists_co_occurring_events != [] 
+                addObj_on_clause = "(on (& $(time_based_co_occurring_events[1]) (& $(source_exists_co_occurring_events[1]) (== (uniformChoice (list 1 2 3 4 5 6 7 8 9 10)) 1)))\n(let ($(update_function) $(removeObj_update_function))))"
+              elseif time_based_co_occurring_events != [] && source_exists_co_occurring_events == []
+                addObj_on_clause = "(on (& $(time_based_co_occurring_events[1]) (== (uniformChoice (list 1 2 3 4 5 6 7 8 9 10)) 1))\n(let ($(update_function) $(removeObj_update_function))))"
+              elseif time_based_co_occurring_events == [] && source_exists_co_occurring_events != []
+                addObj_on_clause = "(on (& $(source_exists_co_occurring_events[1]) (== (uniformChoice (list 1 2 3 4 5 6 7 8 9 10)) 1))\n(let ($(update_function) $(removeObj_update_function))))"
+              else
+                addObj_on_clause = "(on (== (uniformChoice (list 1 2 3 4 5 6 7 8 9 10)) 1)\n(let ($(update_function) $(removeObj_update_function))))"
+              end
+
+              println("LOOK AT ME HERE")
+              @show co_occurring_events 
+              proximity_based_co_occurring_events = filter(e -> occursin("(<= (distance", e), map(x -> x[1], co_occurring_events))
+              if occursin("firstWithDefault", addObj_on_clause) && proximity_based_co_occurring_events != []
+                parts = split(addObj_on_clause, "\n")
+                original_event = replace(parts[1], "(on " => "")
+                new_event = "(& $(original_event) $(proximity_based_co_occurring_events[1]))"
+                addObj_on_clause = "(on $(new_event)\n$(parts[2])"          
+              end
+              push!(on_clauses, (addObj_on_clause, removeObj_update_function))
+            else
+              if time_based_co_occurring_events != [] && source_exists_co_occurring_events == []
+                addObj_on_clause = "(on (& $(time_based_co_occurring_events[1]) (== (uniformChoice (list 1 2 3 4 5 6 7 8 9 10)) 1))\n$(update_function))"
+              else
+                addObj_on_clause = "(on (== (uniformChoice (list 1 2 3 4 5 6 7 8 9 10)) 1)\n$(update_function))"
+              end
+            end
+            push!(on_clauses, (addObj_on_clause, update_function))
+            println("WOOT YAY")
+            @show addObj_on_clause 
+            @show on_clauses 
+            handled_via_special_addObj_rules = true             
+          elseif update_function in vcat(double_removeObj_update_functions...)
+            proximity_based_co_occurring_events = filter(e -> occursin("(<= (distance", e), map(x -> x[1], co_occurring_events)) 
+            linked_update_function = filter(x -> x[1] == update_function, double_removeObj_update_functions)[2]
+            if proximity_based_co_occurring_events != [] 
+              removeObj_on_clause = "(on (& $(proximity_based_co_occurring_events[1]) (== (uniformChoice (list 1 2 3 4 5 6 7 8 9 10)) 1))\n$(update_function) $(linked_update_function))" 
+            else
+              removeObj_on_clause = "(on (== (uniformChoice (list 1 2 3 4 5 6 7 8 9 10)) 1)\n$(update_function) $(linked_update_function))"
+            end
+            push!(on_clauses, (removeObj_on_clause, update_function))
+            push!(on_clauses, (removeObj_on_clause, other_update_function))
+          else
+            
+            special_handling = false
+            if occursin("removeObj", update_function) && filter(e -> occursin("(<= (distance", e), map(x -> x[1], co_occurring_events)) != []
+              proximity_event = filter(e -> occursin("(<= (distance", e), map(x -> x[1], co_occurring_events))[1]
+              involved_types = []
+              
+              # search for substrings of the form "addedObjType$(type_id)List"
+              parts = filter(x -> x != "", split(proximity_event, "addedObjType"))
+              if parts != []
+                for part_index in 2:2:length(parts)
+                  proximity_id = parse(Int, split(parts[part_index], "List")[1]) 
+                  push!(involved_types, proximity_id)
+                end
+              end
+
+              # search for substrings of the form "obj$(id)"
+              singleton_object_match = match(r"obj\d+", proximity_event)
+              if !isnothing(singleton_object_match)
+                singleton_object_id = parse(Int, replace(singleton_object_match.match, "obj" => ""))
+                singleton_object_type_id = filter(obj -> !isnothing(obj), object_mapping[singleton_object_id])[1].type.id
+                push!(involved_types, singleton_object_type_id)
+              end
+
+              if filter(type_id -> object_type_is_brownian(type_id, filtered_matrix, object_decomposition), involved_types) != [] 
+                removeObj_on_clause = "(on (& $(proximity_event) (== (uniformChoice (list 1 2 3 4 5 6 7 8 9 10)) 1))\n$(update_function))"
+                push!(on_clauses, (removeObj_on_clause, update_function))
+                special_handling = true
+              end
+            end
+
+            # # TEMP HACK FOR ALIENS
+            # if update_function == "(= addedObjType1List (removeObj addedObjType1List (--> obj (== (.. obj id) x))))"
+            #   removeObj_on_clause = "(on (== (uniformChoice (list 1 2 3 4 5 6 7 8 9 10) 1))\n$(update_function))"
+            #   push!(on_clauses, (removeObj_on_clause, update_function))
+            #   special_handling = true
+            # end
+
+            if !special_handling 
+              co_occurring_events = filter(e -> !occursin("distance", e[1]),  co_occurring_events)
+              false_positive_counts = sort(unique(map(x -> x[2], co_occurring_events)))
+              false_positive_counts = false_positive_counts[1:min(length(false_positive_counts), co_occurring_distinct)]
+              optimal_events = []
+              for false_positive_count in false_positive_counts 
+                events_with_count = map(e -> e[1], sort(filter(tup -> tup[2] == false_positive_count, co_occurring_events), by=t -> length(t[1])))
+                push!(optimal_events, events_with_count[1:min(length(events_with_count), co_occurring_same)]...)
+              end
+    
+              if type_id in keys(optimal_event_lists_dict) 
+                push!(optimal_event_lists_dict[type_id], (update_function, optimal_events))
+              else 
+                optimal_event_lists_dict[type_id] = [(update_function, optimal_events)]
+              end
+            end
+            
+            
           end
 
           # best_co_occurring_events = sort(filter(e -> e[2] == minimum(map(x -> x[2], co_occurring_events)), co_occurring_events), by=z -> length(z[1]))
-          # # # # @show best_co_occurring_events
+          # # # @show best_co_occurring_events
           # co_occurring_event = best_co_occurring_events[1][1]        
   
           # if (type_id, co_occurring_event) in keys(co_occurring_events_dict)
@@ -280,8 +414,7 @@ function generate_on_clauses_SKETCH_MULTI(matrix, unformatted_matrix, object_dec
         end
       end
 
-      # @show optimal_event_lists_dict
-
+      @show optimal_event_lists_dict
       # convert optimal_event_lists_dict to co_occurring_event_lists_dict 
       co_occurring_events_dict_list = []
       total_update_functions = [] 
@@ -399,14 +532,24 @@ function generate_on_clauses_SKETCH_MULTI(matrix, unformatted_matrix, object_dec
             end
 
             if state_is_global 
-              global_update_functions_dict[(type_id, co_occurring_event)] = update_functions
+              if foldl(&, map(u -> occursin("addObj", u), update_functions), init=true)
+                
+                group_addObj_rules, addObj_rules, addObj_count = addObj_params_dict[type_id[1]]
+                if (length(type_id) == 1) && group_addObj_rules 
+                  global_update_functions_dict[(type_id, co_occurring_event)] = update_functions[1:1]
+                else
+                  global_update_functions_dict[(type_id, co_occurring_event)] = update_functions
+                end
+              else
+                global_update_functions_dict[(type_id, co_occurring_event)] = update_functions
+              end
             else
               object_specific_update_functions_dict[(type_id, co_occurring_event)] = update_functions
             end
           end
 
-          # @show global_update_functions_dict 
-          # @show object_specific_update_functions_dict 
+          @show global_update_functions_dict 
+          @show object_specific_update_functions_dict 
 
           if length(collect(keys(global_update_functions_dict))) > 0 
             for tuple in collect(keys(global_update_functions_dict))
@@ -430,6 +573,28 @@ function generate_on_clauses_SKETCH_MULTI(matrix, unformatted_matrix, object_dec
                 true_times = unique(vcat(map(trajectory -> findall(rule -> rule in update_functions, vcat(trajectory...)), object_trajectories)...))
                 object_trajectory = []
                 ordered_update_functions = []
+
+                println("DEBUGGING GROUP_ADDOBJ_RULES")
+                @show times_dict
+                if type_id isa Tuple 
+                  if length(type_id) == 1 
+                    extracted_type_id = type_id[1]
+                    
+                    group_addObj_rules, addObj_rules, addObj_count = addObj_params_dict[extracted_type_id]
+                    if group_addObj_rules 
+                      u = sort(collect(keys(times_dict)))[1]
+                      for k in sort(collect(keys(times_dict)))
+                        if k != u 
+                          delete!(times_dict, k)
+                        end
+                      end
+                    end
+
+                  end 
+                end
+                println("POST GROUP_ADDOBJ MODIFICATION")
+                @show times_dict
+
               else 
                 ids_with_rule = map(idx -> object_ids_with_type[idx], findall(idx_set -> idx_set != [], map(id -> findall(rule -> rule[1] in update_functions, anonymized_filtered_matrix[id, :]), object_ids_with_type)))
                 trajectory_lengths = map(id -> length(filter(x -> x != [""], anonymized_filtered_matrix[id, :])), ids_with_rule)
@@ -440,9 +605,9 @@ function generate_on_clauses_SKETCH_MULTI(matrix, unformatted_matrix, object_dec
                 ordered_update_functions = ordered_update_functions_dict[type_id]
               end
 
-              state_solutions = generate_global_multi_automaton_sketch(co_occurring_event, times_dict, global_event_vector_dict, object_trajectory, Dict(), Dict(1 => ["" for x in 1:length(user_events)]), object_decomposition, type_id, desired_per_matrix_solution_count, sketch_timeout, false, ordered_update_functions, transition_distinct, transition_same, transition_threshold)
+              state_solutions = generate_global_multi_automaton_sketch(run_id, co_occurring_event, times_dict, global_event_vector_dict, object_trajectory, Dict(), Dict(1 => ["" for x in 1:length(user_events)]), object_decomposition, type_id, type_displacements, interval_offsets, source_exists_events_dict, desired_per_matrix_solution_count, sketch_timeout, false, ordered_update_functions, transition_distinct, transition_same, transition_threshold)
               # @show state_solutions 
-              if state_solutions[1][1] == []
+              if state_solutions == [] || state_solutions[1][1] == []
                 # println("MULTI-AUTOMATA SKETCH FAILURE")
                 failed = true
                 break
@@ -504,10 +669,31 @@ function generate_on_clauses_SKETCH_MULTI(matrix, unformatted_matrix, object_dec
       
             # construct start state under relabeling 
             new_start_state = old_to_new_state_values[best_start_state]
-      
-            state_based_update_func_on_clauses = vcat(map(tuple_idx -> map(upd_func -> ("(on (& $(best_co_occurring_events[tuple_idx]) (in (prev globalVar1) (list $(join(unique(new_accept_state_dict[tuple_idx][upd_func]), " ")))))\n$(replace(upd_func, "(--> obj (== (.. obj id) x))" => "(--> obj true)")))", upd_func), global_update_functions_dict[global_update_function_tuples[tuple_idx]]), collect(1:length(global_update_function_tuples)))...)
+            
+            # construct state_based_update_func_on_clauses
+            state_based_update_func_on_clauses = []
+            grouped_indices = []
+            normal_indices = []
+            for tuple_index in collect(1:length(global_update_function_tuples)) 
+              type_id, co_occurring_event = global_update_function_tuples[tuple_index]
+              update_functions = global_update_functions_dict[(type_id, co_occurring_event)]
+              if foldl(&, map(u -> occursin("addObj", u), update_functions), init=true)
+                group_addObj_rules, addObj_rules, addObj_count = addObj_params_dict[type_id[1]]
+                if group_addObj_rules 
+                  push!(grouped_indices, tuple_index)
+                else
+                  push!(normal_indices, tuple_index)
+                end
+              else
+                push!(normal_indices, tuple_index)
+              end
+            end
+            push!(state_based_update_func_on_clauses, vcat(map(tuple_idx -> map(upd_func -> ("(on (& $(best_co_occurring_events[tuple_idx]) (in (prev globalVar1) (list $(join(unique(new_accept_state_dict[tuple_idx][upd_func]), " ")))))\n$(replace(upd_func, "(--> obj (== (.. obj id) x))" => "(--> obj true)")))", upd_func), global_update_functions_dict[global_update_function_tuples[tuple_idx]]), normal_indices)...)...)
+            push!(state_based_update_func_on_clauses, vcat(map(tuple_idx -> map(upd_func -> ("(on (& $(best_co_occurring_events[tuple_idx]) (in (prev globalVar1) (list $(join(unique(new_accept_state_dict[tuple_idx][upd_func]), " ")))))\n(let\n($(join(unique(addObj_params_dict[global_update_function_tuples[tuple_idx][1][1]][2]), "\n")))))", upd_func), global_update_functions_dict[global_update_function_tuples[tuple_idx]]), grouped_indices)...)...)
+            
             new_transitions = map(trans -> (trans[1], trans[2], replace(trans[3], "(filter (--> obj (== (.. obj id) x)) (prev addedObjType$(type_id)List))" => "(list (prev obj))")), new_transitions)
             # @show new_transitions 
+            # @show collect(values(old_to_new_state_values))
             state_transition_on_clauses = format_state_transition_functions(new_transitions, collect(values(old_to_new_state_values)), global_var_id=1)
             fake_global_var_dict = Dict(1 => [new_start_state for i in 1:length(user_events)])
             global_var_dict = fake_global_var_dict
@@ -539,8 +725,8 @@ function generate_on_clauses_SKETCH_MULTI(matrix, unformatted_matrix, object_dec
                 times_dict[update_function] = Dict(map(id -> id => findall(r -> r == update_function, vcat(anonymized_filtered_matrix[id, :]...)), object_ids_with_type))
               end
 
-              state_solutions = generate_object_specific_multi_automaton_sketch(co_occurring_event, object_specific_update_functions, times_dict, global_event_vector_dict, type_id, global_object_decomposition, object_specific_state_update_times_dict, global_var_dict, sketch_timeout, false, transition_param, transition_distinct, transition_same, transition_threshold)            
-              if state_solutions == [] 
+              state_solutions = generate_object_specific_multi_automaton_sketch(run_id, co_occurring_event, object_specific_update_functions, times_dict, global_event_vector_dict, type_id, global_object_decomposition, object_specific_state_update_times_dict, global_var_dict, type_displacements, interval_offsets, source_exists_events_dict, sketch_timeout, false, transition_param, transition_distinct, transition_same, transition_threshold)            
+              if state_solutions == [] || state_solutions[1][1] == []
                 # println("MULTI-AUTOMATA SKETCH FAILURE")
                 failed = true 
                 break
@@ -607,7 +793,7 @@ function generate_on_clauses_SKETCH_MULTI(matrix, unformatted_matrix, object_dec
             # TODO: something generalization-based needs to happen here 
             state_based_update_func_on_clauses = vcat(map(tuple_idx -> map(upd_func -> ("(on true\n$(replace(upd_func, "(== (.. obj id) x)" => "(& $(best_co_occurring_event[tuple_idx]) (in (.. (prev obj) field1) (list $(join(new_accept_state_dict[tuple_idx][upd_func], " ")))))")))", upd_func), object_specific_update_functions_dict[object_specific_update_function_tuples[tuple_idx]]), 1:length(object_specific_update_function_tuples))...)
             # state_transition_on_clauses = map(trans -> """(on true\n(= addedObjType$(type_id)List (updateObj addedObjType$(type_id)List (--> obj (updateObj (prev obj) "field1" $(trans[2]))) (--> obj $(trans[3])))))""", new_transitions)
-            state_transition_on_clauses = map(x -> replace(x, "(filter (--> obj (== (.. obj id) x)) (prev addedObjType$(type_id)List))" => "(list (prev obj))"), format_state_transition_functions(new_transitions, collect(values(old_to_new_state_values)), type_id=type_id))
+            state_transition_on_clauses = map(x -> replace(x, "(filter (--> obj (== (.. obj id) x)) (prev addedObjType$(type_id)List))" => "(prev obj)"), format_state_transition_functions(new_transitions, collect(values(old_to_new_state_values)), type_id=type_id))
 
 
             fake_object_field_values = Dict(map(idx -> object_ids[idx] => [new_start_states[idx] for i in 1:length(object_mapping[object_ids[1]])], 1:length(object_ids)))
@@ -675,17 +861,28 @@ function generate_on_clauses_SKETCH_MULTI(matrix, unformatted_matrix, object_dec
 
 end
 
-function generate_global_multi_automaton_sketch(co_occurring_event, times_dict, event_vector_dict, object_trajectory, init_global_var_dict, state_update_times_dict, object_decomposition, type_id, desired_per_matrix_solution_count, sketch_timeout=0, incremental=false, ordered_update_functions=[], transition_distinct=1, transition_same=1, transition_threshold=1)
-  # println("GENERATE_NEW_STATE_GLOBAL_SKETCH")
-  # @show co_occurring_event
-  # @show times_dict 
+function generate_global_multi_automaton_sketch(run_id, co_occurring_event, times_dict, event_vector_dict, object_trajectory, init_global_var_dict, state_update_times_dict, object_decomposition, type_id, type_displacements, interval_offsets, source_exists_events_dict, desired_per_matrix_solution_count, sketch_timeout=0, incremental=false, ordered_update_functions=[], transition_distinct=1, transition_same=1, transition_threshold=1)
+  println("GENERATE_NEW_STATE_GLOBAL_SKETCH")
+  @show co_occurring_event
+  @show times_dict 
   # @show event_vector_dict 
-  # @show object_trajectory    
-  # @show init_global_var_dict 
-  # @show state_update_times_dict  
-  # # @show object_decomposition 
-  # @show type_id
-  # @show desired_per_matrix_solution_count 
+  @show object_trajectory    
+  @show init_global_var_dict 
+  @show state_update_times_dict  
+  # @show object_decomposition 
+  @show type_id
+  @show type_displacements
+  @show interval_offsets
+  @show source_exists_events_dict
+  @show desired_per_matrix_solution_count 
+  @show sketch_timeout 
+  @show incremental 
+  @show ordered_update_functions 
+  @show transition_distinct
+  @show transition_same
+  @show transition_threshold
+
+  @show desired_per_matrix_solution_count 
   init_state_update_times_dict = deepcopy(state_update_times_dict)
   update_functions = collect(keys(times_dict))
   failed = false
@@ -693,13 +890,18 @@ function generate_global_multi_automaton_sketch(co_occurring_event, times_dict, 
   object_types, object_mapping, _, _ = object_decomposition
 
   events = filter(e -> event_vector_dict[e] isa AbstractArray, collect(keys(event_vector_dict)))
-  atomic_events = gen_event_bool_human_prior(object_decomposition, "x", type_id isa Tuple ? type_id[1] : type_id, ["nothing"], init_global_var_dict, collect(keys(times_dict))[1])
+  @show events 
+  atomic_events = gen_event_bool_human_prior(object_decomposition, "x", type_id isa Tuple ? type_id[1] : type_id, ["nothing"], init_global_var_dict, collect(keys(times_dict))[1], type_displacements, interval_offsets, source_exists_events_dict)
+  @show atomic_events 
   small_event_vector_dict = deepcopy(event_vector_dict)    
+  deleted = []
   for e in keys(event_vector_dict)
     if !(e in atomic_events) || (!(event_vector_dict[e] isa AbstractArray) && !(e in map(x -> "(clicked (filter (--> obj (== (.. obj id) x)) (prev addedObjType$(x)List)))", map(x -> x.id, object_types))) )
-      delete!(small_event_vector_dict, e)
+      push!(deleted, e)
+      delete!(small_event_vector_dict, e)    
     end
   end
+
 
   co_occurring_event_trajectory = event_vector_dict[co_occurring_event]
   # @show co_occurring_event_trajectory
@@ -809,6 +1011,8 @@ function generate_global_multi_automaton_sketch(co_occurring_event, times_dict, 
   transition_decision_strings = transition_decision_strings[1:min(length(transition_decision_strings), transition_threshold)]
   # @show transition_decision_strings 
 
+  no_object_times = findall(x -> x == [""] || occursin("addObj", join(x)), object_trajectory)
+
   solutions = []
   for transition_decision_string in transition_decision_strings 
     transition_decision_index = 1
@@ -827,7 +1031,7 @@ function generate_global_multi_automaton_sketch(co_occurring_event, times_dict, 
       max_global_var_value = maximum(map(tuple -> tuple[2], init_augmented_positive_times))
 
       # search for events within range
-      events_in_range = find_state_update_events(small_event_vector_dict, init_augmented_positive_times, time_ranges, start_value, end_value, init_global_var_dict, global_var_id, 1)
+      events_in_range = find_state_update_events(small_event_vector_dict, init_augmented_positive_times, time_ranges, start_value, end_value, init_global_var_dict, global_var_id, 1, no_object_times)
       events_in_range = filter(tuple -> !occursin("globalVar", tuple[1]), events_in_range)
       
       # println("PRE PRUNING: EVENTS IN RANGE")
@@ -884,7 +1088,7 @@ function generate_global_multi_automaton_sketch(co_occurring_event, times_dict, 
 
       else # no event with zero false positives found; use best false-positive event and specialize globalVar values (i.e. add new value)
         # find co-occurring event with fewest false positives 
-        false_positive_events = find_state_update_events_false_positives(small_event_vector_dict, init_augmented_positive_times, time_ranges, start_value, end_value, init_global_var_dict, global_var_id, 1)
+        false_positive_events = find_state_update_events_false_positives(small_event_vector_dict, init_augmented_positive_times, time_ranges, start_value, end_value, init_global_var_dict, global_var_id, 1, no_object_times)
         false_positive_events_with_state = filter(e -> !occursin("globalVar", e[1]), false_positive_events) # no state-based events in sketch-based approach
         
         events_without_true = filter(tuple -> !occursin("true", tuple[1]) && tuple[2] == minimum(map(t -> t[2], false_positive_events_with_state)), false_positive_events_with_state)
@@ -924,41 +1128,58 @@ function generate_global_multi_automaton_sketch(co_occurring_event, times_dict, 
       sketch_update_function_arr[time] = string(value)
     end
 
+    # # TRIM sketch_update_function_arr and sketch_event_arr 
+    # if true_char != "0"
+    #   true_event_times = findall(x -> string(x) == true_char, sketch_event_arr)
+    #   sketch_event_arr = filter(x -> string(x) != true_char, sketch_event_arr) # remove all "true" events from event array
+
+    #   # remove all update functions corresponding to "true" events from update function array 
+    #   sketch_update_function_arr = [sketch_update_function_arr[i] for i in 1:length(sketch_update_function_arr) if !(i in true_event_times)]
+    # end
+
     # @show sketch_event_arr 
     # @show sketch_update_function_arr
+
+    min_states = length(unique(filter(x -> x != "0", sketch_update_function_arr)))
+    min_transitions = length(unique(filter(x -> (x[1] != x[2]) && x[1] != "0" && x[2] != "0", collect(zip(sketch_update_function_arr, vcat(sketch_update_function_arr[2:end], -1)))))) - 1
+    start_state = sketch_update_function_arr[1]
 
     sketch_program = """ 
     include "$(sketch_directory)sketchlib/string.skh"; 
     include "$(sketch_directory)test/sk/numerical/mstatemachine.skh";
 
-    bit recognize([int n], char[n] events, int[n] functions, char true_char){
-        return matches(MSM(events, true_char), functions);
+    bit recognize([int n], char[n] events, int[n] functions, char true_char, int min_states, int min_transitions, int start){
+        return matches(MSM(events, true_char, min_states, min_transitions, start), functions);
     }
 
     harness void h() {
       assert recognize( { $(join(map(c -> "'$(c)'", sketch_event_arr), ", ")) }, 
                         { $(join(sketch_update_function_arr, ", ")) }, 
-                        '$(true_char)');
+                        '$(true_char)',
+                        $(min_states),
+                        $(min_transitions),
+                        $(start_state));
     }
     """
 
     # save sketch program 
-    open("multi_automata_sketch.sk","w") do io
+    sketch_file_name = "multi_automata_sketch_$(run_id).sk"
+    open(sketch_file_name,"w") do io
       println(io, sketch_program)
     end
 
     # run Sketch query
     if sketch_timeout == 0 
-      command = "$(sketch_directory)sketch --bnd-unroll-amnt $(length(sketch_event_trajectory) + 2) --fe-output-code multi_automata_sketch.sk"
+      command = "$(sketch_directory)sketch --bnd-unroll-amnt $(length(sketch_event_trajectory) + 2) --fe-output-code --bnd-mbits 6 --fe-tempdir $(temp_directory) $(sketch_file_name)"
     else
       if Sys.islinux() 
-        command = "timeout $(sketch_timeout) $(sketch_directory)sketch --bnd-unroll-amnt $(length(sketch_event_trajectory) + 2) --fe-output-code multi_automata_sketch.sk"
+        command = "timeout $(sketch_timeout) $(sketch_directory)sketch --bnd-unroll-amnt $(length(sketch_event_trajectory) + 2) --fe-output-code --bnd-mbits 6 --fe-tempdir $(temp_directory) $(sketch_file_name)"
       else
-        command = "gtimeout $(sketch_timeout) $(sketch_directory)sketch --bnd-unroll-amnt $(length(sketch_event_trajectory) + 2) --fe-output-code multi_automata_sketch.sk"
+        command = "gtimeout $(sketch_timeout) $(sketch_directory)sketch --bnd-unroll-amnt $(length(sketch_event_trajectory) + 2) --fe-output-code --bnd-mbits 6 --fe-tempdir $(temp_directory) $(sketch_file_name)"
       end
     end
     
-    # @show command 
+    @show command 
 
     sketch_output = try 
                       readchomp(eval(Meta.parse("`$(command)`")))
@@ -971,13 +1192,53 @@ function generate_global_multi_automaton_sketch(co_occurring_event, times_dict, 
       [([], [], [], init_global_var_dict)]
     else
       # update intAsChar and add main function to output cpp file 
-      f = open("multi_automata_sketch.cpp", "r")
+      cpp_file_name = "multi_automata_sketch_$(run_id).cpp"
+      cpp_out_file_name = "multi_automata_sketch_$(run_id).out"
+
+      f = open(cpp_file_name, "r")
       cpp_content = read(f, String)
       close(f)
+
+      # @show cpp_content 
 
       modified_cpp_content = string(split(cpp_content, "void intAsChar")[1], """void intAsChar(int x, char& _out) {
         _out = static_cast<char>(x % 10);
         _out = printf("%d", _out);
+      }
+
+      void distinct_state_count(int N, int* state_seq/* len = N */, int& _out) {
+        int _tt31[10] = {1000, 1000, 1000, 1000, 1000, 1000, 1000, 1000, 1000, 1000};
+        int*  distinct_states= new int [10]; CopyArr<int >(distinct_states,_tt31, 10, 10);
+        for (int  i=0;(i) < (N);i = i + 1){
+          int  state=0;
+          state = (state_seq[i]);
+          int  j=0;
+          bool  added=0;
+          while (!(added) && ((j) < (10))) {
+            if ((state) == ((distinct_states[j]))) {
+              added = 1;
+            }
+            if (!(added) && (((distinct_states[j])) == (1000))) {
+              (distinct_states[j]) = state;
+              added = 1;
+            }
+            j = j + 1;
+          }
+        }
+        if (((distinct_states[9])) != (1000)) {
+          _out = 10;
+        delete[] distinct_states;
+          return;
+        }
+        int  distinct_state_count=0;
+        for (int  i_0=0;(i_0) < (10);i_0 = i_0 + 1){
+          if (((distinct_states[i_0])) != (1000)) {
+            distinct_state_count = distinct_state_count + 1;
+          }
+        }
+        _out = distinct_state_count;
+        delete[] distinct_states;
+        return;
       }
       
       }
@@ -988,16 +1249,16 @@ function generate_global_multi_automaton_sketch(co_occurring_event, times_dict, 
       }
       """)
 
-      open("multi_automata_sketch.cpp", "w+") do io
+      open(cpp_file_name, "w+") do io
         println(io, modified_cpp_content)
       end
 
       # compile modified cpp program 
-      command = "g++ -o multi_automata_sketch.out multi_automata_sketch.cpp"
+      command = "g++ -o $(cpp_out_file_name) $(cpp_file_name)"
       compile_output = readchomp(eval(Meta.parse("`$(command)`"))) 
 
       # run compiled cpp program 
-      command = "./multi_automata_sketch.out"
+      command = "./$(cpp_out_file_name)"
       run_output = readchomp(eval(Meta.parse("`$(command)`")))  
       run_output = replace(run_output, "\x01" => "")
       # @show run_output
@@ -1082,25 +1343,42 @@ function generate_global_multi_automaton_sketch(co_occurring_event, times_dict, 
   solutions
 end
 
-function generate_object_specific_multi_automaton_sketch(co_occurring_event, update_functions, times_dict, event_vector_dict, type_id, object_decomposition, init_state_update_times, global_var_dict, sketch_timeout=0, incremental=false, transition_param=false, transition_distinct=1, transition_same=1, transition_threshold=1) 
-  # println("GENERATE_NEW_OBJECT_SPECIFIC_STATE")
-  # @show co_occurring_event
-  # @show update_functions 
-  # @show times_dict
-  # @show event_vector_dict
-  # @show type_id 
-  # # @show object_decomposition
-  # @show init_state_update_times
+function generate_object_specific_multi_automaton_sketch(run_id, co_occurring_event, update_functions, times_dict, event_vector_dict, type_id, object_decomposition, init_state_update_times, global_var_dict, type_displacements, interval_offsets, source_exists_events_dict, sketch_timeout=0, incremental=false, transition_param=false, transition_distinct=1, transition_same=1, transition_threshold=1) 
+  println("GENERATE_NEW_OBJECT_SPECIFIC_STATE")
+  @show co_occurring_event
+  @show update_functions 
+  @show times_dict
+  @show event_vector_dict
+  @show type_id 
+  # @show object_decomposition
+  @show init_state_update_times
+  @show global_var_dict
+  @show type_displacements
+  @show interval_offsets
+  @show source_exists_events_dict
+  # @show desired_per_matrix_solution_count 
+  @show sketch_timeout 
+  @show incremental 
+  # @show ordered_update_functions 
+  @show transition_distinct
+  @show transition_same
+  @show transition_threshold
+
   state_update_times = deepcopy(init_state_update_times)  
   failed = false
   object_types, object_mapping, background, grid_size = object_decomposition 
   object_ids = sort(filter(k -> filter(obj -> !isnothing(obj), object_mapping[k])[1].type.id == type_id, collect(keys(object_mapping))))
 
-  atomic_events = gen_event_bool_human_prior(object_decomposition, "x", type_id, ["nothing"], global_var_dict, update_functions[1])
+  start_objects = map(k -> object_mapping[k][1], filter(key -> !isnothing(object_mapping[key][1]), collect(keys(object_mapping))))
+  non_list_objects = filter(x -> (count(y -> y.type.id == x.type.id, start_objects) == 1) && (count(obj_id -> filter(z -> !isnothing(z), object_mapping[obj_id])[1].type.id == x.type.id, collect(keys(object_mapping))) == 1), start_objects)
+  non_list_object_ids = map(obj -> obj.id, non_list_objects)
+
+  # ----- START: construct small_event_vector_dict
+  atomic_events = gen_event_bool_human_prior(object_decomposition, "x", type_id, ["nothing"], global_var_dict, update_functions[1], type_displacements, interval_offsets, source_exists_events_dict)
 
   small_event_vector_dict = deepcopy(event_vector_dict)    
   for e in keys(event_vector_dict)
-    if !(e in atomic_events) # && foldl(|, map(x -> occursin(x, e), atomic_events))
+    if !(e in atomic_events) && e != "true" # && foldl(|, map(x -> occursin(x, e), atomic_events))
       delete!(small_event_vector_dict, e)
     else
       object_specific_event_with_wrong_type = !(event_vector_dict[e] isa AbstractArray) && (Set(collect(keys(event_vector_dict[e]))) != Set(object_ids))
@@ -1109,15 +1387,34 @@ function generate_object_specific_multi_automaton_sketch(co_occurring_event, upd
       end
     end
   end
-  # println("LETS GO NOW")
-  # @show small_event_vector_dict 
-  # choices, event_vector_dict, redundant_events_set, object_decomposition
+
+  displacement_dict = Dict(map(id -> id => [displacement(object_mapping[id][t].position, object_mapping[id][t + 1].position) 
+                                            for t in 1:length(user_events) 
+                                            if !isnothing(object_mapping[id][t]) && !isnothing(object_mapping[id][t + 1])], 
+                               object_ids)) 
   
+  all_displacements = vcat(collect(values(displacement_dict))...)
+  unique_displacements = reverse(sort(unique(all_displacements), by=tup -> count(x -> x == tup, all_displacements)))
+  extra_transition_substrings = []
+  for disp in unique_displacements[1:min(2, length(unique_displacements))]
+    x, y = disp 
+    push!(extra_transition_substrings, "$(x) $(y)")
+    if x != 0 
+      push!(extra_transition_substrings, ["$(2*x) $(y)", "$(-2*x) $(y)", "$(-1*x) $(y)"]...)
+    end
+
+    if y != 0 
+      push!(extra_transition_substrings, ["$(x) $(2*y)", "$(x) $(-2*y)", "$(x) $(-1*y)"]...)
+    end
+  end
+  unique!(extra_transition_substrings)
+
   for e in keys(event_vector_dict)
-    if (occursin("true", e) || occursin("|", e)) && e in keys(small_event_vector_dict)
+    if !(e in ["true", "left", "right", "up", "down"] || foldl(|, map(id -> occursin("(move (prev obj$(id)", e), non_list_object_ids), init=false) || foldl(|, map(str -> occursin(str, e), extra_transition_substrings), init=false) )
       delete!(small_event_vector_dict, e)
     end
   end
+  # ----- END: construct small_event_vector_dict
 
   if transition_param 
     small_events = construct_compound_events(collect(keys(small_event_vector_dict)), small_event_vector_dict, Set(), object_decomposition)
@@ -1266,14 +1563,24 @@ function generate_object_specific_multi_automaton_sketch(co_occurring_event, upd
     distinct_events = sort(unique(vcat(collect(values(sketch_event_arrs_dict))...)))  
     sketch_event_arrs_dict_formatted = Dict(map(id -> id => map(e -> findall(x -> x == e, distinct_events)[1], sketch_event_arrs_dict[id]) , collect(keys(sketch_event_arrs_dict)))) # map(e -> findall(x -> x == e, distinct_events)[1], sketch_event_trajectory)
     
+    # if the object didn't exist yet, change the event from "true" to "false" ("0")
+    for id in object_ids 
+      for time in 1:length(object_mapping[id])
+        if isnothing(object_mapping[id][time])
+          sketch_event_arrs_dict_formatted[id][time] = 0
+        end
+      end
+    end
+
+
     if length(distinct_events) > 9
       return [([], [], [], "")]
     end
 
     true_char = "0"
-    if "true" in distinct_events 
-      true_char = string(findall(x -> x == "true", distinct_events)[1])
-    end
+    # if "true" in distinct_events 
+    #   true_char = string(findall(x -> x == "true", distinct_events)[1])
+    # end
 
     # construct sketch update function input array
     sketch_update_function_arr = Dict(map(id -> id => ["0" for i in 1:length(sketch_event_arrs_dict_formatted[object_ids[1]])], object_ids))
@@ -1285,40 +1592,58 @@ function generate_object_specific_multi_automaton_sketch(co_occurring_event, upd
       end
     end
 
+    # # TRIM sketch_update_function_arr and sketch_event_arr 
+    # if true_char != "0"
+    #   for id in object_ids 
+    #     true_event_times = filter(y -> y != length(sketch_event_arr[id]), findall(x -> string(x) == true_char, sketch_event_arr[id]))
+    #     sketch_event_arr[id] = filter(x -> string(x) != true_char, sketch_event_arr[id]) # remove all "true" events from event array
+  
+    #     # remove all update functions corresponding to "true" events from update function array 
+    #     sketch_update_function_arr[id] = [sketch_update_function_arr[id][i] for i in 1:length(sketch_update_function_arr[id]) if !(i in true_event_times)]
+    #   end
+    # end
+    
+    min_states_dict = Dict(map(id -> id => length(unique(filter(x -> x != "0", sketch_update_function_arr[id]))), object_ids))
+    min_transitions_dict = Dict(map(id -> id => length(unique(filter(x -> (x[1] != x[2]) && (x[1] != "0") && (x[2] != "0"), collect(zip(sketch_update_function_arr[id], vcat(sketch_update_function_arr[id][2:end], -1)))))) - 1, object_ids))
+    start_state_dict = Dict(map(id -> id => vcat(filter(x -> x != "0", sketch_update_function_arr[id]), "-1")[1], object_ids))
+
     sketch_program = """ 
     include "$(sketch_directory)sketchlib/string.skh"; 
     include "$(sketch_directory)test/sk/numerical/mstatemachine.skh";
     
-    bit recognize_obj_specific([int n], char[n] events, int[n] functions, int start, char true_char) {
-        return matches(MSM_obj_specific(events, start, true_char), functions);
+    bit recognize_obj_specific([int n], char[n] events, int[n] functions, int start, char true_char, int min_states, int min_transitions) {
+        return matches(MSM_obj_specific(events, start, true_char, min_states, min_transitions, start), functions);
     }
 
     $(join(map(i -> """harness void h$(i)() {
-                          int start = ??;
+                          int start = $(start_state_dict[object_ids[1]] != "-1" ? start_state_dict[object_ids[1]] : "??");
                           assert recognize_obj_specific({ $(join(map(c -> "'$(c)'", sketch_event_arrs_dict_formatted[object_ids[i]]), ", ")) }, 
                                                         { $(join(sketch_update_function_arr[object_ids[i]], ", ")) }, 
                                                         start, 
-                                                        '$(true_char)');
+                                                        '$(true_char)',
+                                                        $(min_states_dict[object_ids[i]]),
+                                                        $(min_transitions_dict[object_ids[i]]));
                         }""", collect(1:length(object_ids))), "\n\n"))
     """
 
     ## save sketch program as file 
-    open("multi_automata_sketch.sk","w") do io
+    sketch_file_name = "multi_automata_sketch_$(run_id).sk"
+    open(sketch_file_name,"w") do io
       println(io, sketch_program)
     end
 
     # run Sketch query
     if sketch_timeout == 0 
-      command = "$(sketch_directory)sketch --bnd-unroll-amnt $(length(sketch_event_arrs_dict_formatted[object_ids[1]]) + 2) --fe-output-code multi_automata_sketch.sk"
+      command = "$(sketch_directory)sketch --bnd-unroll-amnt $(length(sketch_event_arrs_dict_formatted[object_ids[1]]) + 2) --fe-output-code --bnd-mbits 6 --fe-tempdir $(temp_directory) $(sketch_file_name)"
     else
       if Sys.islinux() 
-        command = "timeout $(sketch_timeout) $(sketch_directory)sketch --bnd-unroll-amnt $(length(sketch_event_arrs_dict_formatted[object_ids[1]]) + 2) --fe-output-code multi_automata_sketch.sk"
+        command = "timeout $(sketch_timeout) $(sketch_directory)sketch --bnd-unroll-amnt $(length(sketch_event_arrs_dict_formatted[object_ids[1]]) + 2) --fe-output-code --bnd-mbits 6 --fe-tempdir $(temp_directory) $(sketch_file_name)"
       else
-        command = "gtimeout $(sketch_timeout) $(sketch_directory)sketch --bnd-unroll-amnt $(length(sketch_event_arrs_dict_formatted[object_ids[1]]) + 2) --fe-output-code multi_automata_sketch.sk"
+        command = "gtimeout $(sketch_timeout) $(sketch_directory)sketch --bnd-unroll-amnt $(length(sketch_event_arrs_dict_formatted[object_ids[1]]) + 2) --fe-output-code --bnd-mbits 6 --fe-tempdir $(temp_directory) $(sketch_file_name)"
       end
     end
     
-    # @show command 
+    @show command 
 
     sketch_output = try 
                       readchomp(eval(Meta.parse("`$(command)`")))
@@ -1328,7 +1653,9 @@ function generate_object_specific_multi_automaton_sketch(co_occurring_event, upd
 
     if !occursin("The sketch could not be resolved.", sketch_output) && sketch_output != ""
       # update intAsChar and add main function to output cpp file 
-      f = open("multi_automata_sketch.cpp", "r")
+      cpp_file_name = "multi_automata_sketch_$(run_id).cpp"
+      cpp_out_file_name = "multi_automata_sketch_$(run_id).out"
+      f = open(cpp_file_name, "r")
       cpp_content = read(f, String)
       close(f)
 
@@ -1349,16 +1676,16 @@ function generate_object_specific_multi_automaton_sketch(co_occurring_event, upd
       }
       """)
 
-      open("multi_automata_sketch.cpp", "w+") do io
+      open(cpp_file_name, "w+") do io
         println(io, modified_cpp_content)
       end
 
       # compile modified cpp program 
-      command = "g++ -o multi_automata_sketch.out multi_automata_sketch.cpp"
+      command = "g++ -o $(cpp_out_file_name) $(cpp_file_name)"
       compile_output = readchomp(eval(Meta.parse("`$(command)`"))) 
 
       # run compiled cpp program 
-      command = "./multi_automata_sketch.out"
+      command = "./$(cpp_out_file_name)"
       full_run_output = readchomp(eval(Meta.parse("`$(command)`")))  
       full_run_output = replace(full_run_output, "\x01" => "")
       
@@ -1467,7 +1794,7 @@ function generate_object_specific_multi_automaton_sketch(co_occurring_event, upd
       if incremental 
         return [unique(on_clauses), unique(state_update_on_clauses), new_object_decomposition, state_update_times]  
       else
-        push!(solutions, [(accept_values, object_field_values, unique(transitions), co_occurring_event)])
+        push!(solutions, [(accept_values, object_field_values, unique(transitions), co_occurring_event)]...)
       end
     end
   end 

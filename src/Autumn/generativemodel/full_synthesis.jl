@@ -1,7 +1,7 @@
 include("singletimestepsolution.jl");
-include("global_heuristic_automata_synthesis.jl")
 include("sketch_automata_synthesis.jl")
 include("sketch_multi_automata_synthesis.jl")
+include("global_heuristic_automata_synthesis.jl")
 function workshop_evaluation() 
   sols = synthesize_program("wind", singlecell=false, interval_painting_param=true, upd_func_spaces=[1])
   sols = synthesize_program("disease", singlecell=false, upd_func_spaces=[2]) # remove lines 515, 516, 518, 519

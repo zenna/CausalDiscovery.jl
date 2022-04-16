@@ -194,7 +194,7 @@ function generate_hypothesis_positions(position, environment_vars, object_types,
 
           disps = [(0, scalar), (0, -scalar), (scalar, 0), (-scalar, 0)]
           for disp in disps 
-            push!(choices, "(move (prev obj$(object.id)) $(disp[1]) $(disp[2]))")
+            push!(choices, "(.. (move (prev obj$(object.id)) $(disp[1]) $(disp[2])) origin)")
           end
 
         end 
@@ -331,13 +331,13 @@ function gen_event_bool_human_prior(object_decomposition, object_id, type_id, us
     push!(choices, "(== (% (prev time) $(base_)) $(offset))")
   end
 
-  push!(choices, "(== (% (prev time) 100) 99)")
-  push!(choices, "(== (% (prev time) 12) 11)")
-  push!(choices, "(== (% (prev time) 16) 15)")
+  # push!(choices, "(== (% (prev time) 100) 99)")
+  # push!(choices, "(== (% (prev time) 12) 11)")
+  # push!(choices, "(== (% (prev time) 16) 15)")
 
-  push!(choices, "(== (prev time) 199)")
-  push!(choices, "(== (prev time) 149)")
-  push!(choices, "(== (prev time) 224)")
+  # push!(choices, "(== (prev time) 199)")
+  # push!(choices, "(== (prev time) 149)")
+  # push!(choices, "(== (prev time) 224)")
 
   for key in collect(keys(source_exists_events_dict))
     exists_event, _ = source_exists_events_dict[key]
@@ -358,6 +358,7 @@ function gen_event_bool_human_prior(object_decomposition, object_id, type_id, us
   # (non-list object)-based
   if non_list_objects != []  
     for object_1 in non_list_objects
+      push!(choices, "(.. (prev obj$(object_1.id)) alive)")
 
       displacements = []
       if type_displacements[object_1.type.id] != []
