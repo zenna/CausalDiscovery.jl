@@ -515,7 +515,7 @@ function generate_on_clauses_GLOBAL(run_id, matrix, unformatted_matrix, object_d
 
             # determine if state is global or object-specific 
             state_is_global = true 
-            if length(object_ids_with_type) == 1 # foldl(&, map(u -> occursin("addObj", u), update_functions), init=true) ||
+            if length(object_ids_with_type) == 1 || foldl(&, map(u -> occursin("addObj", u), update_functions), init=true)
               state_is_global = true
             else
               state_is_global = false
@@ -2037,6 +2037,10 @@ function generate_new_object_specific_state_GLOBAL(co_occurring_event, update_fu
   @show transition_same 
   @show transition_threshold 
   @show num_transition_decisions
+
+  if co_occurring_event == "(== 1 1)"
+    co_occurring_event = "true"
+  end
 
   state_update_times = deepcopy(init_state_update_times)  
   failed = false
