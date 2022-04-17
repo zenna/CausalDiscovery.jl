@@ -2568,11 +2568,13 @@ function construct_filtered_matrices_pedro(old_matrix, object_decomposition, use
       if !isnothing(regularity_matrix)
         regularity_found = true
 
-        # only regularity types can use farthestRandom 
-        for t in object_types 
-          if !(t.id in map(x -> x.id, actual_regularity_types))
-            object_ids_with_type = filter(id -> filter(obj -> !isnothing(obj), object_mapping[id])[1].type.id == t.id, collect(keys(object_mapping)))
-            
+        # only regularity types can use farthestRandom
+        filtered_matrix = construct_filtered_matrices(matrix, object_decomposition, user_events)[1] 
+        for t in object_types
+          object_ids_with_type = filter(id -> filter(obj -> !isnothing(obj), object_mapping[id])[1].type.id == t.id, collect(keys(object_mapping)))
+          distinct_funcs = filter(r -> r != "" && !occursin("addObj", r) && !occursin("removeObj", r), unique(vcat(map(id -> map(x -> replace(x, ".. obj id) $(id)" => ".. obj id) x"), vcat(filtered_matrix[id, :]...)), object_ids_with_type)...)))
+     
+          if !(t.id in map(x -> x.id, actual_regularity_types)) && !(length(distinct_funcs) == 1 && (occursin("closest", join(distinct_funcs)) || occursin("farthest", join(distinct_funcs))))            
             for id in object_ids_with_type
               for time in 1:size(matrix)[2]
                 filter!(r -> !occursin("farthest", r) && !occursin("closest", r), regularity_matrix[id, time])
@@ -2608,13 +2610,18 @@ function construct_filtered_matrices_pedro(old_matrix, object_decomposition, use
     possible_brownian_types = identify_brownian_types(object_decomposition, user_events, agent_type, matrix, matrix, [])
 
     # only regularity types can use farthestRandom 
+    filtered_matrix = construct_filtered_matrices(matrix, object_decomposition, user_events)[1]
     for t in object_types 
       object_ids_with_type = filter(id -> filter(obj -> !isnothing(obj), object_mapping[id])[1].type.id == t.id, collect(keys(object_mapping)))
-      
-      for id in object_ids_with_type
-        for time in 1:size(matrix)[2]
-          filter!(r -> !occursin("farthest", r) && !occursin("closest", r), matrix[id, time])
+      distinct_funcs = filter(r -> r != "" && !occursin("addObj", r) && !occursin("removeObj", r), unique(vcat(map(id -> map(x -> replace(x, ".. obj id) $(id)" => ".. obj id) x"), vcat(filtered_matrix[id, :]...)), object_ids_with_type)...)))
+      if !(length(distinct_funcs) == 1 && (occursin("closest", join(distinct_funcs)) || occursin("farthest", join(distinct_funcs))))
+        
+        for id in object_ids_with_type
+          for time in 1:size(matrix)[2]
+            filter!(r -> !occursin("farthest", r) && !occursin("closest", r), matrix[id, time])
+          end
         end
+
       end
     end
 
@@ -2842,7 +2849,7 @@ function identify_brownian_types(object_decomposition, user_events, agent_type, 
   non_brownian_types = []
   type_to_distinct_disp_dirs = Dict(map(type -> type.id => unique(vcat(collect(values(displacement_dict[type.id]))...)), possible_brownian_types))
   for type_id in collect(keys(type_to_distinct_disp_dirs))
-    if length(type_to_distinct_disp_dirs[type_id]) != 4 
+    if length(type_to_distinct_disp_dirs[type_id]) < 3
       push!(non_brownian_types, type_id)
     else
       object_ids_with_type = object_ids_with_type_dict[type_id]
@@ -2969,12 +2976,12 @@ function construct_regularity_matrix_old(matrix, unformatted_matrix, object_deco
       nonzero_displacement_locations = findall(d -> d != (0, 0), displacements)
       zero_displacement_segments = getindex.(Ref(displacements), UnitRange.([1; nonzero_displacement_locations .+ 1], [nonzero_displacement_locations .- 1; length(displacements)]))
       interval_sizes = unique(map(s -> length(s), zero_displacement_segments[2:end-1]))
-      exact_intervals = (length(interval_sizes) == 1) && interval_sizes[1] != 0 
+      exact_intervals = (length(interval_sizes) == 1) && interval_sizes[1] != 0 && interval_sizes[1] < 20
       inexact_intervals = false
       if !exact_intervals && length(interval_sizes) > 1
         interval_size = minimum(interval_sizes)
         other_interval_sizes = filter(i -> i != interval_size, interval_sizes)
-        if filter(x -> x != 0, unique(map(i -> (i + 1) % (interval_size + 1), other_interval_sizes))) == []
+        if interval_size != 0 && interval_size < 20 && filter(x -> x != 0, unique(map(i -> (i + 1) % (interval_size + 1), other_interval_sizes))) == []
           inexact_intervals = true
         end
       end
@@ -3068,12 +3075,12 @@ function construct_regularity_matrix(matrix, unformatted_matrix, object_decompos
       nonzero_displacement_locations = findall(d -> d != (0, 0), displacements)
       zero_displacement_segments = getindex.(Ref(displacements), UnitRange.([1; nonzero_displacement_locations .+ 1], [nonzero_displacement_locations .- 1; length(displacements)]))
       interval_sizes = unique(map(s -> length(s), zero_displacement_segments[2:end-1]))
-      exact_intervals = (length(interval_sizes) == 1) && interval_sizes[1] != 0 
+      exact_intervals = (length(interval_sizes) == 1) && interval_sizes[1] != 0 && interval_sizes[1] < 20
       inexact_intervals = false
       if !exact_intervals && length(interval_sizes) > 1
         interval_size = minimum(interval_sizes)
         other_interval_sizes = filter(i -> i != interval_size, interval_sizes)
-        if filter(x -> x != 0, unique(map(i -> (i + 1) % (interval_size + 1), other_interval_sizes))) == []
+        if (interval_size != 0) && (interval_size < 20) && filter(x -> x != 0, unique(map(i -> (i + 1) % (interval_size + 1), other_interval_sizes))) == []
           inexact_intervals = true
         end
       end

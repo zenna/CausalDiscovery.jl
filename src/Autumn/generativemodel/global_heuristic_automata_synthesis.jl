@@ -221,15 +221,16 @@ function generate_on_clauses_GLOBAL(run_id, matrix, unformatted_matrix, object_d
           if occursin("addObj", update_function) || length(object_ids_with_type) == 1
             state_is_global = true
           else
-            for time in 1:length(user_events)
-              observation_values = map(id -> observation_vectors_dict[update_function][id][time], object_ids_with_type)
-              if (0 in observation_values) && (1 in observation_values)
-                @show update_function 
-                @show time 
-                state_is_global = false
-                break
-              end
-            end
+            state_is_global = false
+            # for time in 1:length(user_events)
+            #   observation_values = map(id -> observation_vectors_dict[update_function][id][time], object_ids_with_type)
+            #   if (0 in observation_values) && (1 in observation_values)
+            #     @show update_function 
+            #     @show time 
+            #     state_is_global = false
+            #     break
+            #   end
+            # end
           end
   
           # compute co-occurring event 
@@ -265,9 +266,9 @@ function generate_on_clauses_GLOBAL(run_id, matrix, unformatted_matrix, object_d
           # end
 
           if co_occurring_param 
-            co_occurring_events = sort(filter(x -> !occursin("(list)", x[1]) && !occursin("(== (prev addedObjType", x[1]) && !occursin("objClicked", x[1]) && !occursin("intersects (list", x[1]) && (!occursin("&", x[1]) || x[1] == "(& clicked (isFree click))") && !(occursin("(! (in (objClicked click (prev addedObjType3List)) (filter (--> obj (== (.. obj id) x)) (prev addedObjType3List))))", x[1])), co_occurring_events), by=x -> x[2]) # [1][1]
+            co_occurring_events = sort(filter(x -> (!occursin("(list)", x[1]) || occursin("distance", x[1])) && !occursin("(== (prev addedObjType", x[1]) && !occursin("objClicked", x[1]) && !occursin("intersects (list", x[1]) && (!occursin("&", x[1]) || x[1] == "(& clicked (isFree click))") && !(occursin("(! (in (objClicked click (prev addedObjType3List)) (filter (--> obj (== (.. obj id) x)) (prev addedObjType3List))))", x[1])), co_occurring_events), by=x -> x[2]) # [1][1]
           else
-            co_occurring_events = sort(filter(x -> !occursin("(list)", x[1]) && !occursin("|", x[1]) && !occursin("(== (prev addedObjType", x[1]) && !occursin("objClicked", x[1]) && !occursin("intersects (list", x[1]) && (!occursin("&", x[1]) || x[1] == "(& clicked (isFree click))")  && !(occursin("(! (in (objClicked click (prev addedObjType3List)) (filter (--> obj (== (.. obj id) x)) (prev addedObjType3List))))", x[1])), co_occurring_events), by=x -> x[2]) # [1][1]
+            co_occurring_events = sort(filter(x -> (!occursin("(list)", x[1]) || occursin("distance", x[1])) && !occursin("|", x[1]) && !occursin("(== (prev addedObjType", x[1]) && !occursin("objClicked", x[1]) && !occursin("intersects (list", x[1]) && (!occursin("&", x[1]) || x[1] == "(& clicked (isFree click))")  && !(occursin("(! (in (objClicked click (prev addedObjType3List)) (filter (--> obj (== (.. obj id) x)) (prev addedObjType3List))))", x[1])), co_occurring_events), by=x -> x[2]) # [1][1]
           end
   
           if state_is_global 
@@ -434,20 +435,21 @@ function generate_on_clauses_GLOBAL(run_id, matrix, unformatted_matrix, object_d
             if length(object_ids_with_type) == 1 || foldl(&, map(u -> occursin("addObj", u), update_functions), init=true)
               state_is_global = true
             else
-              for update_function in update_functions 
-                for time in 1:length(user_events)
-                  observation_values = map(id -> observation_vectors_dict[update_function][id][time], object_ids_with_type)
-                  if (0 in observation_values) && (1 in observation_values)
-                    # @show update_function 
-                    # @show time 
-                    state_is_global = false
-                    break
-                  end
-                end
-                if !state_is_global
-                  break
-                end
-              end
+              state_is_global = false
+              # for update_function in update_functions 
+              #   for time in 1:length(user_events)
+              #     observation_values = map(id -> observation_vectors_dict[update_function][id][time], object_ids_with_type)
+              #     if (0 in observation_values) && (1 in observation_values)
+              #       # @show update_function 
+              #       # @show time 
+              #       state_is_global = false
+              #       break
+              #     end
+              #   end
+              #   if !state_is_global
+              #     break
+              #   end
+              # end
             end
 
             if foldl(&, map(u -> occursin("addObj", u), update_functions), init=true) && !state_is_global 
@@ -516,27 +518,28 @@ function generate_on_clauses_GLOBAL(run_id, matrix, unformatted_matrix, object_d
             if length(object_ids_with_type) == 1 # foldl(&, map(u -> occursin("addObj", u), update_functions), init=true) ||
               state_is_global = true
             else
-              for update_function in update_functions 
-                for time in 1:length(user_events)
-                  # observation_values = map(id -> observation_vectors_dict[update_function][id][time], object_ids_with_type)
-                  observation_values = []
-                  for id in object_ids_with_type 
-                    if id in collect(keys(observation_vectors_dict[update_function]))
-                      push!(observation_values, observation_vectors_dict[update_function][id][time])
-                    end
-                  end
+              state_is_global = false
+              # for update_function in update_functions 
+              #   for time in 1:length(user_events)
+              #     # observation_values = map(id -> observation_vectors_dict[update_function][id][time], object_ids_with_type)
+              #     observation_values = []
+              #     for id in object_ids_with_type 
+              #       if id in collect(keys(observation_vectors_dict[update_function]))
+              #         push!(observation_values, observation_vectors_dict[update_function][id][time])
+              #       end
+              #     end
 
-                  if (0 in observation_values) && (1 in observation_values)
-                    @show update_function 
-                    @show time 
-                    state_is_global = false
-                    break
-                  end
-                end
-                if !state_is_global
-                  break
-                end
-              end
+              #     if (0 in observation_values) && (1 in observation_values)
+              #       @show update_function 
+              #       @show time 
+              #       state_is_global = false
+              #       break
+              #     end
+              #   end
+              #   if !state_is_global
+              #     break
+              #   end
+              # end
             end
 
             println("CURRENT DEBUGGING")
@@ -1211,6 +1214,10 @@ function generate_new_state_GLOBAL(co_occurring_event, times_dict, event_vector_
   @show transition_same 
   @show transition_threshold 
   @show num_transition_decisions
+
+  if co_occurring_event == "(== 1 1)"
+    co_occurring_event = "true"
+  end
 
   init_state_update_times_dict = deepcopy(state_update_times_dict)
   update_functions = collect(keys(times_dict))
