@@ -573,10 +573,10 @@ function gen_event_bool_human_prior(object_decomposition, object_id, type_id, us
                 for x in -3:3 
                   for y in -3:3
                     if abs(x) + abs(y) < 2 && (x == 0 || y == 0) 
-                      if object_type_1.id == 2 && object_type_2.id == 1 
+                      # if object_type_1.id == 2 && object_type_2.id == 1 
                         push!(choices, "(in $(v) (map (--> obj (.. obj field1)) (filter (--> obj (intersects (move (prev obj) $(x*scalar) $(y*scalar)) (filter (--> obj (== (.. obj id) x)) (prev addedObjType$(object_type_2.id)List)))) (prev addedObjType$(object_type_1.id)List))))")
                         push!(choices, "(in $(v) (map (--> obj (.. obj field1)) (filter (--> obj (intersects (move (prev obj) $(x*scalar) $(y*scalar)) (prev addedObjType$(object_type_2.id)List))) (filter (--> obj (== (.. obj id) x)) (prev addedObjType$(object_type_1.id)List)))))")
-                      end
+                      # end
                       # push!(displacements, "(map (--> obj (move (prev obj) $(x*scalar) $(y*scalar))) $(filtered_list))")
                       # push!(displacements, "(map (--> obj (moveNoCollision (prev obj) $(x*scalar) $(y*scalar))) $(filtered_list))")          
                     end

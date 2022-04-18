@@ -1077,7 +1077,7 @@ function parse_and_map_objects(observations, gridsize=16; singlecell=false, pedr
       curr_objects_with_type = filter(o -> o.type.id == type.id, objects)
       next_objects_with_type = filter(o -> o.type.id == type.id, next_objects)
       
-      closest_objects = compute_closest_objects(curr_objects_with_type, next_objects_with_type)
+      closest_objects = compute_closest_objects(curr_objects_with_type, next_objects_with_type, object_mapping, time, grid_size)
       if time == 29 && type.id == 4
         # # # println("-------------- CHECK ME OUT 1")
         # # # @show curr_objects_with_type 
@@ -1170,7 +1170,7 @@ function parse_and_map_objects(observations, gridsize=16; singlecell=false, pedr
           end
 
           # reorder closest_objects
-          closest_objects = compute_closest_objects(curr_objects_with_type, next_objects_with_type)
+          closest_objects = compute_closest_objects(curr_objects_with_type, next_objects_with_type, object_mapping, time, grid_size)
           # # collect tuples with the same minimum distance 
           # equal_distance_dict = Dict()
           # for y in closest_objects 
