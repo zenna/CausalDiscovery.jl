@@ -238,6 +238,15 @@ function synthesize_update_functions_bulk(possible_rules_matrix, object_decompos
   object_types, object_mapping, background, grid_size = object_decomposition
   start_objects = sort(filter(obj -> obj != nothing, [object_mapping[i][1] for i in 1:length(collect(keys(object_mapping)))]), by=(x -> x.id))
 
+  wall_types = filter(t -> t.color == "darkgray", object_types)
+  if wall_types != []
+    wall_type = wall_types[1]
+    wall_ids = filter(id -> filter(obj -> !isnothing(obj), object_mapping[id])[1].type.id == wall_type.id, collect(keys(object_mapping)))
+  else
+    wall_type = nothing
+    wall_ids = []
+  end
+
   matrix = [[] for object_id in 1:length(collect(keys(object_mapping))), time in 1:(length(observations) - 1)]
   unformatted_matrix = [[] for object_id in 1:length(collect(keys(object_mapping))), time in 1:(length(observations) - 1)]
 
@@ -406,12 +415,36 @@ function synthesize_update_functions_bulk(possible_rules_matrix, object_decompos
         if occursin("closestLeft", join(matrix[object_id, time])) || occursin("closestRight", join(matrix[object_id, time])) || occursin("closestUp", join(matrix[object_id, time])) || occursin("closestDown", join(matrix[object_id, time]))
           closest_update_functions = filter(r -> occursin("closestLeft", r) || occursin("closestRight", r) || occursin("closestUp", r) || occursin("closestDown", r), matrix[object_id, time])
           closest_update_functions_collapsed = map(r -> replace(replace(replace(replace(r, "closestLeft" => "closestRandom"), "closestRight" => "closestRandom"), "closestUp" => "closestRandom"), "closestDown" => "closestRandom"), closest_update_functions)
+          pos = object_mapping[object_id][time].position
 
           for update_func in unique(closest_update_functions_collapsed)
             c = count(x -> x == update_func, closest_update_functions_collapsed)
             if c != 4 
-              filter!(r -> r != update_func, closest_update_functions_collapsed)
+              indices = findall(x -> x == update_func, closest_update_functions_collapsed)
+              invalid_choice = true 
+              for index in indices 
+                func = closest_update_functions[index]
+                if occursin("Left", func)
+                  wall_pos = (pos[1] - 10, pos[2])
+                elseif occursin("Right", func)
+                  wall_pos = (pos[1] + 10, pos[2])
+                elseif occursin("Up", func)
+                  wall_pos = (pos[1], pos[2] - 10)
+                else
+                  wall_pos = (pos[1], pos[2] + 10)
+                end
+                if filter(id -> filter(obj -> !isnothing(obj), object_mapping[id])[1].position == wall_pos, wall_ids) != [] 
+                  invalid_choice = false 
+                  break
+                end
+              end
+
+              if invalid_choice 
+                filter!(r -> r != update_func, closest_update_functions_collapsed)
+              end
+
             end
+
           end
           filter!(r -> !(r in closest_update_functions), matrix[object_id, time])
           push!(matrix[object_id, time], closest_update_functions_collapsed...)
@@ -421,11 +454,34 @@ function synthesize_update_functions_bulk(possible_rules_matrix, object_decompos
         if occursin("farthestLeft", join(matrix[object_id, time])) || occursin("farthestRight", join(matrix[object_id, time])) || occursin("farthestUp", join(matrix[object_id, time])) || occursin("farthestDown", join(matrix[object_id, time]))
           farthest_update_functions = filter(r -> occursin("farthestLeft", r) || occursin("farthestRight", r) || occursin("farthestUp", r) || occursin("farthestDown", r), matrix[object_id, time])
           farthest_update_functions_collapsed = map(r -> replace(replace(replace(replace(r, "farthestLeft" => "farthestRandom"), "farthestRight" => "farthestRandom"), "farthestUp" => "farthestRandom"), "farthestDown" => "farthestRandom"), farthest_update_functions)
+          pos = object_mapping[object_id][time].position
 
           for update_func in unique(farthest_update_functions_collapsed)
             c = count(x -> x == update_func, farthest_update_functions_collapsed)
             if c != 4 
-              filter!(r -> r != update_func, farthest_update_functions_collapsed)
+              indices = findall(x -> x == update_func, farthest_update_functions_collapsed)
+              invalid_choice = true 
+              for index in indices 
+                func = farthest_update_functions[index]
+                if occursin("Left", func)
+                  wall_pos = (pos[1] - 10, pos[2])
+                elseif occursin("Right", func)
+                  wall_pos = (pos[1] + 10, pos[2])
+                elseif occursin("Up", func)
+                  wall_pos = (pos[1], pos[2] - 10)
+                else
+                  wall_pos = (pos[1], pos[2] + 10)
+                end
+                if filter(id -> filter(obj -> !isnothing(obj), object_mapping[id])[1].position == wall_pos, wall_ids) != [] 
+                  invalid_choice = false 
+                  break
+                end
+              end
+
+              if invalid_choice 
+                filter!(r -> r != update_func, farthest_update_functions_collapsed)
+              end
+
             end
           end
           filter!(r -> !(r in farthest_update_functions), matrix[object_id, time])
@@ -1177,10 +1233,11 @@ function sort_closest_objects_by_age(tuples)
   reverse(sort(tuples, by=tup -> tup[1])) # tup[1] is object_id; lower object_id means older object
 end
 
-function compute_closest_objects(curr_objects, next_objects)
+function compute_closest_objects(curr_objects, next_objects, object_mapping, time, grid_size)
   if length(curr_objects) == 0 || length(next_objects) == 0 
     []
   else 
+    object_type = curr_objects[1].type
     zero_distance_objects = []
     closest_objects = []
     for object in curr_objects
@@ -1189,7 +1246,16 @@ function compute_closest_objects(curr_objects, next_objects)
         if minimum(distances) == 0
           push!(zero_distance_objects, (object.id, map(obj -> obj.id, filter(o -> distance(object.position, o.position) == minimum(distances), next_objects))))
         else
-          push!(closest_objects, (object.id, map(obj -> obj.id, filter(o -> distance(object.position, o.position) == minimum(distances), next_objects))))
+          # TODO: check if object type has color field; if so, cannot have next object with different color at the moment (current Autumn benchmark suite)
+          # DONE
+          if object_type.custom_fields != []
+            color = object.custom_field_values[end]
+            next_objects_of_same_color = filter(o -> o.custom_field_values[end] == color, next_objects)
+            closest_ids = map(obj -> obj.id, filter(o -> distance(object.position, o.position) == minimum(distances), next_objects_of_same_color))
+            push!(closest_objects, (object.id, closest_ids))
+          else
+            push!(closest_objects, (object.id, map(obj -> obj.id, filter(o -> distance(object.position, o.position) == minimum(distances), next_objects))))
+          end
         end 
       end
     end
@@ -1211,32 +1277,22 @@ function compute_closest_objects(curr_objects, next_objects)
         tuples = zero_distance_objects_lengths_dict[len]
         tuples_with_same_color_next = filter(t -> length(filter(next_id -> filter(y -> y.id == next_id, next_objects)[1].custom_field_values[1] == filter(z -> z.id == t[1], curr_objects)[1].custom_field_values[1], t[2])) > 0, tuples)
         tuples_without_same_color_next = filter(t -> length(filter(next_id -> filter(y -> y.id == next_id, next_objects)[1].custom_field_values[1] == filter(z -> z.id == t[1], curr_objects)[1].custom_field_values[1], t[2])) == 0, tuples)
-        modified_tuples = vcat(sort_closest_objects_by_age(tuples_with_same_color_next), sort_closest_objects_by_age(tuples_without_same_color_next))
+        modified_tuples = vcat(tuples_with_same_color_next, tuples_without_same_color_next)
         push!(zero_distance_objects_new, modified_tuples...)
         zero_distance_objects = zero_distance_objects_new
       end
     else
-      zero_distance_objects_lengths_dict = Dict()
-      for tuple in zero_distance_objects 
-        num_closest_objects = length(tuple[2])
-        if !(num_closest_objects in keys(zero_distance_objects_lengths_dict))
-          zero_distance_objects_lengths_dict[num_closest_objects] = [tuple]
-        else
-          push!(zero_distance_objects_lengths_dict[num_closest_objects], tuple)
-        end
-      end
-
-      zero_distance_objects = []
-      for len in reverse(sort(collect(keys(zero_distance_objects_lengths_dict))))
-        push!(zero_distance_objects, sort_closest_objects_by_age(zero_distance_objects_lengths_dict[len])...)
-      end 
-
+      zero_distance_objects = reverse(sort(zero_distance_objects, by=x -> length(x[2])))
     end
     
     # collect tuples with the same minimum distance 
     equal_distance_dict = Dict()
-    for x in closest_objects 
-      d = distance(filter(o -> o.id == x[1], curr_objects)[1].position, filter(o -> o.id == x[2][1], next_objects)[1].position)
+    for x in closest_objects
+      if x[2] == [] # only happens when there is no same-color next (singlecell=false)
+        d = grid_size
+      else
+        d = distance(filter(o -> o.id == x[1], curr_objects)[1].position, filter(o -> o.id == x[2][1], next_objects)[1].position)
+      end
       if !(d in keys(equal_distance_dict))
         equal_distance_dict[d] = [x] 
       else
@@ -1252,14 +1308,23 @@ function compute_closest_objects(curr_objects, next_objects)
 
     # if the object type has a color field, order tuples with a same-color closest next object before those without one
     if length([curr_objects..., next_objects...][1].type.custom_fields) == 0 # no color field
+      # println("WOO")
+      # @show time 
+      # @show equal_distance_dict
+      for key in sort(collect(keys(equal_distance_dict)))
+        new_tuples = sort_with_velocity_bias(equal_distance_dict[key], curr_objects, next_objects, object_mapping, time)
+        sorted_tuples = sort(new_tuples, by=tuple -> intersect(filter(o -> o.id == tuple[1], curr_objects)[1].position, (0, (grid_size isa AbstractArray ? grid_size .- 1 : [grid_size - 1])...)) == [] ? 0 : 1)
+        equal_distance_dict[key] = sorted_tuples
+      end
+      # @show equal_distance_dict
+      
       closest_objects = vcat(map(key -> equal_distance_dict[key], sort(collect(keys(equal_distance_dict))))...)
     else # color field
       closest_objects = []
       for key in sort(collect(keys(equal_distance_dict)))
-        # @show key 
-        # @show equal_distance_dict[key]
+        # # # @show key 
+        # # # @show equal_distance_dict[key]
 
-        equal_distance_dict[key] = sort(equal_distance_dict[key], by=x -> length(x[2]))
         next_objects_length_dict = Dict() 
         
         for tuple in equal_distance_dict[key] 
@@ -1275,7 +1340,14 @@ function compute_closest_objects(curr_objects, next_objects)
           tuples = next_objects_length_dict[len]
           tuples_with_same_color_next = filter(t -> length(filter(next_id -> filter(y -> y.id == next_id, next_objects)[1].custom_field_values[1] == filter(z -> z.id == t[1], curr_objects)[1].custom_field_values[1], t[2])) > 0, tuples)
           tuples_without_same_color_next = filter(t -> length(filter(next_id -> filter(y -> y.id == next_id, next_objects)[1].custom_field_values[1] == filter(z -> z.id == t[1], curr_objects)[1].custom_field_values[1], t[2])) == 0, tuples)
-          modified_tuples = vcat(tuples_with_same_color_next, tuples_without_same_color_next)
+          
+          tuples_with_same_color_next = sort_with_velocity_bias(tuples_with_same_color_next, curr_objects, next_objects, object_mapping, time)
+          tuples_without_same_color_next = sort_with_velocity_bias(tuples_without_same_color_next, curr_objects, next_objects, object_mapping, time)
+          
+          sorted_tuples_with_same_color_next = sort(tuples_with_same_color_next, by=tuple -> intersect(filter(o -> o.id == tuple[1], curr_objects)[1].position, (0, (grid_size isa AbstractArray ? grid_size .- 1 : [grid_size - 1])...)) == [] ? 0 : 1)
+          sorted_tuples_without_same_color_next = sort(tuples_without_same_color_next, by=tuple -> intersect(filter(o -> o.id == tuple[1], curr_objects)[1].position, (0, (grid_size isa AbstractArray ? grid_size .- 1 : [grid_size - 1])...)) == [] ? 0 : 1)
+
+          modified_tuples = vcat(sorted_tuples_with_same_color_next, sorted_tuples_without_same_color_next)
           push!(closest_objects, modified_tuples...)
         end 
       end
@@ -1284,11 +1356,42 @@ function compute_closest_objects(curr_objects, next_objects)
 
     # closest_objects = sort(closest_objects, by=x -> distance(filter(o -> o.id == x[1], curr_objects)[1].position, filter(o -> o.id == x[2][1], next_objects)[1].position))
     
-    # # # @show vcat(zero_distance_objects, closest_objects)
+    # # # # # @show vcat(zero_distance_objects, closest_objects)
     vcat(zero_distance_objects, closest_objects)  
   end
 end
 
+function sort_with_velocity_bias(tuples, curr_objects, next_objects, object_mapping, time) 
+  # println("sort_with_velocity_bias")
+  # @show tuples 
+  # @show curr_objects 
+  # @show next_objects 
+  # @show object_mapping 
+  # @show time
+  # tuple structure: (object_id, [list of closest object_id's])
+  tuples_with_matching_velocity = []
+  tuples_without_matching_velocity = []
+
+  for tuple in tuples 
+    object_id, closest_ids = tuple 
+    closest_objects = map(id -> filter(o -> o.id == id, next_objects)[1], closest_ids)
+    object = filter(x -> x.id == object_id, curr_objects)[1]
+    prev_object = time > 2 ? object_mapping[object_id][time - 2] : nothing
+    if !isnothing(prev_object)
+      prev_disp = (object.position[1] - prev_object.position[1], object.position[2] - prev_object.position[2])
+      matching_objects = filter(o -> (o.position[1] - object.position[1], o.position[2] - object.position[2]) == prev_disp, closest_objects)
+      if matching_objects != [] 
+        push!(tuples_with_matching_velocity, tuple)
+      else
+        push!(tuples_without_matching_velocity, tuple)
+      end
+    else
+      push!(tuples_without_matching_velocity, tuple)
+    end 
+  end
+
+  vcat(tuples_with_matching_velocity, tuples_without_matching_velocity)
+end
 function distance(pos1, pos2)
   pos1_x, pos1_y = pos1
   pos2_x, pos2_y = pos2
@@ -2749,7 +2852,20 @@ function update_addObj_options(matrix, brownian_types, object_mapping)
 end
 
 function identify_agent_type(object_decomposition, user_events)
-  object_types, object_mapping, _, grid_size = object_decomposition 
+  old_object_types, object_mapping, _, grid_size = object_decomposition 
+
+  possible_agent_types = []
+  for type in old_object_types 
+    object_ids_with_type = filter(id -> filter(obj -> !isnothing(obj), object_mapping[id])[1].type.id == type.id, collect(keys(object_mapping)))
+    alive_times = map(id -> findall(obj -> !isnothing(obj), object_mapping[id]), object_ids_with_type)
+    if (length(object_ids_with_type) == 1) || intersect(alive_times...) == []
+      push!(possible_agent_types, type)
+    end
+  end
+
+  if length(possible_agent_types) == 1
+    return possible_agent_types[1]
+  end
 
   left_times = findall(e -> e == "left", user_events)
   right_times = findall(e -> e == "right", user_events)
@@ -2757,7 +2873,7 @@ function identify_agent_type(object_decomposition, user_events)
   down_times = findall(e -> e == "down", user_events)
 
   types_to_match_fraction = Dict()
-  for object_type in object_types 
+  for object_type in possible_agent_types 
     type_id = object_type.id 
     object_ids_with_type = filter(id -> filter(obj -> !isnothing(obj), object_mapping[id])[1].type.id == type_id, collect(keys(object_mapping)))
 
@@ -2801,7 +2917,7 @@ function identify_agent_type(object_decomposition, user_events)
   end
 
   best_type_id = filter(t -> types_to_match_fraction[t] == maximum(collect(values(types_to_match_fraction))), collect(keys(types_to_match_fraction)))[1]
-  filter(t -> t.id == best_type_id, object_types)[1] 
+  filter(t -> t.id == best_type_id, possible_agent_types)[1] 
 end
 
 function identify_brownian_types(object_decomposition, user_events, agent_type, standard_regularity_matrix, regularity_matrix, regularity_types)
