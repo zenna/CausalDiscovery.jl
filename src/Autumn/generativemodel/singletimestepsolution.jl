@@ -2965,7 +2965,7 @@ function identify_brownian_types(object_decomposition, user_events, agent_type, 
   non_brownian_types = []
   type_to_distinct_disp_dirs = Dict(map(type -> type.id => unique(vcat(collect(values(displacement_dict[type.id]))...)), possible_brownian_types))
   for type_id in collect(keys(type_to_distinct_disp_dirs))
-    if length(type_to_distinct_disp_dirs[type_id]) < 3
+    if length(type_to_distinct_disp_dirs[type_id]) < 3 || ((type_id in map(t -> t.id, regularity_types)) && (length(type_to_distinct_disp_dirs[type_id]) == 3)) 
       push!(non_brownian_types, type_id)
     else
       object_ids_with_type = object_ids_with_type_dict[type_id]
