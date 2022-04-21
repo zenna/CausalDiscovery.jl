@@ -205,7 +205,7 @@ function generate_on_clauses_GLOBAL(run_id, matrix, unformatted_matrix, object_d
       # compute co-occurring event for each state-based update function 
       # co_occurring_events_dict = Dict() # keys are tuples (type_id, co-occurring event), values are lists of update_functions with that co-occurring event
       optimal_event_lists_dict = Dict()
-      events = filter(k -> k in ["left", "right", "up", "down", "clicked", "true", map(v -> v[1], collect(values(source_exists_events_dict)))...] || (occursin("<= (distance", k) || occursin("(prev time)", k)) && !occursin("|", k) && !occursin("&", k), collect(keys(global_event_vector_dict))) # 
+      events = filter(k -> k in ["left", "right", "up", "down", "clicked", "true", map(v -> v[1], collect(values(source_exists_events_dict)))...] || occursin("(list)", k) || (occursin("<= (distance", k) || occursin("(prev time)", k)) && !occursin("|", k) && !occursin("&", k), collect(keys(global_event_vector_dict))) # 
       @show events 
       @show global_event_vector_dict
       for type_id in collect(keys(state_based_update_functions_dict))
@@ -266,9 +266,9 @@ function generate_on_clauses_GLOBAL(run_id, matrix, unformatted_matrix, object_d
           # end
 
           if co_occurring_param 
-            co_occurring_events = sort(filter(x -> (!occursin("(list)", x[1]) || occursin("distance", x[1])) && !occursin("(== (prev addedObjType", x[1]) && !occursin("objClicked", x[1]) && !occursin("intersects (list", x[1]) && (!occursin("&", x[1]) || x[1] == "(& clicked (isFree click))") && !(occursin("(! (in (objClicked click (prev addedObjType3List)) (filter (--> obj (== (.. obj id) x)) (prev addedObjType3List))))", x[1])), co_occurring_events), by=x -> x[2]) # [1][1]
+            co_occurring_events = sort(filter(x -> (!occursin("(list)", x[1]) || occursin("distance", x[1]) || occursin("addObj", update_function)) && !occursin("(== (prev addedObjType", x[1]) && !occursin("objClicked", x[1]) && !occursin("intersects (list", x[1]) && (!occursin("&", x[1]) || x[1] == "(& clicked (isFree click))") && !(occursin("(! (in (objClicked click (prev addedObjType3List)) (filter (--> obj (== (.. obj id) x)) (prev addedObjType3List))))", x[1])), co_occurring_events), by=x -> x[2]) # [1][1]
           else
-            co_occurring_events = sort(filter(x -> (!occursin("(list)", x[1]) || occursin("distance", x[1])) && !occursin("|", x[1]) && !occursin("(== (prev addedObjType", x[1]) && !occursin("objClicked", x[1]) && !occursin("intersects (list", x[1]) && (!occursin("&", x[1]) || x[1] == "(& clicked (isFree click))")  && !(occursin("(! (in (objClicked click (prev addedObjType3List)) (filter (--> obj (== (.. obj id) x)) (prev addedObjType3List))))", x[1])), co_occurring_events), by=x -> x[2]) # [1][1]
+            co_occurring_events = sort(filter(x -> (!occursin("(list)", x[1]) || occursin("distance", x[1]) || occursin("addObj", update_function)) && !occursin("|", x[1]) && !occursin("(== (prev addedObjType", x[1]) && !occursin("objClicked", x[1]) && !occursin("intersects (list", x[1]) && (!occursin("&", x[1]) || x[1] == "(& clicked (isFree click))")  && !(occursin("(! (in (objClicked click (prev addedObjType3List)) (filter (--> obj (== (.. obj id) x)) (prev addedObjType3List))))", x[1])), co_occurring_events), by=x -> x[2]) # [1][1]
           end
   
           if state_is_global 

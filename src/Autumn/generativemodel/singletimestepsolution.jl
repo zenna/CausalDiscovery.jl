@@ -2771,8 +2771,7 @@ function construct_filtered_matrices_pedro(old_matrix, object_decomposition, use
   #   push!(filtered_matrices, brownian_matrix)
   # end
 
-  unique!(filtered_matrices)
-  filtered_matrices
+  sort_update_function_matrices(filtered_matrices, object_decomposition)
 end
 
 function remove_random_behavior_on_single_direction_types(matrix, object_decomposition)
@@ -3174,6 +3173,8 @@ function construct_regularity_matrix(matrix, unformatted_matrix, object_decompos
     type_id = type.id 
     object_ids_with_type = filter(id -> filter(obj -> !isnothing(obj), object_mapping[id])[1].type.id == type_id, collect(keys(object_mapping)))
   
+    @show type_id
+
     continuous_segments_dict = Dict()
     for id in object_ids_with_type
       @show id 
@@ -3621,21 +3622,20 @@ function construct_filtered_matrices(matrix, object_decomposition, user_events, 
     end
 
     if is_random 
-      filtered_random_matrices = filter_update_function_matrix_multiple(random_matrix, object_decomposition, multiple=true, base=base)
+      filtered_random_matrices = filter_update_function_matrix_multiple(random_matrix, object_decomposition, multiple=false, base=base)
       filtered_random_matrices = filtered_random_matrices[1:min(4, length(filtered_random_matrices))]
       push!(filtered_matrices, filtered_random_matrices...)
   
       # add "chaos" solution to filtered_matrices 
       filtered_unformatted_matrix = filter_update_function_matrix_multiple(unformatted_matrix, object_decomposition, multiple=false, base=base)[1]
-      push!(filtered_matrices, filter_update_function_matrix_multiple(construct_chaos_matrix(filtered_unformatted_matrix, object_decomposition), object_decomposition, multiple=false, base=base)...)
+      push!(filtered_matrices, filter_update_function_matrix_multiple(construct_chaos_matrix(filtered_unformatted_matrix, object_decomposition), object_decomposition, multiple=true, base=base)...)
     end
 
   end
 
   unique!(filtered_matrices)
 
-  # filtered_matrices 
-  sort_update_function_matrices(filtered_matrices, object_decomposition) 
+  filtered_matrices 
 end
 
 
@@ -3688,6 +3688,7 @@ function sort_update_function_matrices(matrices, object_decomposition)
 
   vcat(map(count -> sort(count_dict[count], by=m -> length(join(vcat(vcat(m...)...))) ), sort(collect(keys(count_dict))))...)
 end
+
 
 # generate_event, generate_hypothesis_position, generate_hypothesis_position_program 
 ## tricky things: add user events, and fix environment 
@@ -3839,6 +3840,7 @@ function generate_event(run_id, interval_offsets, source_exists_events_dict, ano
         program_str = string(program_tokens[1], insertions..., program_tokens[2])
 
         # insert state update on_clauses 
+        # @show state_update_on_clauses
         if (state_update_on_clauses != [])
           state_update_on_clauses_str = join(reverse(state_update_on_clauses), "\n  ")
           program_str = string(program_str[1:end-1], state_update_on_clauses_str, ")")

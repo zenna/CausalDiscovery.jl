@@ -196,7 +196,7 @@ function generate_hypothesis_positions(position, environment_vars, object_types,
           for disp in disps 
             push!(choices, "(move (.. (prev obj$(object.id)) origin) (Position $(disp[1]) $(disp[2])))")
           end
-
+          push!(choices, "(.. (prev obj$(object.id)) origin)")
         end 
       end
 
