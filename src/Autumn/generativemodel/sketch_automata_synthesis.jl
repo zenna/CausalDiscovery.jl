@@ -243,7 +243,7 @@ function generate_on_clauses_SKETCH_SINGLE(run_id, matrix, unformatted_matrix, o
               true_times = unique(findall(rule -> rule == update_function, vcat(object_trajectory...)))
               ordered_update_functions = ordered_update_functions_dict[type_id]
             end
-            state_solutions = generate_global_automaton_sketch(update_function, true_times, global_event_vector_dict, object_trajectory, Dict(), global_state_update_times_dict, global_object_decomposition, type_id, filtered_matrix, desired_per_matrix_solution_count, interval_painting_param, type_displacements, interval_offsets, source_exists_events_dict, addObj_based_list, double_removeObj_update_functions, sketch_timeout, ordered_update_functions, global_update_functions, co_occurring_param, co_occurring_distinct, co_occurring_same, co_occurring_threshold, transition_distinct, transition_same, transition_threshold)
+            state_solutions = generate_global_automaton_sketch(update_function, true_times, global_event_vector_dict, object_trajectory, Dict(), global_state_update_times_dict, global_object_decomposition, type_id, type_displacements, interval_offsets, source_exists_events_dict, filtered_matrix, desired_per_matrix_solution_count, interval_painting_param, addObj_based_list, double_removeObj_update_functions, sketch_timeout, ordered_update_functions, global_update_functions, co_occurring_param, co_occurring_distinct, co_occurring_same, co_occurring_threshold, transition_distinct, transition_same, transition_threshold)
             if state_solutions == [] 
               failed = true 
               break
@@ -442,7 +442,7 @@ function generate_on_clauses_SKETCH_SINGLE(run_id, matrix, unformatted_matrix, o
   solutions
 end
 
-function generate_global_automaton_sketch(update_rule, update_function_times, event_vector_dict, object_trajectory, init_global_var_dict, state_update_times_dict, object_decomposition, type_id, filtered_matrix, desired_per_matrix_solution_count, interval_painting_param, type_displacements, interval_offsets, source_exists_events_dict, addObj_based_list, double_removeObj_update_functions, sketch_timeout=0, ordered_update_functions=[], global_update_functions = [], co_occurring_param=false, co_occurring_distinct=1, co_occurring_same=1, co_occurring_threshold=1, transition_distinct=1, transition_same=1, transition_threshold=1)
+function generate_global_automaton_sketch(update_rule, update_function_times, event_vector_dict, object_trajectory, init_global_var_dict, state_update_times_dict, object_decomposition, type_id, type_displacements, interval_offsets, source_exists_events_dict, filtered_matrix, desired_per_matrix_solution_count, interval_painting_param, addObj_based_list, double_removeObj_update_functions, sketch_timeout=0, ordered_update_functions=[], global_update_functions = [], co_occurring_param=false, co_occurring_distinct=1, co_occurring_same=1, co_occurring_threshold=1, transition_distinct=1, transition_same=1, transition_threshold=1)
   println("GENERATE_NEW_STATE_SKETCH")
   @show update_rule 
   @show update_function_times
@@ -468,17 +468,26 @@ function generate_global_automaton_sketch(update_rule, update_function_times, ev
   @show transition_same
   @show transition_threshold
 
+  if co_occurring_event == "(== 1 1)"
+    co_occurring_event = "true"
+  end
 
   init_state_update_times_dict = deepcopy(state_update_times_dict)
+  update_functions = collect(keys(times_dict))
   failed = false
   solutions = []
+  object_types, object_mapping, _, _ = object_decomposition
 
   events = filter(e -> event_vector_dict[e] isa AbstractArray, collect(keys(event_vector_dict)))
+  @show events 
   atomic_events = gen_event_bool_human_prior(object_decomposition, "x", type_id isa Tuple ? type_id[1] : type_id, ["nothing"], init_global_var_dict, collect(keys(times_dict))[1], type_displacements, interval_offsets, source_exists_events_dict)
+  @show atomic_events 
   small_event_vector_dict = deepcopy(event_vector_dict)    
+  deleted = []
   for e in keys(event_vector_dict)
-    if !(e in atomic_events) || !(event_vector_dict[e] isa AbstractArray) || occursin("globalVar", e)
-      delete!(small_event_vector_dict, e)
+    if !(e in atomic_events) || (!(event_vector_dict[e] isa AbstractArray) && !(e in map(x -> "(clicked (filter (--> obj (== (.. obj id) x)) (prev addedObjType$(x)List)))", map(x -> x.id, object_types))) )
+      push!(deleted, e)
+      delete!(small_event_vector_dict, e)    
     end
   end
 
@@ -672,6 +681,8 @@ function generate_global_automaton_sketch(update_rule, update_function_times, ev
     transition_decision_strings = sort(vec(collect(Base.product([1:(transition_distinct * transition_same) for i in 1:length(init_grouped_ranges)]...))), by=tup -> sum(collect(tup)))
     transition_decision_strings = transition_decision_strings[1:min(length(transition_decision_strings), transition_threshold)]
   
+    no_object_times = findall(x -> x == [""] || occursin("addObj", join(x)), object_trajectory)
+
     for transition_decision_string in transition_decision_strings 
       transition_decision_index = 1
 
@@ -695,7 +706,7 @@ function generate_global_automaton_sketch(update_rule, update_function_times, ev
         max_global_var_value = maximum(map(tuple -> tuple[2], augmented_positive_times))
 
         # search for events within range
-        events_in_range = find_state_update_events(small_event_vector_dict, augmented_positive_times, time_ranges, start_value, end_value, init_global_var_dict, global_var_id, global_var_value)
+        events_in_range = find_state_update_events(small_event_vector_dict, augmented_positive_times, time_ranges, start_value, end_value, init_global_var_dict, global_var_id, global_var_value, no_object_times)
         events_in_range = filter(tup -> !occursin("globalVar", tup[1]) && !occursin("field1", tup[1]), events_in_range)
         
         # println("PRE PRUNING: EVENTS IN RANGE")
@@ -738,7 +749,7 @@ function generate_global_automaton_sketch(update_rule, update_function_times, ev
           end
 
         else 
-          false_positive_events = find_state_update_events_false_positives(small_event_vector_dict, init_augmented_positive_times, time_ranges, start_value, end_value, init_global_var_dict, global_var_id, 1)
+          false_positive_events = find_state_update_events_false_positives(small_event_vector_dict, init_augmented_positive_times, time_ranges, start_value, end_value, init_global_var_dict, global_var_id, 1, no_object_times)
           false_positive_events_with_state = filter(e -> !occursin("globalVar", e[1]), false_positive_events) # no state-based events in sketch-based approach
           
           events_without_true = filter(tuple -> !occursin("true", tuple[1]) && tuple[2] == minimum(map(t -> t[2], false_positive_events_with_state)), false_positive_events_with_state)
@@ -786,9 +797,9 @@ function generate_global_automaton_sketch(update_rule, update_function_times, ev
       sketch_event_arr = map(e -> findall(x -> x == e, distinct_events)[1], sketch_event_trajectory)
 
       true_char = "0"
-      if "true" in distinct_events 
-        true_char = string(findall(x -> x == "true", distinct_events)[1])
-      end
+      # if "true" in distinct_events 
+      #   true_char = string(findall(x -> x == "true", distinct_events)[1])
+      # end
 
       # construct sketch update function input array
       sketch_update_function_arr = ["0" for i in 1:length(sketch_event_trajectory)]
@@ -801,6 +812,10 @@ function generate_global_automaton_sketch(update_rule, update_function_times, ev
       # @show sketch_event_arr 
       # @show sketch_update_function_arr
 
+      min_states = length(unique(filter(x -> x != "0", sketch_update_function_arr)))
+      min_transitions = length(unique(filter(x -> (x[1] != x[2]) && (x[1] != "0") && (x[2] != "0"), collect(zip(sketch_update_function_arr, vcat(sketch_update_function_arr[2:end], -1)))))) - 1
+      start_state = sketch_update_function_arr[1]
+
       solutions = []
       for i in 1:1
         # println("BEGIN HERE")
@@ -809,17 +824,20 @@ function generate_global_automaton_sketch(update_rule, update_function_times, ev
         include "$(sketch_directory)sketchlib/string.skh"; 
         include "$(sketch_directory)test/sk/numerical/mstatemachine.skh";
       
-        bit recognize([int n], char[n] events, int[n] functions, char true_char){
-            return matches(MSM(events, true_char), functions);
+        bit recognize([int n], char[n] events, int[n] functions, char true_char, int min_states, int min_transitions, int start){
+            return matches(MSM(events, true_char, min_states, min_transitions, start), functions);
         }
       
         harness void h() {
           assert recognize( { $(join(map(c -> "'$(c)'", sketch_event_arr), ", ")) }, 
                             { $(join(sketch_update_function_arr, ", ")) }, 
-                            '$(true_char)');
+                            '$(true_char)', 
+                            $(min_states), 
+                            $(min_transitions),
+                            $(start_state));
         }
         """
-      
+
         ## save sketch program as file 
         open("automata_sketch.sk","w") do io
           println(io, sketch_program)
@@ -848,15 +866,18 @@ function generate_global_automaton_sketch(update_rule, update_function_times, ev
             include "$(sketch_directory)sketchlib/string.skh"; 
             include "$(sketch_directory)test/sk/numerical/mstatemachine.skh";
       
-            bit recognize([int n, int m], char[n] events, int[n] functions, int[n][m] old_state_seqs, char true_char) {
-                return matches(MSM_unique(events, old_state_seqs, true_char), functions);
+            bit recognize([int n, int m], char[n] events, int[n] functions, int[n][m] old_state_seqs, char true_char, int min_states, int min_transitions, int start) {
+                return matches(MSM_unique(events, old_state_seqs, true_char, min_states, min_transitions, start), functions);
             }
       
             harness void h() {
               assert recognize( { $(join(map(c -> "'$(c)'", sketch_event_arr), ", ")) }, 
                                 { $(join(sketch_update_function_arr, ", ")) },
                                 { $(join(map(old_seq -> "{ $(join(old_seq, ", ")) }", old_state_seqs), ", \n")) }, 
-                                '$(true_char)');
+                                '$(true_char)',
+                                $(min_states),
+                                $(min_transitions),
+                                $(start_state));
             }
             """
       
@@ -1738,6 +1759,8 @@ function generate_object_specific_automaton_sketch(update_rule, update_function_
     transition_decision_strings = sort(vec(collect(Base.product([1:(transition_distinct * transition_same) for i in 1:length(init_grouped_ranges)]...))), by=tup -> sum(collect(tup)))
     transition_decision_strings = transition_decision_strings[1:min(length(transition_decision_strings), transition_threshold)]
 
+
+
     for transition_decision_string in transition_decision_strings
       transition_decision_index = 1
       grouped_ranges = deepcopy(init_grouped_ranges)
@@ -1823,12 +1846,19 @@ function generate_object_specific_automaton_sketch(update_rule, update_function_
         end
       end
     
+      min_states_dict = Dict(map(id -> id => length(unique(filter(x -> x != "0", sketch_update_function_arr[id]))), object_ids))
+      min_transitions_dict = Dict(map(id -> id => length(unique(filter(x -> (x[1] != x[2]) && (x[1] != "0") && (x[2] != "0"), collect(zip(sketch_update_function_arr[id], vcat(sketch_update_function_arr[id][2:end], -1)))))) - 1, object_ids))
+      start_state_dict = Dict(map(id -> id => sketch_update_function_arr[1], object_ids))
+    
+      # @show min_states_dict 
+      # @show min_transitions_dict
+
       sketch_program = """ 
       include "$(sketch_directory)sketchlib/string.skh"; 
       include "$(sketch_directory)test/sk/numerical/mstatemachine.skh";
       
-      bit recognize_obj_specific([int n], char[n] events, int[n] functions, int start, char true_char) {
-          return matches(MSM_obj_specific(events, start, true_char), functions);
+      bit recognize_obj_specific([int n], char[n] events, int[n] functions, int start, char true_char, int min_states, int min_transitions) {
+          return matches(MSM_obj_specific(events, start, true_char, min_states, min_transitions), functions);
       }
     
       $(join(map(i -> """harness void h$(i)() {
@@ -1836,10 +1866,12 @@ function generate_object_specific_automaton_sketch(update_rule, update_function_
                             assert recognize_obj_specific({ $(join(map(c -> "'$(c)'", sketch_event_arrs_dict_formatted[object_ids[i]]), ", ")) }, 
                                                           { $(join(sketch_update_function_arr[object_ids[i]], ", ")) }, 
                                                           start, 
-                                                          '$(true_char)');
+                                                          '$(true_char)',
+                                                          $(min_states_dict[object_ids[i]]),
+                                                          $(min_transitions_dict[object_ids[i]]));
                           }""", collect(1:length(object_ids))), "\n\n"))
       """
-    
+
       ## save sketch program as file 
       open("automata_sketch.sk","w") do io
         println(io, sketch_program)
@@ -1962,6 +1994,16 @@ function generate_object_specific_automaton_sketch(update_rule, update_function_
 end
 
 function special_addObj_removeObj_handling(update_function, filtered_matrix, co_occurring_events, addObj_based_list, double_removeObj_update_functions, linked_removeObj_update_functions, source_exists_events_dict, object_decomposition)
+  println("SPECIAL_ADDOBJ_REMOVEOBJ_HANDLING")
+  @show update_function 
+  @show filtered_matrix 
+  @show co_occurring_events 
+  @show addObj_based_list 
+  @show double_removeObj_update_functions 
+  @show linked_removeObj_update_functions 
+  @show source_exists_events_dict 
+  @show object_decomposition
+  
   object_types, object_mapping, _, _ = object_decomposition
   
   on_clauses = []
@@ -1972,8 +2014,8 @@ function special_addObj_removeObj_handling(update_function, filtered_matrix, co_
     addObj_type_id = parse(Int, split(split(update_function, "addObj addedObjType")[2], "List")[1])
     matching_add_remove_pairs = filter(p -> p[1] == addObj_type_id, collect(keys(source_exists_events_dict)))
     if matching_add_remove_pairs != [] 
-      addObj_removeObj_pair = matching_add_remove_pairs[1]
-      removeObj_type_id = matching_add_remove_pairs[1][2]
+      addObj_removeObj_pair = length(matching_add_remove_pairs) == 1 ? matching_add_remove_pairs[1] : matching_add_remove_pairs 
+      removeObj_type_id = length(matching_add_remove_pairs) == 1 ? matching_add_remove_pairs[1][2] : map(x -> x[2], matching_add_remove_pairs)
     else
       addObj_removeObj_pair = nothing
       removeObj_type_id = nothing
@@ -1984,19 +2026,30 @@ function special_addObj_removeObj_handling(update_function, filtered_matrix, co_
     # if isnothing(addObj_removeObj_pair) || !source_exists_events_dict[addObj_removeObj_pair][2]
     time_based_co_occurring_events = filter(e -> occursin("(prev time)", e), map(x -> x[1], co_occurring_events))
     if !isnothing(addObj_removeObj_pair)
-      exists_event = source_exists_events_dict[addObj_removeObj_pair][1]
-      if exists_event != "true"
-        source_exists_co_occurring_events = filter(e -> e == exists_event, map(x -> x[1], co_occurring_events))
-      else
-        source_exists_co_occurring_events = filter(e -> occursin("<= (distance", e), map(x -> x[1], co_occurring_events))
+      
+      exists_events = map(x -> source_exists_events_dict[x][1], addObj_removeObj_pair isa AbstractArray ? addObj_removeObj_pair : [addObj_removeObj_pair])
+      source_exists_co_occurring_events = []
+      for exists_event in exists_events 
+        
+        if exists_event != "true"
+          push!(source_exists_co_occurring_events, filter(e -> e == exists_event, map(x -> x[1], co_occurring_events))...)
+        else
+          push!(source_exists_co_occurring_events, filter(e -> occursin("<= (distance", e), map(x -> x[1], co_occurring_events))...)
+        end
+
       end
     else
       source_exists_co_occurring_events = []
     end
 
     if !isnothing(addObj_removeObj_pair)
-      ids_with_removeObj_type_id = filter(id -> filter(obj -> !isnothing(obj), object_mapping[id])[1].type.id == removeObj_type_id, collect(keys(object_mapping)))
-      removeObj_update_function = filter(u -> occursin("removeObj addedObjType$(removeObj_type_id)List", u) || occursin("removeObj (prev obj$(ids_with_removeObj_type_id[1]))", u), linked_removeObj_update_functions)[1]
+      ids_with_removeObj_type_id = filter(id -> filter(obj -> !isnothing(obj), object_mapping[id])[1].type.id in (removeObj_type_id isa AbstractArray ? removeObj_type_id : [removeObj_type_id]), collect(keys(object_mapping)))
+      if removeObj_type_id isa AbstractArray 
+        removeObj_update_function = filter(u -> foldl(|, map(x -> occursin("removeObj addedObjType$(x)List", u), removeObj_type_id)) || occursin("removeObj (prev obj$(ids_with_removeObj_type_id[1]))", u), linked_removeObj_update_functions)
+        removeObj_update_function = join(removeObj_update_function, "\t")
+      else
+        removeObj_update_function = filter(u -> occursin("removeObj addedObjType$(removeObj_type_id)List", u) || occursin("removeObj (prev obj$(ids_with_removeObj_type_id[1]))", u), linked_removeObj_update_functions)[1]
+      end
       
       if time_based_co_occurring_events != [] && source_exists_co_occurring_events != [] 
         addObj_on_clause = "(on (& $(time_based_co_occurring_events[1]) (& $(source_exists_co_occurring_events[1]) (== (uniformChoice (list 1 2 3 4 5 6 7 8 9 10)) 1)))\n(let ($(update_function) $(removeObj_update_function))))"
@@ -2011,13 +2064,68 @@ function special_addObj_removeObj_handling(update_function, filtered_matrix, co_
       println("LOOK AT ME HERE")
       @show co_occurring_events 
       proximity_based_co_occurring_events = filter(e -> occursin("(<= (distance", e), map(x -> x[1], co_occurring_events))
-      if occursin("firstWithDefault", addObj_on_clause) && proximity_based_co_occurring_events != []
+
+      # only consider proximity events where at least one involved type is brownian 
+      brownian_type_ids = []
+      for t in object_types 
+        object_ids_with_type = filter(id -> filter(obj -> !isnothing(obj), object_mapping[id])[1].type.id == t.id, collect(keys(object_mapping)))
+        if filter(r -> occursin("uniformChoice", r) && !occursin("addObj", r), vcat(vcat(map(id -> filtered_matrix[id, :], object_ids_with_type)...)...)) != []
+          push!(brownian_type_ids, t.id)
+        end
+      end
+
+      proximity_based_co_occurring_events_new = []
+      for option in proximity_based_co_occurring_events 
+        if occursin(".. obj id) x", option)
+          option_first_half = split(replace(replace(option, "(" => ""), ")" => ""), "obj id) x")[1]
+          option_second_half = split(replace(replace(option, "(" => ""), ")" => ""), "obj id) x")[2]
+
+          first_type_id = parse(Int, split(match(r"distance prev obj prev addedObjType\d+", option_first_half).match, "addedObjType")[end])
+          second_type_id = parse(Int, split(match(r"20 prev addedObjType\d+", option_second_half).match, "addedObjType")[end])
+  
+          if (first_type_id in brownian_type_ids) || (second_type_id in brownian_type_ids)
+            push!(proximity_based_co_occurring_events_new, option)
+          end
+  
+        elseif occursin("(list)", option)
+          option_first_half = split(replace(replace(option, "(" => ""), ")" => ""), "20")[1]
+          option_second_half = split(replace(replace(option, "(" => ""), ")" => ""), "20")[2]
+
+          first_type_id = parse(Int, split(match(r"distance prev obj prev addedObjType\d+", option_first_half).match, "addedObjType")[end])
+          second_type_id = parse(Int, split(match(r"prev addedObjType\d+", option_second_half).match, "addedObjType")[end])
+  
+          if (first_type_id in brownian_type_ids) || (second_type_id in brownian_type_ids)
+            push!(proximity_based_co_occurring_events_new, option)
+          end
+
+        else
+          first_object_id = parse(Int, split(match(r"distance prev obj\d+", replace(replace(option, "(" => ""), ")" => "")).match, "prev obj")[end])
+          first_type_id = filter(o -> !isnothing(o), object_mapping[first_object_id])[1].type.id
+          second_type_id = parse(Int, split(match(r"addedObjType\d+", replace(replace(option, "(" => ""), ")" => "")).match, "addedObjType")[end])
+  
+          if (first_type_id in brownian_type_ids) || (second_type_id in brownian_type_ids)
+            push!(proximity_based_co_occurring_events_new, option)
+          end
+        end
+      end
+      proximity_based_co_occurring_events = proximity_based_co_occurring_events_new
+
+      if proximity_based_co_occurring_events != [] # occursin("firstWithDefault", addObj_on_clause) && 
         parts = split(addObj_on_clause, "\n")
         original_event = replace(parts[1], "(on " => "")
         new_event = "(& $(original_event) $(proximity_based_co_occurring_events[1]))"
         addObj_on_clause = "(on $(new_event)\n$(parts[2])"          
       end
-      push!(on_clauses, (addObj_on_clause, removeObj_update_function))
+
+      if occursin("\t", removeObj_update_function)
+        funcs = split(removeObj_update_function, "\t")
+        for f in funcs 
+          push!(on_clauses, (addObj_on_clause, f))
+        end
+      else
+        push!(on_clauses, (addObj_on_clause, removeObj_update_function))
+      end
+
     else
       if time_based_co_occurring_events != [] && source_exists_co_occurring_events == []
         addObj_on_clause = "(on (& $(time_based_co_occurring_events[1]) (== (uniformChoice (list 1 2 3 4 5 6 7 8 9 10)) 1))\n$(update_function))"

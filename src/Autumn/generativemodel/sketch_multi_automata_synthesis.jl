@@ -881,8 +881,12 @@ function generate_global_multi_automaton_sketch(run_id, co_occurring_event, time
   @show transition_distinct
   @show transition_same
   @show transition_threshold
-
   @show desired_per_matrix_solution_count 
+
+  if co_occurring_event == "(== 1 1)"
+    co_occurring_event = "true"
+  end
+
   init_state_update_times_dict = deepcopy(state_update_times_dict)
   update_functions = collect(keys(times_dict))
   failed = false
@@ -1117,9 +1121,9 @@ function generate_global_multi_automaton_sketch(run_id, co_occurring_event, time
 
     sketch_event_arr = map(e -> findall(x -> x == e, distinct_events)[1], sketch_event_trajectory)
     true_char = "0"
-    if "true" in distinct_events 
-      true_char = string(findall(x -> x == "true", distinct_events)[1])
-    end
+    # if "true" in distinct_events 
+    #   true_char = string(findall(x -> x == "true", distinct_events)[1])
+    # end
 
     # construct sketch update function input array
     sketch_update_function_arr = ["0" for i in 1:length(sketch_event_trajectory)]
@@ -1616,7 +1620,7 @@ function generate_object_specific_multi_automaton_sketch(run_id, co_occurring_ev
     }
 
     $(join(map(i -> """harness void h$(i)() {
-                          int start = $(start_state_dict[object_ids[1]] != "-1" ? start_state_dict[object_ids[1]] : "??");
+                          int start = ??;
                           assert recognize_obj_specific({ $(join(map(c -> "'$(c)'", sketch_event_arrs_dict_formatted[object_ids[i]]), ", ")) }, 
                                                         { $(join(sketch_update_function_arr[object_ids[i]], ", ")) }, 
                                                         start, 

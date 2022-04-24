@@ -220,7 +220,7 @@ function find_state_update_events_object_specific_false_positives(event_vector_d
     for common_event in common_events 
       true_times = []
       false_times = []
-      num_false_positives = 0
+      num_false_positives_ = 0
       for object_id in object_ids
         event_tuple = filter(event_tuple -> event_tuple[1] == common_event, update_events_dict[object_id])[1] 
         object_false_positives = event_tuple[2]
@@ -230,9 +230,9 @@ function find_state_update_events_object_specific_false_positives(event_vector_d
         augmented_false_times = map(time -> (time, object_id), object_false_times)
         true_times = vcat(true_times..., augmented_true_times...)
         false_times = vcat(false_times..., augmented_false_times...)
-        num_false_positives = num_false_positives + object_false_positives
+        num_false_positives_ = num_false_positives_ + object_false_positives
       end
-      push!(solutions, (common_event, num_false_positives, true_times, false_times))  
+      push!(solutions, (common_event, num_false_positives_, true_times, false_times))  
     end
     # common_event = common_events[1]
     # [(common_event, event_times)]

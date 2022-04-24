@@ -242,9 +242,11 @@ function synthesize_update_functions_bulk(possible_rules_matrix, object_decompos
   if wall_types != []
     wall_type = wall_types[1]
     wall_ids = filter(id -> filter(obj -> !isnothing(obj), object_mapping[id])[1].type.id == wall_type.id, collect(keys(object_mapping)))
+    wall_positions = vcat(map(id -> map(p -> (object_mapping[id][1].position[1] + p[1], object_mapping[id][1].position[2] + p[2]), wall_type.shape), wall_ids)...)  
   else
     wall_type = nothing
     wall_ids = []
+    wall_positions = []
   end
 
   matrix = [[] for object_id in 1:length(collect(keys(object_mapping))), time in 1:(length(observations) - 1)]
@@ -411,6 +413,7 @@ function synthesize_update_functions_bulk(possible_rules_matrix, object_decompos
       end
 
       for object_id in 1:size(matrix)[1]
+        type = filter(o -> !isnothing(o), object_mapping[object_id])[1].type
         # if any of the below appear, that means the object did not move in this time step
         if occursin("closestLeft", join(matrix[object_id, time])) || occursin("closestRight", join(matrix[object_id, time])) || occursin("closestUp", join(matrix[object_id, time])) || occursin("closestDown", join(matrix[object_id, time]))
           closest_update_functions = filter(r -> occursin("closestLeft", r) || occursin("closestRight", r) || occursin("closestUp", r) || occursin("closestDown", r), matrix[object_id, time])
@@ -422,18 +425,21 @@ function synthesize_update_functions_bulk(possible_rules_matrix, object_decompos
             if c != 4 
               indices = findall(x -> x == update_func, closest_update_functions_collapsed)
               invalid_choice = true 
+              # @show update_func
+              scalar = parse(Int, replace(split(split(update_func, " \"darkgray\")")[1], " ")[end], ")" => "")) 
+
               for index in indices 
                 func = closest_update_functions[index]
                 if occursin("Left", func)
-                  wall_pos = (pos[1] - 10, pos[2])
+                  wall_pos = (pos[1] - scalar, pos[2])
                 elseif occursin("Right", func)
-                  wall_pos = (pos[1] + 10, pos[2])
+                  wall_pos = (pos[1] + scalar, pos[2])
                 elseif occursin("Up", func)
-                  wall_pos = (pos[1], pos[2] - 10)
+                  wall_pos = (pos[1], pos[2] - scalar)
                 else
-                  wall_pos = (pos[1], pos[2] + 10)
+                  wall_pos = (pos[1], pos[2] + scalar)
                 end
-                if filter(id -> filter(obj -> !isnothing(obj), object_mapping[id])[1].position == wall_pos, wall_ids) != [] 
+                if intersect(map(p -> (wall_pos[1] + p[1], wall_pos[2] + p[2]), type.shape), wall_positions) != []
                   invalid_choice = false 
                   break
                 end
@@ -460,19 +466,20 @@ function synthesize_update_functions_bulk(possible_rules_matrix, object_decompos
             c = count(x -> x == update_func, farthest_update_functions_collapsed)
             if c != 4 
               indices = findall(x -> x == update_func, farthest_update_functions_collapsed)
-              invalid_choice = true 
+              invalid_choice = true
+              scalar = parse(Int, replace(split(split(update_func, " \"darkgray\")")[1], " ")[end], ")" => "")) 
               for index in indices 
                 func = farthest_update_functions[index]
                 if occursin("Left", func)
-                  wall_pos = (pos[1] - 10, pos[2])
+                  wall_pos = (pos[1] - scalar, pos[2])
                 elseif occursin("Right", func)
-                  wall_pos = (pos[1] + 10, pos[2])
+                  wall_pos = (pos[1] + scalar, pos[2])
                 elseif occursin("Up", func)
-                  wall_pos = (pos[1], pos[2] - 10)
+                  wall_pos = (pos[1], pos[2] - scalar)
                 else
-                  wall_pos = (pos[1], pos[2] + 10)
+                  wall_pos = (pos[1], pos[2] + scalar)
                 end
-                if filter(id -> filter(obj -> !isnothing(obj), object_mapping[id])[1].position == wall_pos, wall_ids) != [] 
+                if intersect(map(p -> (wall_pos[1] + p[1], wall_pos[2] + p[2]), type.shape), wall_positions) != []
                   invalid_choice = false 
                   break
                 end
@@ -3435,7 +3442,7 @@ function compute_source_objects(filtered_matrix, object_decomposition)
                                                    !isnothing(object_mapping[id][t - 1]) && 
                                                    isnothing(object_mapping[id][t]) && 
                                                    !(object_mapping[id][t - 1].position in addObj_positions) && 
-                                                   filter(scalar -> scalar <= 120, map(disp -> abs(disp[1]) + abs(disp[2]), map(p -> [displacement(p, object_mapping[id][t - 1].position)...], addObj_positions))) != [], 
+                                                   filter(scalar -> scalar <= 40, map(disp -> abs(disp[1]) + abs(disp[2]), map(p -> [displacement(p, object_mapping[id][t - 1].position)...], addObj_positions))) != [], 
                                 addObj_times) != [], collect(keys(object_mapping)))    
 
 
