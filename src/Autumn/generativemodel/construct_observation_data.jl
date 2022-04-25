@@ -1701,7 +1701,7 @@ function generate_observations_pedro_interface(game_name)
         end
       end
     end
-    push!(observations, observation)
+    push!(observations, filter(c -> c.color != "lightgray", observation))
   end
 
   for user_event_raw in user_events_raw 

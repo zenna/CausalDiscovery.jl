@@ -2716,6 +2716,8 @@ function construct_filtered_matrices_pedro(old_matrix, object_decomposition, use
     end
   end
 
+  # filtered_matrices = sort_update_function_matrices(filtered_matrices, object_decomposition)
+
   if !regularity_found 
     possible_brownian_types = identify_brownian_types(object_decomposition, user_events, agent_type, matrix, matrix, [])
 
@@ -2778,7 +2780,14 @@ function construct_filtered_matrices_pedro(old_matrix, object_decomposition, use
   #   push!(filtered_matrices, brownian_matrix)
   # end
 
-  sort_update_function_matrices(filtered_matrices, object_decomposition)
+  top = filtered_matrices[1]
+  sorted_top = sort_update_function_matrices(filtered_matrices, object_decomposition)[1]
+  if top != sorted_top 
+    [sorted_top, top]
+  else
+    [top]
+  end
+  # sort_update_function_matrices(filtered_matrices, object_decomposition)
 end
 
 function remove_random_behavior_on_single_direction_types(matrix, object_decomposition)

@@ -137,6 +137,8 @@ function generate_on_clauses_GLOBAL(run_id, matrix, unformatted_matrix, object_d
     @show state_based_update_functions_dict
     @show ordered_update_functions_dict
     @show observation_vectors_dict
+
+    JLD.save("$(run_id)_intermediate_data.jld", "data", (new_on_clauses, state_based_update_functions_dict, ordered_update_functions_dict, observation_vectors_dict))
  
     # TEMP HACK FOR PEDRO: REMOVE LATER 
     # if true # pedro_random 
