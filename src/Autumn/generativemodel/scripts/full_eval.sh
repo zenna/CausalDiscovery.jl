@@ -5,7 +5,7 @@ algorithms=("heuristic"
             "sketch_multi"
             "sketch_single")
 # algorithms=("heuristic")
-num_repeats=2
+num_repeats=5
 
 # model_names=("paint"
 #              "lights"
@@ -52,7 +52,7 @@ num_repeats=2
 #              "space_invaders"
 #              "sokoban")
 # # "space_invaders"
-model_names=("bullets")
+model_names=("count_2")
 
 for  (( i = 1 ; i <= $num_repeats; i++ ))
 do
@@ -62,7 +62,7 @@ do
     do
       echo "model_name: $model_name, algorithm: $algorithm, repeat: $i "
       julia --project=. src/Autumn/generativemodel/scripts/full_eval.jl $model_name $algorithm $curr_date $i
-      sleep 10
+      # sleep 14400
     done  
   done
 done

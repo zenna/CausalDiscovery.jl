@@ -1,9 +1,11 @@
 if Sys.islinux() 
   sketch_directory = "/scratch/riadas/sketch-1.7.6/sketch-frontend/"
   temp_directory = "/scratch/riadas/.sketch/tmp"
+  local_sketch_directory = "src/Autumn/generativemodel/sketch/"
 else
   sketch_directory = "/Users/riadas/Documents/urop/sketch-1.7.6/sketch-frontend/"
   temp_directory = "/Users/riadas/Documents/urop/.sketch/tmp"
+  local_sketch_directory = "src/Autumn/generativemodel/sketch/"
 end
 
 function generate_on_clauses_SKETCH_SINGLE(run_id, random, matrix, unformatted_matrix, object_decomposition, user_events, global_event_vector_dict, redundant_events_set, grid_size=16, desired_solution_count=1, desired_per_matrix_solution_count=1, interval_painting_param=false, z3_option="none", time_based=false, z3_timeout=0, sketch_timeout=0, co_occurring_param=false, transition_param=false, co_occurring_distinct=2, co_occurring_same=1, co_occurring_threshold=1, transition_distinct=1, transition_same=1, transition_threshold=1)   
@@ -422,7 +424,7 @@ function generate_global_automaton_sketch(run_id, single_update_func_with_type, 
   # @show object_trajectory    
   # @show init_global_var_dict 
   # @show state_update_times_dict 
-  # @show object_decomposition
+  # # @show object_decomposition
   # @show type_id 
   # @show desired_per_matrix_solution_count
   # @show interval_painting_param
@@ -627,6 +629,8 @@ function generate_global_automaton_sketch(run_id, single_update_func_with_type, 
     transition_decision_strings = sort(vec(collect(Base.product([1:(transition_distinct * transition_same) for i in 1:length(init_grouped_ranges)]...))), by=tup -> sum(collect(tup)))
     transition_decision_strings = transition_decision_strings[1:min(length(transition_decision_strings), transition_threshold)]
   
+    no_object_times = findall(x -> x == [""] || occursin("addObj", join(x)), object_trajectory)
+
     for transition_decision_string in transition_decision_strings 
       transition_decision_index = 1
 
@@ -650,7 +654,7 @@ function generate_global_automaton_sketch(run_id, single_update_func_with_type, 
         max_global_var_value = maximum(map(tuple -> tuple[2], augmented_positive_times))
 
         # search for events within range
-        events_in_range = find_state_update_events(small_event_vector_dict, augmented_positive_times, time_ranges, start_value, end_value, init_global_var_dict, global_var_id, global_var_value)
+        events_in_range = find_state_update_events(small_event_vector_dict, augmented_positive_times, time_ranges, start_value, end_value, init_global_var_dict, global_var_id, global_var_value, no_object_times)
         events_in_range = filter(tup -> !occursin("globalVar", tup[1]) && !occursin("field1", tup[1]), events_in_range)
         
         # println("PRE PRUNING: EVENTS IN RANGE")
@@ -693,7 +697,7 @@ function generate_global_automaton_sketch(run_id, single_update_func_with_type, 
           end
 
         else 
-          false_positive_events = find_state_update_events_false_positives(small_event_vector_dict, init_augmented_positive_times, time_ranges, start_value, end_value, init_global_var_dict, global_var_id, 1)
+          false_positive_events = find_state_update_events_false_positives(small_event_vector_dict, init_augmented_positive_times, time_ranges, start_value, end_value, init_global_var_dict, global_var_id, 1, no_object_times)
           false_positive_events_with_state = filter(e -> !occursin("globalVar", e[1]), false_positive_events) # no state-based events in sketch-based approach
           
           events_without_true = filter(tuple -> !occursin("true", tuple[1]) && tuple[2] == minimum(map(t -> t[2], false_positive_events_with_state)), false_positive_events_with_state)
@@ -775,7 +779,7 @@ function generate_global_automaton_sketch(run_id, single_update_func_with_type, 
         # @show i
         sketch_program = """ 
         include "$(sketch_directory)sketchlib/string.skh"; 
-        include "$(sketch_directory)test/sk/numerical/mstatemachine.skh";
+        include "$(local_sketch_directory)mstatemachine.skh";
       
         bit recognize([int n], char[n] events, int[n] functions, char true_char, int min_states, int min_transitions, int start){
             return matches(MSM(events, true_char, min_states, min_transitions, start), functions);
@@ -821,7 +825,7 @@ function generate_global_automaton_sketch(run_id, single_update_func_with_type, 
             # construct new Sketch query
             sketch_program = """
             include "$(sketch_directory)sketchlib/string.skh"; 
-            include "$(sketch_directory)test/sk/numerical/mstatemachine.skh";
+            include "$(local_sketch_directory)mstatemachine.skh";
       
             bit recognize([int n, int m], char[n] events, int[n] functions, int[n][m] old_state_seqs, char true_char, int min_states, int min_transitions, int start) {
                 return matches(MSM_unique(events, old_state_seqs, true_char, min_states, min_transitions, start), functions);
@@ -860,7 +864,7 @@ function generate_global_automaton_sketch(run_id, single_update_func_with_type, 
             end
           end
 
-          # @show command 
+          @show command 
           
           sketch_output = try 
                             readchomp(eval(Meta.parse("`$(command)`")))
@@ -1592,7 +1596,7 @@ function generate_object_specific_automaton_sketch(run_id, update_rule, update_f
   # @show update_function_times_dict
   # @show event_vector_dict
   # @show type_id 
-  # @show object_decomposition
+  # # @show object_decomposition
   # @show init_state_update_times
   state_update_times = deepcopy(init_state_update_times)  
   failed = false
@@ -1760,7 +1764,7 @@ function generate_object_specific_automaton_sketch(run_id, update_rule, update_f
         events_in_range = []
         if events_in_range == [] # if no global events are found, try object-specific events 
           # events_in_range = find_state_update_events(event_vector_dict, augmented_positive_times, time_ranges, start_value, end_value, global_var_dict, global_var_value)
-          events_in_range = find_state_update_events_object_specific(small_event_vector_dict, augmented_positive_times_dict, grouped_range, object_ids, object_mapping, curr_state_value)
+          events_in_range = find_state_update_events_object_specific(false, small_event_vector_dict, augmented_positive_times_dict, grouped_range, object_ids, object_mapping, curr_state_value)
         end
         # @show events_in_range
         events_in_range = filter(e -> !occursin("field1", e[1]) && !occursin("globalVar1", e[1]), events_in_range)
@@ -1796,7 +1800,7 @@ function generate_object_specific_automaton_sketch(run_id, update_rule, update_f
             end
           end
         else
-          false_positive_events = find_state_update_events_object_specific_false_positives(small_event_vector_dict, augmented_positive_times_dict, grouped_range, object_ids, object_mapping, curr_state_value)      
+          false_positive_events = find_state_update_events_object_specific_false_positives(false, small_event_vector_dict, augmented_positive_times_dict, grouped_range, object_ids, object_mapping, curr_state_value)      
           false_positive_events_with_state = filter(e -> !occursin("field1", e[1]) && !occursin("globalVar1", e[1]), false_positive_events)
           # @show false_positive_events
           events_without_true = filter(tuple -> !occursin("true", tuple[1]) && tuple[2] == minimum(map(t -> t[2], false_positive_events_with_state)), false_positive_events_with_state)
@@ -1852,10 +1856,10 @@ function generate_object_specific_automaton_sketch(run_id, update_rule, update_f
 
       sketch_program = """ 
       include "$(sketch_directory)sketchlib/string.skh"; 
-      include "$(sketch_directory)test/sk/numerical/mstatemachine.skh";
+      include "$(local_sketch_directory)mstatemachine.skh";
       
-      bit recognize_obj_specific([int n], char[n] events, int[n] functions, int start, char true_char, int min_states, int min_transitions, int start) {
-          return matches(MSM_obj_specific(events, start, true_char, min_states, min_transitions, start), functions);
+      bit recognize_obj_specific([int n], char[n] events, int[n] functions, int start, char true_char, int min_states, int min_transitions) {
+        return matches(MSM_obj_specific(events, start, true_char, min_states, min_transitions), functions);
       }
     
       $(join(map(i -> """harness void h$(i)() {
@@ -1865,8 +1869,7 @@ function generate_object_specific_automaton_sketch(run_id, update_rule, update_f
                                                           start, 
                                                           '$(true_char)',
                                                           $(min_states_dict[object_ids[i]]),
-                                                          $(min_transitions_dict[object_ids[i]]),
-                                                          $(start_state_dict[object_ids[i]]));
+                                                          $(min_transitions_dict[object_ids[i]]));
                           }""", collect(1:length(object_ids))), "\n\n"))
       """
     
@@ -1887,7 +1890,7 @@ function generate_object_specific_automaton_sketch(run_id, update_rule, update_f
         end
       end
 
-      # @show command 
+      @show command 
     
       sketch_output = try 
                       readchomp(eval(Meta.parse("`$(command)`")))

@@ -7,7 +7,7 @@ iteration = ARGS[4]
 
 println("CURRENTLY WORKING ON $(model_name)")
 
-directory_name = "FINAL_RESULTS/$(curr_date)"
+directory_name = "APRIL_FINAL_RESULTS/$(curr_date)"
 if !isdir(directory_name)
   mkdir(directory_name)
 end
