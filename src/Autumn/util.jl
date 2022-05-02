@@ -42,7 +42,7 @@ Applies `f(expr, state)` to each node in the given expression tree, returning th
     `i` is position of child in `parent`
 ```
 s0 = Int[]
-statef(state, arg, i) = # @show [i; state]
+statef(state, arg, i) = # # @show [i; state]
 expr = AExpr(:(let x = 4, y = 3
   x + y
 end))
@@ -52,7 +52,7 @@ postwalkstate(expr, f, s0, statef)
 """
 postwalkstate(f, x::AExpr, state, statef) = 
   let g(i, x_) = postwalkstate(f, x_,  statef(state, x, i), statef)
-    # # @show x.args
+    # # # @show x.args
     f(AExpr(x.head, mapid(g, x.args)...), state)
   end
 

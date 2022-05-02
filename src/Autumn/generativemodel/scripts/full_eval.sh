@@ -52,7 +52,8 @@ num_repeats=5
 #              "space_invaders"
 #              "sokoban")
 # # "space_invaders"
-model_names=("count_2")
+model_names=("gravity_i"
+             "gravity_ii")
 
 for  (( i = 1 ; i <= $num_repeats; i++ ))
 do
