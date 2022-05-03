@@ -22,7 +22,7 @@ if !isdir(alg_subdirectory_name)
   mkdir(alg_subdirectory_name)
 end
 
-x = @timed run_model(model_name, algorithm, iteration, 10, 1)
+x = @timed run_model(model_name, algorithm, iteration, 1, 1)
 save(string("$(alg_subdirectory_name)/full_data_$(iteration).jld"), model_name, x)
 
 # write final time to time text file 
