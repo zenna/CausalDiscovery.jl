@@ -1,0 +1,64 @@
+char intAsChar(int x) {
+  char c = x % 10;
+  return c;
+}
+
+int distinct_state_count([int N], int[N] state_seq) {
+  int[14] distinct_states = {1000, 1000, 1000, 1000, 1000, 1000, 1000, 1000, 1000, 1000, 1000, 1000, 1000, 1000}; 
+
+  for (int i = 0; i < N; i++) {
+    int state = state_seq[i];
+
+    bit added = false;
+    int j = 0;
+    while (!(added) && (j < 14)) {
+      if (state == distinct_states[j]) {
+        added = true;
+      }
+
+      if ((!added) && (distinct_states[j] == 1000)) {
+        distinct_states[j] = state;
+        added = true;
+      }
+      j++;
+    }    
+  }
+
+  if (distinct_states[13] != 1000) {
+    return 14;
+  }
+  
+  int distinct_state_count = 0;
+  for (int i = 0; i < 14; i++) {
+    if (distinct_states[i] != 1000) {
+      distinct_state_count++;
+    }
+  }
+  return distinct_state_count;
+}
+
+bit equivalent_state_seqs([int N], int[N] state_seq, int[N] other_state_seq) {
+  int maxstates = 14;
+  int state_count = distinct_state_count(state_seq);
+  int other_state_count = distinct_state_count(other_state_seq);
+
+  assert state_count < maxstates;
+  assert other_state_count < maxstates;
+
+  if (state_count != other_state_count) {
+    return false;
+  } else {
+    int[N] zipped_seq;
+    for (int i = 0; i < N; i++) {
+      zipped_seq[i] = 10 * state_seq[i] + other_state_seq[i]; 
+    }
+
+    int zipped_count = distinct_state_count(zipped_seq);
+
+    if ((zipped_count == 14) || (state_count != zipped_count)) {
+      return false;
+    } else {
+      return true;
+    }
+  }
+}

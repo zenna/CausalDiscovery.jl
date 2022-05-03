@@ -1,0 +1,304 @@
+include "src/Autumn/generativemodel/sketch/string.skh"; 
+include "src/Autumn/generativemodel/sketch/sm_equivalence.skh"; 
+
+bit matches([int N], int[N] automaton_traj, int[N] functions) {
+  for (int i = 0; i < N; i++){
+    // check that for every non-zero functions value, coressponding automaton value matches it
+    if ((functions[i] != 0) && (automaton_traj[i] != functions[i])) {
+      return 0;
+    } 
+  }
+  return 1;
+}
+
+int[N] MSM([int N], char[N] in, char true_char, int min_states, int min_transitions, int start){
+    int[N] out;
+    int[N + 1] states;
+    int maxstates = 12;
+    int state = ??;
+    int num_transitions = ??;
+    int old_state = 0;
+    int[maxstates] T = ??;
+
+    // initialize start if possible 
+    if (start != 0) {
+      state = start - 1;
+    }
+
+    // initialize T with min states 
+    for (int i=0; i < min_states; i++) {
+      T[i] = i + 1;
+    }
+
+    // num_transitions must be at least max
+    assert num_transitions >= min_transitions;
+
+    for(int i=0; i<N; ++i){
+        old_state = state;
+        // minimize(state);
+        // minimize(num_transitions);
+        int Q = 0;
+        minimize(2 * state + num_transitions);
+        repeat(num_transitions){
+            if(in[i] == ?? && old_state==??){
+                assert in[i] != true_char;
+                println(newStr("TRANSITION START"));
+                println(newStr({ intAsChar(old_state), '\0'}));
+                
+                println(newStr("TRANSITION LABEL"));
+                println(newStr({ in[i], '\0'}));
+
+                state = ??;
+                assert old_state != state;
+
+                println(newStr("TRANSITION END"));
+                println(newStr({ intAsChar(state), '\0'}));
+            }
+            assert ++Q < 26; // 28
+        }
+
+        assert old_state < maxstates;
+        out[i] = T[old_state];
+        states[i] = old_state;
+    
+    }
+
+    assert distinct_state_count(states) >= min_states; 
+
+    // print 'out'
+    println(newStr("STATE TRAJECTORY"));
+    for (int i = 0; i < N; ++i) {
+      println(newStr({ intAsChar(states[i]), '\0'}));
+    }
+
+    // print T 
+    println(newStr("TABLE"));
+    for (int i = 0; i < maxstates; ++i) {
+      println(newStr({ intAsChar(T[i]), '\0'}));
+      assert T[i] > 0;
+    } 
+
+    return out;
+}
+
+int[N] MSM_unique([int N, int M], char[N] in, int[N][M] old_state_seqs, char true_char, int min_states, int min_transitions, int start) {
+    int[N] out;
+    int[N] states;
+    int maxstates = 12;
+    int state = ??;
+    int num_transitions = ??;
+    int old_state = 0;
+    int[maxstates] T = ??;
+
+    // initialize start if possible 
+    if (start != 0) {
+      state = start - 1;
+    }
+
+    // initialize T with min states 
+    for (int i=0; i < min_states; i++) {
+      T[i] = i + 1;
+    }
+
+    // num_transitions must be at least max
+    assert num_transitions >= min_transitions;
+
+    for(int i=0; i<N; ++i){
+        old_state = state;
+        int Q = 0;
+        minimize(2 * state + num_transitions);
+        repeat(num_transitions){
+            if(in[i] == ?? && old_state==??){
+                assert in[i] != true_char;
+                println(newStr("TRANSITION START"));
+                println(newStr({ intAsChar(old_state), '\0'}));
+                
+                println(newStr("TRANSITION LABEL"));
+                println(newStr({ in[i], '\0'}));
+
+                state = ??;
+
+                println(newStr("TRANSITION END"));
+                println(newStr({ intAsChar(state), '\0'}));
+            }
+            assert ++Q < 26; // 28, 33
+        }
+        assert old_state < maxstates;
+        out[i] = T[old_state];
+        states[i] = old_state;
+    }
+
+    for (int i=0; i < M; i++) {
+      assert !equivalent_state_seqs(states, old_state_seqs[i]);
+    }
+
+    assert distinct_state_count(states) >= min_states; 
+
+    // print 'out'
+    println(newStr("STATE TRAJECTORY"));
+    for (int i = 0; i < N; ++i) {
+      println(newStr({ intAsChar(states[i]), '\0'}));
+    }
+
+    // print T 
+    println(newStr("TABLE"));
+    for (int i = 0; i < maxstates; ++i) {
+      println(newStr({ intAsChar(T[i]), '\0'}));
+      assert T[i] > 0;
+    } 
+    
+    return out;
+}
+
+// int start = 11;
+// assert recognize_obj_specific({ 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 }, 
+//                               { 0, 0, 0, 0, 0, 0, 0, 0, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 1, 2, 2, 2, 2, 2, 2, 2, 2, 2, 1, 2, 2, 2, 2, 2, 2, 2, 2, 2, 1, 2, 2, 2, 2, 2, 2, 2, 2, 2, 1, 2, 2, 2, 2, 2, 2, 2, 2, 2, 1, 2, 2, 2, 2, 2, 2, 2, 2, 2, 1, 2, 2, 2, 2, 2, 2, 2, 2, 2, 1, 2, 2, 2, 2, 2, 2, 2, 0 }, 
+//                               start, 
+//                               '0',
+//                               2,
+//                               1);
+
+int[N] MSM_obj_specific([int N], char[N] in, int start_state, char true_char, int min_states, int min_transitions) {
+    int[N] out;
+    int[N + 1] states;
+    int maxstates = 12;
+    int state = ??;
+    int num_transitions = ??;
+    int old_state = 0;
+    int[maxstates] T =  ??; // {1, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, ??};
+
+    // initialize start if possible 
+    if (start_state != 0) {
+      state = start_state - 1;
+    }
+
+    // state = 10;
+
+    // initialize T with min states 
+    for (int i=0; i < min_states; i++) {
+      T[i] = i + 1;
+    }
+
+    // num_transitions must be at least max
+    // assert num_transitions >= min_transitions;
+
+    for(int i=0; i<N; ++i){
+        old_state = state;
+        minimize(state);
+        int Q = 0;
+        minimize(2 * state + num_transitions);
+        repeat(num_transitions){
+            if(in[i] == ?? && old_state==??) {
+                assert in[i] != true_char;
+                println(newStr("TRANSITION START"));
+                println(newStr({ intAsChar(old_state), '\0'}));
+                
+                println(newStr("TRANSITION LABEL"));
+                println(newStr({ in[i], '\0'}));
+
+                state = ??;
+
+                assert state != old_state;
+
+                println(newStr("TRANSITION END"));
+                println(newStr({ intAsChar(state), '\0'}));
+            }
+            assert ++Q < 26;
+        }
+
+
+        // if(in[i] == '1' && old_state==10) {
+        //     assert in[i] != true_char;
+        //     state = 9;
+        // }
+        // assert ++Q < 12;
+
+        // if(in[i] == '1' && old_state==9) {
+        //     assert in[i] != true_char;
+        //     state = 8;
+        // }
+        // assert ++Q < 12;
+
+
+
+        // if(in[i] == '1' && old_state==8) {
+        //     assert in[i] != true_char;
+        //     state = 7;
+        // }
+        // assert ++Q < 12;
+
+        // if(in[i] == '1' && old_state==7) {
+        //     assert in[i] != true_char;
+        //     state = 6;
+        // }
+        // assert ++Q < 12;
+
+        // if(in[i] == '1' && old_state==6) {
+        //     assert in[i] != true_char;
+        //     state = 5;
+        // }
+        // assert ++Q < 12;
+
+
+
+        // if(in[i] == '1' && old_state==5) {
+        //     assert in[i] != true_char;
+        //     state = 4;
+        // }
+        // assert ++Q < 12;
+
+        // if(in[i] == '1' && old_state==4) {
+        //     assert in[i] != true_char;
+        //     state = 3;
+        // }
+        // assert ++Q < 12;
+
+        // if(in[i] == '1' && old_state==3) {
+        //     assert in[i] != true_char;
+        //     state = 2;
+        // }
+        // assert ++Q < 12;
+
+        
+        
+        // if(in[i] == '1' && old_state==2) {
+        //     assert in[i] != true_char;
+        //     state = 1;
+        // }
+        // assert ++Q < 12;
+        
+        // if(in[i] == '1' && old_state==1) {
+        //     assert in[i] != true_char;
+        //     state = 0;
+        // }
+        // assert ++Q < 12;
+
+        // if(in[i] == '1' && old_state==0) {
+        //     assert in[i] != true_char;
+        //     state = 9;
+        // }
+        // assert ++Q < 12;
+
+        assert old_state < maxstates;
+        out[i] = T[old_state];
+        states[i] = old_state;
+    }
+
+    assert distinct_state_count(states) >= min_states; 
+
+    // print 'out'
+    println(newStr("STATE TRAJECTORY"));
+    for (int i = 0; i < N; ++i) {
+      println(newStr({ intAsChar(states[i]), '\0'}));
+    }
+
+    // print T 
+    println(newStr("TABLE"));
+    for (int i = 0; i < maxstates; ++i) {
+      println(newStr({ intAsChar(T[i]), '\0'}));
+      assert T[i] > 0;
+    } 
+
+    println(newStr("DONE"));
+    return out; // { 0, 0, 0, 0, 0, 0, 0, 0, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 1, 2, 2, 2, 2, 2, 2, 2, 2, 2, 1, 2, 2, 2, 2, 2, 2, 2, 2, 2, 1, 2, 2, 2, 2, 2, 2, 2, 2, 2, 1, 2, 2, 2, 2, 2, 2, 2, 2, 2, 1, 2, 2, 2, 2, 2, 2, 2, 2, 2, 1, 2, 2, 2, 2, 2, 2, 2, 2, 2, 1, 2, 2, 2, 2, 2, 2, 2, 0 };
+}
