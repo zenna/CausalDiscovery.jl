@@ -927,7 +927,7 @@ function generate_global_multi_automaton_sketch(run_id, co_occurring_event, time
     start_state = sketch_update_function_arr[1]
 
     sketch_program = """ 
-    include "$(sketch_directory)sketchlib/string.skh"; 
+    include "$(local_sketch_directory)string.skh"; 
     include "$(local_sketch_directory)mstatemachine.skh";
 
     bit recognize([int n], char[n] events, int[n] functions, char true_char, int min_states, int min_transitions, int start){
@@ -1344,7 +1344,7 @@ function generate_object_specific_multi_automaton_sketch(run_id, co_occurring_ev
     start_state_dict = Dict(map(id -> id => sketch_update_function_arr[id][1], object_ids))
 
     sketch_program = """ 
-    include "$(sketch_directory)sketchlib/string.skh"; 
+    include "$(local_sketch_directory)string.skh"; 
     include "$(local_sketch_directory)mstatemachine.skh";
     
     bit recognize_obj_specific([int n], char[n] events, int[n] functions, int start, char true_char, int min_states, int min_transitions) {

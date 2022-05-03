@@ -40,10 +40,29 @@ num_repeats=5
 #              "mario"
 #              "count_3"
 #              "count_4"
+#              "count_6"
 #              "wind" 
-#              "water_plug"
 #             )
 
+model_names=("paint"
+             "lights"
+             "sand"
+             "disease"
+             "grow"
+             "bullets"
+             "gravity_i"
+             "gravity_iii"
+             "gravity_iv"
+             "gravity_ii"
+             "count_1"
+             "count_2"
+             "double_count_1"
+             "mario"
+             "wind" 
+             "swap"
+            )
+
+# "water_plug"
 # model_names=("ice"
 #              "particles"
 #              "ants"
@@ -52,7 +71,7 @@ num_repeats=5
 #              "space_invaders"
 #              "sokoban")
 # # "space_invaders"
-model_names=("count_2")
+# model_names=("count_2")
 
 for  (( i = 1 ; i <= $num_repeats; i++ ))
 do
@@ -61,9 +80,10 @@ do
     for model_name in ${model_names[@]} ### Inner for loop ###
     do
       echo "model_name: $model_name, algorithm: $algorithm, repeat: $i "
-      julia --project=. src/Autumn/generativemodel/scripts/full_eval.jl $model_name $algorithm $curr_date $i
-      # sleep 14400
-    done  
+      nohup /scratch/riadas/julia-1.5.4/bin/julia --project=. src/Autumn/generativemodel/scripts/full_eval.jl $model_name $algorithm $curr_date $i > APRIL_TESTING_OUTS/$model_name.$algorithm.out &
+      sleep 60
+    done
+    sleep 10800  
   done
 done
 

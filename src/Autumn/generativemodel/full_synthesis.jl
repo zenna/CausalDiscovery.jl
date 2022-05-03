@@ -338,6 +338,8 @@ function generate_observations(model_name::String)
     observations, user_events, grid_size = generate_observations_count_3(m)
   elseif model_name == "count_4"
     observations, user_events, grid_size = generate_observations_count_4(m)
+  elseif model_name == "count_6"
+    observations, user_events, grid_size = generate_observations_count_6(m)
   elseif model_name == "gravity_iv"
     observations, user_events, grid_size = generate_observations_gravity4(m)
   elseif model_name == "double_count_1"
