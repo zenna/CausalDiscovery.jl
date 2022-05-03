@@ -1143,7 +1143,7 @@ function generate_observations_count_3(m::Module)
   observations, user_events, 100
 end
 
-function generate_observations_count_4(m::Module)
+function generate_observations_count_6(m::Module)
   state = Base.invokelatest(m.init, nothing, nothing, nothing, nothing, nothing)
   observations = []
   user_events = []
@@ -1234,7 +1234,7 @@ function generate_observations_count_4(m::Module)
   observations, user_events, 100
 end
 
-function generate_observations_count_5(m::Module)
+function generate_observations_count_4(m::Module)
   state = Base.invokelatest(m.init, nothing, nothing, nothing, nothing, nothing)
   observations = []
   user_events = []
@@ -1276,8 +1276,8 @@ function generate_observations_count_5(m::Module)
                 75 => "right",
                 79 => "right",
                 83 => "right",
+
                 85 => "right",
-                
                 87 => "right",
                 88 => "right",
                 90 => "right",

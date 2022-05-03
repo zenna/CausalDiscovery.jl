@@ -2090,7 +2090,7 @@ function generate_event(run_id, anonymized_update_rule, distinct_update_rules, o
       anonymized_event = event # replace(event, ".. obj id) $(object_ids[1])" => ".. obj id) x")
       @show event
       # # @show type_id
-      is_event_object_specific_with_correct_type = event_is_global || parse(Int, split(match(r".. obj id x prev addedObjType\dList", replace(replace(anonymized_event, ")" => ""), "(" => "")).match, "addedObjType")[2][1]) == type_id
+      is_event_object_specific_with_correct_type = event_is_global || parse(Int, split(split(match(r".. obj id x prev addedObjType\d+List", replace(replace(anonymized_event, ")" => ""), "(" => "")).match, "addedObjType")[2], "List")[1]) == type_id
       # # @show is_event_object_specific_with_correct_type
       # # @show object_ids
       # !(occursin("first", anonymized_event) && (nothing in vcat(map(k -> object_mapping[k], collect(keys(object_mapping)))...))) && is_event_object_specific_with_correct_type
@@ -2422,7 +2422,7 @@ function z3_event_search_partial(observed_data_dict, event_vector_dict, timeout=
 end
 
 function z3_event_search_full(run_id, observed_data_dict, event_vector_dict, partial=false, timeout=0)
-  # println("Z3_EVENT_SEARCH_FULL")
+  println("Z3_EVENT_SEARCH_FULL")
   # # @show length(collect(keys(event_vector_dict)))
   # # @show observed_data_dict 
   # # @show event_vector_dict
