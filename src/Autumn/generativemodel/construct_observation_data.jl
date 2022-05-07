@@ -80,27 +80,27 @@ function generate_observations_ice(m::Module)
   filter_out_of_bounds_cells(observations, 8), user_events, 8
 end
 
-function generate_observations_particles(m::Module)
-  state = Base.invokelatest(m.init, nothing, nothing, nothing, nothing, nothing)
-  observations = []
-  user_events = []
-  push!(observations, Base.invokelatest(m.render, state.scene))
+# function generate_observations_particles(m::Module)
+#   state = Base.invokelatest(m.init, nothing, nothing, nothing, nothing, nothing)
+#   observations = []
+#   user_events = []
+#   push!(observations, Base.invokelatest(m.render, state.scene))
 
-  for i in 0:20
-    if i in [2, 5, 8] # 17
-      # state = Base.invokelatest(m.next(state, nothing, nothing, nothing, nothing, nothing)
-      x = rand(1:10)
-      y = rand(1:10)
-      state = Base.invokelatest(m.next, state, Base.invokelatest(m.Click, x, y), nothing, nothing, nothing, nothing)
-      push!(user_events, "clicked $(x) $(y)")
-    else
-      state = Base.invokelatest(m.next, state, nothing, nothing, nothing, nothing, nothing)
-      push!(user_events, nothing)
-    end
-    push!(observations, Base.invokelatest(m.render, state.scene))
-  end
-  observations, user_events, 16
-end
+#   for i in 0:20
+#     if i in [2, 5, 8] # 17
+#       # state = Base.invokelatest(m.next(state, nothing, nothing, nothing, nothing, nothing)
+#       x = rand(1:10)
+#       y = rand(1:10)
+#       state = Base.invokelatest(m.next, state, Base.invokelatest(m.Click, x, y), nothing, nothing, nothing, nothing)
+#       push!(user_events, "clicked $(x) $(y)")
+#     else
+#       state = Base.invokelatest(m.next, state, nothing, nothing, nothing, nothing, nothing)
+#       push!(user_events, nothing)
+#     end
+#     push!(observations, Base.invokelatest(m.render, state.scene))
+#   end
+#   observations, user_events, 16
+# end
 
 
 function generate_observations_lights(m::Module)
@@ -782,7 +782,7 @@ function generate_observations_gravity2(m::Module)
 end
 
 function generate_observations_particles(m::Module)
-  JLD.load("deterministic_particles_input.jld", "particles")
+  observations, user_events, grid_size = JLD.load("deterministic_particles_input.jld", "particles")
   # state = Base.invokelatest(m.init, nothing, nothing, nothing, nothing, nothing)
   # observations = []
   # user_events = []
@@ -804,7 +804,7 @@ function generate_observations_particles(m::Module)
   #   end
   #   push!(observations, Base.invokelatest(m.render, state.scene))
   # end
-  # observations, user_events, 16
+  observations[1:19], user_events[1:18], 16
 end
 
 function generate_observations_chase(m::Module) 
@@ -1330,6 +1330,26 @@ function generate_observations_count_5(m::Module)
     push!(observations, Base.invokelatest(m.render, state.scene))
   end
   observations, user_events, 100
+end
+
+function generate_observations_coins_1(m::Module)
+  # 5 coins
+  JLD.load("new_coins_data_5.jld")["data"]
+end
+
+function generate_observations_coins_2(m::Module)
+  # 7 coins 
+  JLD.load("new_coins_data_7.jld")["data"]
+end
+
+function generate_observations_coins_3(m::Module)
+  # 9 coins?
+  observations, user_events, grid_size = JLD.load("new_coins_data_9.jld")["data"]
+  user_events[147] = "click 7 10"
+  user_events[3] = "click 7 10"
+  user_events[1] = "click 7 10"
+  user_events[6] = "click 7 10"
+  observations, user_events, grid_size
 end
 
 function generate_observations_grow2(m)

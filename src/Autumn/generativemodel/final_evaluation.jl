@@ -55,7 +55,7 @@ function run_model(model_name::String, algorithm, iteration, desired_per_matrix_
   for param_option in param_options
     # println("DO YOU SEE ME")
     println("singlecell, time_based, z3_option, co_occurring_param, transition_param, random_param")
-    @show param_option 
+    # @show param_option 
 
     singlecell, time_based, z3_option, co_occurring_param, transition_param, random_param = param_option
 
@@ -121,8 +121,8 @@ function run_model(model_name::String, algorithm, iteration, desired_per_matrix_
     push!(all_sols, sols...)
     total_time += timed_tuple.time
     
-    non_random_solutions = filter(x -> !occursin("randomPositions", x) && (!occursin("uniformChoice", x) || occursin("uniformChoice (map", x)), all_sols)
-    if length(non_random_solutions) >= 1 
+    non_random_solutions = filter(x -> !occursin("randomPositions", x) && !occursin("uniformChoice", x), all_sols)
+    if (random_param && singlecell && length(all_sols) >= 1) || length(non_random_solutions) >= 1 
       found_enough = true 
       # println("FINAL TIME") 
       # # @show total_time 
@@ -184,7 +184,7 @@ function run_model(model_name::String, algorithm, iteration, desired_per_matrix_
         push!(all_sols, sols...)
 
         non_random_solutions = filter(x -> !occursin("randomPositions", x) && !occursin("uniformChoice", x), all_sols)
-        if length(non_random_solutions) >= 1 
+        if (random_param && length(all_sols) >= 1) || length(non_random_solutions) >= 1 
           found_enough = true 
           # println("FINAL TIME") 
           # # @show total_time 

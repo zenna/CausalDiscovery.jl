@@ -97,7 +97,7 @@ function singletimestepsolution_matrix(observations, user_events, grid_size; sin
                         "(= objX (moveRight objX))",
                         # "(= objX (moveLeftNoCollision (moveUpNoCollision objX)))",
                         # "(= objX (moveLeftNoCollision (moveDownNoCollision objX)))",
-                        "(= objX (moveRightNoCollision objX))",
+                        # "(= objX (moveRightNoCollision objX))",
                         # "(= objX (moveRightNoCollision (moveUpNoCollision objX)))",
                         # "(= objX (moveRightNoCollision (moveDownNoCollision objX)))",
                         "(= objX (moveUpNoCollision objX))",
@@ -299,6 +299,7 @@ function synthesize_update_functions(object_id, time, object_decomposition, user
     prev_used_rules_index = 1
     using_prev = false
     while (iters < max_iters) # && length(solutions) < 1
+      # # @show iters
       dist = distance(prev_object.position, next_object.position)
       if pedro 
         if dist != 0 
@@ -355,15 +356,17 @@ function synthesize_update_functions(object_id, time, object_decomposition, user
       if (prev_object.custom_field_values != []) && (next_object.custom_field_values != []) && (prev_object.custom_field_values[1] != next_object.custom_field_values[1])
         update_rule = """(= obj$(object_id) (updateObj obj$(object_id) "color" "$(next_object.custom_field_values[1])"))"""
       elseif prev_used_rules_index <= length(prev_used_rules)
+        # # println("test 1")
         update_rule = replace(prev_used_rules[prev_used_rules_index], "objX" => "obj$(object_id)")
         using_prev = true
         prev_used_rules_index += 1
         # # # # # @show prev_used_rules_index
       else
+        # # println("test 2")
         using_prev = false
         update_rule = generate_hypothesis_update_rule(prev_object, (object_types, prev_objects, background, grid_size), p=0.0) # "(= obj1 (moveDownNoCollision (moveDownNoCollision (prev obj1))))"
         # # # println("IS THIS THE REAL LIFE")
-        # # # # # @show update_rule 
+        # @show update_rule 
       end      
       
       if occursin("NoCollision", update_rule) || occursin("closest", update_rule) || occursin("nextLiquid", update_rule) || occursin("color", update_rule)
@@ -1761,7 +1764,7 @@ function construct_filtered_matrices(matrix, unformatted_matrix, object_decompos
     non_random_matrix = deepcopy(matrix)
     for row in 1:size(non_random_matrix)[1]
       for col in 1:size(non_random_matrix)[2]
-        non_random_matrix[row, col] = filter(x -> !occursin("randomPositions", x) && (!occursin("uniformChoice", x) || occursin("uniformChoice (map", x)), non_random_matrix[row, col])
+        non_random_matrix[row, col] = filter(x -> !occursin("closest", x) && !occursin("randomPositions", x) && (!occursin("uniformChoice", x) || occursin("uniformChoice (map", x)), non_random_matrix[row, col])
       end
     end
     filtered_non_random_matrices = filter_update_function_matrix_multiple(non_random_matrix, object_decomposition, multiple=true, base=base)
@@ -1821,7 +1824,12 @@ function construct_filtered_matrices(matrix, unformatted_matrix, object_decompos
     for row in 1:size(random_matrix)[1]
       for col in 1:size(random_matrix)[2]
         if filter(x -> (occursin("uniformChoice", x) && !occursin("uniformChoice (map", x)) || occursin("randomPositions", x), random_matrix[row, col]) != []
-          random_matrix[row, col] = filter(x -> occursin("uniformChoice", x) || occursin("randomPositions", x), random_matrix[row, col])
+          
+          if occursin("uniformChoice", join(random_matrix[row, col])) && occursin("randomPositions", join(random_matrix[row, col])) && occursin("addObj", join(random_matrix[row, col]))
+            random_matrix[row, col] = filter(x -> occursin("uniformChoice", x), random_matrix[row, col])
+          else
+            random_matrix[row, col] = filter(x -> occursin("uniformChoice", x) || occursin("randomPositions", x), random_matrix[row, col])
+          end
           is_random = true
         end
       end
@@ -3394,7 +3402,11 @@ function format_on_clause_full_program(on_clause, object_decomposition, matrix)
     object_type = filter(t -> t.id == type_id, object_types)[1]
     if "field1" in map(tuple -> tuple[1], object_type.custom_fields)
       object_ids_with_type = filter(id -> filter(obj -> !isnothing(obj), object_mapping[id])[1].type.id == type_id, collect(keys(object_mapping)))
-      corresponding_object_ids = filter(id -> update_function in vcat(matrix[id, :]...), object_ids_with_type)
+      if occursin("randomPositions", update_function)
+        corresponding_object_ids = filter(id -> occursin("addObj", join(vcat(matrix[id, :]...))), object_ids_with_type)
+      else
+        corresponding_object_ids = filter(id -> update_function in vcat(matrix[id, :]...), object_ids_with_type)
+      end
 
       field_values = map(i -> filter(obj -> !isnothing(obj), object_mapping[i])[1].custom_field_values[end], filter(id -> isnothing(object_mapping[id][1]), corresponding_object_ids))
       field_value = field_values[1]
