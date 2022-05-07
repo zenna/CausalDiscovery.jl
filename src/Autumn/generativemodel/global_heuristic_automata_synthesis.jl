@@ -56,7 +56,7 @@ function generate_on_clauses_GLOBAL(run_id, matrix, unformatted_matrix, object_d
   # filtered_matrices = filtered_matrices[22:22]
   # filtered_matrices = filtered_matrices[5:5]
   # filtered_matrices = filtered_matrices[2:2] # SOKOBAN, PUSHBOULDERS
-  filtered_matrices = filtered_matrices[1:1] # PRECONDITIONS, ALIENS
+  # filtered_matrices = filtered_matrices[1:1] # PRECONDITIONS, ALIENS
   # filtered_matrices = filtered_matrices[3:3] # BEES AND BIRDS, ANTAGONIST 
   # filtered_matrices = filtered_matrices[4:4] # CLOSING GATES
 
@@ -477,96 +477,412 @@ function generate_on_clauses_GLOBAL(run_id, matrix, unformatted_matrix, object_d
           end
           # ----- END: split by global/object-specific for sketch-based state synthesis algorithms ----- 
 
+          if state_synthesis_algorithm == "sketch_multi"
+            println("WOAH INSIDE SKETCH_MULTI STATE SYNTHESIS ALGORITHM")
+            @show global_update_functions_dict 
+            @show object_specific_update_functions_dict 
+  
+            if length(collect(keys(global_update_functions_dict))) > 0
+              tuples = collect(keys(global_update_functions_dict))
+              multi_id_tuples = sort(filter(t -> t[1] isa Tuple, tuples), by=x -> length(x[2]))
+              single_id_tuples = sort(filter(t -> !(t[1] isa Tuple), tuples), by=x -> length(x[2]))
+              single_id_tuples_with_remove = filter(t -> occursin("removeObj", join(global_update_functions_dict[t], "")), single_id_tuples)
+              single_id_tuples_without_remove = filter(t -> !occursin("removeObj", join(global_update_functions_dict[t], "")), single_id_tuples)
+              sorted_tuples = vcat(multi_id_tuples..., single_id_tuples_without_remove..., single_id_tuples_with_remove...)
 
-          
-          # generate new state until all unmatched update functions are matched 
-          while length(collect(keys(co_occurring_events_dict))) != 0
-            # type_id, co_occurring_event = sort(collect(keys(co_occurring_events_dict)), by=tuple -> length(tuple[2]))[1]
+              for tuple in sorted_tuples
+                type_id, co_occurring_event = tuple 
+                update_functions = global_update_functions_dict[tuple]
+  
+                if type_id isa Tuple 
+                  object_ids_with_type = filter(k -> filter(obj -> !isnothing(obj), object_mapping[k])[1].type.id in collect(type_id), collect(keys(object_mapping)))            
+                else
+                  object_ids_with_type = filter(k -> filter(obj -> !isnothing(obj), object_mapping[k])[1].type.id == type_id, collect(keys(object_mapping)))
+                end
+      
+                # construct update_function_times_dict for this type_id/co_occurring_event pair 
+                times_dict = Dict() # form: update function => object_id => times when update function occurred for object_id
+                for update_function in update_functions 
+                  times_dict[update_function] = Dict(map(id -> id => findall(r -> r == update_function, vcat(anonymized_filtered_matrix[id, :]...)), object_ids_with_type))
+                end
+  
+                if foldl(&, map(update_rule -> occursin("addObj", update_rule), update_functions))
+                  object_trajectories = map(id -> anonymized_filtered_matrix[id, :], filter(k -> filter(obj -> !isnothing(obj), object_mapping[k])[1].type.id in collect(type_id), collect(keys(object_mapping))))
+                  true_times = unique(vcat(map(trajectory -> findall(rule -> rule in update_functions, vcat(trajectory...)), object_trajectories)...))
+                  object_trajectory = []
+                  ordered_update_functions = []
+  
+                  println("DEBUGGING GROUP_ADDOBJ_RULES")
+                  @show times_dict
+                  if type_id isa Tuple 
+                    if length(type_id) == 1 
+                      extracted_type_id = type_id[1]
+                      
+                      group_addObj_rules, addObj_rules, addObj_count = addObj_params_dict[extracted_type_id]
+                      if group_addObj_rules 
+                        u = sort(collect(keys(times_dict)))[1]
+                        for k in sort(collect(keys(times_dict)))
+                          if k != u 
+                            delete!(times_dict, k)
+                          end
+                        end
+                      end
+  
+                    end 
+                  end
+                  println("POST GROUP_ADDOBJ MODIFICATION")
+                  @show times_dict
+  
+                else 
+                  ids_with_rule = map(idx -> object_ids_with_type[idx], findall(idx_set -> idx_set != [], map(id -> findall(rule -> rule[1] in update_functions, anonymized_filtered_matrix[id, :]), object_ids_with_type)))
+                  trajectory_lengths = map(id -> length(filter(x -> x != [""], anonymized_filtered_matrix[id, :])), ids_with_rule)
+                  max_index = findall(x -> x == maximum(trajectory_lengths) , trajectory_lengths)[1]
+                  object_id = ids_with_rule[max_index]
+                  object_trajectory = anonymized_filtered_matrix[object_id, :]
+                  true_times = unique(findall(rule -> rule in update_functions, vcat(object_trajectory...)))
+                  ordered_update_functions = ordered_update_functions_dict[type_id]
+                end
+  
+                state_solutions = generate_global_multi_automaton_sketch(run_id, co_occurring_event, times_dict, global_event_vector_dict, object_trajectory, Dict(), Dict(1 => ["" for x in 1:length(user_events)]), object_decomposition, type_id, type_displacements, interval_offsets, source_exists_events_dict, desired_per_matrix_solution_count, sketch_timeout, false, ordered_update_functions, transition_distinct, transition_same, transition_threshold)
+                # @show state_solutions 
+                if state_solutions == [] || state_solutions[1][1] == []
+                  # println("MULTI-AUTOMATA SKETCH FAILURE")
+                  failed = true
+                  break
+                else
+                  # println("IS THE OUTPUT HERE?")
+                  # @show state_solutions
+                  global_state_solutions_dict[tuple] = state_solutions
+                end
+              end
+  
+              if failed 
+                # println("MULTI-AUTOMATA SKETCH BREAKING OUT OF WHILE")
+                push!(solutions, ([], [], [], Dict()))
+                break 
+              end
+  
+              # GLOBAL AUTOMATON CONSTRUCTION 
+              # @show global_state_solutions_dict
+              global_update_function_tuples = sort(vcat(collect(keys(global_state_solutions_dict))...), by=x -> x isa Tuple ? length(x) : x)
+        
+              # compute products of component automata to find simplest 
+              # println("PRE-GENERALIZATION (GLOBAL)")
+              # @show global_state_solutions_dict
+              global_state_solutions_dict = generalize_all_automata(global_state_solutions_dict, user_events, global_event_vector_dict, global_aut=true)
+              # println("POST-GENERALIZATION (GLOBAL)")
+              # @show global_state_solutions_dict
+  
+              product_automata = compute_all_products(global_state_solutions_dict, global_aut=true, generalized=true)
+              best_automaton = optimal_automaton(product_automata)
+              best_prod_states, best_prod_transitions, best_start_state, best_accept_states, best_co_occurring_events = best_automaton 
+              
+              if !(best_accept_states isa Tuple)
+                best_accept_states = (best_accept_states,)
+                best_co_occurring_events = (best_co_occurring_events,)
+              end
+  
+              # re-label product states (tuples) to integers
+              old_to_new_state_values = Dict(map(tup -> tup => findall(x -> x == tup, sort(best_prod_states))[1], sort(best_prod_states)))
+        
+              # construct product transitions under relabeling 
+              new_transitions = map(old_trans -> (old_to_new_state_values[old_trans[1]], old_to_new_state_values[old_trans[2]], old_trans[3]), best_prod_transitions)
+        
+              # construct accept states for each update function under relabeling
+              new_accept_state_dict = Dict()
+              for tuple_index in 1:length(global_update_function_tuples)
+                tuple = global_update_function_tuples[tuple_index]
+                global_update_functions = sort(global_update_functions_dict[tuple])
+  
+                new_accept_state_dict[tuple_index] = Dict()
+  
+                for update_function_index in 1:length(global_update_functions)
+                  update_function = global_update_functions[update_function_index]
+                  orig_accept_states = best_accept_states[tuple_index][update_function_index]
+                  prod_accept_states = filter(tup -> tup[tuple_index] in orig_accept_states, best_prod_states)
+                  final_accept_states = map(tup -> old_to_new_state_values[tup], prod_accept_states)
+                  new_accept_state_dict[tuple_index][update_function] = final_accept_states
+                end
+              end 
+        
+              # construct start state under relabeling 
+              new_start_state = old_to_new_state_values[best_start_state]
+              
+              # construct state_based_update_func_on_clauses
+              state_based_update_func_on_clauses = []
+              grouped_indices = []
+              normal_indices = []
+              for tuple_index in collect(1:length(global_update_function_tuples)) 
+                type_id, co_occurring_event = global_update_function_tuples[tuple_index]
+                update_functions = global_update_functions_dict[(type_id, co_occurring_event)]
+                if foldl(&, map(u -> occursin("addObj", u), update_functions), init=true)
+                  group_addObj_rules, addObj_rules, addObj_count = addObj_params_dict[type_id[1]]
+                  if group_addObj_rules 
+                    push!(grouped_indices, tuple_index)
+                  else
+                    push!(normal_indices, tuple_index)
+                  end
+                else
+                  push!(normal_indices, tuple_index)
+                end
+              end
+              push!(state_based_update_func_on_clauses, vcat(map(tuple_idx -> map(upd_func -> ("(on (& $(best_co_occurring_events[tuple_idx]) (in (prev globalVar1) (list $(join(unique(new_accept_state_dict[tuple_idx][upd_func]), " ")))))\n$(replace(upd_func, "(--> obj (== (.. obj id) x))" => "(--> obj true)")))", upd_func), global_update_functions_dict[global_update_function_tuples[tuple_idx]]), normal_indices)...)...)
+              push!(state_based_update_func_on_clauses, vcat(map(tuple_idx -> map(upd_func -> ("(on (& $(best_co_occurring_events[tuple_idx]) (in (prev globalVar1) (list $(join(unique(new_accept_state_dict[tuple_idx][upd_func]), " ")))))\n(let\n($(join(unique(addObj_params_dict[global_update_function_tuples[tuple_idx][1][1]][2]), "\n")))))", upd_func), global_update_functions_dict[global_update_function_tuples[tuple_idx]]), grouped_indices)...)...)
+              
+              new_transitions = map(trans -> (trans[1], trans[2], replace(trans[3], "(filter (--> obj (== (.. obj id) x)) (prev addedObjType$(type_id)List))" => "(list (prev obj))")), new_transitions)
+              # @show new_transitions 
+              # @show collect(values(old_to_new_state_values))
+              state_transition_on_clauses = format_state_transition_functions(new_transitions, collect(values(old_to_new_state_values)), global_var_id=1)
+              fake_global_var_dict = Dict(1 => [new_start_state for i in 1:length(user_events)])
+              global_var_dict = fake_global_var_dict
+  
+              # format on_clauses 
+              state_based_update_func_on_clauses = map(tup -> (replace(tup[1], "(--> obj (== (.. obj id) x))" => "(--> obj true)"), tup[2]), state_based_update_func_on_clauses)
+  
+              push!(on_clauses, state_based_update_func_on_clauses...)
+              push!(on_clauses, state_transition_on_clauses...)
+  
+            end
+  
+            # OBJECT-SPECIFIC STATE HANDLING 
+            # @show object_specific_update_functions_dict
+            # @show observation_vectors_dict
+            if length(collect(keys(object_specific_update_functions_dict))) > 0 
+              tuples = collect(keys(object_specific_update_functions_dict))
+              multi_id_tuples = sort(filter(t -> t[1] isa Tuple, tuples), by=x -> length(x[2]))
+              single_id_tuples = sort(filter(t -> !(t[1] isa Tuple), tuples), by=x -> length(x[2]))
+              single_id_tuples_with_remove = filter(t -> occursin("removeObj", join(object_specific_update_functions_dict[t], "")), single_id_tuples)
+              single_id_tuples_without_remove = filter(t -> !occursin("removeObj", join(object_specific_update_functions_dict[t], "")), single_id_tuples)
+              sorted_tuples = vcat(multi_id_tuples..., single_id_tuples_without_remove..., single_id_tuples_with_remove...)
+
+              for tuple in sorted_tuples
+                type_id, co_occurring_event = tuple
+                object_specific_update_functions = object_specific_update_functions_dict[tuple]
+  
+                times_dict = Dict() # form: update function => object_id => times when update function occurred for object_id
+                if type_id isa Tuple 
+                  object_ids_with_type = filter(k -> filter(obj -> !isnothing(obj), object_mapping[k])[1].type.id in collect(type_id), collect(keys(object_mapping)))            
+                else
+                  object_ids_with_type = filter(k -> filter(obj -> !isnothing(obj), object_mapping[k])[1].type.id == type_id, collect(keys(object_mapping)))
+                end
+  
+                for update_function in object_specific_update_functions 
+                  times_dict[update_function] = Dict(map(id -> id => findall(r -> r == update_function, vcat(anonymized_filtered_matrix[id, :]...)), object_ids_with_type))
+                end
+  
+                state_solutions = generate_object_specific_multi_automaton_sketch(run_id, co_occurring_event, object_specific_update_functions, times_dict, global_event_vector_dict, type_id, global_object_decomposition, object_specific_state_update_times_dict, global_var_dict, type_displacements, interval_offsets, source_exists_events_dict, sketch_timeout, false, transition_param, transition_distinct, transition_same, transition_threshold)            
+                if state_solutions == [] || state_solutions[1][1] == []
+                  # println("MULTI-AUTOMATA SKETCH FAILURE")
+                  failed = true 
+                  break
+                else
+                  object_specific_state_solutions_dict[tuple] = state_solutions
+                end
+              end
+  
+              if failed 
+                push!(solutions, ([], [], [], Dict()))
+                break
+              end
+      
+              # @show object_specific_state_solutions_dict
+  
+              # OBJECT-SPECIFIC AUTOMATON CONSTRUCTION 
+              object_specific_update_function_tuples = sort(vcat(collect(keys(object_specific_state_solutions_dict))...), by= x -> x isa Tuple ? length(x) : x)
             
-            tuples = collect(keys(co_occurring_events_dict))
-            multi_id_tuples = sort(filter(t -> t[1] isa Tuple, tuples), by=x -> length(x[2]))
-            single_id_tuples = sort(filter(t -> !(t[1] isa Tuple), tuples), by=x -> length(x[2]))
-            single_id_tuples_with_remove = filter(t -> occursin("removeObj", join(co_occurring_events_dict[t], "")), single_id_tuples)
-            single_id_tuples_without_remove = filter(t -> !occursin("removeObj", join(co_occurring_events_dict[t], "")), single_id_tuples)
-            sorted_tuples = vcat(multi_id_tuples..., single_id_tuples_without_remove..., single_id_tuples_with_remove...)
-            type_id, co_occurring_event = sorted_tuples[1]
-
-            update_functions = co_occurring_events_dict[(type_id, co_occurring_event)]
-            delete!(co_occurring_events_dict, (type_id, co_occurring_event))
-
-            println("DID DELETE WORK?")
-            @show length(collect(keys(co_occurring_events_dict)))
-            @show co_occurring_events_dict
-
-            # construct update_function_times_dict for this type_id/co_occurring_event pair 
-            times_dict = Dict() # form: update function => object_id => times when update function occurred for object_id
-            if type_id isa Tuple
-              object_ids_with_type = filter(k -> filter(obj -> !isnothing(obj), object_mapping[k])[1].type.id in collect(type_id), collect(keys(object_mapping)))
-            else 
-              object_ids_with_type = filter(k -> filter(obj -> !isnothing(obj), object_mapping[k])[1].type.id == type_id, collect(keys(object_mapping)))
+              
+              type_id = map(t -> t[1], object_specific_update_function_tuples)[1]
+              object_ids = sort(filter(id -> filter(x -> !isnothing(x), object_mapping[id])[1].type.id == type_id, collect(keys(object_mapping))))
+  
+              # compute products of component automata to find simplest 
+              # println("PRE-GENERALIZATION (OBJECT-SPECIFIC)")
+              # @show object_specific_state_solutions_dict
+              object_specific_state_solutions_dict = generalize_all_automata(object_specific_state_solutions_dict, user_events, global_event_vector_dict, global_aut=false)
+              # println("POST-GENERALIZATION (OBJECT-SPECIFIC)")
+              # @show object_specific_state_solutions_dict 
+  
+              product_automata = compute_all_products(object_specific_state_solutions_dict, global_aut=false, generalized=true)
+              best_automaton = optimal_automaton(product_automata)
+              best_prod_states, best_prod_transitions, best_start_state, best_accept_states, best_co_occurring_event = best_automaton 
+      
+              if !(best_accept_states isa Tuple)
+                best_accept_states = (best_accept_states,)
+                best_co_occurring_event = (best_co_occurring_event,)
+              end
+  
+              # re-label product states (tuples) to integers
+              old_to_new_state_values = Dict(map(tup -> tup => findall(x -> x == tup, sort(best_prod_states))[1], sort(best_prod_states)))
+      
+              # construct product transitions under relabeling 
+              new_transitions = map(old_trans -> (old_to_new_state_values[old_trans[1]], old_to_new_state_values[old_trans[2]], old_trans[3]), best_prod_transitions)
+      
+              # construct accept states for each update function under relabeling
+              new_accept_state_dict = Dict()
+              for tuple_index in 1:length(object_specific_update_function_tuples)
+                tuple = object_specific_update_function_tuples[tuple_index]
+                update_functions = sort(object_specific_update_functions_dict[tuple])
+                new_accept_state_dict[tuple_index] = Dict()
+                for update_function_index in 1:length(update_functions) 
+                  update_function = update_functions[update_function_index]
+                  orig_accept_states = best_accept_states[tuple_index][update_function_index]
+                  prod_accept_states = filter(tup -> tup[tuple_index] in orig_accept_states, best_prod_states)
+                  final_accept_states = map(tup -> old_to_new_state_values[tup], prod_accept_states)
+                  new_accept_state_dict[tuple_index][update_function] = final_accept_states
+                end 
+              end 
+      
+              # construct start state under relabeling 
+              orig_start_states = best_start_state
+              new_start_states = map(tup -> old_to_new_state_values[tup], orig_start_states)
+      
+              # TODO: something generalization-based needs to happen here 
+              state_based_update_func_on_clauses = vcat(map(tuple_idx -> map(upd_func -> ("(on true\n$(replace(upd_func, "(== (.. obj id) x)" => "(& $(best_co_occurring_event[tuple_idx]) (in (.. (prev obj) field1) (list $(join(new_accept_state_dict[tuple_idx][upd_func], " ")))))")))", upd_func), object_specific_update_functions_dict[object_specific_update_function_tuples[tuple_idx]]), 1:length(object_specific_update_function_tuples))...)
+              # state_transition_on_clauses = map(trans -> """(on true\n(= addedObjType$(type_id)List (updateObj addedObjType$(type_id)List (--> obj (updateObj (prev obj) "field1" $(trans[2]))) (--> obj $(trans[3])))))""", new_transitions)
+              state_transition_on_clauses = map(x -> replace(x, "(filter (--> obj (== (.. obj id) x)) (prev addedObjType$(type_id)List))" => "(prev obj)"), format_state_transition_functions(new_transitions, collect(values(old_to_new_state_values)), type_id=type_id))
+  
+  
+              fake_object_field_values = Dict(map(idx -> object_ids[idx] => [new_start_states[idx] for i in 1:length(object_mapping[object_ids[1]])], 1:length(object_ids)))
+  
+              new_object_types = deepcopy(object_types)
+              new_object_type = filter(type -> type.id == type_id, new_object_types)[1]
+              if !("field1" in map(field_tuple -> field_tuple[1], new_object_type.custom_fields))
+                push!(new_object_type.custom_fields, ("field1", "Int", collect(values(old_to_new_state_values))))
+              else
+                custom_field_index = findall(field_tuple -> field_tuple[1] == "field1", filter(obj -> !isnothing(obj), object_mapping[object_ids[1]])[1].type.custom_fields)[1]
+                new_object_type.custom_fields[custom_field_index][3] = sort(unique(vcat(new_object_type.custom_fields[custom_field_index][3], collect(values(old_to_new_state_values)))))
+              end
+              
+              ## modify objects in object_mapping
+              new_object_mapping = deepcopy(object_mapping)
+              for id in collect(keys(new_object_mapping))
+                if id in object_ids
+                  for time in 1:length(new_object_mapping[id])
+                    if !isnothing(object_mapping[id][time])
+                      values = new_object_mapping[id][time].custom_field_values
+                      if !((values != []) && (values[end] isa Int) && (values[end] < curr_state_value))
+                        new_object_mapping[id][time].type = new_object_type
+                        if (values != []) && (values[end] isa Int)
+                          new_object_mapping[id][time].custom_field_values = vcat(new_object_mapping[id][time].custom_field_values[1:end-1], fake_object_field_values[id][time])
+                        else
+                          new_object_mapping[id][time].custom_field_values = vcat(new_object_mapping[id][time].custom_field_values, fake_object_field_values[id][time])
+                        end
+                      end
+                    end
+                  end
+                end
+              end
+              object_decomposition = (new_object_types, new_object_mapping, background, grid_size)
+              global_object_decomposition = object_decomposition 
+  
+              # TODO: formatting
+              push!(on_clauses, state_based_update_func_on_clauses...)
+              push!(on_clauses, reverse(state_transition_on_clauses)...)
             end
-
-            for update_function in update_functions 
-              times_dict[update_function] = Dict(map(id -> id => findall(r -> r == update_function, vcat(anonymized_filtered_matrix[id, :]...)), object_ids_with_type))
-            end
-
-            @show update_functions 
-            @show times_dict
-            @show anonymized_filtered_matrix
-            @show observation_vectors_dict
-
-            # determine if state is global or object-specific 
-            state_is_global = true 
-            if length(object_ids_with_type) == 1 || foldl(&, map(u -> occursin("addObj", u), update_functions), init=true)
-              state_is_global = true
+  
+            if failed
+              # move to new problem context because appropriate state was not found  
+              push!(solutions, ([], [], [], Dict()))
             else
-              state_is_global = false
-              # for update_function in update_functions 
-              #   for time in 1:length(user_events)
-              #     # observation_values = map(id -> observation_vectors_dict[update_function][id][time], object_ids_with_type)
-              #     observation_values = []
-              #     for id in object_ids_with_type 
-              #       if id in collect(keys(observation_vectors_dict[update_function]))
-              #         push!(observation_values, observation_vectors_dict[update_function][id][time])
-              #       end
-              #     end
-
-              #     if (0 in observation_values) && (1 in observation_values)
-              #       @show update_function 
-              #       @show time 
-              #       state_is_global = false
-              #       break
-              #     end
-              #   end
-              #   if !state_is_global
-              #     break
-              #   end
-              # end
+              # @show filtered_matrix_index
+  
+              # re-order on_clauses
+              ordered_on_clauses = re_order_on_clauses(on_clauses, ordered_update_functions_dict)
+              
+              push!(solutions, ([deepcopy(ordered_on_clauses)..., deepcopy(state_update_on_clauses)...], deepcopy(global_object_decomposition), deepcopy(global_var_dict)))
+              # save("solution_$(Dates.now()).jld", "solution", solutions[end])
+              solutions_per_matrix_count += 1 
             end
+  
+          
+          elseif state_synthesis_algorithm == "heuristic"
+            # generate new state until all unmatched update functions are matched 
+            while length(collect(keys(co_occurring_events_dict))) != 0
+              # type_id, co_occurring_event = sort(collect(keys(co_occurring_events_dict)), by=tuple -> length(tuple[2]))[1]
+              
+              tuples = collect(keys(co_occurring_events_dict))
+              multi_id_tuples = sort(filter(t -> t[1] isa Tuple, tuples), by=x -> length(x[2]))
+              single_id_tuples = sort(filter(t -> !(t[1] isa Tuple), tuples), by=x -> length(x[2]))
+              single_id_tuples_with_remove = filter(t -> occursin("removeObj", join(co_occurring_events_dict[t], "")), single_id_tuples)
+              single_id_tuples_without_remove = filter(t -> !occursin("removeObj", join(co_occurring_events_dict[t], "")), single_id_tuples)
+              sorted_tuples = vcat(multi_id_tuples..., single_id_tuples_without_remove..., single_id_tuples_with_remove...)
+              type_id, co_occurring_event = sorted_tuples[1]
 
-            println("CURRENT DEBUGGING")
-            @show anonymized_filtered_matrix 
-            @show object_ids_with_type 
-            @show update_functions 
+              update_functions = co_occurring_events_dict[(type_id, co_occurring_event)]
+              delete!(co_occurring_events_dict, (type_id, co_occurring_event))
 
-            if state_is_global 
-              # construct new global state 
-              if foldl(&, map(update_rule -> occursin("addObj", update_rule), update_functions))
-                object_trajectories = map(id -> anonymized_filtered_matrix[id, :], filter(k -> filter(obj -> !isnothing(obj), object_mapping[k])[1].type.id in collect(type_id), collect(keys(object_mapping))))
-                true_times = unique(vcat(map(trajectory -> findall(rule -> rule in update_functions, vcat(trajectory...)), object_trajectories)...))
-                object_trajectory = []
-                ordered_update_functions = []
+              println("DID DELETE WORK?")
+              @show length(collect(keys(co_occurring_events_dict)))
+              @show co_occurring_events_dict
+
+              # construct update_function_times_dict for this type_id/co_occurring_event pair 
+              times_dict = Dict() # form: update function => object_id => times when update function occurred for object_id
+              if type_id isa Tuple
+                object_ids_with_type = filter(k -> filter(obj -> !isnothing(obj), object_mapping[k])[1].type.id in collect(type_id), collect(keys(object_mapping)))
               else 
-                ids_with_rule = map(idx -> object_ids_with_type[idx], findall(idx_set -> idx_set != [], map(id -> findall(rule -> rule[1] in update_functions, anonymized_filtered_matrix[id, :]), object_ids_with_type)))
-                trajectory_lengths = map(id -> length(filter(x -> x != [""], anonymized_filtered_matrix[id, :])), ids_with_rule)
-                max_index = findall(x -> x == maximum(trajectory_lengths) , trajectory_lengths)[1]
-                object_id = ids_with_rule[max_index]
-                object_trajectory = anonymized_filtered_matrix[object_id, :]
-                true_times = unique(findall(rule -> rule in update_functions, vcat(object_trajectory...)))
-                ordered_update_functions = ordered_update_functions_dict[type_id]
+                object_ids_with_type = filter(k -> filter(obj -> !isnothing(obj), object_mapping[k])[1].type.id == type_id, collect(keys(object_mapping)))
               end
 
-              if state_synthesis_algorithm == "heuristic"
+              for update_function in update_functions 
+                times_dict[update_function] = Dict(map(id -> id => findall(r -> r == update_function, vcat(anonymized_filtered_matrix[id, :]...)), object_ids_with_type))
+              end
+
+              @show update_functions 
+              @show times_dict
+              @show anonymized_filtered_matrix
+              @show observation_vectors_dict
+
+              # determine if state is global or object-specific 
+              state_is_global = true 
+              if length(object_ids_with_type) == 1 || foldl(&, map(u -> occursin("addObj", u), update_functions), init=true)
+                state_is_global = true
+              else
+                state_is_global = false
+                # for update_function in update_functions 
+                #   for time in 1:length(user_events)
+                #     # observation_values = map(id -> observation_vectors_dict[update_function][id][time], object_ids_with_type)
+                #     observation_values = []
+                #     for id in object_ids_with_type 
+                #       if id in collect(keys(observation_vectors_dict[update_function]))
+                #         push!(observation_values, observation_vectors_dict[update_function][id][time])
+                #       end
+                #     end
+
+                #     if (0 in observation_values) && (1 in observation_values)
+                #       @show update_function 
+                #       @show time 
+                #       state_is_global = false
+                #       break
+                #     end
+                #   end
+                #   if !state_is_global
+                #     break
+                #   end
+                # end
+              end
+
+              println("CURRENT DEBUGGING")
+              @show anonymized_filtered_matrix 
+              @show object_ids_with_type 
+              @show update_functions 
+
+              if state_is_global 
+                # construct new global state 
+                if foldl(&, map(update_rule -> occursin("addObj", update_rule), update_functions))
+                  object_trajectories = map(id -> anonymized_filtered_matrix[id, :], filter(k -> filter(obj -> !isnothing(obj), object_mapping[k])[1].type.id in collect(type_id), collect(keys(object_mapping))))
+                  true_times = unique(vcat(map(trajectory -> findall(rule -> rule in update_functions, vcat(trajectory...)), object_trajectories)...))
+                  object_trajectory = []
+                  ordered_update_functions = []
+                else 
+                  ids_with_rule = map(idx -> object_ids_with_type[idx], findall(idx_set -> idx_set != [], map(id -> findall(rule -> rule[1] in update_functions, anonymized_filtered_matrix[id, :]), object_ids_with_type)))
+                  trajectory_lengths = map(id -> length(filter(x -> x != [""], anonymized_filtered_matrix[id, :])), ids_with_rule)
+                  max_index = findall(x -> x == maximum(trajectory_lengths) , trajectory_lengths)[1]
+                  object_id = ids_with_rule[max_index]
+                  object_trajectory = anonymized_filtered_matrix[object_id, :]
+                  true_times = unique(findall(rule -> rule in update_functions, vcat(object_trajectory...)))
+                  ordered_update_functions = ordered_update_functions_dict[type_id]
+                end
+
+                println("WOAH INSIDE HEURISTIC STATE SYNTHESIS ALGORITHM")
                 # ----- BEGIN STATE SYNTHESIS (HEURISTIC) -----
                 state_solutions = generate_new_state_GLOBAL(co_occurring_event, times_dict, global_event_vector_dict, object_trajectory, global_var_dict, global_state_update_times_dict, object_decomposition, type_id, user_events, desired_per_matrix_solution_count, interval_offsets, source_exists_events_dict, false, false, transition_param, ordered_update_functions, transition_distinct, transition_same, transition_threshold, num_transition_decisions)
                 println("DONT STOP ME NOW")
@@ -684,428 +1000,125 @@ function generate_on_clauses_GLOBAL(run_id, matrix, unformatted_matrix, object_d
 
                   end
                 end
+              else 
 
-              elseif state_synthesis_algorithm == "sketch_multi"
-                @show global_update_functions_dict 
-                @show object_specific_update_functions_dict 
-      
-                if length(collect(keys(global_update_functions_dict))) > 0 
-                  for tuple in collect(keys(global_update_functions_dict))
-                    type_id, co_occurring_event = tuple 
-                    update_functions = global_update_functions_dict[tuple]
-      
-                    if type_id isa Tuple 
-                      object_ids_with_type = filter(k -> filter(obj -> !isnothing(obj), object_mapping[k])[1].type.id in collect(type_id), collect(keys(object_mapping)))            
-                    else
-                      object_ids_with_type = filter(k -> filter(obj -> !isnothing(obj), object_mapping[k])[1].type.id == type_id, collect(keys(object_mapping)))
-                    end
-          
-                    # construct update_function_times_dict for this type_id/co_occurring_event pair 
-                    times_dict = Dict() # form: update function => object_id => times when update function occurred for object_id
-                    for update_function in update_functions 
-                      times_dict[update_function] = Dict(map(id -> id => findall(r -> r == update_function, vcat(anonymized_filtered_matrix[id, :]...)), object_ids_with_type))
-                    end
-      
-                    if foldl(&, map(update_rule -> occursin("addObj", update_rule), update_functions))
-                      object_trajectories = map(id -> anonymized_filtered_matrix[id, :], filter(k -> filter(obj -> !isnothing(obj), object_mapping[k])[1].type.id in collect(type_id), collect(keys(object_mapping))))
-                      true_times = unique(vcat(map(trajectory -> findall(rule -> rule in update_functions, vcat(trajectory...)), object_trajectories)...))
-                      object_trajectory = []
-                      ordered_update_functions = []
-      
-                      println("DEBUGGING GROUP_ADDOBJ_RULES")
-                      @show times_dict
-                      if type_id isa Tuple 
-                        if length(type_id) == 1 
-                          extracted_type_id = type_id[1]
-                          
-                          group_addObj_rules, addObj_rules, addObj_count = addObj_params_dict[extracted_type_id]
-                          if group_addObj_rules 
-                            u = sort(collect(keys(times_dict)))[1]
-                            for k in sort(collect(keys(times_dict)))
-                              if k != u 
-                                delete!(times_dict, k)
-                              end
-                            end
-                          end
-      
-                        end 
-                      end
-                      println("POST GROUP_ADDOBJ MODIFICATION")
-                      @show times_dict
-      
-                    else 
-                      ids_with_rule = map(idx -> object_ids_with_type[idx], findall(idx_set -> idx_set != [], map(id -> findall(rule -> rule[1] in update_functions, anonymized_filtered_matrix[id, :]), object_ids_with_type)))
-                      trajectory_lengths = map(id -> length(filter(x -> x != [""], anonymized_filtered_matrix[id, :])), ids_with_rule)
-                      max_index = findall(x -> x == maximum(trajectory_lengths) , trajectory_lengths)[1]
-                      object_id = ids_with_rule[max_index]
-                      object_trajectory = anonymized_filtered_matrix[object_id, :]
-                      true_times = unique(findall(rule -> rule in update_functions, vcat(object_trajectory...)))
-                      ordered_update_functions = ordered_update_functions_dict[type_id]
-                    end
-      
-                    state_solutions = generate_global_multi_automaton_sketch(run_id, co_occurring_event, times_dict, global_event_vector_dict, object_trajectory, Dict(), Dict(1 => ["" for x in 1:length(user_events)]), object_decomposition, type_id, type_displacements, interval_offsets, source_exists_events_dict, desired_per_matrix_solution_count, sketch_timeout, false, ordered_update_functions, transition_distinct, transition_same, transition_threshold)
-                    # @show state_solutions 
-                    if state_solutions == [] || state_solutions[1][1] == []
-                      # println("MULTI-AUTOMATA SKETCH FAILURE")
-                      failed = true
-                      break
-                    else
-                      # println("IS THE OUTPUT HERE?")
-                      # @show state_solutions
-                      global_state_solutions_dict[tuple] = state_solutions
-                    end
-                  end
-      
-                  if failed 
-                    # println("MULTI-AUTOMATA SKETCH BREAKING OUT OF WHILE")
-                    push!(solutions, ([], [], [], Dict()))
-                    break 
-                  end
-      
-                  # GLOBAL AUTOMATON CONSTRUCTION 
-                  # @show global_state_solutions_dict
-                  global_update_function_tuples = sort(vcat(collect(keys(global_state_solutions_dict))...), by=x -> x isa Tuple ? length(x) : x)
-            
-                  # compute products of component automata to find simplest 
-                  # println("PRE-GENERALIZATION (GLOBAL)")
-                  # @show global_state_solutions_dict
-                  global_state_solutions_dict = generalize_all_automata(global_state_solutions_dict, user_events, global_event_vector_dict, global_aut=true)
-                  # println("POST-GENERALIZATION (GLOBAL)")
-                  # @show global_state_solutions_dict
-      
-                  product_automata = compute_all_products(global_state_solutions_dict, global_aut=true, generalized=true)
-                  best_automaton = optimal_automaton(product_automata)
-                  best_prod_states, best_prod_transitions, best_start_state, best_accept_states, best_co_occurring_events = best_automaton 
-                  
-                  if !(best_accept_states isa Tuple)
-                    best_accept_states = (best_accept_states,)
-                    best_co_occurring_events = (best_co_occurring_events,)
-                  end
-      
-                  # re-label product states (tuples) to integers
-                  old_to_new_state_values = Dict(map(tup -> tup => findall(x -> x == tup, sort(best_prod_states))[1], sort(best_prod_states)))
-            
-                  # construct product transitions under relabeling 
-                  new_transitions = map(old_trans -> (old_to_new_state_values[old_trans[1]], old_to_new_state_values[old_trans[2]], old_trans[3]), best_prod_transitions)
-            
-                  # construct accept states for each update function under relabeling
-                  new_accept_state_dict = Dict()
-                  for tuple_index in 1:length(global_update_function_tuples)
-                    tuple = global_update_function_tuples[tuple_index]
-                    global_update_functions = sort(global_update_functions_dict[tuple])
-      
-                    new_accept_state_dict[tuple_index] = Dict()
-      
-                    for update_function_index in 1:length(global_update_functions)
-                      update_function = global_update_functions[update_function_index]
-                      orig_accept_states = best_accept_states[tuple_index][update_function_index]
-                      prod_accept_states = filter(tup -> tup[tuple_index] in orig_accept_states, best_prod_states)
-                      final_accept_states = map(tup -> old_to_new_state_values[tup], prod_accept_states)
-                      new_accept_state_dict[tuple_index][update_function] = final_accept_states
-                    end
-                  end 
-            
-                  # construct start state under relabeling 
-                  new_start_state = old_to_new_state_values[best_start_state]
-                  
-                  # construct state_based_update_func_on_clauses
-                  state_based_update_func_on_clauses = []
-                  grouped_indices = []
-                  normal_indices = []
-                  for tuple_index in collect(1:length(global_update_function_tuples)) 
-                    type_id, co_occurring_event = global_update_function_tuples[tuple_index]
-                    update_functions = global_update_functions_dict[(type_id, co_occurring_event)]
-                    if foldl(&, map(u -> occursin("addObj", u), update_functions), init=true)
-                      group_addObj_rules, addObj_rules, addObj_count = addObj_params_dict[type_id[1]]
-                      if group_addObj_rules 
-                        push!(grouped_indices, tuple_index)
-                      else
-                        push!(normal_indices, tuple_index)
-                      end
-                    else
-                      push!(normal_indices, tuple_index)
-                    end
-                  end
-                  push!(state_based_update_func_on_clauses, vcat(map(tuple_idx -> map(upd_func -> ("(on (& $(best_co_occurring_events[tuple_idx]) (in (prev globalVar1) (list $(join(unique(new_accept_state_dict[tuple_idx][upd_func]), " ")))))\n$(replace(upd_func, "(--> obj (== (.. obj id) x))" => "(--> obj true)")))", upd_func), global_update_functions_dict[global_update_function_tuples[tuple_idx]]), normal_indices)...)...)
-                  push!(state_based_update_func_on_clauses, vcat(map(tuple_idx -> map(upd_func -> ("(on (& $(best_co_occurring_events[tuple_idx]) (in (prev globalVar1) (list $(join(unique(new_accept_state_dict[tuple_idx][upd_func]), " ")))))\n(let\n($(join(unique(addObj_params_dict[global_update_function_tuples[tuple_idx][1][1]][2]), "\n")))))", upd_func), global_update_functions_dict[global_update_function_tuples[tuple_idx]]), grouped_indices)...)...)
-                  
-                  new_transitions = map(trans -> (trans[1], trans[2], replace(trans[3], "(filter (--> obj (== (.. obj id) x)) (prev addedObjType$(type_id)List))" => "(list (prev obj))")), new_transitions)
-                  # @show new_transitions 
-                  # @show collect(values(old_to_new_state_values))
-                  state_transition_on_clauses = format_state_transition_functions(new_transitions, collect(values(old_to_new_state_values)), global_var_id=1)
-                  fake_global_var_dict = Dict(1 => [new_start_state for i in 1:length(user_events)])
-                  global_var_dict = fake_global_var_dict
-      
-                  # format on_clauses 
-                  state_based_update_func_on_clauses = map(tup -> (replace(tup[1], "(--> obj (== (.. obj id) x))" => "(--> obj true)"), tup[2]), state_based_update_func_on_clauses)
-      
-                  push!(on_clauses, state_based_update_func_on_clauses...)
-                  push!(on_clauses, state_transition_on_clauses...)
-      
-                end
-      
-                # OBJECT-SPECIFIC STATE HANDLING 
-                # @show object_specific_update_functions_dict
-                # @show observation_vectors_dict
-                if length(collect(keys(object_specific_update_functions_dict))) > 0 
-                  for tuple in collect(keys(object_specific_update_functions_dict)) 
-                    type_id, co_occurring_event = tuple
-                    object_specific_update_functions = object_specific_update_functions_dict[tuple]
-      
-                    times_dict = Dict() # form: update function => object_id => times when update function occurred for object_id
-                    if type_id isa Tuple 
-                      object_ids_with_type = filter(k -> filter(obj -> !isnothing(obj), object_mapping[k])[1].type.id in collect(type_id), collect(keys(object_mapping)))            
-                    else
-                      object_ids_with_type = filter(k -> filter(obj -> !isnothing(obj), object_mapping[k])[1].type.id == type_id, collect(keys(object_mapping)))
-                    end
-      
-                    for update_function in object_specific_update_functions 
-                      times_dict[update_function] = Dict(map(id -> id => findall(r -> r == update_function, vcat(anonymized_filtered_matrix[id, :]...)), object_ids_with_type))
-                    end
-      
-                    state_solutions = generate_object_specific_multi_automaton_sketch(run_id, co_occurring_event, object_specific_update_functions, times_dict, global_event_vector_dict, type_id, global_object_decomposition, object_specific_state_update_times_dict, global_var_dict, type_displacements, interval_offsets, source_exists_events_dict, sketch_timeout, false, transition_param, transition_distinct, transition_same, transition_threshold)            
-                    if state_solutions == [] || state_solutions[1][1] == []
-                      # println("MULTI-AUTOMATA SKETCH FAILURE")
-                      failed = true 
-                      break
-                    else
-                      object_specific_state_solutions_dict[tuple] = state_solutions
-                    end
-                  end
-      
-                  if failed 
-                    push!(solutions, ([], [], [], Dict()))
-                    break
-                  end
-          
-                  # @show object_specific_state_solutions_dict
-      
-                  # OBJECT-SPECIFIC AUTOMATON CONSTRUCTION 
-                  object_specific_update_function_tuples = sort(vcat(collect(keys(object_specific_state_solutions_dict))...), by= x -> x isa Tuple ? length(x) : x)
-                
-                  
-                  type_id = map(t -> t[1], object_specific_update_function_tuples)[1]
-                  object_ids = sort(filter(id -> filter(x -> !isnothing(x), object_mapping[id])[1].type.id == type_id, collect(keys(object_mapping))))
-      
-                  # compute products of component automata to find simplest 
-                  # println("PRE-GENERALIZATION (OBJECT-SPECIFIC)")
-                  # @show object_specific_state_solutions_dict
-                  object_specific_state_solutions_dict = generalize_all_automata(object_specific_state_solutions_dict, user_events, global_event_vector_dict, global_aut=false)
-                  # println("POST-GENERALIZATION (OBJECT-SPECIFIC)")
-                  # @show object_specific_state_solutions_dict 
-      
-                  product_automata = compute_all_products(object_specific_state_solutions_dict, global_aut=false, generalized=true)
-                  best_automaton = optimal_automaton(product_automata)
-                  best_prod_states, best_prod_transitions, best_start_state, best_accept_states, best_co_occurring_event = best_automaton 
-          
-                  if !(best_accept_states isa Tuple)
-                    best_accept_states = (best_accept_states,)
-                    best_co_occurring_event = (best_co_occurring_event,)
-                  end
-      
-                  # re-label product states (tuples) to integers
-                  old_to_new_state_values = Dict(map(tup -> tup => findall(x -> x == tup, sort(best_prod_states))[1], sort(best_prod_states)))
-          
-                  # construct product transitions under relabeling 
-                  new_transitions = map(old_trans -> (old_to_new_state_values[old_trans[1]], old_to_new_state_values[old_trans[2]], old_trans[3]), best_prod_transitions)
-          
-                  # construct accept states for each update function under relabeling
-                  new_accept_state_dict = Dict()
-                  for tuple_index in 1:length(object_specific_update_function_tuples)
-                    tuple = object_specific_update_function_tuples[tuple_index]
-                    update_functions = sort(object_specific_update_functions_dict[tuple])
-                    new_accept_state_dict[tuple_index] = Dict()
-                    for update_function_index in 1:length(update_functions) 
-                      update_function = update_functions[update_function_index]
-                      orig_accept_states = best_accept_states[tuple_index][update_function_index]
-                      prod_accept_states = filter(tup -> tup[tuple_index] in orig_accept_states, best_prod_states)
-                      final_accept_states = map(tup -> old_to_new_state_values[tup], prod_accept_states)
-                      new_accept_state_dict[tuple_index][update_function] = final_accept_states
-                    end 
-                  end 
-          
-                  # construct start state under relabeling 
-                  orig_start_states = best_start_state
-                  new_start_states = map(tup -> old_to_new_state_values[tup], orig_start_states)
-          
-                  # TODO: something generalization-based needs to happen here 
-                  state_based_update_func_on_clauses = vcat(map(tuple_idx -> map(upd_func -> ("(on true\n$(replace(upd_func, "(== (.. obj id) x)" => "(& $(best_co_occurring_event[tuple_idx]) (in (.. (prev obj) field1) (list $(join(new_accept_state_dict[tuple_idx][upd_func], " ")))))")))", upd_func), object_specific_update_functions_dict[object_specific_update_function_tuples[tuple_idx]]), 1:length(object_specific_update_function_tuples))...)
-                  # state_transition_on_clauses = map(trans -> """(on true\n(= addedObjType$(type_id)List (updateObj addedObjType$(type_id)List (--> obj (updateObj (prev obj) "field1" $(trans[2]))) (--> obj $(trans[3])))))""", new_transitions)
-                  state_transition_on_clauses = map(x -> replace(x, "(filter (--> obj (== (.. obj id) x)) (prev addedObjType$(type_id)List))" => "(prev obj)"), format_state_transition_functions(new_transitions, collect(values(old_to_new_state_values)), type_id=type_id))
-      
-      
-                  fake_object_field_values = Dict(map(idx -> object_ids[idx] => [new_start_states[idx] for i in 1:length(object_mapping[object_ids[1]])], 1:length(object_ids)))
-      
-                  new_object_types = deepcopy(object_types)
-                  new_object_type = filter(type -> type.id == type_id, new_object_types)[1]
-                  if !("field1" in map(field_tuple -> field_tuple[1], new_object_type.custom_fields))
-                    push!(new_object_type.custom_fields, ("field1", "Int", collect(values(old_to_new_state_values))))
-                  else
-                    custom_field_index = findall(field_tuple -> field_tuple[1] == "field1", filter(obj -> !isnothing(obj), object_mapping[object_ids[1]])[1].type.custom_fields)[1]
-                    new_object_type.custom_fields[custom_field_index][3] = sort(unique(vcat(new_object_type.custom_fields[custom_field_index][3], collect(values(old_to_new_state_values)))))
-                  end
-                  
-                  ## modify objects in object_mapping
-                  new_object_mapping = deepcopy(object_mapping)
-                  for id in collect(keys(new_object_mapping))
-                    if id in object_ids
-                      for time in 1:length(new_object_mapping[id])
-                        if !isnothing(object_mapping[id][time])
-                          values = new_object_mapping[id][time].custom_field_values
-                          if !((values != []) && (values[end] isa Int) && (values[end] < curr_state_value))
-                            new_object_mapping[id][time].type = new_object_type
-                            if (values != []) && (values[end] isa Int)
-                              new_object_mapping[id][time].custom_field_values = vcat(new_object_mapping[id][time].custom_field_values[1:end-1], fake_object_field_values[id][time])
-                            else
-                              new_object_mapping[id][time].custom_field_values = vcat(new_object_mapping[id][time].custom_field_values, fake_object_field_values[id][time])
-                            end
-                          end
-                        end
-                      end
-                    end
-                  end
-                  object_decomposition = (new_object_types, new_object_mapping, background, grid_size)
-                  global_object_decomposition = object_decomposition 
-      
-                  # TODO: formatting
-                  push!(on_clauses, state_based_update_func_on_clauses...)
-                  push!(on_clauses, reverse(state_transition_on_clauses)...)
-                end
-      
-                if failed
-                  # move to new problem context because appropriate state was not found  
-                  push!(solutions, ([], [], [], Dict()))
+                # construct new object-specific state
+                ordered_update_functions = ordered_update_functions_dict[type_id]
+
+                if sketch 
+                  new_on_clauses, new_state_update_on_clauses, new_object_decomposition, new_object_specific_state_update_times_dict = generate_object_specific_multi_automaton_sketch(co_occurring_event, update_functions, times_dict, global_event_vector_dict, type_id, global_object_decomposition, object_specific_state_update_times_dict, global_var_dict, true)
                 else
-                  # @show filtered_matrix_index
-      
-                  # re-order on_clauses
-                  ordered_on_clauses = re_order_on_clauses(on_clauses, ordered_update_functions_dict)
-                  
-                  push!(solutions, ([deepcopy(ordered_on_clauses)..., deepcopy(state_update_on_clauses)...], deepcopy(global_object_decomposition), deepcopy(global_var_dict)))
-                  # save("solution_$(Dates.now()).jld", "solution", solutions[end])
-                  solutions_per_matrix_count += 1 
+                  new_on_clauses, new_state_update_on_clauses, new_object_decomposition, new_object_specific_state_update_times_dict = generate_new_object_specific_state_GLOBAL(co_occurring_event, update_functions, anonymized_filtered_matrix, times_dict, ordered_update_functions, global_event_vector_dict, type_id, global_object_decomposition, object_specific_state_update_times_dict, global_var_dict, type_displacements, interval_offsets, source_exists_events_dict, transition_param, z3_option, z3_timeout, sketch_timeout, transition_distinct, transition_same, transition_threshold, num_transition_decisions)
                 end
+
+                if new_on_clauses == []
+                  failed = true 
+                  break
+                else
+                  println("BAD NAME CHOSEN")
+                  @show new_on_clauses 
+                  @show new_state_update_on_clauses 
+                  @show new_object_decomposition 
+                  @show new_object_specific_state_update_times_dict
+
+                  # # @show new_object_specific_state_update_times_dict
+                  object_specific_state_update_times_dict = new_object_specific_state_update_times_dict
       
+                  # on_clause = format_on_clause(split(on_clause, "\n")[2][1:end-1], replace(replace(split(on_clause, "\n")[1], "(on " => ""), "(== (.. obj id) x)" => "(== (.. obj id) $(object_ids[1]))"), object_ids[1], object_ids, object_type, group_addObj_rules, addObj_rules, object_mapping, false)
+                  push!(on_clauses, new_on_clauses...)
+      
+                  global_object_decomposition = new_object_decomposition
+                  object_types, object_mapping, background, dim = global_object_decomposition
+                  
+                  println("UPDATEEE")
+                  # # @show global_object_decomposition
+      
+                  # new_state_update_on_clauses = map(x -> format_on_clause(split(x, "\n")[2][1:end-1], replace(split(x, "\n")[1], "(on " => ""), object_ids[1], object_ids, object_type, group_addObj_rules, addObj_rules, object_mapping, false), new_state_update_on_clauses)
+                  object_specific_state_update_on_clauses = unique(vcat(deepcopy(object_specific_state_update_on_clauses)..., deepcopy(new_state_update_on_clauses)...))
+                  state_update_on_clauses = vcat(deepcopy(global_state_update_on_clauses), deepcopy(object_specific_state_update_on_clauses))
+                  for event in collect(keys(global_event_vector_dict))
+                    if occursin("field1", event)
+                      delete!(global_event_vector_dict, event)
+                    end
+                  end
+
+                  state_update_on_clauses = unique(state_update_on_clauses)
+                  on_clauses = unique(on_clauses)  
+                end
               end
 
-            else 
+              println("NOW HERE")
+              @show length(on_clauses)
+              @show on_clauses
+              @show co_occurring_events_dict
 
-              # construct new object-specific state
-              ordered_update_functions = ordered_update_functions_dict[type_id]
+              # check if some update functions are actually solved by previously generated new state 
+              # construct new update_functions_dict from co_occurring_events_dict 
+              update_functions_dict = Dict() 
+              for key in keys(co_occurring_events_dict)
+                type_id, _ = key 
+                update_functions = deepcopy(co_occurring_events_dict[key])
+                if type_id isa Tuple 
+                  ids = collect(type_id)
+                  for id in ids 
+                    update_functions_with_id = filter(x -> occursin("addedObjType$(id)List", x), update_functions)
+                    if id in keys(update_functions_dict)
+                      push!(update_functions_dict[id], update_functions_with_id...)
+                    else
+                      update_functions_dict[id] = update_functions_with_id
+                    end
+                  end 
+                else
+                  if type_id in keys(update_functions_dict)
+                    push!(update_functions_dict[type_id], update_functions...)
+                  else
+                    update_functions_dict[type_id] = update_functions
+                  end
+                end
 
-              if sketch 
-                new_on_clauses, new_state_update_on_clauses, new_object_decomposition, new_object_specific_state_update_times_dict = generate_object_specific_multi_automaton_sketch(co_occurring_event, update_functions, times_dict, global_event_vector_dict, type_id, global_object_decomposition, object_specific_state_update_times_dict, global_var_dict, true)
-              else
-                new_on_clauses, new_state_update_on_clauses, new_object_decomposition, new_object_specific_state_update_times_dict = generate_new_object_specific_state_GLOBAL(co_occurring_event, update_functions, anonymized_filtered_matrix, times_dict, ordered_update_functions, global_event_vector_dict, type_id, global_object_decomposition, object_specific_state_update_times_dict, global_var_dict, type_displacements, interval_offsets, source_exists_events_dict, transition_param, z3_option, z3_timeout, sketch_timeout, transition_distinct, transition_same, transition_threshold, num_transition_decisions)
               end
 
-              if new_on_clauses == []
-                failed = true 
-                break
-              else
-                println("BAD NAME CHOSEN")
-                @show new_on_clauses 
-                @show new_state_update_on_clauses 
-                @show new_object_decomposition 
-                @show new_object_specific_state_update_times_dict
+              new_on_clauses, state_based_update_functions_dict, _, _, global_event_vector_dict, _ = generate_stateless_on_clauses(run_id, interval_offsets, source_exists_events_dict, update_functions_dict, matrix, filtered_matrix, anonymized_filtered_matrix, global_object_decomposition, user_events, state_update_on_clauses, global_var_dict, global_event_vector_dict, redundant_events_set, z3_option, time_based, z3_timeout, sketch_timeout)          
+              println("WHATS GOING ON NOW")
+              @show new_on_clauses 
+              @show state_based_update_functions_dict
 
-                # # @show new_object_specific_state_update_times_dict
-                object_specific_state_update_times_dict = new_object_specific_state_update_times_dict
-    
-                # on_clause = format_on_clause(split(on_clause, "\n")[2][1:end-1], replace(replace(split(on_clause, "\n")[1], "(on " => ""), "(== (.. obj id) x)" => "(== (.. obj id) $(object_ids[1]))"), object_ids[1], object_ids, object_type, group_addObj_rules, addObj_rules, object_mapping, false)
+              println("NOW HERE 2")
+              @show length(on_clauses)
+              @show on_clauses
+
+              @show collect(keys(co_occurring_events_dict))
+              @show co_occurring_events_dict
+              
+              # if some other update functions are solved, add their on-clauses + remove them from co_occurring_events_dict 
+              if new_on_clauses != [] 
                 push!(on_clauses, new_on_clauses...)
-    
-                global_object_decomposition = new_object_decomposition
-                object_types, object_mapping, background, dim = global_object_decomposition
-                
-                println("UPDATEEE")
-                # # @show global_object_decomposition
-    
-                # new_state_update_on_clauses = map(x -> format_on_clause(split(x, "\n")[2][1:end-1], replace(split(x, "\n")[1], "(on " => ""), object_ids[1], object_ids, object_type, group_addObj_rules, addObj_rules, object_mapping, false), new_state_update_on_clauses)
-                object_specific_state_update_on_clauses = unique(vcat(deepcopy(object_specific_state_update_on_clauses)..., deepcopy(new_state_update_on_clauses)...))
-                state_update_on_clauses = vcat(deepcopy(global_state_update_on_clauses), deepcopy(object_specific_state_update_on_clauses))
-                for event in collect(keys(global_event_vector_dict))
-                  if occursin("field1", event)
-                    delete!(global_event_vector_dict, event)
-                  end
-                end
-
-                state_update_on_clauses = unique(state_update_on_clauses)
-                on_clauses = unique(on_clauses)  
+                # update co_occurring_events_dict by removing 
+                co_occurring_events_dict = update_co_occurring_events_dict(co_occurring_events_dict, state_based_update_functions_dict)
               end
-            end
-
-            println("NOW HERE")
-            @show length(on_clauses)
-            @show on_clauses
-            @show co_occurring_events_dict
-
-            # check if some update functions are actually solved by previously generated new state 
-            # construct new update_functions_dict from co_occurring_events_dict 
-            update_functions_dict = Dict() 
-            for key in keys(co_occurring_events_dict)
-              type_id, _ = key 
-              update_functions = deepcopy(co_occurring_events_dict[key])
-              if type_id isa Tuple 
-                ids = collect(type_id)
-                for id in ids 
-                  update_functions_with_id = filter(x -> occursin("addedObjType$(id)List", x), update_functions)
-                  if id in keys(update_functions_dict)
-                    push!(update_functions_dict[id], update_functions_with_id...)
-                  else
-                    update_functions_dict[id] = update_functions_with_id
-                  end
-                end 
-              else
-                if type_id in keys(update_functions_dict)
-                  push!(update_functions_dict[type_id], update_functions...)
-                else
-                  update_functions_dict[type_id] = update_functions
-                end
-              end
+              println("WBU")
+              @show on_clauses
+              @show collect(keys(co_occurring_events_dict))
+              @show co_occurring_events_dict
 
             end
 
-            new_on_clauses, state_based_update_functions_dict, _, _, global_event_vector_dict, _ = generate_stateless_on_clauses(run_id, interval_offsets, source_exists_events_dict, update_functions_dict, matrix, filtered_matrix, anonymized_filtered_matrix, global_object_decomposition, user_events, state_update_on_clauses, global_var_dict, global_event_vector_dict, redundant_events_set, z3_option, time_based, z3_timeout, sketch_timeout)          
-            println("WHATS GOING ON NOW")
-            @show new_on_clauses 
-            @show state_based_update_functions_dict
+            if failed
+              # move to new problem context because appropriate state was not found  
+              push!(solutions, ([], [], [], Dict()))
+            else
+              @show filtered_matrix_index
+              println("HERE I AM")
+              @show on_clauses 
+              # @show state_update_on_clauses
 
-            println("NOW HERE 2")
-            @show length(on_clauses)
-            @show on_clauses
+              # re-order on_clauses
+              ordered_on_clauses = re_order_on_clauses(on_clauses, ordered_update_functions_dict)
 
-            @show collect(keys(co_occurring_events_dict))
-            @show co_occurring_events_dict
-            
-            # if some other update functions are solved, add their on-clauses + remove them from co_occurring_events_dict 
-            if new_on_clauses != [] 
-              push!(on_clauses, new_on_clauses...)
-              # update co_occurring_events_dict by removing 
-              co_occurring_events_dict = update_co_occurring_events_dict(co_occurring_events_dict, state_based_update_functions_dict)
+              push!(solutions, ([deepcopy(ordered_on_clauses)..., deepcopy(state_update_on_clauses)...], deepcopy(global_object_decomposition), deepcopy(global_var_dict)))
+              # save("solution_$(Dates.now()).jld", "solution", solutions[end])
+              solutions_per_matrix_count += 1 
             end
-            println("WBU")
-            @show on_clauses
-            @show collect(keys(co_occurring_events_dict))
-            @show co_occurring_events_dict
-
-          end
-
-          if failed
-            # move to new problem context because appropriate state was not found  
-            push!(solutions, ([], [], [], Dict()))
-          else
-            @show filtered_matrix_index
-            println("HERE I AM")
-            @show on_clauses 
-            # @show state_update_on_clauses
-
-            # re-order on_clauses
-            ordered_on_clauses = re_order_on_clauses(on_clauses, ordered_update_functions_dict)
-
-            push!(solutions, ([deepcopy(ordered_on_clauses)..., deepcopy(state_update_on_clauses)...], deepcopy(global_object_decomposition), deepcopy(global_var_dict)))
-            # save("solution_$(Dates.now()).jld", "solution", solutions[end])
-            solutions_per_matrix_count += 1 
           end
 
         end # end problem_context while 

@@ -20,8 +20,12 @@ function check_observations_equivalence(observations1, observations2)
   true
 end
 
-function check_match(model_name, program_str)
-  observations, user_events, grid_size = generate_observations(model_name)
+function check_match(model_name, program_str; pedro=false)
+  if pedro 
+    observations, user_events, grid_size = generate_observations_pedro_interface(model_name)
+  else
+    observations, user_events, grid_size = generate_observations(model_name)
+  end
 
   # convert user_events to interpreter-appropriate format
   user_events_for_interpreter = []

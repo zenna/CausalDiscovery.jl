@@ -272,10 +272,10 @@ function synthesize_update_functions_bulk(possible_rules_matrix, object_decompos
           push!(matrix[object_id, time], rules...)
           push!(unformatted_matrix[object_id, time], rules...)
         else
-          println("HERE?")
-          @show rules 
-          @show object_id 
-          @show time 
+          # println("HERE?")
+          # @show rules 
+          # @show object_id 
+          # @show time 
           for update_rule in rules
             update_rule = replace(update_rule, "objX" => "obj$(object_id)")
             equals = false
@@ -362,7 +362,7 @@ function synthesize_update_functions_bulk(possible_rules_matrix, object_decompos
             contained_in_list = isnothing(object_mapping[object_id][1]) || (count(id -> (filter(x -> !isnothing(x), object_mapping[id]))[1].type.id == object_mapping[object_id][1].type.id, collect(keys(object_mapping))) > 1)
 
             # @show update_rule
-            if occursin("closest", update_rule) && displacement(object_mapping[object_id][time].position, next_object.position) != (0, 0)
+            if occursin("closest", update_rule) && !occursin("null", update_rule) && displacement(object_mapping[object_id][time].position, next_object.position) != (0, 0)
               
               if occursin("closestLeft", update_rule)
                 update_rule = replace(update_rule, "closestLeft" => "closestRandom")
@@ -376,7 +376,7 @@ function synthesize_update_functions_bulk(possible_rules_matrix, object_decompos
             
             end
 
-            if occursin("farthest", update_rule) && displacement(object_mapping[object_id][time].position, next_object.position) != (0, 0)
+            if occursin("farthest", update_rule) && !occursin("null", update_rule) && displacement(object_mapping[object_id][time].position, next_object.position) != (0, 0)
               
               if occursin("farthestLeft", update_rule)
                 update_rule = replace(update_rule, "farthestLeft" => "farthestRandom")
@@ -412,38 +412,55 @@ function synthesize_update_functions_bulk(possible_rules_matrix, object_decompos
 
       end
 
+      for row in 1:size(matrix)[1]
+        unique!(matrix[row, time])
+      end
+
       for object_id in 1:size(matrix)[1]
         type = filter(o -> !isnothing(o), object_mapping[object_id])[1].type
         # if any of the below appear, that means the object did not move in this time step
         if occursin("closestLeft", join(matrix[object_id, time])) || occursin("closestRight", join(matrix[object_id, time])) || occursin("closestUp", join(matrix[object_id, time])) || occursin("closestDown", join(matrix[object_id, time]))
-          closest_update_functions = filter(r -> occursin("closestLeft", r) || occursin("closestRight", r) || occursin("closestUp", r) || occursin("closestDown", r), matrix[object_id, time])
+          closest_update_functions = filter(r -> !occursin("null", r) && (occursin("closestLeft", r) || occursin("closestRight", r) || occursin("closestUp", r) || occursin("closestDown", r)), matrix[object_id, time])
           closest_update_functions_collapsed = map(r -> replace(replace(replace(replace(r, "closestLeft" => "closestRandom"), "closestRight" => "closestRandom"), "closestUp" => "closestRandom"), "closestDown" => "closestRandom"), closest_update_functions)
+          
+          closest_update_functions_with_null = filter(r -> occursin("null", r) && (occursin("closestLeft", r) || occursin("closestRight", r) || occursin("closestUp", r) || occursin("closestDown", r)), matrix[object_id, time])
+          closest_update_functions_with_null_collapsed = map(r -> replace(replace(replace(replace(replace(r, "closestLeft" => "closestRandom"), "closestRight" => "closestRandom"), "closestUp" => "closestRandom"), "closestDown" => "closestRandom"), "null" => "darkgray"), closest_update_functions_with_null)
+          
           pos = object_mapping[object_id][time].position
 
-          for update_func in unique(closest_update_functions_collapsed)
-            c = count(x -> x == update_func, closest_update_functions_collapsed)
+          old_closest_update_functions_collapsed = deepcopy(closest_update_functions_collapsed)
+          for update_func in unique(old_closest_update_functions_collapsed)
+            c = count(x -> x == update_func, old_closest_update_functions_collapsed)
             if c != 4 
-              indices = findall(x -> x == update_func, closest_update_functions_collapsed)
+              indices = findall(x -> x == update_func, old_closest_update_functions_collapsed)
+              indices_null = findall(x -> x == update_func, closest_update_functions_with_null_collapsed)
+              null_functions = map(i -> closest_update_functions_with_null[i], indices_null)
+
               invalid_choice = true 
               # @show update_func
               scalar = parse(Int, replace(split(split(update_func, " \"darkgray\")")[1], " ")[end], ")" => "")) 
 
-              for index in indices 
+              for index in indices # if there exists at least one (moveNoCollision closest$(dir)) function causing (0, 0) disp without a corresponding "null" version causing (0, 0) disp, success!
                 func = closest_update_functions[index]
-                if occursin("Left", func)
-                  wall_pos = (pos[1] - scalar, pos[2])
-                elseif occursin("Right", func)
-                  wall_pos = (pos[1] + scalar, pos[2])
-                elseif occursin("Up", func)
-                  wall_pos = (pos[1], pos[2] - scalar)
-                else
-                  wall_pos = (pos[1], pos[2] + scalar)
-                end
-                if intersect(map(p -> (wall_pos[1] + p[1], wall_pos[2] + p[2]), type.shape), wall_positions) != []
+                if occursin("Left", func) && !occursin("Left", join(null_functions))
                   invalid_choice = false 
+                elseif occursin("Right", func) && !occursin("Right", join(null_functions))
+                  invalid_choice = false 
+                elseif occursin("Up", func) && !occursin("Up", join(null_functions))
+                  invalid_choice = false 
+                elseif occursin("Down", func) && !occursin("Down", join(null_functions))
+                  invalid_choice = false 
+                end
+
+                if !invalid_choice 
                   break
                 end
+
               end
+
+              # @show update_func 
+              # @show invalid_choice
+              # @show c
 
               if invalid_choice 
                 filter!(r -> r != update_func, closest_update_functions_collapsed)
@@ -452,37 +469,50 @@ function synthesize_update_functions_bulk(possible_rules_matrix, object_decompos
             end
 
           end
-          filter!(r -> !(r in closest_update_functions), matrix[object_id, time])
+          filter!(r -> !(r in closest_update_functions) && !(occursin("null", r) && occursin("closest", r)), matrix[object_id, time])
           push!(matrix[object_id, time], closest_update_functions_collapsed...)
         end
 
         # if any of the below appear, that means the object did not move in this time step
         if occursin("farthestLeft", join(matrix[object_id, time])) || occursin("farthestRight", join(matrix[object_id, time])) || occursin("farthestUp", join(matrix[object_id, time])) || occursin("farthestDown", join(matrix[object_id, time]))
-          farthest_update_functions = filter(r -> occursin("farthestLeft", r) || occursin("farthestRight", r) || occursin("farthestUp", r) || occursin("farthestDown", r), matrix[object_id, time])
+          farthest_update_functions = filter(r -> !occursin("null", r) && (occursin("farthestLeft", r) || occursin("farthestRight", r) || occursin("farthestUp", r) || occursin("farthestDown", r)), matrix[object_id, time])
           farthest_update_functions_collapsed = map(r -> replace(replace(replace(replace(r, "farthestLeft" => "farthestRandom"), "farthestRight" => "farthestRandom"), "farthestUp" => "farthestRandom"), "farthestDown" => "farthestRandom"), farthest_update_functions)
+
+          farthest_update_functions_with_null = filter(r -> occursin("null", r) && (occursin("farthestLeft", r) || occursin("farthestRight", r) || occursin("farthestUp", r) || occursin("farthestDown", r)), matrix[object_id, time])
+          farthest_update_functions_with_null_collapsed = map(r -> replace(replace(replace(replace(replace(r, "farthestLeft" => "farthestRandom"), "farthestRight" => "farthestRandom"), "farthestUp" => "farthestRandom"), "farthestDown" => "farthestRandom"), "null" => "darkgray"), farthest_update_functions_with_null)
+          
           pos = object_mapping[object_id][time].position
 
-          for update_func in unique(farthest_update_functions_collapsed)
-            c = count(x -> x == update_func, farthest_update_functions_collapsed)
+          old_farthest_update_functions_collapsed = deepcopy(farthest_update_functions_collapsed)
+          for update_func in unique(old_farthest_update_functions_collapsed)
+            c = count(x -> x == update_func, old_farthest_update_functions_collapsed)
+            # @show update_func
+            # @show c
             if c != 4 
-              indices = findall(x -> x == update_func, farthest_update_functions_collapsed)
+              indices = findall(x -> x == update_func, old_farthest_update_functions_collapsed)
+              indices_null = findall(x -> x == update_func, farthest_update_functions_with_null_collapsed)
+              null_functions = map(i -> farthest_update_functions_with_null[i], indices_null)
+
               invalid_choice = true
-              scalar = parse(Int, replace(split(split(update_func, " \"darkgray\")")[1], " ")[end], ")" => "")) 
-              for index in indices 
+              for index in indices # if there exists at least one (moveNoCollision farthest$(dir)) function causing (0, 0) disp without a corresponding "null" version causing (0, 0) disp, success! 
                 func = farthest_update_functions[index]
-                if occursin("Left", func)
-                  wall_pos = (pos[1] - scalar, pos[2])
-                elseif occursin("Right", func)
-                  wall_pos = (pos[1] + scalar, pos[2])
-                elseif occursin("Up", func)
-                  wall_pos = (pos[1], pos[2] - scalar)
-                else
-                  wall_pos = (pos[1], pos[2] + scalar)
-                end
-                if intersect(map(p -> (wall_pos[1] + p[1], wall_pos[2] + p[2]), type.shape), wall_positions) != []
+                if occursin("Left", func) && !occursin("Left", join(null_functions))
                   invalid_choice = false 
+                elseif occursin("Right", func) && !occursin("Right", join(null_functions))
+                  invalid_choice = false 
+                elseif occursin("Up", func) && !occursin("Up", join(null_functions))
+                  invalid_choice = false 
+                elseif occursin("Down", func) && !occursin("Down", join(null_functions))
+                  invalid_choice = false 
+                end
+
+                # @show func 
+                # @show invalid_choice
+
+                if !invalid_choice 
                   break
                 end
+
               end
 
               if invalid_choice 
@@ -491,7 +521,7 @@ function synthesize_update_functions_bulk(possible_rules_matrix, object_decompos
 
             end
           end
-          filter!(r -> !(r in farthest_update_functions), matrix[object_id, time])
+          filter!(r -> !(r in farthest_update_functions) && !(occursin("null", r) && occursin("farthest", r)), matrix[object_id, time])
           push!(matrix[object_id, time], farthest_update_functions_collapsed...)
         end
 
@@ -773,9 +803,13 @@ function synthesize_update_functions(object_id, time, object_decomposition, user
                   for desc in ["Left", "Right", "Up", "Down"]
                     for other_type_id_1 in other_type_ids # closest w.r.t. single other type 
                       push!(prev_used_rules, """(= objX (moveNoCollisionColor objX (closest$(desc) objX (list ObjType$(other_type_id_1)) $(unit_size)) "darkgray"))""")
+                      push!(prev_used_rules, """(= objX (moveNoCollisionColor objX (closest$(desc) objX (list ObjType$(other_type_id_1)) $(unit_size)) "null"))""")
+
                       for other_type_id_2 in other_type_ids # closest w.r.t. pair of other type's 
                         if other_type_id_1 < other_type_id_2 
                           push!(prev_used_rules, """(= objX (moveNoCollisionColor objX (closest$(desc) objX (list ObjType$(other_type_id_1) ObjType$(other_type_id_2)) $(unit_size)) "darkgray"))""")
+                          push!(prev_used_rules, """(= objX (moveNoCollisionColor objX (closest$(desc) objX (list ObjType$(other_type_id_1) ObjType$(other_type_id_2)) $(unit_size)) "null"))""")
+
                         end
                       end
                     end
@@ -785,6 +819,7 @@ function synthesize_update_functions(object_id, time, object_decomposition, user
                   for desc in ["Left", "Right", "Up", "Down"]
                     for other_type_id_1 in other_type_ids # closest w.r.t. single other type 
                       push!(prev_used_rules, """(= objX (moveNoCollisionColor objX (farthest$(desc) objX (list ObjType$(other_type_id_1)) $(unit_size)) "darkgray"))""")
+                      push!(prev_used_rules, """(= objX (moveNoCollisionColor objX (farthest$(desc) objX (list ObjType$(other_type_id_1)) $(unit_size)) "null"))""")
                     end
                   end
 
@@ -804,9 +839,12 @@ function synthesize_update_functions(object_id, time, object_decomposition, user
                 other_type_ids = filter(x -> x != type_id, existing_type_ids)
                 for other_type_id_1 in other_type_ids # closest w.r.t. single other type 
                   push!(prev_used_rules, """(= objX (moveNoCollisionColor objX (closest$(desc) objX (list ObjType$(other_type_id_1)) $(unit_size)) "darkgray"))""")
+                  push!(prev_used_rules, """(= objX (moveNoCollisionColor objX (closest$(desc) objX (list ObjType$(other_type_id_1)) $(unit_size)) "null"))""")
+
                   for other_type_id_2 in other_type_ids # closest w.r.t. pair of other type's 
                     if other_type_id_1 < other_type_id_2 
                       push!(prev_used_rules, """(= objX (moveNoCollisionColor objX (closest$(desc) objX (list ObjType$(other_type_id_1) ObjType$(other_type_id_2)) $(unit_size)) "darkgray"))""")
+                      push!(prev_used_rules, """(= objX (moveNoCollisionColor objX (closest$(desc) objX (list ObjType$(other_type_id_1) ObjType$(other_type_id_2)) $(unit_size)) "null"))""")
                     end
                   end
                 end
@@ -818,6 +856,7 @@ function synthesize_update_functions(object_id, time, object_decomposition, user
                 other_type_ids = filter(x -> x != type_id, type_ids)
                 for other_type_id_1 in other_type_ids # closest w.r.t. single other type 
                   push!(prev_used_rules, """(= objX (moveNoCollisionColor objX (farthest$(desc) objX (list ObjType$(other_type_id_1)) $(unit_size)) "darkgray"))""")
+                  push!(prev_used_rules, """(= objX (moveNoCollisionColor objX (farthest$(desc) objX (list ObjType$(other_type_id_1)) $(unit_size)) "null"))""")
                 end
               end
   
@@ -2675,6 +2714,7 @@ function construct_filtered_matrices_pedro(old_matrix, object_decomposition, use
     for adjacency_barred in [true, false]
       regularity_matrix, regularity_unformatted_matrix, actual_regularity_types = construct_regularity_matrix(matrix, unformatted_matrix, object_decomposition, potential_regularity_types, adjacency_barred)
       @show regularity_matrix
+      @show actual_regularity_types
       if !isnothing(regularity_matrix)
         regularity_found = true
 
@@ -2684,10 +2724,11 @@ function construct_filtered_matrices_pedro(old_matrix, object_decomposition, use
           object_ids_with_type = filter(id -> filter(obj -> !isnothing(obj), object_mapping[id])[1].type.id == t.id, collect(keys(object_mapping)))
           distinct_funcs = filter(r -> r != "" && !occursin("addObj", r) && !occursin("removeObj", r), unique(vcat(map(id -> map(x -> replace(x, ".. obj id) $(id)" => ".. obj id) x"), vcat(filtered_matrix[id, :]...)), object_ids_with_type)...)))
      
-          if !(t.id in map(x -> x.id, actual_regularity_types)) && !(length(distinct_funcs) == 1 && (occursin("closest", join(distinct_funcs)) || occursin("farthest", join(distinct_funcs))))            
+          if !(t.id in map(x -> x.id, actual_regularity_types)) # && !(length(distinct_funcs) == 1 && (occursin("closest", join(distinct_funcs)) || occursin("farthest", join(distinct_funcs))))            
+            @show t.id 
             for id in object_ids_with_type
               for time in 1:size(matrix)[2]
-                filter!(r -> !occursin("farthest", r) && !occursin("closest", r), regularity_matrix[id, time])
+                regularity_matrix[id, time] = filter(r -> !occursin("farthest", r) && !occursin("closest", r), regularity_matrix[id, time])
               end
             end
 
@@ -2722,20 +2763,20 @@ function construct_filtered_matrices_pedro(old_matrix, object_decomposition, use
     possible_brownian_types = identify_brownian_types(object_decomposition, user_events, agent_type, matrix, matrix, [])
 
     # only regularity types can use farthestRandom 
-    filtered_matrix = construct_filtered_matrices(matrix, object_decomposition, user_events)[1]
-    for t in object_types 
-      object_ids_with_type = filter(id -> filter(obj -> !isnothing(obj), object_mapping[id])[1].type.id == t.id, collect(keys(object_mapping)))
-      distinct_funcs = filter(r -> r != "" && !occursin("addObj", r) && !occursin("removeObj", r), unique(vcat(map(id -> map(x -> replace(x, ".. obj id) $(id)" => ".. obj id) x"), vcat(filtered_matrix[id, :]...)), object_ids_with_type)...)))
-      if !(length(distinct_funcs) == 1 && (occursin("closest", join(distinct_funcs)) || occursin("farthest", join(distinct_funcs))))
+    # filtered_matrix = construct_filtered_matrices(matrix, object_decomposition, user_events)[1]
+    # for t in object_types 
+    #   object_ids_with_type = filter(id -> filter(obj -> !isnothing(obj), object_mapping[id])[1].type.id == t.id, collect(keys(object_mapping)))
+    #   distinct_funcs = filter(r -> r != "" && !occursin("addObj", r) && !occursin("removeObj", r), unique(vcat(map(id -> map(x -> replace(x, ".. obj id) $(id)" => ".. obj id) x"), vcat(filtered_matrix[id, :]...)), object_ids_with_type)...)))
+    #   if !(length(distinct_funcs) == 1 && (occursin("closest", join(distinct_funcs)) || occursin("farthest", join(distinct_funcs))))
         
-        for id in object_ids_with_type
-          for time in 1:size(matrix)[2]
-            filter!(r -> !occursin("farthest", r) && !occursin("closest", r), matrix[id, time])
-          end
-        end
+    #     for id in object_ids_with_type
+    #       for time in 1:size(matrix)[2]
+    #         filter!(r -> !occursin("farthest", r) && !occursin("closest", r), matrix[id, time])
+    #       end
+    #     end
 
-      end
-    end
+    #   end
+    # end
 
     # clean addObj-based options 
     matrix = update_addObj_options(matrix, possible_brownian_types, object_mapping)
@@ -2755,8 +2796,8 @@ function construct_filtered_matrices_pedro(old_matrix, object_decomposition, use
   push!(filtered_matrices, bare_bones_matrix)
 
   # standard top non-random matrix
-  standard_non_random_matrix = construct_filtered_matrices(matrix, object_decomposition, user_events)[1]
-  push!(filtered_matrices, standard_non_random_matrix)
+  # standard_non_random_matrix = construct_filtered_matrices(matrix, object_decomposition, user_events)[1]
+  # push!(filtered_matrices, standard_non_random_matrix)
 
   # # sort update functions before adding brownian-motion-style matrices 
   # filtered_matrices = sort_update_function_matrices(filtered_matrices, object_decomposition)
@@ -3661,6 +3702,7 @@ function sort_update_function_matrices(matrices, object_decomposition)
   for matrix in matrices 
     type_level_counts = []
     for type in object_types 
+      # @show type.id
       ids_with_type = filter(id -> filter(o -> !isnothing(o), object_mapping[id])[1].type.id == type.id, collect(keys(object_mapping)))
       
       custom_field_names = map(x -> x[1], type.custom_fields)
@@ -3681,6 +3723,7 @@ function sort_update_function_matrices(matrices, object_decomposition)
         push!(type_level_counts, count)
       else 
         distinct_update_functions = unique(vcat(vcat(map(id -> map(x -> [replace(x[1], "(.. obj id) $(id)" => "(.. obj id) x")], matrix[id, :]), ids_with_type)...)...))
+        # @show distinct_update_functions
         push!(type_level_counts, length(distinct_update_functions))
       end
     end

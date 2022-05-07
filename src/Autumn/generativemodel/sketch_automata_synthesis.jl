@@ -814,7 +814,7 @@ function generate_global_automaton_sketch(update_rule, update_function_times, ev
 
       min_states = length(unique(filter(x -> x != "0", sketch_update_function_arr)))
       min_transitions = length(unique(filter(x -> (x[1] != x[2]) && (x[1] != "0") && (x[2] != "0"), collect(zip(sketch_update_function_arr, vcat(sketch_update_function_arr[2:end], -1)))))) - 1
-      start_state = sketch_update_function_arr[1]
+      start = sketch_update_function_arr[1]
 
       solutions = []
       for i in 1:1
@@ -834,7 +834,7 @@ function generate_global_automaton_sketch(update_rule, update_function_times, ev
                             '$(true_char)', 
                             $(min_states), 
                             $(min_transitions),
-                            $(start_state));
+                            $(start));
         }
         """
 
@@ -877,7 +877,7 @@ function generate_global_automaton_sketch(update_rule, update_function_times, ev
                                 '$(true_char)',
                                 $(min_states),
                                 $(min_transitions),
-                                $(start_state));
+                                $(start));
             }
             """
       
