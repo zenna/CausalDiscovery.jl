@@ -55,7 +55,7 @@ function run_model(model_name::String, algorithm, iteration, desired_per_matrix_
   for param_option in param_options
     # println("DO YOU SEE ME")
     println("singlecell, time_based, z3_option, co_occurring_param, transition_param, random_param")
-    # @show param_option 
+    @show param_option 
 
     singlecell, time_based, z3_option, co_occurring_param, transition_param, random_param = param_option
 

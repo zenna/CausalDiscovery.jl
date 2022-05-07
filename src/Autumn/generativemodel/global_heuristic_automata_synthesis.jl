@@ -12,7 +12,7 @@ function generate_on_clauses_GLOBAL(run_id, random, matrix, unformatted_matrix, 
     return solutions
   end
 
-  filtered_matrices = construct_filtered_matrices(matrix, object_decomposition, user_events, random)
+  filtered_matrices = construct_filtered_matrices(matrix, unformatted_matrix, object_decomposition, user_events, random)
   # @show length(filtered_matrices)
 
   # filtered_matrices = filtered_matrices[22:22]
@@ -965,7 +965,12 @@ function generate_new_state_GLOBAL(co_occurring_event, times_dict, event_vector_
           state_update_event, event_times = events_in_range[1]
         end
 
-        push!(events_from_init_grouped_ranges, state_update_event)
+        if occursin("globalVar", state_update_event)
+          push!(events_from_init_grouped_ranges, split(state_update_event, " (== (prev globalVar")[1][4:end])
+        else
+          push!(events_from_init_grouped_ranges, state_update_event)
+        end
+      
       else
         false_positive_events = find_state_update_events_false_positives(small_event_vector_dict, init_augmented_positive_times, time_ranges, start_value, end_value, init_global_var_dict, global_var_id, 1, no_object_times)
         false_positive_events_with_state = filter(e -> occursin("globalVar$(global_var_id)", e[1]), false_positive_events) # want the most specific events in the false positive case
@@ -982,7 +987,7 @@ function generate_new_state_GLOBAL(co_occurring_event, times_dict, event_vector_
   # @show bias_first_events
   # @show events_from_init_grouped_ranges
   for k in keys(small_event_vector_dict) 
-    if !(k in events_from_init_grouped_ranges)
+    if !(k in events_from_init_grouped_ranges) && !occursin("(clicked (filter (--> obj (== (.. obj id) x", k)
       delete!(small_event_vector_dict, k)
     end
   end
@@ -1288,6 +1293,7 @@ function generate_new_state_GLOBAL(co_occurring_event, times_dict, event_vector_
 
               new_problem_contexts = curr_new_problem_contexts
             end
+
             if performed_specialization 
               final_new_problem_contexts = new_problem_contexts[1:1]
             else

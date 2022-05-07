@@ -14,7 +14,7 @@ bit matches([int N], int[N] automaton_traj, int[N] functions) {
 int[N] MSM([int N], char[N] in, char true_char, int min_states, int min_transitions, int start){
     int[N] out;
     int[N + 1] states;
-    int maxstates = 12;
+    int maxstates = 13;
     int state = ??;
     int num_transitions = ??;
     int old_state = 0;
@@ -84,7 +84,7 @@ int[N] MSM([int N], char[N] in, char true_char, int min_states, int min_transiti
 int[N] MSM_unique([int N, int M], char[N] in, int[N][M] old_state_seqs, char true_char, int min_states, int min_transitions, int start) {
     int[N] out;
     int[N] states;
-    int maxstates = 12;
+    int maxstates = 13;
     int state = ??;
     int num_transitions = ??;
     int old_state = 0;
@@ -161,7 +161,7 @@ int[N] MSM_unique([int N, int M], char[N] in, int[N][M] old_state_seqs, char tru
 int[N] MSM_obj_specific([int N], char[N] in, int start_state, char true_char, int min_states, int min_transitions) {
     int[N] out;
     int[N + 1] states;
-    int maxstates = 12;
+    int maxstates = 13;
     int state = ??;
     int num_transitions = ??;
     int old_state = 0;

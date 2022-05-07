@@ -59,7 +59,6 @@ model_names=("paint"
              "double_count_1"
              "mario"
              "wind" 
-             "swap"
             )
 
 # "water_plug"

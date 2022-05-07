@@ -21,7 +21,7 @@ function generate_on_clauses_SKETCH_SINGLE(run_id, random, matrix, unformatted_m
     return solutions
   end
 
-  filtered_matrices = construct_filtered_matrices(matrix, object_decomposition, user_events, random)
+  filtered_matrices = construct_filtered_matrices(matrix, unformatted_matrix, object_decomposition, user_events, random)
   
   # filtered_matrices = filtered_matrices[22:22]
   # filtered_matrices = filtered_matrices[5:5]

@@ -21,7 +21,7 @@ function generate_on_clauses_SKETCH_MULTI(run_id, random, matrix, unformatted_ma
     return solutions
   end
 
-  filtered_matrices = construct_filtered_matrices(matrix, object_decomposition, user_events, random)
+  filtered_matrices = construct_filtered_matrices(matrix, unformatted_matrix, object_decomposition, user_events, random)
   
   # # @show length(filtered_matrices)
 
