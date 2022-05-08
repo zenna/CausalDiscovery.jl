@@ -265,6 +265,10 @@ function generate_observations(model_name::String)
   elseif model_name == "mario_ii"
     observations, user_events, grid_size = generate_observations_mario2(nothing)
     return observations, user_events, grid_size
+  elseif model_name == "coins_5"
+    return generate_observations_coins5(nothing)
+  elseif model_name == "coins_7"
+    return generate_observations_coins7(nothing)
   end
 
   if occursin("double_count_", model_name)
@@ -559,13 +563,13 @@ programs = Dict("particles"                                 => """(program
                                                             (: enemies1 (List Enemy))
                                                             (= enemies1 (initnext (map 
                                                                                     (--> pos (Enemy pos)) 
-                                                                                    (filter (--> pos (& (== (.. pos y) 1) (== (% (.. pos x) 2) 0))) (allPositions GRID_SIZE)))
+                                                                                    (filter (--> pos (& (== (.. pos y) 1) (== (% (.. pos x) 3) 1))) (allPositions GRID_SIZE)))
                                                                                   (prev enemies1)))
                                                           
                                                             (: enemies2 (List Enemy))
                                                             (= enemies2 (initnext (map 
                                                                                     (--> pos (Enemy pos)) 
-                                                                                    (filter (--> pos (& (== (.. pos y) 3) (== (% (.. pos x) 2) 1))) (allPositions GRID_SIZE)))
+                                                                                    (filter (--> pos (& (== (.. pos y) 3) (== (% (.. pos x) 3) 2))) (allPositions GRID_SIZE)))
                                                                                   (prev enemies2)))
                                                           
                                                             

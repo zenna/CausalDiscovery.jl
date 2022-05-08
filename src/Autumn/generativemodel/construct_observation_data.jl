@@ -1332,17 +1332,17 @@ function generate_observations_count_5(m::Module)
   observations, user_events, 100
 end
 
-function generate_observations_coins_1(m::Module)
+function generate_observations_coins5(m)
   # 5 coins
   JLD.load("new_coins_data_5.jld")["data"]
 end
 
-function generate_observations_coins_2(m::Module)
+function generate_observations_coins7(m)
   # 7 coins 
   JLD.load("new_coins_data_7.jld")["data"]
 end
 
-function generate_observations_coins_3(m::Module)
+function generate_observations_coins9(m)
   # 9 coins?
   observations, user_events, grid_size = JLD.load("new_coins_data_9.jld")["data"]
   user_events[147] = "click 7 10"

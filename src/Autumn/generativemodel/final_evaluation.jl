@@ -184,7 +184,7 @@ function run_model(model_name::String, algorithm, iteration, desired_per_matrix_
         push!(all_sols, sols...)
 
         non_random_solutions = filter(x -> !occursin("randomPositions", x) && !occursin("uniformChoice", x), all_sols)
-        if (random_param && length(all_sols) >= 1) || length(non_random_solutions) >= 1 
+        if length(non_random_solutions) >= 1 
           found_enough = true 
           # println("FINAL TIME") 
           # # @show total_time 
