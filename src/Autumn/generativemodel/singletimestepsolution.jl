@@ -356,13 +356,13 @@ function synthesize_update_functions(object_id, time, object_decomposition, user
       if (prev_object.custom_field_values != []) && (next_object.custom_field_values != []) && (prev_object.custom_field_values[1] != next_object.custom_field_values[1])
         update_rule = """(= obj$(object_id) (updateObj obj$(object_id) "color" "$(next_object.custom_field_values[1])"))"""
       elseif prev_used_rules_index <= length(prev_used_rules)
-        # println("test 1")
+        # # println("test 1")
         update_rule = replace(prev_used_rules[prev_used_rules_index], "objX" => "obj$(object_id)")
         using_prev = true
         prev_used_rules_index += 1
         # # # # # @show prev_used_rules_index
       else
-        # println("test 2")
+        # # println("test 2")
         using_prev = false
         update_rule = generate_hypothesis_update_rule(prev_object, (object_types, prev_objects, background, grid_size), p=0.0) # "(= obj1 (moveDownNoCollision (moveDownNoCollision (prev obj1))))"
         # # println("IS THIS THE REAL LIFE")
@@ -2012,7 +2012,7 @@ function generate_event(run_id, anonymized_update_rule, distinct_update_rules, o
   object_types, object_mapping, background, dim = object_decomposition 
   objects = sort(filter(obj -> obj != nothing, [object_mapping[i][1] for i in 1:length(collect(keys(object_mapping)))]), by=(x -> x.id))
   type_id = filter(x -> !isnothing(x), object_mapping[object_ids[1]])[1].type.id
-  ## println("WHAT 1")
+  ## # println("WHAT 1")
   ## # # # # @show length(vcat(object_trajectory...))
 
   # construct observed update function times (observation_data)
@@ -2045,7 +2045,7 @@ function generate_event(run_id, anonymized_update_rule, distinct_update_rules, o
   
     observation_data = map(time -> time in true_times ? 1 : 0, collect(1:length(user_events)))
     update_rule_index = findall(rule -> replace(rule, "obj id) x" => "obj id) $(object_id)") == update_rule, distinct_update_rules) == [] ? -1 : findall(rule -> replace(rule, "obj id) x" => "obj id) $(object_id)") == update_rule, distinct_update_rules)[1]
-    ## println("WHAT 3")
+    ## # println("WHAT 3")
   
     if !occursin("addObj", update_rule)
       for time in 1:length(object_trajectory)
@@ -2078,11 +2078,11 @@ function generate_event(run_id, anonymized_update_rule, distinct_update_rules, o
   found_events = []
   final_event_globals = []
   choices = gen_event_bool(object_decomposition, "x", type_id, anonymized_update_rule, filter(e -> e != "", unique(user_events)), global_var_dict, time_based)
-  # println("WHAT ABOUT HERE")
+  # # println("WHAT ABOUT HERE")
   # @show choices
   # @show redundant_events_set 
   new_choices = filter(e -> !(e in redundant_events_set), choices)
-  # println("STRANGE BEHAVIOR")
+  # # println("STRANGE BEHAVIOR")
   # @show time_based 
   # @show new_choices
   # @show length(new_choices)
@@ -2294,9 +2294,9 @@ function generate_event(run_id, anonymized_update_rule, distinct_update_rules, o
 
     if z3_option in ["none"] # , "partial"
       if length(found_events) < min_events && !tried_compound_events
-        # println("entered here")
+        # # println("entered here")
         # events_to_try = sort(unique(construct_compound_events(collect(keys(event_vector_dict)), event_vector_dict, redundant_events_set, object_decomposition)), by=length)
-        # println("exited here")
+        # # println("exited here")
         tried_compound_events = true
       else
         if (z3_option == "partial") && length(found_events) < min_events
@@ -2370,9 +2370,9 @@ function generate_event(run_id, anonymized_update_rule, distinct_update_rules, o
             push!(final_event_globals, true)
           end
         else
-          # println("starting compound events")
+          # # println("starting compound events")
           _ = construct_compound_events(new_choices, event_vector_dict, redundant_events_set, object_decomposition)
-          # println("ending compound events")
+          # # println("ending compound events")
         end
       end
       break
@@ -2430,7 +2430,7 @@ function z3_event_search_partial(observed_data_dict, event_vector_dict, timeout=
 end
 
 function z3_event_search_full(run_id, observed_data_dict, event_vector_dict, redundant_events_set, partial=false, timeout=0)
-  # println("Z3_EVENT_SEARCH_FULL")
+  # # println("Z3_EVENT_SEARCH_FULL")
   # # # @show length(collect(keys(event_vector_dict)))
   # # # @show observed_data_dict 
   # # # @show event_vector_dict

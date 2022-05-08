@@ -269,6 +269,8 @@ function generate_observations(model_name::String)
     return generate_observations_coins5(nothing)
   elseif model_name == "coins_7"
     return generate_observations_coins7(nothing)
+  elseif model_name == "coins_9"
+    return generate_observations_coins9(nothing)
   end
 
   if occursin("double_count_", model_name)

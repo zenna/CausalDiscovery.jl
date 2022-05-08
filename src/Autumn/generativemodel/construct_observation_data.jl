@@ -1345,10 +1345,8 @@ end
 function generate_observations_coins9(m)
   # 9 coins?
   observations, user_events, grid_size = JLD.load("new_coins_data_9.jld")["data"]
-  user_events[147] = "click 7 10"
-  user_events[3] = "click 7 10"
-  user_events[1] = "click 7 10"
-  user_events[6] = "click 7 10"
+  user_events[195] = "click 7 10"
+  user_events[197] = "click 7 10"
   observations, user_events, grid_size
 end
 
