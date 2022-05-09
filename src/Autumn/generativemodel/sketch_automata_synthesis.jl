@@ -8,7 +8,7 @@ else
   local_sketch_directory = "src/Autumn/generativemodel/sketch/"
 end
 
-function generate_on_clauses_SKETCH_SINGLE(run_id, random, matrix, unformatted_matrix, object_decomposition, user_events, global_event_vector_dict, redundant_events_set, grid_size=16, desired_solution_count=1, desired_per_matrix_solution_count=1, interval_painting_param=false, z3_option="none", time_based=false, z3_timeout=0, sketch_timeout=0, co_occurring_param=false, transition_param=false, co_occurring_distinct=2, co_occurring_same=1, co_occurring_threshold=1, transition_distinct=1, transition_same=1, transition_threshold=1)   
+function generate_on_clauses_SKETCH_SINGLE(run_id, random, matrix, unformatted_matrix, object_decomposition, user_events, global_event_vector_dict, redundant_events_set, grid_size=16, desired_solution_count=1, desired_per_matrix_solution_count=1, interval_painting_param=false, z3_option="full", time_based=false, z3_timeout=0, sketch_timeout=0, co_occurring_param=false, transition_param=false, co_occurring_distinct=2, co_occurring_same=1, co_occurring_threshold=1, transition_distinct=1, transition_same=1, transition_threshold=1)   
   start_time = Dates.now()
   
   object_types, object_mapping, background, dim = object_decomposition
@@ -89,7 +89,7 @@ function generate_on_clauses_SKETCH_SINGLE(run_id, random, matrix, unformatted_m
     # return values: state_based_update_functions_dict has form type_id => [unsolved update functions]
     new_on_clauses, state_based_update_functions_dict, observation_vectors_dict, addObj_params_dict, global_event_vector_dict, ordered_update_functions_dict = generate_stateless_on_clauses(run_id, update_functions_dict, matrix, filtered_matrix, anonymized_filtered_matrix, object_decomposition, user_events, state_update_on_clauses, global_var_dict, global_event_vector_dict, redundant_events_set, z3_option, time_based, z3_timeout, sketch_timeout)
     # @show addObj_params_dict
-    # # println("I AM HERE NOW")
+    # println("I AM HERE NOW")
     # @show new_on_clauses
     # @show state_based_update_functions_dict
     # @show ordered_update_functions_dict
@@ -701,11 +701,12 @@ function generate_global_automaton_sketch(run_id, single_update_func_with_type, 
           false_positive_events_with_state = filter(e -> !occursin("globalVar", e[1]), false_positive_events) # no state-based events in sketch-based approach
           
           events_without_true = filter(tuple -> !occursin("true", tuple[1]) && tuple[2] == minimum(map(t -> t[2], false_positive_events_with_state)), false_positive_events_with_state)
+          # @show events_without_true
           if events_without_true != []
             index = min(length(events_without_true), transition_decision_index > num_transition_decisions ? 1 : transition_decision_string[transition_decision_index])            
 
-            false_positive_event, _, true_positive_times, false_positive_times = events_without_true[index] 
-            
+            false_positive_event, _, true_positive_times, false_positive_times = sort(events_without_true, by=x -> length(x[3]))[index] 
+            # @show false_positive_event             
             for time in vcat(true_positive_times, false_positive_times)
               sketch_event_trajectory[time] = false_positive_event
             end
@@ -1810,7 +1811,7 @@ function generate_object_specific_automaton_sketch(run_id, update_rule, update_f
             false_positive_event, _, true_positive_times, false_positive_times = events_without_true[index] 
           
             # construct state update on-clause
-            # formatted_event = replace(false_positive_event, "(filter (--> obj (== (.. obj id) x)) (prev addedObjType$(type_id)List))" => "(list (prev obj))")
+            formatted_event = replace(false_positive_event, "(filter (--> obj (== (.. obj id) x)) (prev addedObjType$(type_id)List))" => "(list (prev obj))")
             
             for id in object_ids # collect(keys(state_update_times))
               object_event_times = map(t -> t[1], filter(time -> time[2] == id, vcat(true_positive_times, false_positive_times)))
@@ -1847,9 +1848,13 @@ function generate_object_specific_automaton_sketch(run_id, update_rule, update_f
         end
       end
 
+      # @show sketch_event_arrs_dict_formatted
+      # @show sketch_update_function_arr 
+      # @show object_ids 
+
       min_states_dict = Dict(map(id -> id => length(unique(filter(x -> x != "0", sketch_update_function_arr[id]))), object_ids))
       min_transitions_dict = Dict(map(id -> id => length(unique(filter(x -> (x[1] != x[2]) && (x[1] != "0") && (x[2] != "0"), collect(zip(sketch_update_function_arr[id], vcat(sketch_update_function_arr[id][2:end], -1)))))) - 1, object_ids))
-      start_state_dict = Dict(map(id -> id => sketch_update_function_arr[1], object_ids))
+      start_state_dict = Dict(map(id -> id => sketch_update_function_arr[id][1], object_ids))
     
       # @show min_states_dict 
       # @show min_transitions_dict
