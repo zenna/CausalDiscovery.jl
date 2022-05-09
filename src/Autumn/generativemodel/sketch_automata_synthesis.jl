@@ -825,7 +825,7 @@ function generate_global_automaton_sketch(run_id, single_update_func_with_type, 
       
             # construct new Sketch query
             sketch_program = """
-            include "$(local_sketch_directory)sketchlib/string.skh"; 
+            include "$(local_sketch_directory)string.skh"; 
             include "$(local_sketch_directory)mstatemachine.skh";
       
             bit recognize([int n, int m], char[n] events, int[n] functions, int[n][m] old_state_seqs, char true_char, int min_states, int min_transitions, int start) {
