@@ -2787,6 +2787,7 @@ function construct_filtered_matrices_pedro(old_matrix, object_decomposition, use
   
   # bare-bones non-random matrix 
   bare_bones_matrix_unfiltered = deepcopy(matrix)
+  matrix = update_addObj_options(bare_bones_matrix_unfiltered, possible_brownian_types, object_mapping)
   for id in 1:size(matrix)[1]
     for time in 1:size(matrix)[2]
       bare_bones_matrix_unfiltered[id, time] = filter(rule -> !occursin("closest", rule) && !occursin("farthest", rule), bare_bones_matrix_unfiltered[id, time]) != [] ? filter(rule -> !occursin("closest", rule) && !occursin("farthest", rule), bare_bones_matrix_unfiltered[id, time]) : bare_bones_matrix_unfiltered[id, time] 

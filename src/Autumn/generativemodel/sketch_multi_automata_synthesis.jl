@@ -209,15 +209,16 @@ function generate_on_clauses_SKETCH_MULTI(run_id, matrix, unformatted_matrix, ob
           if occursin("addObj", update_function) || length(object_ids_with_type) == 1
             state_is_global = true
           else
-            for time in 1:length(user_events)
-              observation_values = map(id -> observation_vectors_dict[update_function][id][time], object_ids_with_type)
-              if (0 in observation_values) && (1 in observation_values)
-                @show update_function 
-                @show time 
-                state_is_global = false
-                break
-              end
-            end
+            state_is_global = false
+            # for time in 1:length(user_events)
+            #   observation_values = map(id -> observation_vectors_dict[update_function][id][time], object_ids_with_type)
+            #   if (0 in observation_values) && (1 in observation_values)
+            #     @show update_function 
+            #     @show time 
+            #     state_is_global = false
+            #     break
+            #   end
+            # end
           end
   
           # compute co-occurring event 
@@ -512,20 +513,21 @@ function generate_on_clauses_SKETCH_MULTI(run_id, matrix, unformatted_matrix, ob
             if length(object_ids_with_type) == 1 || foldl(&, map(u -> occursin("addObj", u), update_functions), init=true)
               state_is_global = true
             else
-              for update_function in update_functions 
-                for time in 1:length(user_events)
-                  observation_values = map(id -> observation_vectors_dict[update_function][id][time], object_ids_with_type)
-                  if (0 in observation_values) && (1 in observation_values)
-                    # @show update_function 
-                    # @show time 
-                    state_is_global = false
-                    break
-                  end
-                end
-                if !state_is_global
-                  break
-                end
-              end
+              state_is_global = false
+              # for update_function in update_functions 
+              #   for time in 1:length(user_events)
+              #     observation_values = map(id -> observation_vectors_dict[update_function][id][time], object_ids_with_type)
+              #     if (0 in observation_values) && (1 in observation_values)
+              #       # @show update_function 
+              #       # @show time 
+              #       state_is_global = false
+              #       break
+              #     end
+              #   end
+              #   if !state_is_global
+              #     break
+              #   end
+              # end
             end
 
             if foldl(&, map(u -> occursin("addObj", u), update_functions), init=true) && !state_is_global 

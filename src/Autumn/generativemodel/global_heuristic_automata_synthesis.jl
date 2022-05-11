@@ -2257,6 +2257,9 @@ function generate_new_object_specific_state_GLOBAL(co_occurring_event, update_fu
 
   init_problem_context = (deepcopy(init_grouped_ranges), deepcopy(init_augmented_positive_times_dict), deepcopy(state_update_times), deepcopy(global_var_dict), deepcopy(init_extra_global_var_values))
 
+  @show init_augmented_positive_times_dict 
+  @show init_grouped_ranges
+
   for transition_decision_string in transition_decision_strings 
     grouped_ranges, augmented_positive_times_dict, state_update_times, global_var_dict, extra_global_var_values = init_problem_context
     transition_decision_index = 1
@@ -2270,6 +2273,8 @@ function generate_new_object_specific_state_GLOBAL(co_occurring_event, update_fu
       grouped_range = grouped_ranges[1]
       grouped_ranges = grouped_ranges[2:end]
   
+      @show grouped_range
+
       range = grouped_range[1]
       start_value = range[1][2]
       end_value = range[2][2]
@@ -2297,6 +2302,9 @@ function generate_new_object_specific_state_GLOBAL(co_occurring_event, update_fu
         index = min(length(events_in_range), transition_decision_index > num_transition_decisions ? 1 : transition_decision_string[transition_decision_index])
         event, event_times = events_in_range[index]
         formatted_event = replace(event, "(filter (--> obj (== (.. obj id) x)) (prev addedObjType$(type_id)List))" => "(list (prev obj))")
+        
+        @show event 
+        @show formatted_event
         # construct state_update_function
         if occursin("clicked", formatted_event)
           state_update_function = """(on clicked\n(= addedObjType$(type_id)List (updateObj addedObjType$(type_id)List (--> obj (updateObj obj "field1" $(end_value))) (--> obj $(formatted_event)) )))"""
