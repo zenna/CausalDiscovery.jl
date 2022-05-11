@@ -8,7 +8,7 @@ else
   local_sketch_directory = "src/Autumn/generativemodel/sketch/"
 end
 
-function generate_on_clauses_SKETCH_MULTI(run_id, random, matrix, unformatted_matrix, object_decomposition, user_events, global_event_vector_dict, redundant_events_set, grid_size=16, desired_solution_count=1, desired_per_matrix_solution_count=1, interval_painting_param=false, z3_option="none", time_based=false, z3_timeout=0, sketch_timeout=0, co_occurring_param=false, transition_param=false, co_occurring_distinct=1, co_occurring_same=1, co_occurring_threshold=1, transition_distinct=1, transition_same=1, transition_threshold=1)
+function generate_on_clauses_SKETCH_MULTI(run_id, random, matrix, unformatted_matrix, object_decomposition, user_events, global_event_vector_dict, redundant_events_set, grid_size=16, desired_solution_count=1, desired_per_matrix_solution_count=1, interval_painting_param=false, z3_option="partial", time_based=false, z3_timeout=0, sketch_timeout=0, co_occurring_param=false, transition_param=false, co_occurring_distinct=1, co_occurring_same=1, co_occurring_threshold=1, transition_distinct=1, transition_same=1, transition_threshold=1)
   start_time = Dates.now()
   
   object_types, object_mapping, background, dim = object_decomposition
@@ -52,8 +52,8 @@ function generate_on_clauses_SKETCH_MULTI(run_id, random, matrix, unformatted_ma
 
     if (length(filter(x -> x[1] != [], solutions)) >= desired_solution_count) # || Dates.value(Dates.now() - start_time) > 3600 * 2 * 1000 # || ((length(filter(x -> x[1] != [], solutions)) > 0) && length(filter(x -> occursin("randomPositions", x), vcat(vcat(filtered_matrix...)...))) > 0) 
       # if we have reached a sufficient solution count or have found a solution before trying random solutions, exit
-      # # println("BREAKING")
-      # # println("elapsed time: $(Dates.value(Dates.now() - start_time) > 3600 * 2 * 1000)")
+      # # # # println("BREAKING")
+      # # # # println("elapsed time: $(Dates.value(Dates.now() - start_time) > 3600 * 2 * 1000)")
       # # # @show length(solutions)
       break
     end
@@ -90,7 +90,7 @@ function generate_on_clauses_SKETCH_MULTI(run_id, random, matrix, unformatted_ma
     # return values: state_based_update_functions_dict has form type_id => [unsolved update functions]
     new_on_clauses, state_based_update_functions_dict, observation_vectors_dict, addObj_params_dict, global_event_vector_dict, ordered_update_functions_dict = generate_stateless_on_clauses(run_id, update_functions_dict, matrix, filtered_matrix, anonymized_filtered_matrix, object_decomposition, user_events, state_update_on_clauses, global_var_dict, global_event_vector_dict, redundant_events_set, z3_option, time_based, z3_timeout, sketch_timeout)
     
-    # # println("I AM HERE NOW")
+    # # # # println("I AM HERE NOW")
     # # @show new_on_clauses
     # # @show state_based_update_functions_dict
     # # @show ordered_update_functions_dict
@@ -174,7 +174,7 @@ function generate_on_clauses_SKETCH_MULTI(run_id, random, matrix, unformatted_ma
               end
             end
           end
-          # # println("BEFORE")
+          # # # # println("BEFORE")
           # # @show co_occurring_events
           if co_occurring_param 
             co_occurring_events = sort(filter(x -> !occursin("(list)", x[1]) && !occursin("(move ", x[1]) && !occursin("(== (prev addedObjType", x[1]) && !occursin("objClicked", x[1]) && !occursin("intersects (list", x[1]) && (!occursin("&", x[1]) || x[1] == "(& clicked (isFree click))") && !(occursin("(! (in (objClicked click (prev addedObjType3List)) (filter (--> obj (== (.. obj id) x)) (prev addedObjType3List))))", x[1])), co_occurring_events), by=x -> x[2]) # [1][1]
@@ -186,7 +186,7 @@ function generate_on_clauses_SKETCH_MULTI(run_id, random, matrix, unformatted_ma
             co_occurring_events = filter(x -> !occursin("obj id) x)", x[1]) || occursin("(clicked (filter (--> obj (== (.. obj id)", x[1]), co_occurring_events)
           end 
   
-          # # println("THIS IS WEIRD HUH")
+          # # # # println("THIS IS WEIRD HUH")
           # # @show type_id 
           # # @show update_function
           # # @show co_occurring_events
@@ -381,7 +381,7 @@ function generate_on_clauses_SKETCH_MULTI(run_id, random, matrix, unformatted_ma
                 object_trajectory = []
                 ordered_update_functions = []
 
-                # # println("DEBUGGING GROUP_ADDOBJ_RULES")
+                # # # # println("DEBUGGING GROUP_ADDOBJ_RULES")
                 group_addObj_rules, addObj_rules, addObj_count = addObj_params_dict[type_id[1]]
                 if group_addObj_rules 
                   u = sort(collect(keys(times_dict)))[1]
@@ -406,18 +406,18 @@ function generate_on_clauses_SKETCH_MULTI(run_id, random, matrix, unformatted_ma
               state_solutions = generate_global_multi_automaton_sketch(run_id, co_occurring_event, times_dict, global_event_vector_dict, object_trajectory, Dict(), Dict(1 => ["" for x in 1:length(user_events)]), object_decomposition, type_id, desired_per_matrix_solution_count, sketch_timeout, false, ordered_update_functions, transition_distinct, transition_same, transition_threshold)
               # # @show state_solutions 
               if state_solutions == [] || state_solutions[1][1] == []
-                # # println("MULTI-AUTOMATA SKETCH FAILURE")
+                # # # # println("MULTI-AUTOMATA SKETCH FAILURE")
                 failed = true
                 break
               else
-                # # println("IS THE OUTPUT HERE?")
+                # # # # println("IS THE OUTPUT HERE?")
                 # # @show state_solutions
                 global_state_solutions_dict[tuple] = state_solutions
               end
             end
 
             if failed 
-              # # println("MULTI-AUTOMATA SKETCH BREAKING OUT OF WHILE")
+              # # # # println("MULTI-AUTOMATA SKETCH BREAKING OUT OF WHILE")
               push!(solutions, ([], [], [], Dict()))
               break 
             end
@@ -427,10 +427,10 @@ function generate_on_clauses_SKETCH_MULTI(run_id, random, matrix, unformatted_ma
             global_update_function_tuples = sort(vcat(collect(keys(global_state_solutions_dict))...), by=x -> x isa Tuple ? length(x) : x)
       
             # compute products of component automata to find simplest 
-            # # println("PRE-GENERALIZATION (GLOBAL)")
+            # # # # println("PRE-GENERALIZATION (GLOBAL)")
             # # @show global_state_solutions_dict
             global_state_solutions_dict = generalize_all_automata(global_state_solutions_dict, user_events, global_event_vector_dict, global_aut=true)
-            # # println("POST-GENERALIZATION (GLOBAL)")
+            # # # # println("POST-GENERALIZATION (GLOBAL)")
             # # @show global_state_solutions_dict
 
             product_automata = compute_all_products(global_state_solutions_dict, global_aut=true, generalized=true)
@@ -525,7 +525,7 @@ function generate_on_clauses_SKETCH_MULTI(run_id, random, matrix, unformatted_ma
 
               state_solutions = generate_object_specific_multi_automaton_sketch(run_id, co_occurring_event, object_specific_update_functions, times_dict, global_event_vector_dict, type_id, global_object_decomposition, object_specific_state_update_times_dict, global_var_dict, sketch_timeout, false, transition_param, transition_distinct, transition_same, transition_threshold)            
               if state_solutions == [] || state_solutions[1][1] == []
-                # # println("MULTI-AUTOMATA SKETCH FAILURE")
+                # # # # println("MULTI-AUTOMATA SKETCH FAILURE")
                 failed = true 
                 break
               else
@@ -548,10 +548,10 @@ function generate_on_clauses_SKETCH_MULTI(run_id, random, matrix, unformatted_ma
             object_ids = sort(filter(id -> filter(x -> !isnothing(x), object_mapping[id])[1].type.id == type_id, collect(keys(object_mapping))))
 
             # compute products of component automata to find simplest 
-            # # println("PRE-GENERALIZATION (OBJECT-SPECIFIC)")
+            # # # # println("PRE-GENERALIZATION (OBJECT-SPECIFIC)")
             # # @show object_specific_state_solutions_dict
             object_specific_state_solutions_dict = generalize_all_automata(object_specific_state_solutions_dict, user_events, global_event_vector_dict, global_aut=false)
-            # # println("POST-GENERALIZATION (OBJECT-SPECIFIC)")
+            # # # # println("POST-GENERALIZATION (OBJECT-SPECIFIC)")
             # # @show object_specific_state_solutions_dict 
 
             product_automata = compute_all_products(object_specific_state_solutions_dict, global_aut=false, generalized=true)
@@ -651,7 +651,7 @@ function generate_on_clauses_SKETCH_MULTI(run_id, random, matrix, unformatted_ma
 
       end
 
-      # # println("MULTI-AUTOMATA SKETCH BREAK?")
+      # # # # println("MULTI-AUTOMATA SKETCH BREAK?")
     end 
   end
   # # @show solutions 
@@ -660,7 +660,7 @@ function generate_on_clauses_SKETCH_MULTI(run_id, random, matrix, unformatted_ma
 end
 
 function generate_global_multi_automaton_sketch(run_id, co_occurring_event, times_dict, event_vector_dict, object_trajectory, init_global_var_dict, state_update_times_dict, object_decomposition, type_id, desired_per_matrix_solution_count, sketch_timeout=0, incremental=false, ordered_update_functions=[], transition_distinct=1, transition_same=1, transition_threshold=1)
-  # # println("GENERATE_NEW_STATE_GLOBAL_SKETCH")
+  # # # # println("GENERATE_NEW_STATE_GLOBAL_SKETCH")
   # # @show co_occurring_event
   # # @show times_dict 
   # # @show event_vector_dict 
@@ -757,7 +757,7 @@ function generate_global_multi_automaton_sketch(run_id, co_occurring_event, time
       push!(ranges, (init_augmented_positive_times[i], init_augmented_positive_times[i + 1]))
     end
   end
-  # # println("WHY THO")
+  # # # # println("WHY THO")
   # # # @show init_state_update_times_dict 
 
   # filter ranges where both the range's start and end times are already included
@@ -816,7 +816,7 @@ function generate_global_multi_automaton_sketch(run_id, co_occurring_event, time
       events_in_range = find_state_update_events(small_event_vector_dict, init_augmented_positive_times, time_ranges, start_value, end_value, init_global_var_dict, global_var_id, 1, no_object_times)
       events_in_range = filter(tuple -> !occursin("globalVar", tuple[1]), events_in_range)
       
-      # # println("PRE PRUNING: EVENTS IN RANGE")
+      # # # # println("PRE PRUNING: EVENTS IN RANGE")
 
       # # @show events_in_range
       events_to_remove = []
@@ -831,10 +831,10 @@ function generate_global_multi_automaton_sketch(run_id, co_occurring_event, time
       end
 
       events_in_range = filter(tuple -> !(tuple in events_to_remove), events_in_range)
-      # # println("POST PRUNING: EVENTS IN RANGE")    
+      # # # # println("POST PRUNING: EVENTS IN RANGE")    
       # # @show events_in_range
       if events_in_range != [] # event with zero false positives found
-        # # println("PLS WORK 2")
+        # # # # println("PLS WORK 2")
         # # # # @show event_vector_dict
         # # # @show events_in_range 
         state_update_event, event_times = events_in_range[1]
@@ -1113,10 +1113,10 @@ function generate_global_multi_automaton_sketch(run_id, co_occurring_event, time
       # # @show init_global_var_dict
       on_clauses = [on_clauses..., state_update_on_clauses...]
       if incremental 
-        # # println("AM I IN THE RIGHT PLACE?")
+        # # # # println("AM I IN THE RIGHT PLACE?")
         push!(solutions, (on_clauses, init_global_var_dict, init_state_update_times_dict))
       else
-        # # println("WHERE IS THE OUTPUT??")
+        # # # # println("WHERE IS THE OUTPUT??")
         # # @show [(init_extra_global_var_values, unique(transitions), init_global_var_dict, co_occurring_event)]
         push!(solutions, (init_extra_global_var_values, unique(transitions), init_global_var_dict, co_occurring_event))
       end
@@ -1126,7 +1126,7 @@ function generate_global_multi_automaton_sketch(run_id, co_occurring_event, time
 end
 
 function generate_object_specific_multi_automaton_sketch(run_id, co_occurring_event, update_functions, times_dict, event_vector_dict, type_id, object_decomposition, init_state_update_times, global_var_dict, sketch_timeout=0, incremental=false, transition_param=false, transition_distinct=1, transition_same=1, transition_threshold=1) 
-  # # println("GENERATE_NEW_OBJECT_SPECIFIC_STATE")
+  # # # # println("GENERATE_NEW_OBJECT_SPECIFIC_STATE")
   # # @show co_occurring_event
   # # @show update_functions 
   # # @show times_dict
@@ -1152,7 +1152,7 @@ function generate_object_specific_multi_automaton_sketch(run_id, co_occurring_ev
       end
     end
   end
-  # # println("LETS GO NOW")
+  # # # # println("LETS GO NOW")
   # # @show small_event_vector_dict 
   # choices, event_vector_dict, redundant_events_set, object_decomposition
   
@@ -1193,10 +1193,10 @@ function generate_object_specific_multi_automaton_sketch(run_id, co_occurring_ev
     end
     curr_state_value = 1
   else
-    # # println("WEIRD")
+    # # # # println("WEIRD")
     return ([], [], object_decomposition, state_update_times)
   end
-  # # println("# check state_update_times again 3")
+  # # # # println("# check state_update_times again 3")
   # # @show state_update_times 
   co_occurring_event_trajectory = event_vector_dict[co_occurring_event]
 
@@ -1230,12 +1230,12 @@ function generate_object_specific_multi_automaton_sketch(run_id, co_occurring_ev
 
     augmented_positive_times_dict[object_id] = augmented_positive_times 
   end
-  # # println("# check state_update_times again 4")
+  # # # # println("# check state_update_times again 4")
   # # @show state_update_times 
   # compute ranges 
   init_grouped_ranges = recompute_ranges_object_specific(augmented_positive_times_dict, 1, object_mapping, object_ids)
 
-  # # println("# check state_update_times again 5")
+  # # # # println("# check state_update_times again 5")
   # # @show state_update_times 
   iters = 0
 
@@ -1352,7 +1352,7 @@ function generate_object_specific_multi_automaton_sketch(run_id, co_occurring_ev
     }
 
     $(join(map(i -> """harness void h$(i)() {
-                          int start = ??;
+                          int start = $(start_state_dict[i]);
                           assert recognize_obj_specific({ $(join(map(c -> "'$(c)'", sketch_event_arrs_dict_formatted[object_ids[i]]), ", ")) }, 
                                                         { $(join(sketch_update_function_arr[object_ids[i]], ", ")) }, 
                                                         start, 
