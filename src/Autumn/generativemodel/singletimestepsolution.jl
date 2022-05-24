@@ -2763,6 +2763,12 @@ function construct_filtered_matrices_pedro(old_matrix, object_decomposition, use
     possible_brownian_types = identify_brownian_types(object_decomposition, user_events, agent_type, matrix, matrix, [])
 
     # only regularity types can use farthestRandom 
+    for id in 1:size(matrix)[1]
+      for time in 1:size(matrix)[2]
+        matrix[id, time] = filter(rule -> !occursin("closest", rule) && !occursin("farthest", rule), matrix[id, time]) != [] ? filter(rule -> !occursin("closest", rule) && !occursin("farthest", rule), matrix[id, time]) : matrix[id, time] 
+      end
+    end
+
     # filtered_matrix = construct_filtered_matrices(matrix, object_decomposition, user_events)[1]
     # for t in object_types 
     #   object_ids_with_type = filter(id -> filter(obj -> !isnothing(obj), object_mapping[id])[1].type.id == t.id, collect(keys(object_mapping)))
@@ -3800,7 +3806,7 @@ function generate_event(run_id, interval_offsets, source_exists_events_dict, ano
         rule = object_trajectory[time][1]
         # # # @show rule
         # # # @show distinct_update_rules
-        if (rule == "") || (findall(r -> replace(r, "obj id) x" => "obj id) $(object_id)") == rule, distinct_update_rules)[1] > update_rule_index) # || occursin("addObj", rule) #
+        if (rule == "") || (findall(r -> replace(r, "obj id) x" => "obj id) $(object_id)") == rule, distinct_update_rules)[1] > update_rule_index) && !occursin("addObj", rule) #
           observation_data[time] = -1
         elseif (findall(r -> replace(r, "obj id) x" => "obj id) $(object_id)") == rule, distinct_update_rules)[1] < update_rule_index)
           observation_data[time] = 0

@@ -11,9 +11,9 @@ function check_observations_equivalence(observations1, observations2)
     # # @show obs2_tuples
 
     if obs1_tuples != obs2_tuples
-      # @show i
-      # # @show obs1_tuples 
-      # # @show obs2_tuples
+      @show i
+      # @show obs1_tuples 
+      # @show obs2_tuples
       return false
     end
   end
@@ -52,3 +52,26 @@ function check_match(model_name, program_str; pedro=false)
 end
 
 # ----- END FUNCTIONS ----- # 
+
+model_names = readdir("may_results_sketch")
+
+random_models = []
+nonrandom_models = []
+for model_name in model_names
+  files = readdir("may_results_sketch/$(model_name)")
+  if files != []
+    @show model_name 
+    open("may_results_sketch/$(model_name)/output_program.txt", "r") do io
+      program_str = read(io, String)
+      println(program_str)
+      if occursin("uniformChoice", program_str) || occursin("Random", program_str)
+        println("random")
+        push!(random_models, model_name)
+      else
+        println("nonrandom")
+        push!(nonrandom_models, model_name)
+      end
+
+    end
+  end
+end

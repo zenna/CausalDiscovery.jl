@@ -788,7 +788,7 @@ function generate_on_clauses_GLOBAL(run_id, matrix, unformatted_matrix, object_d
               # re-order on_clauses
               ordered_on_clauses = re_order_on_clauses(on_clauses, ordered_update_functions_dict)
               
-              push!(solutions, ([deepcopy(ordered_on_clauses)..., deepcopy(state_update_on_clauses)...], deepcopy(global_object_decomposition), deepcopy(global_var_dict)))
+              push!(solutions, (deepcopy(ordered_on_clauses), deepcopy(global_object_decomposition), deepcopy(global_var_dict)))
               # save("solution_$(Dates.now()).jld", "solution", solutions[end])
               solutions_per_matrix_count += 1 
             end
@@ -1115,7 +1115,7 @@ function generate_on_clauses_GLOBAL(run_id, matrix, unformatted_matrix, object_d
               # re-order on_clauses
               ordered_on_clauses = re_order_on_clauses(on_clauses, ordered_update_functions_dict)
 
-              push!(solutions, ([deepcopy(ordered_on_clauses)..., deepcopy(state_update_on_clauses)...], deepcopy(global_object_decomposition), deepcopy(global_var_dict)))
+              push!(solutions, (deepcopy(ordered_on_clauses), deepcopy(global_object_decomposition), deepcopy(global_var_dict)))
               # save("solution_$(Dates.now()).jld", "solution", solutions[end])
               solutions_per_matrix_count += 1 
             end
@@ -1182,7 +1182,9 @@ function re_order_on_clauses(on_clauses, ordered_update_functions_dict)
       end
     end
   end
-  unique(vcat(ordered_on_clauses..., state_update_on_clauses))
+  addObj_on_clauses = filter(x -> occursin("addObj", x), ordered_on_clauses)
+  non_addObj_on_clauses = filter(x -> !occursin("addObj", x), ordered_on_clauses)
+  unique(vcat(non_addObj_on_clauses..., state_update_on_clauses..., addObj_on_clauses...))
 end
 
 function update_co_occurring_events_dict(co_occurring_events_dict, state_based_update_functions_dict) 
@@ -1966,6 +1968,14 @@ function generate_stateless_on_clauses(run_id, interval_offsets, source_exists_e
     
     no_change_rules = filter(x -> is_no_change_rule(x), unique(all_update_rules))
     all_update_rules = reverse(sort(filter(x -> !is_no_change_rule(x), unique(all_update_rules)), by=x -> count(y -> y == x, update_rule_set)))
+
+    println("woot 1")
+    @show all_update_rules 
+    # move all addObj-based update rules to the end 
+    all_update_rules = [filter(x -> !(x in unique_addObj_rules), all_update_rules)..., unique_addObj_rules...]
+
+    println("woot 2")
+    @show all_update_rules 
 
     ordered_update_functions_dict[type_id] = all_update_rules
 
