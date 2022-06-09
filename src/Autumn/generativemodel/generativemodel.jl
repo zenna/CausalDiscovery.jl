@@ -304,7 +304,7 @@ function generate_hypothesis_string_program(hypothesis_string, actual_string, ob
                    ")")
 end
 
-function gen_event_bool_human_prior(object_decomposition, object_id, type_id, user_events, global_var_dict, update_rule, type_displacements, interval_offsets, source_exists_events_dict) 
+function gen_event_bool_human_prior(object_decomposition, object_id, type_id, user_events, global_var_dict, update_rule, type_displacements, interval_offsets, source_exists_events_dict, symmetry=false) 
   object_types, object_mapping, _, grid_size = object_decomposition
   start_objects = map(k -> object_mapping[k][1], filter(key -> !isnothing(object_mapping[key][1]), collect(keys(object_mapping))))
   non_list_objects = filter(x -> (count(y -> y.type.id == x.type.id, start_objects) == 1) && (count(obj_id -> filter(z -> !isnothing(z), object_mapping[obj_id])[1].type.id == x.type.id, collect(keys(object_mapping))) == 1), start_objects)
@@ -322,7 +322,7 @@ function gen_event_bool_human_prior(object_decomposition, object_id, type_id, us
   end
 
   # USER EVENTS
-  choices = ["true", "up", "down", "left", "right", "clicked", "(& clicked (isFree click))"] # "clicked"
+  choices = ["true", "up", "down", "left", "right", "clicked", "(& clicked (isFree click))", "(!= arrow (Position 0 0))"] # "clicked"
 
   # push!(choices, "(== (% (prev time) 4) 3)")
 
@@ -359,13 +359,17 @@ function gen_event_bool_human_prior(object_decomposition, object_id, type_id, us
   if non_list_objects != []  
     for object_1 in non_list_objects
       push!(choices, "(.. (prev obj$(object_1.id)) alive)")
+      # NEW SYMMETRIZATION
+      if symmetry 
+        push!(choices, "(isFree (.. (move (prev obj$(object_1.id)) arrow) origin))")
+      end
 
       displacements = []
       if type_displacements[object_1.type.id] != []
         scalar = type_displacements[object_1.type.id][1]
         for x in -3:3 
           for y in -3:3
-            if abs(x) + abs(y) < 3 && (x == 0 || y == 0) 
+            if abs(x) + abs(y) < 3 && (x == 0 || y == 0) && (abs(x) + abs(y) > 1) 
               push!(displacements, "(move (prev obj$(object_1.id)) $(x*scalar) $(y*scalar))")
               # push!(displacements, "(moveNoCollision (prev obj$(object_1.id)) $(x*scalar) $(y*scalar))")
             end
@@ -390,13 +394,21 @@ function gen_event_bool_human_prior(object_decomposition, object_id, type_id, us
 
       for object_2 in non_list_objects 
         if object_1.id != object_2.id 
+          # NEW SYMMETRIZATION
+          if symmetry 
+            push!(choices, "(moveIntersects arrow (prev obj$(object_1.id)) (prev obj$(object_2.id)))")
+            push!(choices, "(pushConfiguration arrow (prev obj$(object_1.id)) (prev obj$(object_2.id)))")
+          end
+          push!(choices, "(adj (prev obj$(object_1.id)) (prev obj$(object_2.id)) 10)")
+          push!(choices, "(! (adj (prev obj$(object_1.id)) (prev obj$(object_2.id)) 10))")
+
           # ----- intersecting other objects 
           # ----- adjacent to other objects 
           push!(choices, [
             "(! (intersects (prev obj$(object_1.id)) (prev obj$(object_2.id))))",
-            "(intersects (adjacentObjs (prev obj$(object_1.id))) (prev obj$(object_2.id)))",
+            # "(intersects (adjacentObjs (prev obj$(object_1.id))) (prev obj$(object_2.id)))",
             "(intersects (prev obj$(object_1.id)) (prev obj$(object_2.id)))",
-            "(! (intersects (adjacentObjs (prev obj$(object_1.id))) (prev obj$(object_2.id))))",
+            # "(! (intersects (adjacentObjs (prev obj$(object_1.id))) (prev obj$(object_2.id))))",
           ]...)
           
           # ----- translations (isFree, isWithinBounds, intersects other objects)
@@ -416,6 +428,24 @@ function gen_event_bool_human_prior(object_decomposition, object_id, type_id, us
       for object_type in object_types 
         if object_type.id != object_1.type.id
           filtered_list = "(filter (--> obj (== (.. obj id) $(object_id))) (prev addedObjType$(object_type.id)List))" 
+          
+          # NEW SYMMETRIZATION
+          if symmetry 
+            push!(choices, "(moveIntersects arrow (prev obj$(object_1.id)) $(filtered_list))")
+            push!(choices, "(moveIntersects arrow (prev obj$(object_1.id)) (prev addedObjType$(object_type.id)List))")
+            push!(choices, "(pushConfiguration arrow (prev obj$(object_1.id)) $(filtered_list))")
+            push!(choices, "(pushConfiguration arrow (prev obj$(object_1.id)) (prev addedObjType$(object_type.id)List))")
+            for object_type_2 in object_types 
+              if !(object_type_2.id in [object_type.id, object_1.type.id])
+                push!(choices, "(pushConfiguration arrow (prev obj$(object_1.id)) (prev addedObjType$(object_type.id)List) (prev addedObjType$(object_type_2.id)List))")
+                push!(choices, "(pushConfiguration arrow (prev obj$(object_1.id)) $(filtered_list) (prev addedObjType$(object_type_2.id)List))")
+                push!(choices, "(pushConfiguration arrow (prev obj$(object_1.id)) (prev addedObjType$(object_type.id)List) (filter (--> obj (== (.. obj id) x)) (prev addedObjType$(object_type_2.id)List)))")
+              end
+            end
+          end
+          push!(choices, "(adj (prev obj$(object_1.id)) $(filtered_list) 10)")
+          push!(choices, "(adj (prev obj$(object_1.id)) (prev addedObjType$(object_type.id)List) 10)")
+
           # ----- intersecting list object(s)
           push!(choices, "(intersects (prev obj$(object_1.id)) (prev addedObjType$(object_type.id)List))")
           push!(choices, "(intersects (prev obj$(object_1.id)) $(filtered_list))")
@@ -426,7 +456,7 @@ function gen_event_bool_human_prior(object_decomposition, object_id, type_id, us
             scalar = type_displacements[object_type.id][1]
             for x in -3:3 
               for y in -3:3
-                if abs(x) + abs(y) < 3 && (x == 0 || y == 0) 
+                if abs(x) + abs(y) < 3 && (x == 0 || y == 0) && (abs(x) + abs(y) > 1) 
                   # push!(choices, "(intersects $(filtered_list) (map (--> obj (move (prev obj) $(x*scalar) $(y*scalar))) (prev addedObjType$(object_type.id)List)))")
                   # push!(displacements, "(map (--> obj (moveNoCollision (prev obj) $(x*scalar) $(y*scalar))) $(filtered_list))")
                   # PORTALS FIX
@@ -470,6 +500,7 @@ function gen_event_bool_human_prior(object_decomposition, object_id, type_id, us
 
   # (list object)-based 
   for object_type_1 in object_types 
+
     # ----- intersecting other list objects 
     # ----- adjacent to other list objects 
     # ----- translations (isFree, isWithinBounds, no change on NoCollisoin, intersects other objects)
@@ -477,13 +508,14 @@ function gen_event_bool_human_prior(object_decomposition, object_id, type_id, us
 
     push!(choices, "(== (filter (--> obj (.. obj alive)) (prev addedObjType$(object_type_1.id)List)) (list))")
     push!(choices, "(!= (filter (--> obj (.. obj alive)) (prev addedObjType$(object_type_1.id)List)) (list))")
-    
+
+
     displacements = []
     if type_displacements[object_type_1.id] != []
       scalar = type_displacements[object_type_1.id][1]
       for x in -3:3 
         for y in -3:3
-          if abs(x) + abs(y) < 3 && (x == 0 || y == 0) 
+          if abs(x) + abs(y) < 3 && (x == 0 || y == 0) && (abs(x) + abs(y) > 1) 
             push!(displacements, "(map (--> obj (move (prev obj) $(x*scalar) $(y*scalar))) $(filtered_list))")
             # push!(displacements, "(map (--> obj (moveNoCollision (prev obj) $(x*scalar) $(y*scalar))) $(filtered_list))")
             for object_type_2 in object_types 
@@ -519,16 +551,21 @@ function gen_event_bool_human_prior(object_decomposition, object_id, type_id, us
     
     for object_type_2 in object_types
       @show object_type_2  
+
       if object_type_1.id != object_type_2.id 
+        # NEW SYMMETRIZATION 
+        push!(choices, "(adj $(filtered_list) (prev addedObjType$(object_type_2.id)List) 10)")
+        push!(choices, "(! (adj $(filtered_list) (prev addedObjType$(object_type_2.id)List) 10))")
+
         # PORTALS FIX 
-        push!(choices, "(intersects (unfold (map (--> obj (adjacentObjs (prev obj))) $(filtered_list))) (prev addedObjType$(object_type_2.id)List))")
-        push!(choices, "(! (intersects (unfold (map (--> obj (adjacentObjs (prev obj))) $(filtered_list))) (prev addedObjType$(object_type_2.id)List)))")
+        # push!(choices, "(intersects (unfold (map (--> obj (adjacentObjs (prev obj))) $(filtered_list))) (prev addedObjType$(object_type_2.id)List))")
+        # push!(choices, "(! (intersects (unfold (map (--> obj (adjacentObjs (prev obj))) $(filtered_list))) (prev addedObjType$(object_type_2.id)List)))")
 
         if type_displacements[object_type_2.id] != []
           scalar = type_displacements[object_type_2.id][1]
           for x in -3:3 
             for y in -3:3
-              if abs(x) + abs(y) < 3 && (x == 0 || y == 0) 
+              if abs(x) + abs(y) < 3 && (x == 0 || y == 0) && (abs(x) + abs(y) > 1) 
                 push!(choices, "(intersects $(filtered_list) (map (--> obj (move (prev obj) $(x*scalar) $(y*scalar))) (prev addedObjType$(object_type_2.id)List)))")
                 # push!(displacements, "(map (--> obj (moveNoCollision (prev obj) $(x*scalar) $(y*scalar))) $(filtered_list))")
     
@@ -775,7 +812,7 @@ function gen_event_bool_human_prior(object_decomposition, object_id, type_id, us
   sort(unique(choices), by=length) 
 end
 
-function gen_event_bool(object_decomposition, object_id, type_id, update_rule, user_events, global_var_dict, type_displacements, interval_offsets, source_exists_events_dict, time_based=true)
+function gen_event_bool(object_decomposition, object_id, type_id, update_rule, user_events, global_var_dict, type_displacements, interval_offsets, source_exists_events_dict, time_based=true, symmetry=false)
   # println("GEN_EVENT_BOOL")
   # # @show object_decomposition 
   # @show object_id 
@@ -790,7 +827,7 @@ function gen_event_bool(object_decomposition, object_id, type_id, update_rule, u
   user_events = filter(e -> (e != "") && (e != "nothing") && !isnothing(e), user_events)
   # @show non_list_objects
   # ----- add global events, unrelated to objects -----
-  choices = gen_event_bool_human_prior(object_decomposition, object_id, type_id, user_events, global_var_dict, update_rule, type_displacements, interval_offsets, source_exists_events_dict)
+  choices = gen_event_bool_human_prior(object_decomposition, object_id, type_id, user_events, global_var_dict, update_rule, type_displacements, interval_offsets, source_exists_events_dict, symmetry)
 
   ## time-related
   if time_based 
@@ -1092,7 +1129,7 @@ function gen_event_bool(object_decomposition, object_id, type_id, update_rule, u
 
   choices = filter(x -> !(x in events_to_remove), choices)
 
-  choices = gen_event_bool_human_prior(object_decomposition, object_id, type_id, user_events, global_var_dict, update_rule, type_displacements, interval_offsets, source_exists_events_dict)
+  choices = gen_event_bool_human_prior(object_decomposition, object_id, type_id, user_events, global_var_dict, update_rule, type_displacements, interval_offsets, source_exists_events_dict, symmetry)
   
   if time_based 
     push!(choices, "(== (% (prev time) 10) 5)")

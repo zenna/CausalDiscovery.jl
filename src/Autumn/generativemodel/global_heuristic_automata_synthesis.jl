@@ -1,7 +1,7 @@
 """On-clause generation, where we collect all unsolved (latent state dependent) on-clauses at the end"""
-function generate_on_clauses_GLOBAL(run_id, matrix, unformatted_matrix, object_decomposition, user_events, global_event_vector_dict, redundant_events_set, grid_size=16, desired_solution_count=1, desired_per_matrix_solution_count=1, interval_painting_param=false, sketch=false, z3_option="full", time_based=false, z3_timeout=0, sketch_timeout=0, co_occurring_param=false, transition_param=false, co_occurring_distinct=1, co_occurring_same=1, co_occurring_threshold=1, transition_distinct=1, transition_same=1, transition_threshold=1, num_transition_decisions=15, pedro=true; state_synthesis_algorithm="heuristic")
+function generate_on_clauses_GLOBAL(run_id, matrix, unformatted_matrix, object_decomposition, user_events, global_event_vector_dict, redundant_events_set, grid_size=16, desired_solution_count=1, desired_per_matrix_solution_count=1, interval_painting_param=false, sketch=false, z3_option="full", time_based=false, z3_timeout=0, sketch_timeout=0, co_occurring_param=false, transition_param=false, co_occurring_distinct=1, co_occurring_same=1, co_occurring_threshold=1, transition_distinct=1, transition_same=1, transition_threshold=1, num_transition_decisions=15, pedro=true; state_synthesis_algorithm="heuristic", symmetry=false)
   if state_synthesis_algorithm == "sketch_single"
-    return generate_on_clauses_SKETCH_SINGLE(run_id, matrix, unformatted_matrix, object_decomposition, user_events, global_event_vector_dict, redundant_events_set, grid_size, desired_solution_count, desired_per_matrix_solution_count, interval_painting_param, z3_option, time_based, z3_timeout, sketch_timeout, co_occurring_param, transition_param, co_occurring_distinct, co_occurring_same, co_occurring_threshold, transition_distinct, transition_same, transition_threshold)
+    return generate_on_clauses_SKETCH_SINGLE(run_id, matrix, unformatted_matrix, object_decomposition, user_events, global_event_vector_dict, redundant_events_set, grid_size, desired_solution_count, desired_per_matrix_solution_count, interval_painting_param, z3_option, time_based, z3_timeout, sketch_timeout, co_occurring_param, transition_param, co_occurring_distinct, co_occurring_same, co_occurring_threshold, transition_distinct, transition_same, transition_threshold, symmetry=symmetry)
   end
   
   start_time = Dates.now()
@@ -48,7 +48,7 @@ function generate_on_clauses_GLOBAL(run_id, matrix, unformatted_matrix, object_d
     return solutions
   end
 
-  filtered_matrices = construct_filtered_matrices_pedro(matrix, object_decomposition, user_events)
+  filtered_matrices = construct_filtered_matrices_pedro(matrix, object_decomposition, user_events, symmetry)
 
   # filtered_matrices[2][9, 11] = ["(= addedObjType5List (updateObj addedObjType5List (--> obj (prev obj)) (--> obj (== (.. obj id) 9))))"]
   # filtered_matrices[2][11, 21] = ["(= addedObjType5List (updateObj addedObjType5List (--> obj (prev obj)) (--> obj (== (.. obj id) 9))))"]
@@ -130,7 +130,7 @@ function generate_on_clauses_GLOBAL(run_id, matrix, unformatted_matrix, object_d
     end
 
     # return values: state_based_update_functions_dict has form type_id => [unsolved update functions]
-    new_on_clauses, state_based_update_functions_dict, observation_vectors_dict, addObj_params_dict, global_event_vector_dict, ordered_update_functions_dict = generate_stateless_on_clauses(run_id, interval_offsets, source_exists_events_dict, update_functions_dict, matrix, filtered_matrix, anonymized_filtered_matrix, object_decomposition, user_events, state_update_on_clauses, global_var_dict, global_event_vector_dict, redundant_events_set, z3_option, time_based, z3_timeout, sketch_timeout)
+    new_on_clauses, state_based_update_functions_dict, observation_vectors_dict, addObj_params_dict, global_event_vector_dict, ordered_update_functions_dict = generate_stateless_on_clauses(run_id, interval_offsets, source_exists_events_dict, update_functions_dict, matrix, filtered_matrix, anonymized_filtered_matrix, object_decomposition, user_events, state_update_on_clauses, global_var_dict, global_event_vector_dict, redundant_events_set, z3_option, time_based, z3_timeout, sketch_timeout, symmetry)
     
     println("I AM HERE NOW")
     @show new_on_clauses
@@ -884,16 +884,16 @@ function generate_on_clauses_GLOBAL(run_id, matrix, unformatted_matrix, object_d
 
                 println("WOAH INSIDE HEURISTIC STATE SYNTHESIS ALGORITHM")
                 # ----- BEGIN STATE SYNTHESIS (HEURISTIC) -----
-                state_solutions = generate_new_state_GLOBAL(co_occurring_event, times_dict, global_event_vector_dict, object_trajectory, global_var_dict, global_state_update_times_dict, object_decomposition, type_id, user_events, desired_per_matrix_solution_count, interval_offsets, source_exists_events_dict, false, false, transition_param, ordered_update_functions, transition_distinct, transition_same, transition_threshold, num_transition_decisions)
+                state_solutions = generate_new_state_GLOBAL(co_occurring_event, times_dict, global_event_vector_dict, object_trajectory, global_var_dict, global_state_update_times_dict, object_decomposition, type_id, user_events, desired_per_matrix_solution_count, interval_offsets, source_exists_events_dict, false, false, transition_param, ordered_update_functions, transition_distinct, transition_same, transition_threshold, num_transition_decisions, symmetry)
                 println("DONT STOP ME NOW")
                 @show state_solutions 
 
                 if length(filter(sol -> sol[1] != "", state_solutions)) == 0
-                  state_solutions = generate_new_state_GLOBAL(co_occurring_event, times_dict, global_event_vector_dict, object_trajectory, global_var_dict, global_state_update_times_dict, object_decomposition, type_id, user_events, desired_per_matrix_solution_count, interval_offsets, source_exists_events_dict, false, true, transition_param, ordered_update_functions, transition_distinct, transition_same, transition_threshold, num_transition_decisions)
+                  state_solutions = generate_new_state_GLOBAL(co_occurring_event, times_dict, global_event_vector_dict, object_trajectory, global_var_dict, global_state_update_times_dict, object_decomposition, type_id, user_events, desired_per_matrix_solution_count, interval_offsets, source_exists_events_dict, false, true, transition_param, ordered_update_functions, transition_distinct, transition_same, transition_threshold, num_transition_decisions, symmetry)
                 end
 
                 if length(filter(sol -> sol[1] != "", state_solutions)) == 0
-                  state_solutions = generate_new_state_GLOBAL(co_occurring_event, times_dict, global_event_vector_dict, object_trajectory, global_var_dict, global_state_update_times_dict, object_decomposition, type_id, user_events, desired_per_matrix_solution_count, interval_offsets, source_exists_events_dict, true, false, transition_param, ordered_update_functions, transition_distinct, transition_same, transition_threshold, num_transition_decisions)
+                  state_solutions = generate_new_state_GLOBAL(co_occurring_event, times_dict, global_event_vector_dict, object_trajectory, global_var_dict, global_state_update_times_dict, object_decomposition, type_id, user_events, desired_per_matrix_solution_count, interval_offsets, source_exists_events_dict, true, false, transition_param, ordered_update_functions, transition_distinct, transition_same, transition_threshold, num_transition_decisions, symmetry)
                 end
                 # ----- BEGIN STATE SYNTHESIS () -----
 
@@ -1008,7 +1008,7 @@ function generate_on_clauses_GLOBAL(run_id, matrix, unformatted_matrix, object_d
                 if sketch 
                   new_on_clauses, new_state_update_on_clauses, new_object_decomposition, new_object_specific_state_update_times_dict = generate_object_specific_multi_automaton_sketch(co_occurring_event, update_functions, times_dict, global_event_vector_dict, type_id, global_object_decomposition, object_specific_state_update_times_dict, global_var_dict, true)
                 else
-                  new_on_clauses, new_state_update_on_clauses, new_object_decomposition, new_object_specific_state_update_times_dict = generate_new_object_specific_state_GLOBAL(co_occurring_event, update_functions, anonymized_filtered_matrix, times_dict, ordered_update_functions, global_event_vector_dict, type_id, global_object_decomposition, object_specific_state_update_times_dict, global_var_dict, type_displacements, interval_offsets, source_exists_events_dict, transition_param, z3_option, z3_timeout, sketch_timeout, transition_distinct, transition_same, transition_threshold, num_transition_decisions)
+                  new_on_clauses, new_state_update_on_clauses, new_object_decomposition, new_object_specific_state_update_times_dict = generate_new_object_specific_state_GLOBAL(co_occurring_event, update_functions, anonymized_filtered_matrix, times_dict, ordered_update_functions, global_event_vector_dict, type_id, global_object_decomposition, object_specific_state_update_times_dict, global_var_dict, type_displacements, interval_offsets, source_exists_events_dict, transition_param, z3_option, z3_timeout, sketch_timeout, transition_distinct, transition_same, transition_threshold, num_transition_decisions, symmetry)
                 end
 
                 if new_on_clauses == []
@@ -1078,7 +1078,7 @@ function generate_on_clauses_GLOBAL(run_id, matrix, unformatted_matrix, object_d
 
               end
 
-              new_on_clauses, state_based_update_functions_dict, _, _, global_event_vector_dict, _ = generate_stateless_on_clauses(run_id, interval_offsets, source_exists_events_dict, update_functions_dict, matrix, filtered_matrix, anonymized_filtered_matrix, global_object_decomposition, user_events, state_update_on_clauses, global_var_dict, global_event_vector_dict, redundant_events_set, z3_option, time_based, z3_timeout, sketch_timeout)          
+              new_on_clauses, state_based_update_functions_dict, _, _, global_event_vector_dict, _ = generate_stateless_on_clauses(run_id, interval_offsets, source_exists_events_dict, update_functions_dict, matrix, filtered_matrix, anonymized_filtered_matrix, global_object_decomposition, user_events, state_update_on_clauses, global_var_dict, global_event_vector_dict, redundant_events_set, z3_option, time_based, z3_timeout, sketch_timeout, symmetry)          
               println("WHATS GOING ON NOW")
               @show new_on_clauses 
               @show state_based_update_functions_dict
@@ -1213,7 +1213,7 @@ function update_co_occurring_events_dict(co_occurring_events_dict, state_based_u
   co_occurring_events_dict
 end
 
-function generate_new_state_GLOBAL(co_occurring_event, times_dict, event_vector_dict, object_trajectory, init_global_var_dict, state_update_times_dict, object_decomposition, type_id, user_events, desired_per_matrix_solution_count, interval_offsets, source_exists_events_dict, user_event_simplified=false, interval_painting_param=false, transition_param=false, ordered_update_functions=[], transition_distinct=1, transition_same=1, transition_threshold=1, num_transition_decisions=15) 
+function generate_new_state_GLOBAL(co_occurring_event, times_dict, event_vector_dict, object_trajectory, init_global_var_dict, state_update_times_dict, object_decomposition, type_id, user_events, desired_per_matrix_solution_count, interval_offsets, source_exists_events_dict, user_event_simplified=false, interval_painting_param=false, transition_param=false, ordered_update_functions=[], transition_distinct=1, transition_same=1, transition_threshold=1, num_transition_decisions=15, symmetry=false) 
   println("GENERATE_NEW_STATE_GLOBAL")
   @show co_occurring_event
   @show times_dict 
@@ -1244,7 +1244,7 @@ function generate_new_state_GLOBAL(co_occurring_event, times_dict, event_vector_
 
   events = filter(e -> event_vector_dict[e] isa AbstractArray, collect(keys(event_vector_dict)))
   @show events 
-  atomic_events = gen_event_bool_human_prior(object_decomposition, "x", type_id isa Tuple ? type_id[1] : type_id, ["nothing"], init_global_var_dict, collect(keys(times_dict))[1], type_displacements, interval_offsets, source_exists_events_dict)
+  atomic_events = gen_event_bool_human_prior(object_decomposition, "x", type_id isa Tuple ? type_id[1] : type_id, ["nothing"], init_global_var_dict, collect(keys(times_dict))[1], type_displacements, interval_offsets, source_exists_events_dict, symmetry)
   @show atomic_events 
   small_event_vector_dict = deepcopy(event_vector_dict)    
   deleted = []
@@ -1919,7 +1919,7 @@ function relabel_via_interval_painting(augmented_positive_times_labeled, global_
   (augmented_positive_times, extra_global_var_values)
 end
 
-function generate_stateless_on_clauses(run_id, interval_offsets, source_exists_events_dict, update_functions_dict, matrix, filtered_matrix, anonymized_filtered_matrix, global_object_decomposition, user_events, state_update_on_clauses, global_var_dict, global_event_vector_dict, redundant_events_set, z3_option="full", time_based=false, z3_timeout=0, sketch_timeout=0)
+function generate_stateless_on_clauses(run_id, interval_offsets, source_exists_events_dict, update_functions_dict, matrix, filtered_matrix, anonymized_filtered_matrix, global_object_decomposition, user_events, state_update_on_clauses, global_var_dict, global_event_vector_dict, redundant_events_set, z3_option="full", time_based=false, z3_timeout=0, sketch_timeout=0, symmetry=false)
   object_types, object_mapping, background, grid_size = global_object_decomposition
   new_on_clauses = []
   observation_vectors_dict = Dict() 
@@ -1990,7 +1990,7 @@ function generate_stateless_on_clauses(run_id, interval_offsets, source_exists_e
       if update_rule != "" && !is_no_change_rule(update_rule)
         println("UPDATE_RULEEE")
         println(update_rule)
-        events, event_is_globals, event_vector_dict, observation_data_dict = generate_event(run_id, interval_offsets, source_exists_events_dict, update_rule, all_update_rules, object_ids[1], object_ids, matrix, filtered_matrix, global_object_decomposition, user_events, state_update_on_clauses, global_var_dict, global_event_vector_dict, grid_size, redundant_events_set, 1, 400, z3_option, time_based, z3_timeout, sketch_timeout)
+        events, event_is_globals, event_vector_dict, observation_data_dict = generate_event(run_id, interval_offsets, source_exists_events_dict, update_rule, all_update_rules, object_ids[1], object_ids, matrix, filtered_matrix, global_object_decomposition, user_events, state_update_on_clauses, global_var_dict, global_event_vector_dict, grid_size, redundant_events_set, 1, 400, z3_option, time_based, z3_timeout, sketch_timeout, symmetry)
         global_event_vector_dict = event_vector_dict
         observation_vectors_dict[update_rule] = observation_data_dict
 
@@ -2047,7 +2047,7 @@ function generate_stateless_on_clauses(run_id, interval_offsets, source_exists_e
   new_on_clauses, state_based_update_functions_dict, observation_vectors_dict, addObj_params_dict, global_event_vector_dict, ordered_update_functions_dict 
 end
 
-function generate_new_object_specific_state_GLOBAL(co_occurring_event, update_functions, filtered_matrix, times_dict, ordered_update_functions, event_vector_dict, type_id, object_decomposition, init_state_update_times, global_var_dict, type_displacements, interval_offsets, source_exists_events_dict, transition_param=false, z3_option="full", time_based=false, z3_timeout=0, sketch_timeout=0, transition_distinct=1, transition_same=1, transition_threshold=1, num_transition_decisions=15)
+function generate_new_object_specific_state_GLOBAL(co_occurring_event, update_functions, filtered_matrix, times_dict, ordered_update_functions, event_vector_dict, type_id, object_decomposition, init_state_update_times, global_var_dict, type_displacements, interval_offsets, source_exists_events_dict, transition_param=false, z3_option="full", time_based=false, z3_timeout=0, sketch_timeout=0, transition_distinct=1, transition_same=1, transition_threshold=1, num_transition_decisions=15, symmetry=false)
   println("GENERATE_NEW_OBJECT_SPECIFIC_STATE")
   @show co_occurring_event
   @show update_functions 
@@ -2076,7 +2076,7 @@ function generate_new_object_specific_state_GLOBAL(co_occurring_event, update_fu
   non_list_objects = filter(x -> (count(y -> y.type.id == x.type.id, start_objects) == 1) && (count(obj_id -> filter(z -> !isnothing(z), object_mapping[obj_id])[1].type.id == x.type.id, collect(keys(object_mapping))) == 1), start_objects)
   non_list_object_ids = map(obj -> obj.id, non_list_objects)
 
-  atomic_events = gen_event_bool_human_prior(object_decomposition, "x", type_id, ["nothing"], global_var_dict, update_functions[1], type_displacements, interval_offsets, source_exists_events_dict)
+  atomic_events = gen_event_bool_human_prior(object_decomposition, "x", type_id, ["nothing"], global_var_dict, update_functions[1], type_displacements, interval_offsets, source_exists_events_dict, symmetry)
 
   small_event_vector_dict = deepcopy(event_vector_dict)    
   for e in keys(event_vector_dict)

@@ -37,7 +37,7 @@ include("test_synthesis.jl")
 #   end
 # end
 
-function run_model(model_name::String, algorithm, desired_per_matrix_solution_count, desired_solution_count)
+function run_model(model_name::String, algorithm, desired_per_matrix_solution_count, desired_solution_count; symmetry=false)
   # build desired directory structure
   date_string = Dates.format(Dates.now(), "yyyy-mm-dd HH:MM:SS")
   directory_name = string("heuristic_final_results/results_$(date_string)")
@@ -119,6 +119,7 @@ function run_model(model_name::String, algorithm, desired_per_matrix_solution_co
                                                           desired_solution_count=desired_solution_count,
                                                           algorithm=algorithm,
                                                           sketch_timeout=120,
+                                                          symmetry=symmetry,
                                                           )
                       # try
                       # catch e 
@@ -187,7 +188,8 @@ function run_model(model_name::String, algorithm, desired_per_matrix_solution_co
                                                              desired_per_matrix_solution_count=10000,
                                                              desired_solution_count=desired_solution_count,
                                                              algorithm=algorithm,
-                                                             sketch_timeout=120 * 60)
+                                                             sketch_timeout=120 * 60,
+                                                             symmetry=symmetry)
                       # try     
                       # catch e 
                       #   (value=[], time=0)
