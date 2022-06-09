@@ -268,9 +268,9 @@ function generate_on_clauses_GLOBAL(run_id, matrix, unformatted_matrix, object_d
           # end
 
           if co_occurring_param 
-            co_occurring_events = sort(filter(x -> (!occursin("(list)", x[1]) || occursin("distance", x[1]) || occursin("addObj", update_function)) && !occursin("(== (prev addedObjType", x[1]) && !occursin("objClicked", x[1]) && !occursin("intersects (list", x[1]) && (!occursin("&", x[1]) || x[1] == "(& clicked (isFree click))") && !(occursin("(! (in (objClicked click (prev addedObjType3List)) (filter (--> obj (== (.. obj id) x)) (prev addedObjType3List))))", x[1])), co_occurring_events), by=x -> x[2]) # [1][1]
+            co_occurring_events = sort(filter(x -> (!occursin("(list)", x[1]) || occursin("distance", x[1]) || occursin("addObj", update_function)) && !occursin("adj ", update_function) && !occursin("pushConfiguration", update_function) && !occursin("(== (prev addedObjType", x[1]) && !occursin("objClicked", x[1]) && !occursin("intersects (list", x[1]) && (!occursin("&", x[1]) || x[1] == "(& clicked (isFree click))") && !(occursin("(! (in (objClicked click (prev addedObjType3List)) (filter (--> obj (== (.. obj id) x)) (prev addedObjType3List))))", x[1])), co_occurring_events), by=x -> x[2]) # [1][1]
           else
-            co_occurring_events = sort(filter(x -> (!occursin("(list)", x[1]) || occursin("distance", x[1]) || occursin("addObj", update_function)) && !occursin("|", x[1]) && !occursin("(== (prev addedObjType", x[1]) && !occursin("objClicked", x[1]) && !occursin("intersects (list", x[1]) && (!occursin("&", x[1]) || x[1] == "(& clicked (isFree click))")  && !(occursin("(! (in (objClicked click (prev addedObjType3List)) (filter (--> obj (== (.. obj id) x)) (prev addedObjType3List))))", x[1])), co_occurring_events), by=x -> x[2]) # [1][1]
+            co_occurring_events = sort(filter(x -> (!occursin("(list)", x[1]) || occursin("distance", x[1]) || occursin("addObj", update_function)) && !occursin("adj ", update_function) && !occursin("pushConfiguration", update_function) && !occursin("|", x[1]) && !occursin("(== (prev addedObjType", x[1]) && !occursin("objClicked", x[1]) && !occursin("intersects (list", x[1]) && (!occursin("&", x[1]) || x[1] == "(& clicked (isFree click))")  && !(occursin("(! (in (objClicked click (prev addedObjType3List)) (filter (--> obj (== (.. obj id) x)) (prev addedObjType3List))))", x[1])), co_occurring_events), by=x -> x[2]) # [1][1]
           end
   
           if state_is_global 
@@ -1113,7 +1113,7 @@ function generate_on_clauses_GLOBAL(run_id, matrix, unformatted_matrix, object_d
               # @show state_update_on_clauses
 
               # re-order on_clauses
-              ordered_on_clauses = re_order_on_clauses(on_clauses, ordered_update_functions_dict)
+              ordered_on_clauses = re_order_on_clauses(vcat(on_clauses..., state_update_on_clauses...), ordered_update_functions_dict)
 
               push!(solutions, (deepcopy(ordered_on_clauses), deepcopy(global_object_decomposition), deepcopy(global_var_dict)))
               # save("solution_$(Dates.now()).jld", "solution", solutions[end])
