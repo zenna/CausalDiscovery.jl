@@ -179,9 +179,9 @@ function generate_hypothesis_position(position, environment_vars, pedro)
   # # println("GENERATE_HYPOTHESIS_POSITION")
   objects = map(obj -> "obj$(obj.id)", filter(x -> x isa Obj, environment_vars))
   user_event = filter(x -> !(x isa Obj), environment_vars)[1]
-  # # @show environment_vars
+  # @show environment_vars
   choices = []
-  # # @show length(objects)
+  # @show length(objects)
   if length(objects) != 0
     if !pedro 
       push!(choices, ["(.. (prev $(rand(objects))) origin)",
@@ -220,10 +220,10 @@ end
 function generate_hypothesis_string(string, environment_vars, object_types)
   objects = filter(x -> (x isa Obj) && length(x.type.custom_fields) > 0, environment_vars)
   object = rand(objects)
-  # # @show string
-  # # @show objects
+  # @show string
+  # @show objects
   x = filter(type -> length(type.custom_fields) > 0 && string in type.custom_fields[1][3], object_types)
-  # # @show x
+  # @show x
   pair_string = filter(s -> s != string, map(type -> type.custom_fields[1][3], filter(type -> length(type.custom_fields) > 0 && string in type.custom_fields[1][3], object_types))[1])[1]
 
   first_string, second_string = rand() > 0.5 ? (string, pair_string) : (pair_string, string)
@@ -288,7 +288,8 @@ function gen_event_bool_human_prior(object_decomposition, object_id, type_id, us
         if object_1.id != object_2.id 
           push!(choices, [
             "(! (intersects (prev obj$(object_1.id)) (prev obj$(object_2.id))))",
-            "(intersects (adjacentObjs (prev obj$(object_1.id))) (prev obj$(object_2.id)))",
+            # "(intersects (adjacentObjs (prev obj$(object_1.id))) (prev obj$(object_2.id)))",
+            "(adj (prev obj$(object_1.id)) (prev obj$(object_2.id)) 1)",
           ]...)
         end
       end
@@ -335,7 +336,8 @@ function gen_event_bool_human_prior(object_decomposition, object_id, type_id, us
       for type in object_types 
         push!(choices, [
           "(intersects (prev obj$(object.id)) (prev addedObjType$(type.id)List))",
-          "(intersects (adjacentObjs (prev obj$(object.id))) (prev addedObjType$(type.id)List))", # can add things with `.. id)` x here
+          # "(intersects (adjacentObjs (prev obj$(object.id))) (prev addedObjType$(type.id)List))", # can add things with `.. id)` x here
+          "(adj (prev obj$(object.id)) (prev addedObjType$(type.id)List) 1)",
           "(intersects (prev obj$(object.id)) (filter (--> obj (== (.. obj id) $(object_id))) (prev addedObjType$(type.id)List)))",
           ]...)
         for object2 in non_list_objects 
@@ -386,7 +388,7 @@ function gen_event_bool_human_prior(object_decomposition, object_id, type_id, us
   sort(unique(choices), by=length) 
 end
 
-function gen_event_bool(object_decomposition, object_id, type_id, update_rule, user_events, global_var_dict, time_based=true)
+function gen_event_bool(object_decomposition, object_id, type_id, update_rule, user_events, global_var_dict, time_based=true, symmetry=false)
   object_types, object_mapping, _, grid_size = object_decomposition
   start_objects = map(k -> object_mapping[k][1], filter(key -> !isnothing(object_mapping[key][1]), collect(keys(object_mapping))))
   non_list_objects = filter(x -> (count(y -> y.type.id == x.type.id, start_objects) == 1) && (count(obj_id -> filter(z -> !isnothing(z), object_mapping[obj_id])[1].type.id == x.type.id, collect(keys(object_mapping))) == 1), start_objects)
@@ -408,6 +410,12 @@ function gen_event_bool(object_decomposition, object_id, type_id, update_rule, u
   # ----- add events dealing with constant objects (i.e. objects not contained in a list) -----
   if non_list_objects != [] 
     for object in non_list_objects 
+      # NEW SYMMETRIZATION
+      if symmetry 
+        push!(choices, "(isFree (.. (move (prev obj$(object.id)) arrow) origin))")
+      end
+
+
       push!(choices, ["(.. (prev obj$(object.id)) alive)", 
                       "(clicked (prev obj$(object.id)))",
                       vcat(map(pos -> [ "(== (.. (.. (prev obj$(object.id)) origin) x) $(pos[1]))",
@@ -427,11 +435,13 @@ function gen_event_bool(object_decomposition, object_id, type_id, update_rule, u
         end
       end
 
-      for type in object_types 
+      for type in object_types
+        
         push!(choices, [
           "(intersects (prev obj$(object.id)) (prev addedObjType$(type.id)List))",
           "(! (intersects (prev obj$(object.id)) (prev addedObjType$(type.id)List)))",
-          "(intersects (adjacentObjs (prev obj$(object.id))) (prev addedObjType$(type.id)List))", # can add things with `.. id)` x here
+          # "(intersects (adjacentObjs (prev obj$(object.id))) (prev addedObjType$(type.id)List))", # can add things with `.. id)` x here
+          "(adj (prev obj$(object.id)) (prev addedObjType$(type.id)List) 1)",
           "(intersects (prev obj$(object.id)) (filter (--> obj (== (.. obj id) $(object_id))) (prev addedObjType$(type.id)List)))",
           
           # TWO BELOW: SOKOBAN
@@ -466,6 +476,18 @@ function gen_event_bool(object_decomposition, object_id, type_id, update_rule, u
           end
         end
 
+        if object.type.id != type.id 
+          # NEW SYMMETRIZATION
+          if symmetry 
+            push!(choices, "(moveIntersects arrow (prev obj$(object.id)) $(filtered_list))")
+            push!(choices, "(moveIntersects arrow (prev obj$(object.id)) (prev addedObjType$(type.id)List))")
+            push!(choices, "(pushConfiguration arrow (prev obj$(object.id)) $(filtered_list))")
+            push!(choices, "(pushConfiguration arrow (prev obj$(object.id)) (prev addedObjType$(type.id)List))")    
+          end
+          push!(choices, "(adj (prev obj$(object.id)) $(filtered_list) 1)")
+          push!(choices, "(adj (prev obj$(object.id)) (prev addedObjType$(type.id)List) 1)")
+        end
+
         #   (& left 
         #  (| (! (intersects (moveLeft (prev obj1)) (prev addedObjType2List))) 
      		# (& (! (intersects (move (prev obj1) (Position -2 0)) (prev addedObjType2List))) 
@@ -485,6 +507,16 @@ function gen_event_bool(object_decomposition, object_id, type_id, update_rule, u
           if object.id != object2.id 
             push!(choices, "(intersects (prev obj$(object.id)) (prev obj$(object2.id)))")
             push!(choices, "(! (intersects (prev obj$(object.id)) (prev obj$(object2.id))))")
+
+
+            # NEW SYMMETRIZATION
+            if symmetry 
+              push!(choices, "(moveIntersects arrow (prev obj$(object.id)) (prev obj$(object_2.id)))")
+              push!(choices, "(adj (prev obj$(object.id)) (prev obj$(object_2.id)) 1)")
+              push!(choices, "(! (adj (prev obj$(object.id)) (prev obj$(object_2.id)) 1))")
+              push!(choices, "(pushConfiguration arrow (prev obj$(object.id)) (prev obj$(object_2.id)))") 
+            end
+
             # sokoban
             ## left 
             # push!(choices, "(& (in true (map (--> obj (& (isWithinBounds obj) (isFree (.. obj origin)))) (map (--> obj (moveLeft obj)) (filter (--> obj (== (.. obj id) $(object_id))) (prev addedObjType$(type.id)List))))) (in (Position 1 0) (map (--> obj (displacement (.. obj origin) (.. (prev obj$(object.id)) origin))) (filter (--> obj (== (.. obj id) $(object_id))) (prev addedObjType$(type.id)List)))))")
@@ -592,7 +624,8 @@ function gen_event_bool(object_decomposition, object_id, type_id, update_rule, u
         # object_id-based
         # push!(choices, """(intersects (list "$(color)") (filter (--> obj (== (.. obj id) $(object_id))) (prev addedObjType$(type.id)List)))""")
         push!(choices, """(intersects (list "$(color)") (map (--> obj (.. obj color)) (filter (--> obj (== (.. obj id) $(object_id))) (prev addedObjType$(type.id)List))))""")
-        push!(choices, """(intersects (unfold (map (--> obj (adjacentObjs obj)) (filter (--> obj (== (.. obj id) $(object_id))) (prev addedObjType$(type.id)List)))) (filter (--> obj (== (.. obj color) "$(color)")) (prev addedObjType$(type.id)List)))""")  
+        # push!(choices, """(intersects (unfold (map (--> obj (adjacentObjs obj)) (filter (--> obj (== (.. obj id) $(object_id))) (prev addedObjType$(type.id)List)))) (filter (--> obj (== (.. obj color) "$(color)")) (prev addedObjType$(type.id)List)))""")  
+        push!(choices, """(adj (filter (--> obj (== (.. obj id) $(object_id))) (prev addedObjType$(type.id)List)) (filter (--> obj (== (.. obj color) "$(color)")) (prev addedObjType$(type.id)List)) 1)""")
         push!(choices, """(intersects (filter (--> obj (== (.. obj id) $(object_id))) (prev addedObjType$(type.id)List)) (filter (--> obj (== (.. obj color) "$(color)")) (prev addedObjType$(type.id)List)))""")
         for color2 in color_values 
           if color != color2  
@@ -686,6 +719,11 @@ function gen_event_bool(object_decomposition, object_id, type_id, update_rule, u
       if type2.id != type.id 
         push!(choices, "(intersects (prev addedObjType$(type.id)List) (prev addedObjType$(type2.id)List))")
         push!(choices, "(intersects (filter (--> obj (== (.. obj id) $(object_id))) (prev addedObjType$(type.id)List)) (prev addedObjType$(type2.id)List))")
+
+        # NEW SYMMETRIZATION 
+        push!(choices, "(adj $(filtered_list) (prev addedObjType$(type2.id)List) 1)")
+        push!(choices, "(! (adj $(filtered_list) (prev addedObjType$(type2.id)List) 1))")
+
       end
     end
   end
@@ -705,8 +743,8 @@ function gen_event_bool(object_decomposition, object_id, type_id, update_rule, u
   choices = filter(x -> !(x in events_to_remove), choices)
 
   # println("XYZ")
-  # # @show choices
-  # # @show length(choices)
+  # @show choices
+  # @show length(choices)
   # choices = gen_event_bool_human_prior(object_decomposition, object_id, type_id, user_events, global_var_dict, update_rule)
   
   # if time_based 
@@ -723,7 +761,7 @@ end
 
 function construct_compound_events(choices, event_vector_dict, redundant_events_set, object_decomposition)
   # # println("START construct_compound_events")
-  # # @show event_vector_dict
+  # @show event_vector_dict
   object_specific_events = filter(k -> (k in keys(event_vector_dict)) && !(event_vector_dict[k] isa AbstractArray), choices)
   global_events = filter(k ->  (k in keys(event_vector_dict)) && event_vector_dict[k] isa AbstractArray, choices)
 
@@ -736,14 +774,14 @@ function construct_compound_events(choices, event_vector_dict, redundant_events_
   filter!(e -> occursin("clicked", e), nonzero_object_specific_events)
 
   # construct global/global compound events and global/object-specific compound events 
-  # # @show length(nonzero_global_events)
-  # # @show length(nonzero_object_specific_events)
+  # @show length(nonzero_global_events)
+  # @show length(nonzero_object_specific_events)
   nonzero_global_events = sort(nonzero_global_events, by=length)
-  # # # @show nonzero_global_events 
+  # # @show nonzero_global_events 
   for i in 1:length(nonzero_global_events) 
-    # # @show i
+    # @show i
     event_i = nonzero_global_events[i]
-    # # @show event_i
+    # @show event_i
     for j in (i+1):length(nonzero_global_events)
       event_j = nonzero_global_events[j]
       and_event = "(& $(event_i) $(event_j))"
@@ -794,10 +832,10 @@ function construct_compound_events(choices, event_vector_dict, redundant_events_
 
   end
 
-  # # @show length(nonzero_object_specific_events)
+  # @show length(nonzero_object_specific_events)
   for i in 1:length(nonzero_object_specific_events)
-    # # @show i 
-    # # # @show event_i
+    # @show i 
+    # # @show event_i
     event_i = nonzero_object_specific_events[i]
     object_ids_i = collect(keys(event_vector_dict[event_i]))
     for j in (i+1):length(nonzero_object_specific_events)
@@ -907,9 +945,9 @@ function prune_by_observational_equivalence(event_vector_dict, redundant_events_
     else
       if event == "(in true (map (--> obj (isFree (.. (moveRight (prev obj)) origin))) (filter (--> obj (== (.. obj id) x)) (prev addedObjType2List))))"
         # println("WTF")
-        # @show values_to_events[event_values]
-        # @show event_values 
-        # @show values_to_events
+        @show values_to_events[event_values]
+        @show event_values 
+        @show values_to_events
       end
       existing_events = values_to_events[event_values]
       if (occursin("globalVar", event) && foldl(|, map(e -> occursin("globalVar", e), existing_events))) || (!occursin("globalVar", event) && !foldl(|, map(e -> occursin("globalVar", e), existing_events)))

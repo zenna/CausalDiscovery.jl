@@ -323,6 +323,65 @@ function program_string_synth_standard_groups(object_decomposition)
   """
 end
 
+function program_string_synth_standard_groups_multi_trace_reset(object_decomposition)
+  object_types, object_mapping, background, gridsize = object_decomposition
+
+  start_objects = sort(filter(obj -> obj != nothing, [object_mapping[i][1] for i in 1:length(collect(keys(object_mapping)))]), by=(x -> x.id))
+
+  start_type_mapping = Dict()
+  num_objects_with_type = Dict()
+
+  for type in object_types
+    start_type_mapping[type.id] = sort(filter(obj -> obj.type.id == type.id, start_objects), by=(x -> x.id))
+    num_objects_with_type[type.id] = count(obj_id -> filter(x -> !isnothing(x), object_mapping[obj_id])[1].type.id == type.id, collect(keys(object_mapping)))
+  end
+  
+
+  start_constants_and_lists = vcat(filter(l -> length(l) == 1 && (num_objects_with_type[l[1].type.id] == 1), map(k -> start_type_mapping[k], collect(keys(start_type_mapping))))..., 
+                                   filter(l -> length(l) > 1 || ((length(l) == 1) && (num_objects_with_type[l[1].type.id] > 1)), map(k -> start_type_mapping[k], collect(keys(start_type_mapping)))))
+  start_constants_and_lists = sort(start_constants_and_lists, by=x -> x isa Array ? x[1].id : x.id)
+
+  other_list_types = filter(k -> (length(start_type_mapping[k]) == 0) || (length(start_type_mapping[k]) == 1 && num_objects_with_type[k] == 1), sort(collect(keys(start_type_mapping))))
+  
+  start_constants_and_lists_strings = []
+  for obj in start_constants_and_lists 
+    if !(obj isa Array) 
+      pos = obj.position
+      obj_str = """(updateObj (prev obj$(obj.id)) "origin" (Position $(pos[1]) $(pos[2])))"""
+      for i in 1:length(obj.type.custom_fields)
+        field = obj.type.custom_fields[i]
+        val = obj.custom_field_values[i]
+        obj_str = """(updateObj $(obj_str) "$(field[1])" $(val isa String ? """ "$(val)" """ : val))"""
+      end
+      obj_str = """(= obj$(obj.id) $(obj_str))"""
+      push!(start_constants_and_lists_strings, obj_str)
+    else
+      individual_object_updates = []
+      for o in obj 
+        pos = o.position
+        obj_str = """(updateObj (prev obj) "origin" (Position $(pos[1]) $(pos[2])))"""
+        for i in 1:length(o.type.custom_fields)
+          field = o.type.custom_fields[i]
+          val = o.custom_field_values[i]
+          obj_str = """(updateObj $(obj_str) "$(field[1])" $(val isa String ? """ "$(val)" """ : val))"""
+        end
+        obj_str = """(= addedObjType$(o.type.id)List (--> obj $(obj_str))  (--> obj (== (.. obj id) $(o.id))))"""
+        push!(individual_object_updates, obj_str)
+      end
+      o_ids = map(o -> o.id, obj)
+      removal_str = """(= addedObjType$(obj[1].type.id)List (removeObj addedObjType$(obj[1].type.id)List (--> obj (! (in (.. obj id) (list $(join(o_ids, " "))))))))"""
+      push!(individual_object_updates, removal_str)
+      push!(start_constants_and_lists_strings, join(individual_object_updates, "\n"))
+    end
+  end
+
+  """
+  $(join(start_constants_and_lists_strings, "\n\n"))
+
+    $(join(map(k -> """(= addedObjType$(k)List (removeObj addedObjType$(k)List (--> obj true)))""", other_list_types), "\n  ")...)
+  """
+end
+
 function program_string_synth_custom_groups(object_decomposition, group_structure)
   object_types, object_mapping, background, gridsize = object_decomposition
 
@@ -521,16 +580,16 @@ function parsescene_autumn(render_output::AbstractArray, dim::Int=16, background
       end
     end
   end  
-  # # @show objectshapes
+  # @show objectshapes
 
   types = []
   objects = []
-  # # # @show length(objectshapes)
+  # # @show length(objectshapes)
   for objectshape_with_color in objectshapes
     objectcolor = objectshape_with_color[1][2]
     objectshape = map(o -> o[1], objectshape_with_color)
-    # # # @show objectcolor 
-    # # # @show objectshape
+    # # @show objectcolor 
+    # # @show objectshape
     translated = map(pos -> dim * pos[2] + pos[1], objectshape)
     translated = length(translated) % 2 == 0 ? translated[1:end-1] : translated # to produce a single median
     centerPos = objectshape[findall(x -> x == median(translated), translated)[1]]
@@ -547,8 +606,8 @@ function parsescene_autumn(render_output::AbstractArray, dim::Int=16, background
 
   # combine types with the same shape but different colors
   # println("INSIDE REGULAR PARSER")
-  # # @show types 
-  # # @show objects
+  # @show types 
+  # @show objects
   (types, objects) = combine_types_with_same_shape(types, objects)
 
   (types, objects, background, dim)
@@ -562,8 +621,8 @@ function parsescene_autumn_given_types(render_output::AbstractArray, override_ty
   # println(standard_types)
   # extract multi-cellular types that do not appear in override_types
   old_override_types = deepcopy(override_types)
-  # # @show override_types 
-  # # @show standard_types
+  # @show override_types 
+  # @show standard_types
   types_to_ungroup = filter(s_type -> (length(s_type.shape) > 1), standard_types)
 
   # extract single-cell types 
@@ -575,10 +634,10 @@ function parsescene_autumn_given_types(render_output::AbstractArray, override_ty
                           grouped_type_colors)
 
   # only consider types to ungroup that have single-celled types of the same color
-  # # @show types_to_ungroup 
-  # # @show composition_types
-  # # @show length(types_to_ungroup)
-  # # @show length(composition_types)
+  # @show types_to_ungroup 
+  # @show composition_types
+  # @show length(types_to_ungroup)
+  # @show length(composition_types)
   remove_types_to_ungroup = []
   for i in 1:length(composition_types)
     if composition_types[i] == ([], [])
@@ -593,18 +652,18 @@ function parsescene_autumn_given_types(render_output::AbstractArray, override_ty
   composition_types = filter(types -> types != ([], []), composition_types)
 
   # println("READY")
-  # # @show types_to_ungroup 
-  # # @show composition_types
+  # @show types_to_ungroup 
+  # @show composition_types
 
   if (length(types_to_ungroup) == 0) # no types to try ungrouping
     new_objects = objects 
     new_types = standard_types
   else # exist types to ungroup
-    # # @show types_to_ungroup
+    # @show types_to_ungroup
     new_objects = filter(obj -> !(obj.type.id in map(type -> type.id, types_to_ungroup)), objects)
     new_types = standard_types
     # println("HELLO 1")
-    # # # @show new_types
+    # # @show new_types
     for grouped_type_id in 1:length(types_to_ungroup)
       grouped_type = types_to_ungroup[grouped_type_id]
       composition_types_group = composition_types[grouped_type_id]
@@ -612,10 +671,10 @@ function parsescene_autumn_given_types(render_output::AbstractArray, override_ty
       if length(grouped_type.custom_fields) == 0
         filter!(type -> type.id != grouped_type.id, new_types) # remove grouped type from new_types
         # println("-------------------> LOOK AT ME")
-        # # # @show new_types
+        # # @show new_types
         # determine composition type
-        # # @show grouped_type_id
-        # # @show composition_types_group
+        # @show grouped_type_id
+        # @show composition_types_group
         if length(composition_types_group[1]) > 0 # composition type present in standard types
           composition_type = composition_types_group[1][1]
         else # composition type present in override types only 
@@ -625,7 +684,7 @@ function parsescene_autumn_given_types(render_output::AbstractArray, override_ty
         end
         
         objects_to_ungroup = filter(obj -> obj.type.id == grouped_type.id, objects)
-        # # # @show objects_to_ungroup
+        # # @show objects_to_ungroup
         for object in objects_to_ungroup
           for pos in object.type.shape
             if composition_type.custom_fields == []
@@ -641,12 +700,12 @@ function parsescene_autumn_given_types(render_output::AbstractArray, override_ty
         # println(colors)
         for color in colors 
           # println("HERE I AM 3")
-          # # @show composition_types_group
+          # @show composition_types_group
           # println(vcat(vcat(map(types_list -> map(type -> vcat(type.color, (length(type.custom_fields) == 0 ? [] : type.custom_fields[1][3])...), types_list), composition_types_group)...)...))
           if color in vcat(vcat(map(types_list -> map(type -> vcat(type.color, (length(type.custom_fields) == 0 ? [] : type.custom_fields[1][3])...), types_list), composition_types_group)...)...)
             # println("HERE I AM")
-            # # @show grouped_type
-            # # @show color
+            # @show grouped_type
+            # @show color
             if length(composition_types_group[1]) > 0 # composition type present in standard types
               in_standard_bool = true
               type = composition_types_group[1][1]
@@ -709,8 +768,8 @@ function parsescene_autumn_given_types(render_output::AbstractArray, override_ty
       end
     end
     # println("HELLO 3")
-    # # # @show new_types
-    # # # @show new_objects 
+    # # @show new_types
+    # # @show new_objects 
     # re-number type id's 
     sort!(new_types, by = x -> x.id)
     for i in 1:length(new_types)
@@ -743,17 +802,17 @@ function parsescene_autumn_given_types(render_output::AbstractArray, override_ty
   end
 
   # println("BEFORE COMBINING TYPES INTO ONE WITH COLOR FIELD")
-  # # @show new_types 
-  # # @show new_objects 
+  # @show new_types 
+  # @show new_objects 
 
   # group objects with same shape but different colors into one type
   new_types, new_objects = combine_types_with_same_shape(new_types, new_objects)
   # println("POST COMBINING")
-  # # @show new_types 
-  # # @show new_objects 
+  # @show new_types 
+  # @show new_objects 
 
   # take the union of override_types and new_types
-  # # @show old_override_types
+  # @show old_override_types
   old_types = deepcopy(old_override_types)
   new_object_colors = map(o -> o.type.color, new_objects)
   types_to_add = []
@@ -984,16 +1043,16 @@ function parsescene_autumn_pedro(render_output, gridsize=16, background::String=
     shape = map(cell -> ((cell.position.x, cell.position.y), cell.color), shape)
     push!(objectshapes, shape)    
   end
-  # # # @show objectshapes
+  # # @show objectshapes
 
   types = []
   objects = []
-  # # # @show length(objectshapes)
+  # # @show length(objectshapes)
   for objectshape_with_color in objectshapes
     objectcolor = objectshape_with_color[1][2]
     objectshape = map(o -> o[1], objectshape_with_color)
-    # # # @show objectcolor 
-    # # # @show objectshape
+    # # @show objectcolor 
+    # # @show objectshape
     translated = map(pos -> dim * pos[2] + pos[1], objectshape)
     translated = length(translated) % 2 == 0 ? translated[1:end-1] : translated # to produce a single median
     centerPos = objectshape[findall(x -> x == median(translated), translated)[1]]
@@ -1010,8 +1069,8 @@ function parsescene_autumn_pedro(render_output, gridsize=16, background::String=
 
   # combine types with the same shape but different colors
   # println("INSIDE REGULAR PARSER")
-  # # # @show types 
-  # # # @show objects
+  # # @show types 
+  # # @show objects
   # (types, objects) = combine_types_with_same_shape(types, objects)
 
   (types, objects, background, dim)

@@ -62,3 +62,39 @@ bit equivalent_state_seqs([int N], int[N] state_seq, int[N] other_state_seq) {
     }
   }
 }
+
+bit distinct_transitions([int N], int[N] start_states, int[N] end_states, char[N] labels) {
+  int[N] seen_start_states;
+  int[N] seen_end_states;
+  char[N] seen_labels;
+
+  for (int i = 0; i < N; i++) {
+    seen_start_states[i] = 1000;
+    seen_end_states[i] = 1000;
+    seen_labels[i] = 'a';
+  }
+
+  for (int i = 0; i < N; i++) {
+    int curr_start = start_states[i];
+    int curr_end = end_states[i];
+    char curr_label = labels[i];
+
+    // iterate through seen arrays, and check if seen before 
+    // if not seen before, add to seen arrays
+    for (int j = 0; j < N; j++) {
+      if (curr_label[j] == 'a') {
+        seen_start_states[j] = curr_start;
+        seen_end_states[j] = curr_end;
+        seen_labels[j] = curr_label;
+        break;
+      }
+
+      if ((seen_start_states[j] == curr_start) && (seen_end_states[j] == curr_end) && (seen_labels[j] == curr_label)) {
+        return false;
+      }
+
+    }
+
+  }
+  return true;
+}

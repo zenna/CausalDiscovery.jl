@@ -145,7 +145,7 @@ function synthesize_program_given_decomp(run_id, random, decomp, observation_tup
   for solution in solutions 
     if solution[1] != [] 
       on_clauses, new_object_decomposition, global_var_dict = solution
-      # # @show on_clauses 
+      # @show on_clauses 
       
       program = full_program_given_on_clauses(on_clauses, new_object_decomposition, global_var_dict, grid_size, matrix)
       push!(program_strings, program)
@@ -179,7 +179,7 @@ function synthesize_program(model_name::String;
     observations, user_events, grid_size = generate_observations(model_name)
   end
 
-  # # @show (observations, user_events, grid_size)
+  # @show (observations, user_events, grid_size)
 
   program_strings = []
   global_event_vector_dict = Dict()
@@ -204,11 +204,11 @@ function synthesize_program(model_name::String;
     else 
       error("algorithm $(algorithm) does not exist")
     end
-    # # @show solutions
+    # @show solutions
     for solution in solutions 
       if solution[1] != [] 
         on_clauses, new_object_decomposition, global_var_dict = solution
-        # # @show on_clauses 
+        # @show on_clauses 
         
         program = full_program_given_on_clauses(on_clauses, new_object_decomposition, global_var_dict, grid_size, matrix)
         push!(program_strings, program)
@@ -368,9 +368,9 @@ function generate_observations_custom_input(model_name::String, user_events)
   else
     program_expr = compiletojulia(parseautumn(programs[model_name]))  
   end
-  # # @show typeof(program_expr)
+  # @show typeof(program_expr)
   m = eval(program_expr)
-  # # @show typeof(m)
+  # @show typeof(m)
   generate_observations_custom_input(m, user_events)
 end
 

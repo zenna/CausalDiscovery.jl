@@ -62,8 +62,8 @@ update(subexpr_, prog2)
 """
 function update(subexpr::SubExpr, newexpr)
   function subchild(expr, pos)
-    # # # @show pos, subexpr.pointer
-    # # # @show pos == subexpr.pointer
+    # # @show pos, subexpr.pointer
+    # # @show pos == subexpr.pointer
     pos == subexpr.pointer ? newexpr : expr
   end
   postwalkpos(subchild, subexpr.parent)

@@ -12,11 +12,11 @@ model_folders = filter(x -> !occursin(".DS", x), readdir("FINAL_RESULTS/$(curr_r
 
 # compute accuracies and write to output file
 for model_folder in model_folders
-  # # @show model_folder
+  # @show model_folder
   alg_accuracies = []
   for alg_folder in ["heuristic", "sketch_multi", "sketch_single"]
     if alg_folder in readdir("FINAL_RESULTS/$(curr_result_folder)/$(model_folder)")
-      # # @show alg_folder
+      # @show alg_folder
       full_dir = "FINAL_RESULTS/$(curr_result_folder)/$(model_folder)/$(alg_folder)/program_strings.txt"
       try 
         io = open(full_dir, "r")

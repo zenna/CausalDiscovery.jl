@@ -20,6 +20,10 @@ int[N] MSM([int N], char[N] in, char true_char, int min_states, int min_transiti
     int old_state = 0;
     int[maxstates] T = ??;
 
+    int[num_transitions] trans_starts;
+    int[num_transitions] trans_ends;
+    int[num_transitions] trans_labels; 
+
     // initialize start if possible 
     if (start != 0) {
       state = start - 1;
