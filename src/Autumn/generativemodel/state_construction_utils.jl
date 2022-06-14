@@ -1,10 +1,10 @@
-function find_state_update_events(event_vector_dict, augmented_positive_times, time_ranges, start_value, end_value, global_var_dict, global_var_id, global_var_value, no_object_times, object_specific=false, type=nothing) 
-  co_occurring_events = find_state_update_events_false_positives(event_vector_dict, augmented_positive_times, time_ranges, start_value, end_value, global_var_dict, global_var_id, global_var_value, no_object_times, object_specific, type)
+function find_state_update_events(event_vector_dict, augmented_positive_times, time_ranges, start_value, end_value, global_var_dict, global_var_id, global_var_value, no_object_times, all_stop_var_values, object_specific=false, type=nothing) 
+  co_occurring_events = find_state_update_events_false_positives(event_vector_dict, augmented_positive_times, time_ranges, start_value, end_value, global_var_dict, global_var_id, global_var_value, no_object_times, all_stop_var_values, object_specific, type)
   matches = map(x -> (x[1], x[3]), filter(tuple -> tuple[2] == 0, co_occurring_events))
   sort(matches, by=x -> length(x))
 end
 
-function find_state_update_events_false_positives(orig_event_vector_dict, augmented_positive_times, time_ranges, start_value, end_value, global_var_dict, global_var_id, global_var_value, no_object_times, object_specific=false, type=nothing)
+function find_state_update_events_false_positives(orig_event_vector_dict, augmented_positive_times, time_ranges, start_value, end_value, global_var_dict, global_var_id, global_var_value, no_object_times, all_stop_var_values, object_specific=false, type=nothing)
   # @show global_var_dict
 
   if object_specific
@@ -67,27 +67,39 @@ function find_state_update_events_false_positives(orig_event_vector_dict, augmen
           # handle end value
           if (((time == length(global_var_dict[global_var_id])) && (global_var_dict[global_var_id][time] < global_var_value)) || ((time < length(global_var_dict[global_var_id])) && (global_var_dict[global_var_id][time + 1] < global_var_value)))
             desired_end_value = ((time + 1) > length(global_var_dict[global_var_id])) ? global_var_dict[global_var_id][time] : global_var_dict[global_var_id][time + 1]
-            push!(desired_end_values, desired_end_value)
+            if !(desired_end_value in all_stop_var_values)
+              push!(desired_end_values, desired_end_value)
+            end
           elseif (time >= maximum(map(tuple -> tuple[1], augmented_positive_times)))
             desired_end_value = -1 # augmented_positive_times[end][2]
             push!(desired_end_values, desired_end_value)
           else
             future_augmented_positive_times = filter(tuple -> tuple[1] > time, augmented_positive_times)
             closest_future_augmented_time = future_augmented_positive_times[1]
-            push!(desired_end_values, closest_future_augmented_time[2])
+            desired_end_value = closest_future_augmented_time[2]
+            if !(desired_end_value in desired_end_values)
+              push!(desired_end_values, closest_future_augmented_time[2])
+            end
           end
   
           # handle start value 
           if (time < minimum(map(tuple -> tuple[1], augmented_positive_times))) && (time <= length(global_var_dict[global_var_id])) && global_var_dict[global_var_id][time] < global_var_value 
             desired_start_value = global_var_dict[global_var_id][time]
-            push!(desired_start_values, desired_start_value)
+            if !(desired_start_value in all_stop_var_values)
+              push!(desired_start_values, desired_start_value)
+            end
           elseif (time < minimum(map(tuple -> tuple[1], augmented_positive_times)))
             desired_start_value = augmented_positive_times[1][2] # -1
-            push!(desired_start_values, desired_start_value)
+            if !(desired_start_value in all_stop_var_values)
+              push!(desired_start_values, desired_start_value)
+            end
           else
             earlier_augmented_positive_times = filter(tuple -> tuple[1] <= time, augmented_positive_times)
             closest_earlier_augmented_time = earlier_augmented_positive_times[end]
-            push!(desired_start_values, closest_earlier_augmented_time[2])
+            desired_start_value = closest_earlier_augmented_time[2]
+            if !(desired_start_value in all_stop_var_values)
+              push!(desired_start_values, closest_earlier_augmented_time[2])
+            end
           end
   
         end
@@ -157,13 +169,13 @@ function group_ranges(ranges_dict::Dict)
   group_ranges(ranges)
 end
 
-function find_state_update_events_object_specific(event_vector_dict, augmented_positive_times_dict, grouped_range, object_ids, object_mapping, max_state_value)
-  events_with_false_positives = find_state_update_events_object_specific_false_positives(event_vector_dict, augmented_positive_times_dict, grouped_range, object_ids, object_mapping, max_state_value)
+function find_state_update_events_object_specific(event_vector_dict, augmented_positive_times_dict, grouped_range, object_ids, object_mapping, max_state_value, all_stop_var_values)
+  events_with_false_positives = find_state_update_events_object_specific_false_positives(event_vector_dict, augmented_positive_times_dict, grouped_range, object_ids, object_mapping, max_state_value, all_stop_var_values)
   matches = map(x -> (x[1], x[3]), filter(tuple -> tuple[2] == 0, events_with_false_positives))
   sort(matches, by=x -> length(x))
 end
 
-function find_state_update_events_object_specific_false_positives(event_vector_dict, augmented_positive_times_dict, grouped_range, object_ids, object_mapping, max_state_value)
+function find_state_update_events_object_specific_false_positives(event_vector_dict, augmented_positive_times_dict, grouped_range, object_ids, object_mapping, max_state_value, all_stop_var_values)
   # extract object-specific events 
   events = filter(e -> e == "true" || !occursin("field1", e) && !(event_vector_dict[e] isa AbstractArray) && sort(collect(keys(event_vector_dict[e]))) == sort(object_ids), collect(keys(event_vector_dict))) 
   global_events = filter(e -> event_vector_dict[e] isa Array, collect(keys(event_vector_dict)))
@@ -206,7 +218,7 @@ function find_state_update_events_object_specific_false_positives(event_vector_d
     # # @show time_ranges 
     # # @show start_value 
     # # @show end_value 
-    update_events = find_state_update_events_false_positives(object_event_vector_dict, augmented_positive_times, time_ranges, start_value, end_value, object_var_dict, 1, object_var_value, object_mapping_row, true, object_type)
+    update_events = find_state_update_events_false_positives(object_event_vector_dict, augmented_positive_times, time_ranges, start_value, end_value, object_var_dict, 1, object_var_value, object_mapping_row, all_stop_var_values, true, object_type)
     
     update_events_dict[object_id] = update_events
   end

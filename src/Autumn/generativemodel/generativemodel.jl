@@ -398,6 +398,21 @@ function gen_event_bool_human_prior(object_decomposition, object_id, type_id, us
           if symmetry 
             push!(choices, "(moveIntersects arrow (prev obj$(object_1.id)) (prev obj$(object_2.id)))")
             push!(choices, "(pushConfiguration arrow (prev obj$(object_1.id)) (prev obj$(object_2.id)))")
+            for obj_type_2 in object_types 
+              if !(obj_type_2 in [object_2.type.id, object_1.type.id])
+                push!(choices, "(& (moveIntersects arrow (prev obj$(object_1.id)) (prev obj$(object_2.id))) (! (moveIntersects arrow (prev obj$(object_1.id)) (prev addedObjType$(obj_type_2.id)List))))")
+              end
+            end
+
+            for obj_type_2 in object_types 
+              if !(obj_type_2.id in [object_1.type.id, object_2.type.id])
+                push!(choices, "(pushConfiguration arrow (prev obj$(object_1.id)) (prev addedObjType$(obj_type_2.id)List) (list (prev obj$(object_2.id))))")
+                push!(choices, "(pushConfiguration arrow (prev obj$(object_1.id)) (filter (--> obj (== (.. obj id) x)) (prev addedObjType$(obj_type_2.id)List)) (list (prev obj$(object_2.id))))")
+                # push!(choices, "(& (pushConfiguration  arrow (prev obj$(object_1.id)) (filter (--> obj (== (.. obj id) x)) (prev addedObjType$(obj_type_2.id)List))) (! (pushConfiguration  arrow (prev obj$(object_1.id)) (prev obj$(object_2.id)))))")
+                # push!(choices, "(& (pushConfiguration  arrow (prev obj$(object_1.id)) (prev addedObjType$(obj_type_2.id)List)) (! (pushConfiguration  arrow (prev obj$(object_1.id)) (prev obj$(object_2.id)))))")
+              end
+            end
+
           end
           push!(choices, "(adj (prev obj$(object_1.id)) (prev obj$(object_2.id)) 10)")
           push!(choices, "(! (adj (prev obj$(object_1.id)) (prev obj$(object_2.id)) 10))")
@@ -1331,11 +1346,18 @@ function prune_by_observational_equivalence(event_vector_dict, redundant_events_
       values_to_events[event_values] = [event] 
     else
       existing_events = values_to_events[event_values]
-      if event == "(intersects (move (prev obj60) -30 0) (prev addedObjType2List))"
+      if event == "(pushConfiguration arrow (prev obj25) (prev addedObjType3List))"
         println("WHAT THE HECK")
         @show existing_events 
         @show event_values
       end
+
+      if event == "(pushConfiguration arrow (prev obj25) (prev addedObjType3List) (list (prev obj26)))"
+        println("WHAT THE HECK2")
+        @show existing_events 
+        @show event_values
+      end
+
       if (occursin("globalVar", event) && foldl(|, map(e -> occursin("globalVar", e), existing_events))) || (!occursin("globalVar", event) && !foldl(|, map(e -> occursin("globalVar", e), existing_events)))
         delete!(event_vector_dict, event)
         push!(redundant_events_set, event)

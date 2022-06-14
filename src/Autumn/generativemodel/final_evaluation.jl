@@ -37,6 +37,24 @@ include("test_synthesis.jl")
 #   end
 # end
 
+function run_pedro_model(model_name, state_synthesis_algorithm)
+  observations, user_events, grid_size = generate_observations_pedro_interface(model_name)
+  matrix, unformatted_matrix, object_decomposition, prev_used_rules = singletimestepsolution_matrix(observations, user_events, grid_size, singlecell=true, pedro=true, upd_func_space=6)
+  global_event_vector_dict = Dict()
+  redundant_events_set = Set()
+  solutions = generate_on_clauses_GLOBAL(string(model_name, "_apr"), matrix, unformatted_matrix, object_decomposition, user_events, global_event_vector_dict, redundant_events_set, grid_size, state_synthesis_algorithm=state_synthesis_algorithm)
+end
+
+function run_pedro_model_multi_trace(observations, old_user_events, state_synthesis_algorithm)
+  stop_times = map(i -> length(observations[i]) + (i == 1 ? 0 : sum(map(j -> length(observations[j]), 1:(i - 1)))), 1:(length(observations) - 1))
+  matrix, unformatted_matrix, object_decomposition, prev_used_rules = singletimestepsolution_matrix(observations, old_user_events, grid_size, singlecell=true, pedro=true, upd_func_space=6, multiple_traces=true)
+  global_event_vector_dict = Dict()
+  redundant_events_set = Set()
+
+  user_events = vcat(map(events -> vcat(events..., nothing), old_user_events)...)[1:end-1] # user_events formatted as single vector with nothing in between original vectors
+  solutions = generate_on_clauses_GLOBAL(string(model_name, "_apr"), matrix, unformatted_matrix, object_decomposition, user_events, global_event_vector_dict, redundant_events_set, grid_size, state_synthesis_algorithm=state_synthesis_algorithm, stop_times=stop_times)
+end
+
 function run_model(model_name::String, algorithm, desired_per_matrix_solution_count, desired_solution_count; symmetry=false)
   # build desired directory structure
   date_string = Dates.format(Dates.now(), "yyyy-mm-dd HH:MM:SS")

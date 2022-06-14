@@ -357,6 +357,65 @@ function program_string_synth_standard_groups(object_decomposition)
   end
 end
 
+function program_string_synth_standard_groups_multi_trace_reset(object_decomposition)
+  object_types, object_mapping, background, gridsize = object_decomposition
+
+  start_objects = sort(filter(obj -> obj != nothing, [object_mapping[i][1] for i in 1:length(collect(keys(object_mapping)))]), by=(x -> x.id))
+
+  start_type_mapping = Dict()
+  num_objects_with_type = Dict()
+
+  for type in object_types
+    start_type_mapping[type.id] = sort(filter(obj -> obj.type.id == type.id, start_objects), by=(x -> x.id))
+    num_objects_with_type[type.id] = count(obj_id -> filter(x -> !isnothing(x), object_mapping[obj_id])[1].type.id == type.id, collect(keys(object_mapping)))
+  end
+  
+
+  start_constants_and_lists = vcat(filter(l -> length(l) == 1 && (num_objects_with_type[l[1].type.id] == 1), map(k -> start_type_mapping[k], collect(keys(start_type_mapping))))..., 
+                                   filter(l -> length(l) > 1 || ((length(l) == 1) && (num_objects_with_type[l[1].type.id] > 1)), map(k -> start_type_mapping[k], collect(keys(start_type_mapping)))))
+  start_constants_and_lists = sort(start_constants_and_lists, by=x -> x isa Array ? x[1].id : x.id)
+
+  other_list_types = filter(k -> (length(start_type_mapping[k]) == 0) || (length(start_type_mapping[k]) == 1 && num_objects_with_type[k] == 1), sort(collect(keys(start_type_mapping))))
+  
+  start_constants_and_lists_strings = []
+  for obj in start_constants_and_lists 
+    if !(obj isa Array) 
+      pos = obj.position
+      obj_str = """(updateObj (prev obj$(obj.id)) "origin" (Position $(pos[1]) $(pos[2])))"""
+      for i in 1:length(obj.type.custom_fields)
+        field = obj.type.custom_fields[i]
+        val = obj.custom_field_values[i]
+        obj_str = """(updateObj $(obj_str) "$(field[1])" $(val isa String ? """ "$(val)" """ : val))"""
+      end
+      obj_str = """(= obj$(obj.id) $(obj_str))"""
+      push!(start_constants_and_lists_strings, obj_str)
+    else
+      individual_object_updates = []
+      for o in obj 
+        pos = o.position
+        obj_str = """(updateObj (prev obj) "origin" (Position $(pos[1]) $(pos[2])))"""
+        for i in 1:length(o.type.custom_fields)
+          field = o.type.custom_fields[i]
+          val = o.custom_field_values[i]
+          obj_str = """(updateObj $(obj_str) "$(field[1])" $(val isa String ? """ "$(val)" """ : val))"""
+        end
+        obj_str = """(= addedObjType$(o.type.id)List (updateObj addedObjType$(o.type.id)List (--> obj $(obj_str)) (--> obj (== (.. obj id) $(o.id)))))"""
+        push!(individual_object_updates, obj_str)
+      end
+      o_ids = map(o -> o.id, obj)
+      removal_str = """(= addedObjType$(obj[1].type.id)List (removeObj addedObjType$(obj[1].type.id)List (--> obj (! (in (.. obj id) (list $(join(o_ids, " "))))))))"""
+      push!(individual_object_updates, removal_str)
+      push!(start_constants_and_lists_strings, join(individual_object_updates, "\n"))
+    end
+  end
+
+  """
+  $(join(start_constants_and_lists_strings, "\n\n"))
+
+    $(join(map(k -> """(= addedObjType$(k)List (removeObj addedObjType$(k)List (--> obj true)))""", other_list_types), "\n  ")...)
+  """
+end
+
 function program_string_synth_custom_groups(object_decomposition, group_structure)
   object_types, object_mapping, background, gridsize = object_decomposition
 
