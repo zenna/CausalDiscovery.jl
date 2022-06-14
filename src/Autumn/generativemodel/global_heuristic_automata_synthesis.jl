@@ -702,7 +702,7 @@ function generate_on_clauses_GLOBAL(run_id, random, matrix, unformatted_matrix, 
             @show state_update_on_clauses
 
             # re-order on_clauses
-            ordered_on_clauses = re_order_on_clauses(on_clauses, ordered_update_functions_dict)
+            ordered_on_clauses = re_order_on_clauses(vcat(on_clauses..., state_update_on_clauses...), ordered_update_functions_dict)
               
             push!(solutions, (deepcopy(ordered_on_clauses), deepcopy(global_object_decomposition), deepcopy(global_var_dict)))
             # save("solution_$(Dates.now()).jld", "solution", solutions[end])
@@ -784,7 +784,7 @@ function generate_new_state_GLOBAL(co_occurring_event, times_dict, event_vector_
   println("GENERATE_NEW_STATE_GLOBAL")
   @show co_occurring_event
   @show times_dict 
-  @show event_vector_dict 
+  # @show event_vector_dict 
   @show object_trajectory    
   @show init_global_var_dict 
   @show state_update_times_dict  
@@ -958,7 +958,7 @@ function generate_new_state_GLOBAL(co_occurring_event, times_dict, event_vector_
       # get current maximum value of globalVar
       max_global_var_value = maximum(map(tuple -> tuple[2], init_augmented_positive_times))
 
-      events_in_range = find_state_update_events(small_event_vector_dict, init_augmented_positive_times, time_ranges, start_value, end_value, init_global_var_dict, global_var_id, 1, no_object_times)
+      events_in_range = find_state_update_events(small_event_vector_dict, init_augmented_positive_times, time_ranges, start_value, end_value, init_global_var_dict, global_var_id, 1, no_object_times, all_stop_var_values)
       if events_in_range != [] 
         if filter(tuple -> !occursin("true", tuple[1]), events_in_range) != []
           if filter(tuple -> !occursin("globalVar", tuple[1]) && !occursin("true", tuple[1]), events_in_range) != []
@@ -984,7 +984,7 @@ function generate_new_state_GLOBAL(co_occurring_event, times_dict, event_vector_
         end
       
       else
-        false_positive_events = find_state_update_events_false_positives(small_event_vector_dict, init_augmented_positive_times, time_ranges, start_value, end_value, init_global_var_dict, global_var_id, 1, no_object_times)
+        false_positive_events = find_state_update_events_false_positives(small_event_vector_dict, init_augmented_positive_times, time_ranges, start_value, end_value, init_global_var_dict, global_var_id, 1, no_object_times, all_stop_var_values)
         false_positive_events_with_state = filter(e -> occursin("globalVar$(global_var_id)", e[1]), false_positive_events) # want the most specific events in the false positive case
         
         events_without_true = filter(tuple -> !occursin("true", tuple[1]) && tuple[2] == minimum(map(t -> t[2], false_positive_events_with_state)), false_positive_events_with_state)
@@ -1088,10 +1088,15 @@ function generate_new_state_GLOBAL(co_occurring_event, times_dict, event_vector_
         # search for events within range
         # TODO: pass filled_augmented_positive_times into events_in_range
         cache_key = (start_value, end_value, Tuple(sort(time_ranges)))
-        if cache_key in keys(transition_event_cache)
+
+        if (start_value in all_stop_var_values)
+          events_in_range = [("(== (prev fake_time) $(time_ranges[1][1] - 1))", [time_ranges[1][1]])]
+        elseif (end_value in all_stop_var_values)
+          events_in_range = [("(== (prev fake_time) $(time_ranges[1][2]))", [time_ranges[1][2]])]
+        elseif cache_key in keys(transition_event_cache)
           events_in_range = [transition_event_cache[cache_key]]
         else
-          events_in_range = find_state_update_events(small_event_vector_dict, filled_augmented_positive_times, time_ranges, start_value, end_value, global_var_dict, global_var_id, 1, no_object_times)
+          events_in_range = find_state_update_events(small_event_vector_dict, filled_augmented_positive_times, time_ranges, start_value, end_value, global_var_dict, global_var_id, 1, no_object_times, all_stop_var_values)
           println("PRE PRUNING: EVENTS IN RANGE")
     
           @show events_in_range
@@ -1147,7 +1152,9 @@ function generate_new_state_GLOBAL(co_occurring_event, times_dict, event_vector_
           # construct state update on-clause
           state_update_on_clause = "(on $(state_update_event)\n$(state_update_function))"
 
-          transition_event_cache[cache_key] = (state_update_event, event_times)
+          if !((start_value in all_stop_var_values) || (end_value in all_stop_var_values)) 
+            transition_event_cache[cache_key] = (state_update_event, event_times)
+          end
           
           # # add to state_update_times 
           # # @show event_times
@@ -1192,7 +1199,7 @@ function generate_new_state_GLOBAL(co_occurring_event, times_dict, event_vector_
     
         else # no event with zero false positives found; use best false-positive event and specialize globalVar values (i.e. add new value)
           # find co-occurring event with fewest false positives 
-          false_positive_events = find_state_update_events_false_positives(small_event_vector_dict, augmented_positive_times, time_ranges, start_value, end_value, global_var_dict, global_var_id, 1, no_object_times)
+          false_positive_events = find_state_update_events_false_positives(small_event_vector_dict, augmented_positive_times, time_ranges, start_value, end_value, global_var_dict, global_var_id, 1, no_object_times, all_stop_var_values)
           false_positive_events_with_state = filter(e -> occursin("globalVar$(global_var_id)", e[1]), false_positive_events) # want the most specific events in the false positive case
           
           # if bias_first_events 
@@ -1536,7 +1543,7 @@ function generate_new_state_GLOBAL(co_occurring_event, times_dict, event_vector_
             end
           end
 
-          filter!(c -> !occursin("fake_time", c), on_clauses)
+          filter!(c -> !occursin("fake_time", c[1]), on_clauses)
 
           println("LOOK AT ME")
           @show on_clauses
@@ -1976,7 +1983,14 @@ function generate_new_object_specific_state_GLOBAL(global_events, co_occurring_e
       @show state_update_times
       if events_in_range == [] # if no global events are found, try object-specific events 
         # events_in_range = find_state_update_events(event_vector_dict, augmented_positive_times, time_ranges, start_value, end_value, global_var_dict, global_var_value)
-        events_in_range = find_state_update_events_object_specific(global_events, small_event_vector_dict, augmented_positive_times_dict, grouped_range, object_ids, object_mapping, curr_state_value, all_stop_var_values)
+        
+        if (start_value in all_stop_var_values)
+          events_in_range = [("(== (prev fake_time) $(time_ranges[1][1] - 1))", [(time_ranges[1][1], id) for id in object_ids])]
+        elseif (end_value in all_stop_var_values)
+          events_in_range = [("(== (prev fake_time) $(time_ranges[1][2]))", [(time_ranges[1][2], id) for id in object_ids])]
+        else
+          events_in_range = find_state_update_events_object_specific(global_events, small_event_vector_dict, augmented_positive_times_dict, grouped_range, object_ids, object_mapping, curr_state_value, all_stop_var_values)
+        end
       end
       @show events_in_range
       println("# check state_update_times again")

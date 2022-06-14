@@ -34,8 +34,8 @@ end
 function singletimestepsolution_matrix(observations, old_user_events, grid_size; singlecell=false, pedro=false, upd_func_space=1, multiple_traces=false)
   if multiple_traces 
     object_decomposition = parse_and_map_objects_multiple_traces(observations, grid_size, singlecell=singlecell, pedro=pedro)
-    stop_times = map(i -> 1 + length(observations[i]) + (i == (length(observations) - 1) ? 0 : sum(map(j -> length(observations[j]), 1:i))), 1:(length(observations) - 1))
-    user_events = vcat(map(events -> vcat(events..., nothing), old_user_events)...)[1:end-1]
+    stop_times = map(i -> 1 + length(observations[i]) + (i == 1 ? 0 : sum(map(j -> length(observations[j]), 1:(i - 1)))), 1:(length(observations) - 1))
+    user_events = vcat(map(events -> vcat(events..., nothing, nothing), old_user_events)...)[1:end-2]
   else
     object_decomposition = parse_and_map_objects(observations, grid_size, singlecell=singlecell, pedro=pedro)
     stop_times = []
@@ -965,7 +965,7 @@ function singletimestepsolution_program_given_matrix_NEW(matrix, object_decompos
 
   # multiple_traces reset update functions
   if stop_times != []
-    reset_update_rules = join(map(t -> """(on (== (prev actual_time) $(t)) (let ((= time 0)\n$(program_string_synth_standard_groups_multi_trace_reset(object_decomposition)))))""", stop_times), "\n")
+    reset_update_rules = join(map(t -> """(on (== (prev actual_time) $(t)) (let ((= time 0)\n$(program_string_synth_standard_groups_multi_trace_reset(object_decomposition, t)))))""", stop_times), "\n")
   else
     reset_update_rules = ""
   end
@@ -2192,7 +2192,7 @@ function generate_event(run_id, anonymized_update_rule, distinct_update_rules, o
           for object_id in event_object_ids 
             formatted_event = replace(event, ".. obj id) x" => ".. obj id) $(object_id)")
             event_string = "\n\t (: event Bool) \n\t (= event (initnext false $(formatted_event)))\n"
-            program_str = singletimestepsolution_program_given_matrix_NEW(matrix, object_decomposition, global_var_dict, state_update_on_clauses, event_string, grid_size) # CHANGE BACK TO DIM LATER
+            program_str = singletimestepsolution_program_given_matrix_NEW(matrix, object_decomposition, global_var_dict, state_update_on_clauses, event_string, grid_size, stop_times=stop_times) # CHANGE BACK TO DIM LATER
 
             # println(program_str)
             global expr = parseautumn(program_str)
@@ -3496,7 +3496,7 @@ function full_program_given_on_clauses(on_clauses, new_object_decomposition, glo
 
   # format on_clauses with fields
   on_clauses = map(c -> format_on_clause_full_program(c, new_object_decomposition, matrix), on_clauses)
-
+  filter!(c -> !occursin("fake_time", c), on_clauses)
   # true_on_clauses = filter(on_clause -> occursin("on true", on_clause), on_clauses)
   # user_event_on_clauses = filter(on_clause -> !(on_clause in true_on_clauses) && foldl(|, map(event -> occursin(event, on_clause) , ["clicked", "left", "right", "down", "up"])), on_clauses)
   # other_on_clauses = filter(on_clause -> !((on_clause in true_on_clauses) || (on_clause in user_event_on_clauses)), on_clauses)

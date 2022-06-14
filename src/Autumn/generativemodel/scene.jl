@@ -323,7 +323,7 @@ function program_string_synth_standard_groups(object_decomposition)
   """
 end
 
-function program_string_synth_standard_groups_multi_trace_reset(object_decomposition)
+function program_string_synth_standard_groups_multi_trace_reset(object_decomposition, stop_time)
   object_types, object_mapping, background, gridsize = object_decomposition
 
   start_objects = sort(filter(obj -> obj != nothing, [object_mapping[i][1] for i in 1:length(collect(keys(object_mapping)))]), by=(x -> x.id))
@@ -339,6 +339,12 @@ function program_string_synth_standard_groups_multi_trace_reset(object_decomposi
 
   start_constants_and_lists = vcat(filter(l -> length(l) == 1 && (num_objects_with_type[l[1].type.id] == 1), map(k -> start_type_mapping[k], collect(keys(start_type_mapping))))..., 
                                    filter(l -> length(l) > 1 || ((length(l) == 1) && (num_objects_with_type[l[1].type.id] > 1)), map(k -> start_type_mapping[k], collect(keys(start_type_mapping)))))
+
+
+  removed_object_ids = sort(filter(id -> !isnothing(object_mapping[id][1]) && isnothing(object_mapping[id][stop_time]), collect(keys(object_mapping))))
+  removed_objects = map(id -> object_mapping[id][1], removed_object_ids)
+
+  start_constants_and_lists = filter(x -> x != [] && !(x in removed_objects), map(obj -> obj isa AbstractArray ? filter(o -> !(o in removed_objects), obj) : obj, start_constants_and_lists))
   start_constants_and_lists = sort(start_constants_and_lists, by=x -> x isa Array ? x[1].id : x.id)
 
   other_list_types = filter(k -> (length(start_type_mapping[k]) == 0) || (length(start_type_mapping[k]) == 1 && num_objects_with_type[k] == 1), sort(collect(keys(start_type_mapping))))
@@ -365,7 +371,7 @@ function program_string_synth_standard_groups_multi_trace_reset(object_decomposi
           val = o.custom_field_values[i]
           obj_str = """(updateObj $(obj_str) "$(field[1])" $(val isa String ? """ "$(val)" """ : val))"""
         end
-        obj_str = """(= addedObjType$(o.type.id)List (--> obj $(obj_str))  (--> obj (== (.. obj id) $(o.id))))"""
+        obj_str = """(= addedObjType$(o.type.id)List (updateObj addedObjType$(o.type.id)List (--> obj $(obj_str)) (--> obj (== (.. obj id) $(o.id)))))"""
         push!(individual_object_updates, obj_str)
       end
       o_ids = map(o -> o.id, obj)
@@ -375,10 +381,33 @@ function program_string_synth_standard_groups_multi_trace_reset(object_decomposi
     end
   end
 
+  # add removed objects 
+  removed_object_strings = []
+  for obj in removed_objects 
+    if obj.type.id in other_list_types # singleton (constant) object
+      obj_str = """(updateObj (prev obj$(obj.id)) "alive" true)"""
+      pos = obj.position 
+      obj_string = """(updateObj $(obj_str) "origin" (Position $(pos[1]) $(pos[2])))"""
+      for i in 1:length(obj.type.custom_fields)
+        field = obj.type.custom_fields[i]
+        val = obj.custom_field_values[i]
+        obj_str = """(updateObj $(obj_str) "$(field[1])" $(val isa String ? """ "$(val)" """ : val))"""
+      end
+
+      push!(removed_object_strings, """(= obj$(obj.id) $(obj_str))""")
+    else # object is in a list
+      pos = obj.position 
+      obj_str = """(ObjType$(obj.type.id) $(join(map(v -> v isa String ? """ "$(v)" """ : v, obj.custom_field_values), " ")) (Position $(pos[1]) $(pos[2])))"""
+      push!(removed_object_strings, """(= addedObjType$(obj.type.id)List (addObj addedObjType$(obj.type.id)List $(obj_str)))""")
+    end
+  end
+
   """
   $(join(start_constants_and_lists_strings, "\n\n"))
 
     $(join(map(k -> """(= addedObjType$(k)List (removeObj addedObjType$(k)List (--> obj true)))""", other_list_types), "\n  ")...)
+
+    $(join(removed_object_strings, "\n\n"))
   """
 end
 
