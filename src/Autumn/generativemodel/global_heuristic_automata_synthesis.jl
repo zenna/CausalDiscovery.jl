@@ -2282,11 +2282,12 @@ function generate_new_object_specific_state_GLOBAL(co_occurring_event, update_fu
     for object_id in object_ids 
       all_update_function_tuples = filter(tup -> tup[2] in collect(1:length(update_functions)), augmented_positive_times_dict[object_id])
       if all_update_function_tuples != []
-        if stop_times = []
+        if (stop_times == [])
           eff_stop_times = [0, length(event_vector_dict["true"]) + 1]
         else
           eff_stop_times = [0, sort(stop_times)..., length(event_vector_dict["true"]) + 1]
         end
+        
         for i in 2:length(eff_stop_times)
           prev_t = eff_stop_times[i - 1]
           curr_t = eff_stop_times[i]
