@@ -369,7 +369,7 @@ function gen_event_bool_human_prior(object_decomposition, object_id, type_id, us
         scalar = type_displacements[object_1.type.id][1]
         for x in -3:3 
           for y in -3:3
-            if abs(x) + abs(y) < 3 && (x == 0 || y == 0) && (abs(x) + abs(y) > 1) 
+            if abs(x) + abs(y) < 3 && (x == 0 || y == 0) # && (abs(x) + abs(y) > 1) 
               push!(displacements, "(move (prev obj$(object_1.id)) $(x*scalar) $(y*scalar))")
               # push!(displacements, "(moveNoCollision (prev obj$(object_1.id)) $(x*scalar) $(y*scalar))")
             end
@@ -471,7 +471,7 @@ function gen_event_bool_human_prior(object_decomposition, object_id, type_id, us
             scalar = type_displacements[object_type.id][1]
             for x in -3:3 
               for y in -3:3
-                if abs(x) + abs(y) < 3 && (x == 0 || y == 0) && (abs(x) + abs(y) > 1) 
+                if abs(x) + abs(y) < 3 && (x == 0 || y == 0) # && (abs(x) + abs(y) > 1) 
                   # push!(choices, "(intersects $(filtered_list) (map (--> obj (move (prev obj) $(x*scalar) $(y*scalar))) (prev addedObjType$(object_type.id)List)))")
                   # push!(displacements, "(map (--> obj (moveNoCollision (prev obj) $(x*scalar) $(y*scalar))) $(filtered_list))")
                   # PORTALS FIX
@@ -530,7 +530,7 @@ function gen_event_bool_human_prior(object_decomposition, object_id, type_id, us
       scalar = type_displacements[object_type_1.id][1]
       for x in -3:3 
         for y in -3:3
-          if abs(x) + abs(y) < 3 && (x == 0 || y == 0) && (abs(x) + abs(y) > 1) 
+          if abs(x) + abs(y) < 3 && (x == 0 || y == 0) # && (abs(x) + abs(y) > 1) 
             push!(displacements, "(map (--> obj (move (prev obj) $(x*scalar) $(y*scalar))) $(filtered_list))")
             # push!(displacements, "(map (--> obj (moveNoCollision (prev obj) $(x*scalar) $(y*scalar))) $(filtered_list))")
             for object_type_2 in object_types 
@@ -580,7 +580,7 @@ function gen_event_bool_human_prior(object_decomposition, object_id, type_id, us
           scalar = type_displacements[object_type_2.id][1]
           for x in -3:3 
             for y in -3:3
-              if abs(x) + abs(y) < 3 && (x == 0 || y == 0) && (abs(x) + abs(y) > 1) 
+              if abs(x) + abs(y) < 3 && (x == 0 || y == 0) # && (abs(x) + abs(y) > 1) 
                 push!(choices, "(intersects $(filtered_list) (map (--> obj (move (prev obj) $(x*scalar) $(y*scalar))) (prev addedObjType$(object_type_2.id)List)))")
                 # push!(displacements, "(map (--> obj (moveNoCollision (prev obj) $(x*scalar) $(y*scalar))) $(filtered_list))")
     

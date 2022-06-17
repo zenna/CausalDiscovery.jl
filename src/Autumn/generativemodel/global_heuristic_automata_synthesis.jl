@@ -2261,13 +2261,16 @@ function generate_new_object_specific_state_GLOBAL(co_occurring_event, update_fu
   end
 
   augmented_stop_times = []
+  all_stop_var_values = []
   for object_id in object_ids 
     augmented_positive_times = augmented_positive_times_dict[object_id]
     stop_var_value = max_v + 1
     all_stop_var_values = []
     for stop_time in stop_times 
-      push!(augmented_stop_times, (stop_time, stop_var_value))
-      push!(all_stop_var_values, stop_var_value)
+      if !isnothing(object_mapping[object_id][stop_time]) && !isnothing(object_mapping[object_id][stop_time + 1])
+        push!(augmented_stop_times, (stop_time, stop_var_value))
+        push!(all_stop_var_values, stop_var_value)  
+      end
       stop_var_value += 1
     end
     augmented_positive_times = sort(vcat(augmented_positive_times..., augmented_stop_times), by=x -> x[1])
@@ -2278,9 +2281,23 @@ function generate_new_object_specific_state_GLOBAL(co_occurring_event, update_fu
   if co_occurring_event == "true"
     for object_id in object_ids 
       all_update_function_tuples = filter(tup -> tup[2] in collect(1:length(update_functions)), augmented_positive_times_dict[object_id])
-      if all_update_function_tuples != [] 
-        last_update_function_time = sort(all_update_function_tuples, by=t -> t[1])[end][1]
-        augmented_positive_times_dict[object_id] = filter(tup -> tup[1] <= last_update_function_time, augmented_positive_times_dict[object_id])
+      if all_update_function_tuples != []
+        if stop_times = []
+          eff_stop_times = [0, length(event_vector_dict["true"]) + 1]
+        else
+          eff_stop_times = [0, sort(stop_times)..., length(event_vector_dict["true"]) + 1]
+        end
+        for i in 2:length(eff_stop_times)
+          prev_t = eff_stop_times[i - 1]
+          curr_t = eff_stop_times[i]
+
+          last_update_function_time = sort(filter(tup -> (tup[1] > prev_t) && (tup[1] < curr_t), all_update_function_tuples), by=t -> t[1])[end][1]
+          augmented_positive_times_dict[object_id] = filter(tup -> (tup[1] <= prev_t) 
+                                                                || (tup[1] >= curr_t) 
+                                                                || ((tup[1] > prev_t) && (tup[1] < curr_t) && (tup[1] <= last_update_function_time)), 
+                                                            augmented_positive_times_dict[object_id])
+        end
+
       end
     end
   end
@@ -2338,7 +2355,7 @@ function generate_new_object_specific_state_GLOBAL(co_occurring_event, update_fu
         elseif (end_value in all_stop_var_values)
           events_in_range = ["(== (prev fake_time) $(time_ranges[1][2]))", [(time_ranges[1][2], id) for id in object_ids]]
         else
-          events_in_range = find_state_update_events_object_specific(global_events, small_event_vector_dict, augmented_positive_times_dict, grouped_range, object_ids, object_mapping, curr_state_value, all_stop_var_values)
+          events_in_range = find_state_update_events_object_specific(small_event_vector_dict, augmented_positive_times_dict, grouped_range, object_ids, object_mapping, curr_state_value, all_stop_var_values)
         end
       end
       println("WHERE HAVE YOU BEEN")
