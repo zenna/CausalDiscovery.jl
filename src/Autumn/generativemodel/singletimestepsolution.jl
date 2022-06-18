@@ -6,6 +6,7 @@ using Pickle
 include("generativemodel.jl")
 include("state_construction_utils.jl")
 include("construct_observation_data.jl")
+include("multi_trace_synthesis.jl")
 
 displacement_dict = Dict((0, 0) => "(= objX objX)", 
                          (0, 1) => "(= objX (moveDown objX))", 
@@ -375,7 +376,7 @@ function synthesize_update_functions_bulk(possible_rules_matrix, object_decompos
           equals = render_equals(hypothesis_object, next_object, hypothesis_frame_state)
           if equals 
             @show object_id 
-            @show equals 
+            # @show equals 
             # format update function appropriately 
             update_rule = update_rules[i]    
             contained_in_list = isnothing(object_mapping[object_id][1]) || (count(id -> (filter(x -> !isnothing(x), object_mapping[id]))[1].type.id == object_mapping[object_id][1].type.id, collect(keys(object_mapping))) > 1)
@@ -954,7 +955,7 @@ function synthesize_update_functions(object_id, time, object_decomposition, user
           equals = false
         end        
       end
-      @show equals 
+      # @show equals 
       if equals
         if using_prev
           # # println("HOORAY")

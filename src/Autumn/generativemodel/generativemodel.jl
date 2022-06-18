@@ -430,9 +430,9 @@ function gen_event_bool_human_prior(object_decomposition, object_id, type_id, us
           for disp in displacements 
             push!(choices, "(intersects $(disp) (prev obj$(object_2.id)))")
             push!(choices, "(! (intersects $(disp) (prev obj$(object_2.id))))")
-            for key in ["left", "right", "up", "down"]
-              push!(choices, "(& $(key) (intersects $(disp) (prev obj$(object_2.id))))")
-            end
+            # for key in ["left", "right", "up", "down"]
+            #   push!(choices, "(& $(key) (intersects $(disp) (prev obj$(object_2.id))))")
+            # end
           end
 
         end
@@ -499,13 +499,13 @@ function gen_event_bool_human_prior(object_decomposition, object_id, type_id, us
             push!(choices, "(intersects $(disp) $(filtered_list))")
             push!(choices, "(! (intersects $(disp) (prev addedObjType$(object_type.id)List)))")
             push!(choices, "(! (intersects $(disp) $(filtered_list)))")
-            for key in ["left", "right", "up", "down"]
-              push!(choices, "(& $(key) (intersects $(disp) $(filtered_list)))")
-            end
+            # for key in ["left", "right", "up", "down"]
+            #   push!(choices, "(& $(key) (intersects $(disp) $(filtered_list)))")
+            # end
 
-            for key in ["left", "right", "up", "down"]
-              push!(choices, "(& $(key) (intersects $(disp) (prev addedObjType$(object_type.id)List)))")
-            end
+            # for key in ["left", "right", "up", "down"]
+            #   push!(choices, "(& $(key) (intersects $(disp) (prev addedObjType$(object_type.id)List)))")
+            # end
 
           end
         end
@@ -536,9 +536,9 @@ function gen_event_bool_human_prior(object_decomposition, object_id, type_id, us
             for object_type_2 in object_types 
               if object_type_1.id != object_type_2.id 
                 
-                for key in ["left", "right", "up", "down"]
-                  push!(choices, "(& $(key) (intersects (map (--> obj (move (prev obj) $(x*scalar) $(y*scalar))) (prev addedObjType$(object_type_1.id)List)) (prev addedObjType$(object_type_2.id)List)))")
-                end
+                # for key in ["left", "right", "up", "down"]
+                #   push!(choices, "(& $(key) (intersects (map (--> obj (move (prev obj) $(x*scalar) $(y*scalar))) (prev addedObjType$(object_type_1.id)List)) (prev addedObjType$(object_type_2.id)List)))")
+                # end
 
               end
             end
@@ -608,9 +608,9 @@ function gen_event_bool_human_prior(object_decomposition, object_id, type_id, us
           println("YO") 
           push!(choices, "(intersects $(disp) (prev addedObjType$(object_type_2.id)List))")
 
-          for key in ["left", "right", "up", "down"]
-            push!(choices, "(& $(key) (intersects $(disp) (prev addedObjType$(object_type_2.id)List)))")
-          end
+          # for key in ["left", "right", "up", "down"]
+          #   push!(choices, "(& $(key) (intersects $(disp) (prev addedObjType$(object_type_2.id)List)))")
+          # end
 
           for o in non_list_objects 
             push!(choices, "(intersects $(disp) (prev obj$(o.id)))")
@@ -1352,7 +1352,7 @@ function prune_by_observational_equivalence(event_vector_dict, redundant_events_
         @show event_values
       end
 
-      if event == "(pushConfiguration arrow (prev obj25) (prev addedObjType3List) (list (prev obj26)))"
+      if event == "(pushConfiguration arrow (prev obj60) (prev addedObjType2List) (prev addedObjType3List))"
         println("WHAT THE HECK2")
         @show existing_events 
         @show event_values
