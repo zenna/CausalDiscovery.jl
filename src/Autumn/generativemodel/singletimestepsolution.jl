@@ -35,7 +35,7 @@ function singletimestepsolution_matrix(observations, old_user_events, grid_size;
   if multiple_traces 
     object_decomposition = parse_and_map_objects_multiple_traces(observations, grid_size, singlecell=singlecell, pedro=pedro)
     stop_times = map(i -> 1 + length(observations[i]) + (i == 1 ? 0 : sum(map(j -> length(observations[j]), 1:(i - 1)))), 1:(length(observations) - 1))
-    user_events = vcat(map(events -> vcat(events..., nothing, nothing), old_user_events)...)[1:end-2]
+    user_events = vcat(map(events -> vcat(events..., nothing), old_user_events)...)[1:end-1]
   else
     object_decomposition = parse_and_map_objects(observations, grid_size, singlecell=singlecell, pedro=pedro)
     stop_times = []
@@ -183,10 +183,10 @@ function synthesize_update_functions(object_id, time, object_decomposition, user
   end
   
   # # # # @show object_id 
-  @show time
+  # @show time
   prev_object = object_mapping[object_id][time - 1]
   next_object = object_mapping[object_id][time]
-  @show object_id 
+  # @show object_id 
 
   type_id = filter(obj -> !isnothing(obj), object_mapping[object_id])[1].type.id
   is_stationary = type_id in map(t -> t.id, stationary_types)
@@ -387,7 +387,7 @@ function synthesize_update_functions(object_id, time, object_decomposition, user
         using_prev = false
         update_rule = generate_hypothesis_update_rule(prev_object, (object_types, prev_objects, background, grid_size), p=0.0) # "(= obj1 (moveDownNoCollision (moveDownNoCollision (prev obj1))))"
         # println("IS THIS THE REAL LIFE")
-        @show update_rule 
+        # @show update_rule 
       end      
       
       if occursin("NoCollision", update_rule) || occursin("closest", update_rule) || occursin("nextLiquid", update_rule) || occursin("color", update_rule)
@@ -965,7 +965,7 @@ function singletimestepsolution_program_given_matrix_NEW(matrix, object_decompos
 
   # multiple_traces reset update functions
   if stop_times != []
-    reset_update_rules = join(map(t -> """(on (== (prev actual_time) $(t)) (let ((= time 0)\n$(program_string_synth_standard_groups_multi_trace_reset(object_decomposition, t)))))""", stop_times), "\n")
+    reset_update_rules = join(map(t -> """(on (== (prev actual_time) $(t - 1)) (let ((= time 0)\n$(program_string_synth_standard_groups_multi_trace_reset(object_decomposition, t)))))""", stop_times), "\n")
   else
     reset_update_rules = ""
   end
@@ -1055,8 +1055,8 @@ function abstract_position(position, prev_abstract_positions, user_event, object
                                 """, "\n",
                               ")")
 
-    # println("HYPOTHESIS PROGRAM")
-    # println(hypothesis_position_program)
+    println("HYPOTHESIS PROGRAM")
+    println(hypothesis_position_program)
     expr = parseautumn(hypothesis_position_program)
     # global expr = striplines(compiletojulia(parseautumn(hypothesis_position_program)))
     # ## # # # @show expr
@@ -1065,7 +1065,7 @@ function abstract_position(position, prev_abstract_positions, user_event, object
     # # # # # # @show expr.args[1].args[2]
     # global mod = @eval $(expr)
     # # # # # # @show repr(mod)
-    # # @show user_event
+    @show user_event
     if !isnothing(user_event) && occursin("click", split(user_event, " ")[1])
       global x = parse(Int, split(user_event, " ")[2])
       global y = parse(Int, split(user_event, " ")[3])

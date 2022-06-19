@@ -1928,13 +1928,16 @@ function generate_new_object_specific_state_GLOBAL(global_events, co_occurring_e
   end
 
   augmented_stop_times = []
+  all_stop_var_values = []
   for object_id in object_ids 
     augmented_positive_times = augmented_positive_times_dict[object_id]
     stop_var_value = max_v + 1
     all_stop_var_values = []
-    for stop_time in stop_times 
-      push!(augmented_stop_times, (stop_time, stop_var_value))
-      push!(all_stop_var_values, stop_var_value)
+    for stop_time in stop_times
+      if !isnothing(object_mapping[object_id][stop_time]) && !isnothing(object_mapping[object_id][stop_time + 1])
+        push!(augmented_stop_times, (stop_time, stop_var_value))
+        push!(all_stop_var_values, stop_var_value)
+      end
       stop_var_value += 1
     end
     augmented_positive_times = sort(vcat(augmented_positive_times..., augmented_stop_times), by=x -> x[1])
@@ -1970,6 +1973,8 @@ function generate_new_object_specific_state_GLOBAL(global_events, co_occurring_e
       iters += 1
       grouped_range = grouped_ranges[1]
       grouped_ranges = grouped_ranges[2:end]
+
+      time_ranges = map(r -> (r[1][1], r[2][1] - 1), grouped_range)
   
       range = grouped_range[1]
       start_value = range[1][2]
@@ -1989,7 +1994,7 @@ function generate_new_object_specific_state_GLOBAL(global_events, co_occurring_e
         elseif (end_value in all_stop_var_values)
           events_in_range = [("(== (prev fake_time) $(time_ranges[1][2]))", [(time_ranges[1][2], id) for id in object_ids])]
         else
-          events_in_range = find_state_update_events_object_specific(global_events, small_event_vector_dict, augmented_positive_times_dict, grouped_range, object_ids, object_mapping, curr_state_value, all_stop_var_values)
+          events_in_range = find_state_update_events_object_specific(small_event_vector_dict, augmented_positive_times_dict, grouped_range, object_ids, object_mapping, curr_state_value, all_stop_var_values)
         end
       end
       @show events_in_range
@@ -2168,16 +2173,20 @@ function generate_new_object_specific_state_GLOBAL(global_events, co_occurring_e
             end
           end
           # init_value = length(augmented_positive_times_dict[object_id]) == 0 ? (max_state_value + 1) : augmented_positive_times_dict[object_id][1][2]
-          object_field_values[object_id] = [init_value for i in 1:(length(state_update_times[object_id]) + 1)]
+          println("INTERESTING")
+          @show init_value 
+          @show state_update_times 
+          @show object_field_values
+          object_field_values[object_id] = [init_value for i in 1:(length(state_update_times[field_id][object_id]) + 1)]
           
           curr_value = -1
-          for time in 1:length(state_update_times[object_id])
+          for time in 1:length(state_update_times[field_id][object_id])
             if curr_value != -1
               object_field_values[object_id][time] = curr_value
             end
             
-            if state_update_times[object_id][time] != ("", -1)
-              curr_value = state_update_times[object_id][time][2]
+            if state_update_times[field_id][object_id][time] != ("", -1)
+              curr_value = state_update_times[field_id][object_id][time][2]
             end
           end
           object_field_values[object_id][length(object_field_values[object_id])] = curr_value != -1 ? curr_value : init_value
@@ -2273,6 +2282,7 @@ function generate_new_object_specific_state_GLOBAL(global_events, co_occurring_e
         push!(on_clauses, (on_clause, update_function))
       end    
       state_update_on_clauses = map(x -> x[1], unique(filter(r -> r != ("", -1), vcat([state_update_times[field_id][k] for k in collect(keys(state_update_times[field_id]))]...))))
+      filter!(x -> !occursin("fake_time", x), state_update_on_clauses) 
       return (on_clauses, state_update_on_clauses, new_object_decomposition, state_update_times, field_id, global_var_dict, global_events ? transitions_for_generalization : [])
     end
 

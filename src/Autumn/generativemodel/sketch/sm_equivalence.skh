@@ -81,16 +81,19 @@ bit distinct_transitions([int N], int[N] start_states, int[N] end_states, char[N
 
     // iterate through seen arrays, and check if seen before 
     // if not seen before, add to seen arrays
+    bit fake_break = false;
     for (int j = 0; j < N; j++) {
-      if (curr_label[j] == 'a') {
-        seen_start_states[j] = curr_start;
-        seen_end_states[j] = curr_end;
-        seen_labels[j] = curr_label;
-        break;
-      }
+      if (!(fake_break)) {
+        if (curr_label == 'a') {
+          seen_start_states[j] = curr_start;
+          seen_end_states[j] = curr_end;
+          seen_labels[j] = curr_label;
+          fake_break = true;
+        }
 
-      if ((seen_start_states[j] == curr_start) && (seen_end_states[j] == curr_end) && (seen_labels[j] == curr_label)) {
-        return false;
+        if ((seen_start_states[j] == curr_start) && (seen_end_states[j] == curr_end) && (seen_labels[j] == curr_label)) {
+          return false;
+        }
       }
 
     }

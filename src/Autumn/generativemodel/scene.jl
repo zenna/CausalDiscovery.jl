@@ -347,6 +347,9 @@ function program_string_synth_standard_groups_multi_trace_reset(object_decomposi
   start_constants_and_lists = filter(x -> x != [] && !(x in removed_objects), map(obj -> obj isa AbstractArray ? filter(o -> !(o in removed_objects), obj) : obj, start_constants_and_lists))
   start_constants_and_lists = sort(start_constants_and_lists, by=x -> x isa Array ? x[1].id : x.id)
 
+  added_back_object_ids = sort(filter(id -> !isnothing(object_mapping[id][stop_time + 1]) && isnothing(object_mapping[id][stop_time]), collect(keys(object_mapping))))
+  added_back_objects = map(id -> object_mapping[id][stop_time + 1], added_back_object_ids)
+
   other_list_types = filter(k -> (length(start_type_mapping[k]) == 0) || (length(start_type_mapping[k]) == 1 && num_objects_with_type[k] == 1), sort(collect(keys(start_type_mapping))))
   
   start_constants_and_lists_strings = []
@@ -383,11 +386,11 @@ function program_string_synth_standard_groups_multi_trace_reset(object_decomposi
 
   # add removed objects 
   removed_object_strings = []
-  for obj in removed_objects 
+  for obj in added_back_objects
     if obj.type.id in other_list_types # singleton (constant) object
       obj_str = """(updateObj (prev obj$(obj.id)) "alive" true)"""
       pos = obj.position 
-      obj_string = """(updateObj $(obj_str) "origin" (Position $(pos[1]) $(pos[2])))"""
+      obj_str = """(updateObj $(obj_str) "origin" (Position $(pos[1]) $(pos[2])))"""
       for i in 1:length(obj.type.custom_fields)
         field = obj.type.custom_fields[i]
         val = obj.custom_field_values[i]

@@ -5,9 +5,9 @@ function filter_out_of_bounds_cells(observations, grid_size)
   map(obs -> filter(cell -> cell.position.x in collect(0:(grid_size - 1)) && cell.position.y in collect(0:(grid_size - 1)), obs), observations)
 end
 
-function generate_observations_interface(model_name)
+function generate_observations_interface(model_name, i=1)
   directory_location = string(saved_traces_directory, model_name)
-  index = length(filter(f -> occursin(".jld", f), readdir(directory_location))) # take most recently created file
+  index = length(filter(f -> occursin(".jld", f), readdir(directory_location))) - (i-1) # take most recently created file
   file_location = string(saved_traces_directory, model_name, "/", index, ".jld")
   observations_dict = JLD.load(file_location)
   observations = map(obs -> map(cell -> Autumn.AutumnStandardLibrary.Cell(cell[1], cell[2], cell[3]), obs[2:end]), observations_dict["observations"])

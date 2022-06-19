@@ -2,6 +2,37 @@ import Pkg; Pkg.add("Pickle")
 using Autumn
 include("test_synthesis.jl")
 
+function run_multi_trace(model_name, singlecell=false, pedro=false; indices=[])
+  model_folders = readdir("multi_trace_data")
+  if model_name in model_folders
+    files = filter(x -> occursin(".jld", x), readdir("multi_trace_data/$(model_name)"))
+    observation_tuples = []
+    for file in files 
+      push!(observation_tuples, JLD.load("multi_trace_data/$(model_name)/$(file)")["data"])
+    end
+
+    if indices != []
+      observation_tuples = map(i -> observation_tuples[i], indices)
+    end
+
+    observations = map(tup -> tup[1], observation_tuples)
+    old_user_events = map(tup -> tup[2], observation_tuples)
+
+    matrix, unformatted_matrix, object_decomposition, prev_used_rules = singletimestepsolution_matrix(observations, old_user_events, grid_size, singlecell=singlecell, pedro=pedro, upd_func_space=6, multiple_traces=true)
+
+    user_events = vcat(map(events -> vcat(events..., nothing), old_user_events)...)[1:end-1]
+    stop_times = map(i -> length(observations[i]) + (i == 1 ? 0 : sum(map(j -> length(observations[j]), 1:(i - 1)))), 1:(length(observations) - 1))
+
+    global_event_vector_dict = Dict()
+    redundant_events_set = Set()
+
+    solutions = generate_on_clauses_GLOBAL(model_name, false, matrix, unformatted_matrix, object_decomposition, user_events, global_event_vector_dict, redundant_events_set, grid_size, stop_times=stop_times)
+  else
+    solutions = []
+  end
+  solutions
+end
+
 function run_model(model_name::String, algorithm, iteration, desired_per_matrix_solution_count, desired_solution_count)
   run_id = string(model_name, "_", algorithm)
   # build desired directory structure
