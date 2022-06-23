@@ -35,16 +35,20 @@ end
 """Construct matrix of single timestep solutions"""
 function singletimestepsolution_matrix(observations, old_user_events, grid_size; singlecell=false, pedro=false, upd_func_space=1, multiple_traces=false)
   if multiple_traces 
+    println("MULTIPLE TRACES!!")
     object_decomposition = parse_and_map_objects_multiple_traces(observations, grid_size, singlecell=singlecell, pedro=pedro)
     stop_times = map(i -> 1 + length(observations[i]) + (i == 1 ? 0 : sum(map(j -> length(observations[j]), 1:(i - 1)))), 1:(length(observations) - 1))
     user_events = vcat(map(events -> vcat(events..., nothing), old_user_events)...)[1:end-1]
   else
+    println("ONE TRACE!!")
     object_decomposition = parse_and_map_objects(observations, grid_size, singlecell=singlecell, pedro=pedro)
     stop_times = []
     user_events = old_user_events
   end
 
   object_types, object_mapping, background, _ = object_decomposition
+
+  @show length(collect(keys(object_mapping)))
 
   for type in object_types 
     type_displacements[type.id] = []
@@ -1557,7 +1561,7 @@ function singletimestepsolution_program_given_matrix_NEW(matrix, object_decompos
 
   # multiple_traces reset update functions
   if stop_times != []
-    reset_update_rules = join(map(t -> """(on (== (prev actual_time) $(t)) (let ((= time 0)\n$(program_string_synth_standard_groups_multi_trace_reset(object_decomposition)))))""", stop_times), "\n")
+    reset_update_rules = join(map(t -> """(on (== (prev actual_time) $(t - 1)) (let ((= time 0)\n$(program_string_synth_standard_groups_multi_trace_reset(object_decomposition, t)))))""", stop_times), "\n")
   else
     reset_update_rules = ""
   end

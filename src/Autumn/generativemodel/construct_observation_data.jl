@@ -1661,14 +1661,14 @@ end
 pedro_interface_output_folder = "/Users/riadas/Documents/urop/EMPA_Data_Collection_Interface/traces"
 # pedro_interface_output_folder = "/scratch/riadas/EMPA_Data_Collection_Interface/traces"
 js_key_codes = Dict(["37" => "left", "38" => "up", "39" => "right", "40" => "down", "32" => "click -1 -1"])
-function generate_observations_pedro_interface(game_name)
+function generate_observations_pedro_interface(game_name, index=1)
   game_folder = string(pedro_interface_output_folder, "/", game_name)
   if !isdir(game_folder)
     return [], [], 0
   end
 
   files = reverse(sort(filter(x -> occursin(".json", x), readdir(game_folder))))
-  file_location = string(game_folder, "/", files[1])
+  file_location = string(game_folder, "/", files[index])
   dict = JSON.parse(JSON.parsefile(file_location))
   # @show dict 
   observations_raw = dict["history"]

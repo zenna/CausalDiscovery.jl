@@ -98,8 +98,8 @@ function find_state_update_events_false_positives(orig_event_vector_dict, augmen
               push!(desired_start_values, desired_start_value)
             else # case made while sleepy (same as below)
               future_augmented_positive_times = filter(tuple -> tuple[1] > time, augmented_positive_times)
-              closest_future_augmented_time = future_augmented_positive_times[1]
-              if !(closest_future_augmented_time in all_stop_var_values)
+              if (future_augmented_positive_times != []) && !(future_augmented_positive_times[1][2] in all_stop_var_values)
+                closest_future_augmented_time = future_augmented_positive_times[1]
                 push!(desired_start_values, closest_future_augmented_time[2])
               else
                 push!(desired_start_values, -1)
@@ -113,8 +113,8 @@ function find_state_update_events_false_positives(orig_event_vector_dict, augmen
               push!(desired_start_values, closest_earlier_augmented_time[2])
             else # case made while sleepy
               future_augmented_positive_times = filter(tuple -> tuple[1] > time, augmented_positive_times)
-              closest_future_augmented_time = future_augmented_positive_times[1]
-              if !(closest_future_augmented_time in all_stop_var_values)
+              if (future_augmented_positive_times != []) && !(future_augmented_positive_times[1][2] in all_stop_var_values)
+                closest_future_augmented_time = future_augmented_positive_times[1]
                 push!(desired_start_values, closest_future_augmented_time[2])
               else
                 push!(desired_start_values, -1)

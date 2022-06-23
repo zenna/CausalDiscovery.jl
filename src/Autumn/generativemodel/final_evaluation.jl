@@ -55,6 +55,7 @@ function run_pedro_model_multi_trace(observations, old_user_events, state_synthe
   solutions = generate_on_clauses_GLOBAL(string(model_name, "_apr"), matrix, unformatted_matrix, object_decomposition, user_events, global_event_vector_dict, redundant_events_set, grid_size, state_synthesis_algorithm=state_synthesis_algorithm, stop_times=stop_times)
 end
 
+
 function run_model(model_name::String, algorithm, desired_per_matrix_solution_count, desired_solution_count; symmetry=false)
   # build desired directory structure
   date_string = Dates.format(Dates.now(), "yyyy-mm-dd HH:MM:SS")

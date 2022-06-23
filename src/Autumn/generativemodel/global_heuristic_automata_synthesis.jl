@@ -941,7 +941,7 @@ function generate_on_clauses_GLOBAL(run_id, matrix, unformatted_matrix, object_d
                   state_update_on_clauses = vcat(global_state_update_on_clauses, object_specific_state_update_on_clauses)
                   global_state_update_times_dict = new_state_update_times_dict
 
-                  state_update_on_clauses = unique(state_update_on_clauses)
+                  state_update_on_clauses = filter(c -> !occursin("fake_time", c), unique(state_update_on_clauses))
                   on_clauses = unique(on_clauses)
 
                   println("ADDING EVENT WITH NEW STATE")
@@ -1042,7 +1042,7 @@ function generate_on_clauses_GLOBAL(run_id, matrix, unformatted_matrix, object_d
                     end
                   end
 
-                  state_update_on_clauses = unique(state_update_on_clauses)
+                  state_update_on_clauses = filter(c -> !occursin("fake_time", c), unique(state_update_on_clauses))
                   on_clauses = unique(on_clauses)  
                 end
               end
@@ -2287,7 +2287,7 @@ function generate_new_object_specific_state_GLOBAL(co_occurring_event, update_fu
         else
           eff_stop_times = [0, sort(stop_times)..., length(event_vector_dict["true"]) + 1]
         end
-        
+
         for i in 2:length(eff_stop_times)
           prev_t = eff_stop_times[i - 1]
           curr_t = eff_stop_times[i]
