@@ -40,6 +40,9 @@ function parse_and_map_objects_multiple_traces(multiple_traces, grid_size=16; si
   # construct full (long) object_mapping by linking existing objects across object_mappings, and creating new id's
   # for added object_id's in traces 2 through (n-1)
   prior_observations_count = length(multiple_traces[1])
+
+  linked_ids = Dict()
+
   for i in 2:length(object_decomposition_list)
     prev_object_decomposition = object_decomposition_list[i - 1]
     # _, prev_object_mapping, _, _ = prev_object_decomposition
@@ -67,6 +70,7 @@ function parse_and_map_objects_multiple_traces(multiple_traces, grid_size=16; si
             end
             
             object_mapping[new_id] = vcat([nothing for j in 1:prior_observations_count]..., curr_object_mapping[id]...)
+            linked_ids[(id, i - 1)] = (new_id, i)
           end
 
         end
@@ -101,7 +105,7 @@ function parse_and_map_objects_multiple_traces(multiple_traces, grid_size=16; si
   #   end
   # end
 
-  object_types, object_mapping, background, grid_size
+  object_types, object_mapping, background, grid_size, linked_ids
 end
 
 

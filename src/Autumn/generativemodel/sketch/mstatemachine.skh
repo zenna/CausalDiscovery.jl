@@ -82,6 +82,7 @@ int[N] MSM([int N], char[N] in, char true_char, int min_states, int min_transiti
       assert T[i] > 0;
     } 
 
+    // println(newStr("DONE"));
     return out;
 }
 
@@ -151,6 +152,7 @@ int[N] MSM_unique([int N, int M], char[N] in, int[N][M] old_state_seqs, char tru
       assert T[i] > 0;
     } 
     
+    // println(newStr("DONE"));
     return out;
 }
 

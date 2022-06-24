@@ -112,7 +112,8 @@ function synthesize_program_given_decomp(run_id, random, decomp, observation_tup
                                           co_occurring_param=false, 
                                           transition_param=false,
                                           algorithm="heuristic",
-                                          sketch_timeout=0) 
+                                          sketch_timeout=0,
+                                          stop_times=[]) 
 
   program_strings = []
 
@@ -133,11 +134,11 @@ function synthesize_program_given_decomp(run_id, random, decomp, observation_tup
   matrix, unformatted_matrix, object_decomposition, prev_used_rules = decomp                                        
 
   if algorithm == "heuristic"
-    solutions = generate_on_clauses_GLOBAL(run_id, random, matrix, unformatted_matrix, object_decomposition, user_events, global_event_vector_dict, redundant_events_set, grid_size, desired_solution_count, desired_per_matrix_solution_count, interval_painting_param, false, z3_option, time_based, 0, sketch_timeout, co_occurring_param, transition_param)
+    solutions = generate_on_clauses_GLOBAL(run_id, random, matrix, unformatted_matrix, object_decomposition, user_events, global_event_vector_dict, redundant_events_set, grid_size, desired_solution_count, desired_per_matrix_solution_count, interval_painting_param, false, z3_option, time_based, 0, sketch_timeout, co_occurring_param, transition_param, stop_times=stop_times)
   elseif algorithm == "sketch_single"
-    solutions = generate_on_clauses_SKETCH_SINGLE(run_id, random, matrix, unformatted_matrix, object_decomposition, user_events, global_event_vector_dict, redundant_events_set, grid_size, desired_solution_count, desired_per_matrix_solution_count, interval_painting_param, z3_option, time_based, 0, sketch_timeout, co_occurring_param, transition_param)
+    solutions = generate_on_clauses_SKETCH_SINGLE(run_id, random, matrix, unformatted_matrix, object_decomposition, user_events, global_event_vector_dict, redundant_events_set, grid_size, desired_solution_count, desired_per_matrix_solution_count, interval_painting_param, z3_option, time_based, 0, sketch_timeout, co_occurring_param, transition_param, stop_times=stop_times)
   elseif algorithm == "sketch_multi"
-    solutions = generate_on_clauses_SKETCH_MULTI(run_id, random, matrix, unformatted_matrix, object_decomposition, user_events, global_event_vector_dict, redundant_events_set, grid_size, desired_solution_count, desired_per_matrix_solution_count, interval_painting_param, z3_option, time_based, 0, sketch_timeout, co_occurring_param, transition_param)
+    solutions = generate_on_clauses_SKETCH_MULTI(run_id, random, matrix, unformatted_matrix, object_decomposition, user_events, global_event_vector_dict, redundant_events_set, grid_size, desired_solution_count, desired_per_matrix_solution_count, interval_painting_param, z3_option, time_based, 0, sketch_timeout, co_occurring_param, transition_param, stop_times=stop_times)
   else 
     error("algorithm $(algorithm) does not exist")
   end
@@ -609,7 +610,7 @@ programs = Dict("particles"                                 => """(program
                                                                     (= enemies2 (removeObj enemies2 (--> obj (intersects (prev obj) (prev bullets)))))))
                                                             )
                                                                     
-                                                            (on (== (% time 5) 2) (= enemyBullets (addObj enemyBullets (EnemyBullet (uniformChoice (map (--> obj (.. obj origin)) (prev enemies2)))))))         
+                                                            (on (== (% time 5) 2) (= enemyBullets (addObj enemyBullets (EnemyBullet (uniformChoice (map (--> obj (.. obj origin)) (vcat (prev enemies1) (prev enemies2))))))))         
                                                             (on (intersects (prev hero) (prev enemyBullets)) (= hero (removeObj (prev hero))))
                                                           
                                                             (on (intersects (prev bullets) (prev enemyBullets)) 

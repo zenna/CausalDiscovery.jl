@@ -33,16 +33,17 @@ end
 """Construct matrix of single timestep solutions"""
 function singletimestepsolution_matrix(observations, old_user_events, grid_size; singlecell=false, pedro=false, upd_func_space=1, multiple_traces=false)
   if multiple_traces 
-    object_decomposition = parse_and_map_objects_multiple_traces(observations, grid_size, singlecell=singlecell, pedro=pedro)
+    object_types, object_mapping, background, _, linked_ids = parse_and_map_objects_multiple_traces(observations, grid_size, singlecell=singlecell, pedro=pedro)
     stop_times = map(i -> 1 + length(observations[i]) + (i == 1 ? 0 : sum(map(j -> length(observations[j]), 1:(i - 1)))), 1:(length(observations) - 1))
     user_events = vcat(map(events -> vcat(events..., nothing), old_user_events)...)[1:end-1]
   else
-    object_decomposition = parse_and_map_objects(observations, grid_size, singlecell=singlecell, pedro=pedro)
+    object_types, object_mapping, background, _ = parse_and_map_objects(observations, grid_size, singlecell=singlecell, pedro=pedro)
     stop_times = []
     user_events = old_user_events
+    linked_ids = Dict()
   end
 
-  object_types, object_mapping, background, _ = object_decomposition
+  object_decomposition = (object_types, object_mapping, background, grid_size)
 
   # # # @show object_decomposition 
 
@@ -163,7 +164,7 @@ function singletimestepsolution_matrix(observations, old_user_events, grid_size;
       unformatted_matrix[object_id, time - 1] = unformatted_update_functions
     end
   end
-  matrix, unformatted_matrix, object_decomposition, prev_used_rules
+  matrix, unformatted_matrix, object_decomposition, linked_ids
 end
 
 expr = nothing

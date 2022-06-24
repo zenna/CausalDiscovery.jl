@@ -153,29 +153,31 @@ function generate_observations_space_invaders(m::Module)
   #   push!(observations, Base.invokelatest(m.render, state.scene))
   # end
   # observations, user_events, 8
-  state = Base.invokelatest(m.init, nothing, nothing, nothing, nothing, nothing)
-  observations = []
-  user_events = []
-  push!(observations, Base.invokelatest(m.render, state.scene))
 
-  for i in 0:40
-    if i in [1, 4, 7, 10, 13, 16, 19, 22, 25]
-      state = Base.invokelatest(m.next, state, nothing, nothing, nothing, Base.invokelatest(m.Up), nothing)
-      push!(user_events, "up")
-    elseif i in [15]
-      state = Base.invokelatest(m.next, state, nothing, Base.invokelatest(m.Left), nothing, nothing, nothing)
-      push!(user_events, "left")
-    elseif i in [26, 27, 28]
-      state = Base.invokelatest(m.next, state, nothing, nothing, Base.invokelatest(m.Right), nothing, nothing)
-      push!(user_events, "right")
-    else
-      state = Base.invokelatest(m.next, state, nothing, nothing, nothing, nothing, nothing)
-      push!(user_events, nothing)
-    end
-    push!(observations, Base.invokelatest(m.render, state.scene))
-  end
-  # observations, user_events, 16
-  filter_out_of_bounds_cells(observations, 16), user_events, 16
+  # state = Base.invokelatest(m.init, nothing, nothing, nothing, nothing, nothing)
+  # observations = []
+  # user_events = []
+  # push!(observations, Base.invokelatest(m.render, state.scene))
+
+  # for i in 0:40
+  #   if i in [1, 4, 7, 10, 13, 16, 19, 22, 25]
+  #     state = Base.invokelatest(m.next, state, nothing, nothing, nothing, Base.invokelatest(m.Up), nothing)
+  #     push!(user_events, "up")
+  #   elseif i in [15]
+  #     state = Base.invokelatest(m.next, state, nothing, Base.invokelatest(m.Left), nothing, nothing, nothing)
+  #     push!(user_events, "left")
+  #   elseif i in [26, 27, 28]
+  #     state = Base.invokelatest(m.next, state, nothing, nothing, Base.invokelatest(m.Right), nothing, nothing)
+  #     push!(user_events, "right")
+  #   else
+  #     state = Base.invokelatest(m.next, state, nothing, nothing, nothing, nothing, nothing)
+  #     push!(user_events, nothing)
+  #   end
+  #   push!(observations, Base.invokelatest(m.render, state.scene))
+  # end
+  # # observations, user_events, 16
+  # filter_out_of_bounds_cells(observations, 16), user_events, 16
+  JLD.load("deterministic_space_invaders_output_2.jld", "chase")
 end
 
 function generate_observations_disease(m::Module)
@@ -299,11 +301,11 @@ function generate_observations_wind(m::Module)
   user_events = []
   push!(observations, Base.invokelatest(m.render, state.scene))
 
-  for i in 0:19
-    if i in [8, 11]
+  for i in 0:21
+    if i in [3, 9, 10]
       state = Base.invokelatest(m.next, state, nothing, Base.invokelatest(m.Left), nothing, nothing, nothing)
-      push!(user_events, "left")
-    elseif i in [4, 14]
+      push!(user_events, "left") 
+    elseif i in [5, 6, 14, 15]
       state = Base.invokelatest(m.next, state, nothing, nothing, Base.invokelatest(m.Right), nothing, nothing)
       push!(user_events, "right")
     else
@@ -808,7 +810,7 @@ function generate_observations_particles(m::Module)
 end
 
 function generate_observations_chase(m::Module) 
-  JLD.load("deterministic_chase_input.jld", "chase")
+  JLD.load("deterministic_chase_output_2.jld", "chase")
   # state = Base.invokelatest(m.init, nothing, nothing, nothing, nothing, nothing)
   # observations = []
   # user_events = []

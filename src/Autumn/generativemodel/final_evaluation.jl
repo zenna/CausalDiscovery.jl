@@ -20,6 +20,8 @@ function run_multi_trace(model_name, singlecell=false, pedro=false; indices=[])
 
     matrix, unformatted_matrix, object_decomposition, prev_used_rules = singletimestepsolution_matrix(observations, old_user_events, grid_size, singlecell=singlecell, pedro=pedro, upd_func_space=6, multiple_traces=true)
 
+    object_types, object_mapping, background, grid_size = object_decomposition
+
     user_events = vcat(map(events -> vcat(events..., nothing), old_user_events)...)[1:end-1]
     stop_times = map(i -> length(observations[i]) + (i == 1 ? 0 : sum(map(j -> length(observations[j]), 1:(i - 1)))), 1:(length(observations) - 1))
 
@@ -33,7 +35,7 @@ function run_multi_trace(model_name, singlecell=false, pedro=false; indices=[])
   solutions
 end
 
-function run_model(model_name::String, algorithm, iteration, desired_per_matrix_solution_count, desired_solution_count)
+function run_model(model_name::String, algorithm, iteration, desired_per_matrix_solution_count, desired_solution_count; multi_trace=false, indices=[])
   run_id = string(model_name, "_", algorithm)
   # build desired directory structure
   date_string = Dates.format(Dates.now(), "yyyy-mm-dd HH:MM:SS")
@@ -64,8 +66,26 @@ function run_model(model_name::String, algorithm, iteration, desired_per_matrix_
   # initialize global variables
   found_enough = false
 
-  observations, user_events, grid_size = generate_observations(model_name)
-  observation_tuple = (observations, user_events, grid_size)
+  if !multi_trace 
+    observations, user_events, grid_size = generate_observations(model_name)
+    observation_tuple = (observations, user_events, grid_size)  
+  else
+    files = filter(x -> occursin(".jld", x), readdir("multi_trace_data/$(model_name)"))
+    observation_tuples = []
+    for file in files 
+      push!(observation_tuples, JLD.load("multi_trace_data/$(model_name)/$(file)")["data"])
+    end
+
+    if indices != []
+      observation_tuples = map(i -> observation_tuples[i], indices)
+    end
+
+    observations = map(tup -> tup[1], observation_tuples)
+    user_events = map(tup -> tup[2], observation_tuples)
+    grid_size = observation_tuples[1][3]
+
+    observation_tuple = (observations, user_events, grid_size)
+  end
 
   singlecell_decomp = nothing # decomp_time_single.value 
   multicell_decomp = nothing # decomp_time_multi.value 
@@ -92,27 +112,24 @@ function run_model(model_name::String, algorithm, iteration, desired_per_matrix_
 
     if singlecell
       if isnothing(singlecell_decomp)
-        decomp_time_single = @timed singletimestepsolution_matrix(observations, user_events, grid_size, singlecell=true, upd_func_space=6)
+        decomp_time_single = @timed singletimestepsolution_matrix(observations, user_events, grid_size, singlecell=true, upd_func_space=6, multi_trace=multi_trace)
         singlecell_decomp = decomp_time_single.value 
         total_time += decomp_time_single.time
       end
     else
       if isnothing(multicell_decomp)
-        decomp_time_multi = @timed singletimestepsolution_matrix(observations, user_events, grid_size, singlecell=false, upd_func_space=6)
+        decomp_time_multi = @timed singletimestepsolution_matrix(observations, user_events, grid_size, singlecell=false, upd_func_space=6, multi_trace=multi_trace)
         multicell_decomp = decomp_time_multi.value 
         total_time += decomp_time_multi.time
       end
     end
 
-    # timed_tuple = @timed synthesize_program(model_name, 
-    #                                         singlecell=singlecell, 
-    #                                         upd_func_spaces=[6], 
-    #                                         time_based=time_based,
-    #                                         z3_option=z3_option,
-    #                                         desired_per_matrix_solution_count=desired_per_matrix_solution_count,
-    #                                         desired_solution_count=desired_solution_count,
-    #                                         algorithm="sketch_multi")
-
+    if multi_trace 
+      user_events = vcat(map(events -> vcat(events..., nothing), old_user_events)...)[1:end-1]
+      stop_times = map(i -> length(observations[i]) + (i == 1 ? 0 : sum(map(j -> length(observations[j]), 1:(i - 1)))), 1:(length(observations) - 1))
+    else
+      stop_times = []  
+    end
 
     timed_tuple = @timed synthesize_program_given_decomp( run_id, 
                                                           random_param,
@@ -127,6 +144,7 @@ function run_model(model_name::String, algorithm, iteration, desired_per_matrix_
                                                           desired_solution_count=desired_solution_count,
                                                           algorithm=algorithm,
                                                           sketch_timeout=120, # 120
+                                                          stop_times=stop_times
                                                           )
                       # try
                       # catch e 

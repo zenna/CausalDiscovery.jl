@@ -8,7 +8,7 @@ else
   local_sketch_directory = "src/Autumn/generativemodel/sketch/"
 end
 
-function generate_on_clauses_SKETCH_MULTI(run_id, random, matrix, unformatted_matrix, object_decomposition, user_events, global_event_vector_dict, redundant_events_set, grid_size=16, desired_solution_count=1, desired_per_matrix_solution_count=1, interval_painting_param=false, z3_option="partial", time_based=false, z3_timeout=0, sketch_timeout=0, co_occurring_param=false, transition_param=false, co_occurring_distinct=1, co_occurring_same=1, co_occurring_threshold=1, transition_distinct=1, transition_same=1, transition_threshold=1; stop_times=[])
+function generate_on_clauses_SKETCH_MULTI(run_id, random, matrix, unformatted_matrix, object_decomposition, user_events, global_event_vector_dict, redundant_events_set, grid_size=16, desired_solution_count=1, desired_per_matrix_solution_count=1, interval_painting_param=false, z3_option="partial", time_based=false, z3_timeout=0, sketch_timeout=0, co_occurring_param=false, transition_param=false, co_occurring_distinct=1, co_occurring_same=1, co_occurring_threshold=1, transition_distinct=1, transition_same=1, transition_threshold=1; stop_times=[], linked_ids=Dict())
   start_time = Dates.now()
   
   object_types, object_mapping, background, dim = object_decomposition
@@ -27,7 +27,7 @@ function generate_on_clauses_SKETCH_MULTI(run_id, random, matrix, unformatted_ma
 
   # filtered_matrices = filtered_matrices[22:22]
   # filtered_matrices = filtered_matrices[5:5]
-  # filtered_matrices = filtered_matrices[1:1]
+  filtered_matrices = filtered_matrices[1:1]
 
   for filtered_matrix_index in 1:length(filtered_matrices)
     @show filtered_matrix_index
@@ -250,10 +250,14 @@ function generate_on_clauses_SKETCH_MULTI(run_id, random, matrix, unformatted_ma
           update_function, type_id = update_function_tup 
           co_occurring_event = event_comb[update_function_tup_index]
 
-          if (type_id, co_occurring_event) in keys(co_occurring_events_dict)
-            push!(co_occurring_events_dict[(type_id, co_occurring_event)], update_function)
+          if occursin("removeObj", update_function) && co_occurring_event == "true"
+            co_occurring_events_dict[(type_id, "(== 1 1)")] = [update_function]            
           else
-            co_occurring_events_dict[(type_id, co_occurring_event)] = [update_function]
+            if (type_id, co_occurring_event) in keys(co_occurring_events_dict)
+              push!(co_occurring_events_dict[(type_id, co_occurring_event)], update_function)
+            else
+              co_occurring_events_dict[(type_id, co_occurring_event)] = [update_function]
+            end
           end
         end
 
@@ -361,8 +365,16 @@ function generate_on_clauses_SKETCH_MULTI(run_id, random, matrix, unformatted_ma
           @show object_specific_update_functions_dict 
 
           if length(collect(keys(global_update_functions_dict))) > 0 
-            for tuple in collect(keys(global_update_functions_dict))
-              type_id, co_occurring_event = tuple 
+            tuples = collect(keys(global_update_functions_dict))
+            multi_id_tuples = sort(filter(t -> t[1] isa Tuple, tuples), by=x -> length(x[2]))
+            single_id_tuples = sort(filter(t -> !(t[1] isa Tuple), tuples), by=x -> length(x[2]))
+            single_id_tuples_with_remove = filter(t -> occursin("removeObj", join(global_update_functions_dict[t], "")), single_id_tuples)
+            single_id_tuples_without_remove = filter(t -> !occursin("removeObj", join(global_update_functions_dict[t], "")), single_id_tuples)
+            sorted_tuples = vcat(multi_id_tuples..., single_id_tuples_without_remove..., single_id_tuples_with_remove...)
+
+            for tuple in sorted_tuples
+              type_id, co_occurring_event = tuple   
+
               update_functions = global_update_functions_dict[tuple]
 
               if type_id isa Tuple 
@@ -370,12 +382,20 @@ function generate_on_clauses_SKETCH_MULTI(run_id, random, matrix, unformatted_ma
               else
                 object_ids_with_type = filter(k -> filter(obj -> !isnothing(obj), object_mapping[k])[1].type.id == type_id, collect(keys(object_mapping)))
               end
-    
+              
+              # println("WOAHHHH")
+              # @show type_id 
+              # @show object_ids_with_type
+              # @show co_occurring_event 
+              # @show update_functions 
+
               # construct update_function_times_dict for this type_id/co_occurring_event pair 
               times_dict = Dict() # form: update function => object_id => times when update function occurred for object_id
               for update_function in update_functions 
                 times_dict[update_function] = Dict(map(id -> id => findall(r -> r == update_function, vcat(anonymized_filtered_matrix[id, :]...)), object_ids_with_type))
               end
+
+              # @show times_dict 
 
               if foldl(&, map(update_rule -> occursin("addObj", update_rule), update_functions))
                 object_trajectories = map(id -> anonymized_filtered_matrix[id, :], filter(k -> filter(obj -> !isnothing(obj), object_mapping[k])[1].type.id in collect(type_id), collect(keys(object_mapping))))
@@ -405,7 +425,9 @@ function generate_on_clauses_SKETCH_MULTI(run_id, random, matrix, unformatted_ma
                 ordered_update_functions = ordered_update_functions_dict[type_id]
               end
 
+              # state_solutions = generate_global_multi_automaton_sketch_multi_trace(run_id, co_occurring_event, times_dict, global_event_vector_dict, object_trajectory, Dict(), Dict(1 => ["" for x in 1:length(user_events)]), object_decomposition, type_id, desired_per_matrix_solution_count, sketch_timeout, false, ordered_update_functions, transition_distinct, transition_same, transition_threshold, stop_times=stop_times, linked_ids=linked_ids)
               state_solutions = generate_global_multi_automaton_sketch(run_id, co_occurring_event, times_dict, global_event_vector_dict, object_trajectory, Dict(), Dict(1 => ["" for x in 1:length(user_events)]), object_decomposition, type_id, desired_per_matrix_solution_count, sketch_timeout, false, ordered_update_functions, transition_distinct, transition_same, transition_threshold, stop_times=stop_times)
+              
               @show state_solutions 
               if state_solutions == [] || state_solutions[1][1] == []
                 # println("MULTI-AUTOMATA SKETCH FAILURE")
@@ -510,7 +532,16 @@ function generate_on_clauses_SKETCH_MULTI(run_id, random, matrix, unformatted_ma
           @show object_specific_update_functions_dict
           @show observation_vectors_dict
           if length(collect(keys(object_specific_update_functions_dict))) > 0 
-            for tuple in collect(keys(object_specific_update_functions_dict)) 
+
+            tuples = collect(keys(object_specific_update_functions_dict))
+            multi_id_tuples = sort(filter(t -> t[1] isa Tuple, tuples), by=x -> length(x[2]))
+            single_id_tuples = sort(filter(t -> !(t[1] isa Tuple), tuples), by=x -> length(x[2]))
+            single_id_tuples_with_remove = filter(t -> occursin("removeObj", join(object_specific_update_functions_dict[t], "")), single_id_tuples)
+            single_id_tuples_without_remove = filter(t -> !occursin("removeObj", join(object_specific_update_functions_dict[t], "")), single_id_tuples)
+            sorted_tuples = vcat(multi_id_tuples..., single_id_tuples_without_remove..., single_id_tuples_with_remove...)
+
+
+            for tuple in sorted_tuples
               type_id, co_occurring_event = tuple
               object_specific_update_functions = object_specific_update_functions_dict[tuple]
 
@@ -687,6 +718,14 @@ function generate_global_multi_automaton_sketch(run_id, co_occurring_event, time
     end
   end
 
+  object_ids_with_type = filter(k -> filter(obj -> !isnothing(obj), object_mapping[k])[1].type.id == type_id, collect(keys(object_mapping)))
+  if length(object_ids_with_type) != 1 
+    for e in keys(small_event_vector_dict)
+      if !isnothing(match(r"obj\d+", e)) && occursin("origin", e) # || occursin("up", e) || occursin("left", e) # !occursin("clicked", e) && !occursin("intersects", e)
+        delete!(small_event_vector_dict, e)
+      end
+    end
+  end
 
   co_occurring_event_trajectory = event_vector_dict[co_occurring_event]
   @show co_occurring_event_trajectory
@@ -754,6 +793,8 @@ function generate_global_multi_automaton_sketch(run_id, co_occurring_event, time
     push!(all_stop_var_values, stop_var_value)
     stop_var_value += 1
   end
+
+  @show all_stop_var_values
 
   init_augmented_positive_times = sort(vcat(augmented_true_positive_times, augmented_false_positive_times, augmented_stop_times), by=x -> x[1])
   # init_augmented_positive_times = sort(vcat(augmented_true_positive_times, augmented_false_positive_times), by=x -> x[1])
@@ -950,23 +991,54 @@ function generate_global_multi_automaton_sketch(run_id, co_occurring_event, time
     min_transitions = length(unique(filter(x -> (x[1] != x[2]) && x[1] != "0" && x[2] != "0", collect(zip(sketch_update_function_arr, vcat(sketch_update_function_arr[2:end], -1)))))) - 1
     start_state = sketch_update_function_arr[1]
 
-    sketch_program = """ 
-    include "$(local_sketch_directory)string.skh"; 
-    include "$(local_sketch_directory)mstatemachine.skh";
+    if stop_times == []
+      sketch_program = """ 
+      include "$(local_sketch_directory)string.skh"; 
+      include "$(local_sketch_directory)mstatemachine.skh";
+  
+      bit recognize([int n], char[n] events, int[n] functions, char true_char, int min_states, int min_transitions, int start){
+          return matches(MSM(events, true_char, min_states, min_transitions, start), functions);
+      }
+  
+      harness void h() {
+        assert recognize( { $(join(map(c -> "'$(c)'", sketch_event_arr), ", ")) }, 
+                          { $(join(sketch_update_function_arr, ", ")) }, 
+                          '$(true_char)',
+                          $(min_states),
+                          $(min_transitions),
+                          $(start_state));
+      }
+      """  
+    else
+      stop_times_for_sketch = map(t -> t - 1, stop_times)
+      min_stop_val = minimum(all_stop_var_values) 
+      desired_out = map(x -> parse(Int, x), sketch_update_function_arr)
 
-    bit recognize([int n], char[n] events, int[n] functions, char true_char, int min_states, int min_transitions, int start){
-        return matches(MSM(events, true_char, min_states, min_transitions, start), functions);
-    }
+      @show stop_times_for_sketch 
+      @show min_stop_val 
+      @show desired_out
 
-    harness void h() {
-      assert recognize( { $(join(map(c -> "'$(c)'", sketch_event_arr), ", ")) }, 
-                        { $(join(sketch_update_function_arr, ", ")) }, 
-                        '$(true_char)',
-                        $(min_states),
-                        $(min_transitions),
-                        $(start_state));
-    }
-    """
+      sketch_program = """ 
+      include "$(local_sketch_directory)string.skh"; 
+      include "$(local_sketch_directory)mstatemachine_stops.skh";
+  
+      bit recognize([int n, int p], char[n] events, int[n] functions, char true_char, int min_states, int min_transitions, int start, int[p] stop_times, int min_stop_val, int[n] desired_out){
+          return matches(MSM(events, true_char, min_states, min_transitions, start, stop_times, min_stop_val, desired_out), functions);
+      }
+  
+      harness void h() {
+        assert recognize( { $(join(map(c -> "'$(c)'", sketch_event_arr), ", ")) }, 
+                          { $(join(sketch_update_function_arr, ", ")) }, 
+                          '$(true_char)',
+                          $(min_states),
+                          $(min_transitions),
+                          $(start_state),
+                          { $(join(stop_times_for_sketch, ", ")) },
+                          $(min_stop_val),
+                          { $(join(desired_out, ", ")) });
+      }
+      """
+    end
 
     # save sketch program 
     sketch_file_name = "multi_automata_sketch_$(run_id).sk"
@@ -1169,7 +1241,7 @@ function generate_object_specific_multi_automaton_sketch(run_id, co_occurring_ev
 
   small_event_vector_dict = deepcopy(event_vector_dict)    
   for e in keys(event_vector_dict)
-    if !(e in atomic_events) # && foldl(|, map(x -> occursin(x, e), atomic_events))
+    if occursin("adj", e) || !(e in atomic_events) # && foldl(|, map(x -> occursin(x, e), atomic_events))
       delete!(small_event_vector_dict, e)
     else
       object_specific_event_with_wrong_type = !(event_vector_dict[e] isa AbstractArray) && (Set(collect(keys(event_vector_dict[e]))) != Set(object_ids))
@@ -1255,7 +1327,7 @@ function generate_object_specific_multi_automaton_sketch(run_id, co_occurring_ev
     augmented_false_positive_times = map(t -> (t, max_state_value + 1), false_positive_times)
     augmented_positive_times = sort(vcat(augmented_true_positive_times, augmented_false_positive_times), by=x -> x[1])
 
-    max_v = maximum(map(tup -> tup[2], augmented_positive_times))
+    max_v = maximum(vcat(max_v, map(tup -> tup[2], augmented_positive_times)...))
     augmented_positive_times_dict[object_id] = augmented_positive_times 
   end
 
@@ -1276,6 +1348,8 @@ function generate_object_specific_multi_automaton_sketch(run_id, co_occurring_ev
     augmented_positive_times_dict[object_id] = augmented_positive_times
   end
   unique!(all_stop_var_values)
+  @show all_stop_var_values
+  @show augmented_positive_times_dict
 
   # println("# check state_update_times again 4")
   @show state_update_times 
@@ -1315,7 +1389,7 @@ function generate_object_specific_multi_automaton_sketch(run_id, co_occurring_ev
       events_in_range = []
       if events_in_range == [] # if no global events are found, try object-specific events 
         if (start_value in all_stop_var_values)
-          events_in_range = [("(== (prev fake_time) $(time_ranges[1][1] - 1))", [(time_ranges[1][1], id) for id in object_ids])]
+          events_in_range = [("(== (prev fake_time) $(time_ranges[1][1]))", [(time_ranges[1][1], id) for id in object_ids])]
         elseif (end_value in all_stop_var_values)
           events_in_range = [("(== (prev fake_time) $(time_ranges[1][2]))", [(time_ranges[1][2], id) for id in object_ids])]
         else
@@ -1404,24 +1478,57 @@ function generate_object_specific_multi_automaton_sketch(run_id, co_occurring_ev
     @show distinct_events 
     @show sketch_event_arrs_dict_formatted
 
-    sketch_program = """ 
-    include "$(local_sketch_directory)string.skh"; 
-    include "$(local_sketch_directory)mstatemachine.skh";
-    
-    bit recognize_obj_specific([int n], char[n] events, int[n] functions, int start, char true_char, int min_states, int min_transitions) {
-        return matches(MSM_obj_specific(events, start, true_char, min_states, min_transitions), functions);
-    }
+    if stop_times == [] 
+      sketch_program = """ 
+      include "$(local_sketch_directory)string.skh"; 
+      include "$(local_sketch_directory)mstatemachine.skh";
+      
+      bit recognize_obj_specific([int n], char[n] events, int[n] functions, int start, char true_char, int min_states, int min_transitions) {
+          return matches(MSM_obj_specific(events, start, true_char, min_states, min_transitions), functions);
+      }
+  
+      $(join(map(i -> """harness void h$(i)() {
+                            int start = ??;
+                            assert recognize_obj_specific({ $(join(map(c -> "'$(c)'", sketch_event_arrs_dict_formatted[object_ids[i]]), ", ")) }, 
+                                                          { $(join(sketch_update_function_arr[object_ids[i]], ", ")) }, 
+                                                          start, 
+                                                          '$(true_char)',
+                                                          $(min_states_dict[object_ids[i]]),
+                                                          $(min_transitions_dict[object_ids[i]]));
+                          }""", collect(1:length(object_ids))), "\n\n"))
+      """
+    else
+      stop_times_for_sketch = map(t -> t - 1, stop_times)
+      min_stop_val = minimum(all_stop_var_values) 
+      desired_out_dict = Dict(map(id -> id => map(x -> parse(Int, x), sketch_update_function_arr[id]), object_ids))
 
-    $(join(map(i -> """harness void h$(i)() {
-                          int start = ??;
-                          assert recognize_obj_specific({ $(join(map(c -> "'$(c)'", sketch_event_arrs_dict_formatted[object_ids[i]]), ", ")) }, 
-                                                        { $(join(sketch_update_function_arr[object_ids[i]], ", ")) }, 
-                                                        start, 
-                                                        '$(true_char)',
-                                                        $(min_states_dict[object_ids[i]]),
-                                                        $(min_transitions_dict[object_ids[i]]));
-                        }""", collect(1:length(object_ids))), "\n\n"))
-    """
+      @show stop_times_for_sketch 
+      @show min_stop_val 
+      @show desired_out_dict
+      @show all_stop_var_values
+
+      sketch_program = """ 
+      include "$(local_sketch_directory)string.skh"; 
+      include "$(local_sketch_directory)mstatemachine_stops.skh";
+      
+      bit recognize_obj_specific([int n, int p], char[n] events, int[n] functions, int start, char true_char, int min_states, int min_transitions, int[p] stop_times, int min_stop_val, int[n] desired_out) {
+          return matches(MSM_obj_specific(events, start, true_char, min_states, min_transitions, stop_times, min_stop_val, desired_out), functions);
+      }
+  
+      $(join(map(i -> """harness void h$(i)() {
+                            int start = ??;
+                            assert recognize_obj_specific({ $(join(map(c -> "'$(c)'", sketch_event_arrs_dict_formatted[object_ids[i]]), ", ")) }, 
+                                                          { $(join(sketch_update_function_arr[object_ids[i]], ", ")) }, 
+                                                          start, 
+                                                          '$(true_char)',
+                                                          $(min_states_dict[object_ids[i]]),
+                                                          $(min_transitions_dict[object_ids[i]]),
+                                                          { $(join(stop_times_for_sketch, ", ")) },
+                                                          $(min_stop_val),
+                                                          { $(join(desired_out_dict[i], ", ")) });
+                          }""", collect(1:length(object_ids))), "\n\n"))
+      """
+    end
 
     ## save sketch program as file 
     sketch_file_name = "multi_automata_sketch_$(run_id).sk"
