@@ -278,8 +278,8 @@ function synthesize_update_functions_bulk(possible_rules_matrix, object_decompos
 
   # Threads.@threads 
   for time in 1:size(matrix)[2]
-    @show time
-    @show Dates.now()
+    # @show time
+    # @show Dates.now()
     possible_rules = possible_rules_matrix[:, time]
     possible_rules_autumn = map(l -> filter(r -> (occursin("closest", r) || occursin("farthest", r) || occursin("NoCollision", r)) && !occursin("addObj", r) && !occursin("removeObj", r), l), possible_rules)
     possible_rules_non_autumn = map(l -> filter(r -> !(occursin("closest", r) || occursin("farthest", r) || occursin("NoCollision", r)), l), possible_rules)
@@ -297,9 +297,9 @@ function synthesize_update_functions_bulk(possible_rules_matrix, object_decompos
           push!(unformatted_matrix[object_id, time], rules...)
         else
           # println("HERE?")
-          @show rules 
-          @show object_id 
-          @show time 
+          # @show rules 
+          # @show object_id 
+          # @show time 
           for update_rule in rules
             update_rule = replace(update_rule, "objX" => "obj$(object_id)")
             equals = false
@@ -379,13 +379,13 @@ function synthesize_update_functions_bulk(possible_rules_matrix, object_decompos
           next_object = object_mapping[object_id][time + 1]
           equals = render_equals(hypothesis_object, next_object, hypothesis_frame_state)
           if equals 
-            @show object_id 
-            # @show equals 
+            # @show object_id 
+            # # @show equals 
             # format update function appropriately 
             update_rule = update_rules[i]    
             contained_in_list = isnothing(object_mapping[object_id][1]) || (count(id -> (filter(x -> !isnothing(x), object_mapping[id]))[1].type.id == object_mapping[object_id][1].type.id, collect(keys(object_mapping))) > 1)
 
-            @show update_rule
+            # # @show update_rule
             if occursin("closest", update_rule) && !occursin("null", update_rule) && displacement(object_mapping[object_id][time].position, next_object.position) != (0, 0)
               
               if occursin("closestLeft", update_rule)
@@ -461,7 +461,7 @@ function synthesize_update_functions_bulk(possible_rules_matrix, object_decompos
               null_functions = map(i -> closest_update_functions_with_null[i], indices_null)
 
               invalid_choice = true 
-              @show update_func
+              # @show update_func
               scalar = parse(Int, replace(split(split(update_func, " \"darkgray\")")[1], " ")[end], ")" => "")) 
 
               for index in indices # if there exists at least one (moveNoCollision closest$(dir)) function causing (0, 0) disp without a corresponding "null" version causing (0, 0) disp, success!
@@ -482,9 +482,9 @@ function synthesize_update_functions_bulk(possible_rules_matrix, object_decompos
 
               end
 
-              @show update_func 
-              @show invalid_choice
-              @show c
+              # @show update_func 
+              # @show invalid_choice
+              # @show c
 
               if invalid_choice 
                 filter!(r -> r != update_func, closest_update_functions_collapsed)
@@ -510,8 +510,8 @@ function synthesize_update_functions_bulk(possible_rules_matrix, object_decompos
           old_farthest_update_functions_collapsed = deepcopy(farthest_update_functions_collapsed)
           for update_func in unique(old_farthest_update_functions_collapsed)
             c = count(x -> x == update_func, old_farthest_update_functions_collapsed)
-            @show update_func
-            @show c
+            # @show update_func
+            # @show c
             if c != 4 
               indices = findall(x -> x == update_func, old_farthest_update_functions_collapsed)
               indices_null = findall(x -> x == update_func, farthest_update_functions_with_null_collapsed)
@@ -530,8 +530,8 @@ function synthesize_update_functions_bulk(possible_rules_matrix, object_decompos
                   invalid_choice = false 
                 end
 
-                @show func 
-                @show invalid_choice
+                # @show func 
+                # @show invalid_choice
 
                 if !invalid_choice 
                   break
@@ -572,20 +572,20 @@ function synthesize_update_functions(object_id, time, object_decomposition, user
   object_type = filter(o -> !isnothing(o), object_mapping[object_id])[1].type
 
   if length(unique(map(k -> length(object_mapping[k]), collect(keys(object_mapping))))) != 1 
-    # # @show object_mapping
+    # # # @show object_mapping
     # # println("TERRIBLE WHAT")
   end
 
-  # # @show object_id 
-  # # @show time
+  # # # @show object_id 
+  # # # @show time
   prev_object = object_mapping[object_id][time - 1]
   
   next_object = object_mapping[object_id][time]
-  ## # @show object_id 
-  ## # @show time
-  ## # @show prev_object 
-  ## # @show next_object
-  # # # @show isnothing(prev_object) && isnothing(next_object)
+  ## # # @show object_id 
+  ## # # @show time
+  ## # # @show prev_object 
+  ## # # @show next_object
+  # # # # @show isnothing(prev_object) && isnothing(next_object)
   if isnothing(prev_object) && isnothing(next_object)
     if pedro 
       return [""]
@@ -609,14 +609,14 @@ function synthesize_update_functions(object_id, time, object_decomposition, user
     prev_objects = vcat(prev_existing_objects..., prev_removed_objects...)
 
     # # println("HELLO")
-    # # @show prev_objects
+    # # # @show prev_objects
     prev_objects_not_listed = filter(x -> !isnothing(object_mapping[x.id][1]) && count(k -> filter(y -> !isnothing(y), object_mapping[k])[1].type.id == x.type.id, collect(keys(object_mapping))) == 1, prev_objects)
     abstracted_positions, prev_abstract_positions = abstract_position(next_object.position, prev_abstract_positions, user_events[time - 1], (object_types, sort(prev_objects_not_listed, by = x -> x.id), background, grid_size), object_mapping, time - 1, pedro)
     # abstracted_positions = [abstracted_positions..., "(uniformChoice (randomPositions $(grid_size) 1))"]
     
-    @show time 
-    @show next_object.position 
-    @show abstracted_positions 
+    # @show time 
+    # @show next_object.position 
+    # @show abstracted_positions 
 
     # add uniformChoice option
     matching_objects = filter(o -> o.position == next_object.position, prev_existing_objects)
@@ -650,14 +650,14 @@ function synthesize_update_functions(object_id, time, object_decomposition, user
                                                                         (o.position[1], o.position[2])], prev_existing_objects_of_type)
 
           if (pedro_matching_objects != []) && (isnothing(object_mapping[pedro_matching_objects[1].id][1]) || !(pedro_matching_objects[1].type.id in map(x -> x.type.id, prev_objects_not_listed))) 
-            @show scalar 
-            @show time
-            @show pedro_matching_objects 
+            # @show scalar 
+            # @show time
+            # @show pedro_matching_objects 
             first_matching_object = pedro_matching_objects[1]
             disps = map(o -> (next_object.position[1] - o.position[1], next_object.position[2] - o.position[2]), [first_matching_object])      
             abstracted_position = "(.. (uniformChoice $(join(map(disp -> "(map (--> obj (.. (move obj (Position $(disp[1]) $(disp[2]))) origin)) (prev addedObjType$(first_matching_object.type.id)List))", disps), " ")) ) origin)"
             # # println("RANDOM ABSTRACTIONS!")
-            @show abstracted_position 
+            # @show abstracted_position 
             push!(abstracted_positions, abstracted_position)
 
             # disp = (next_object.position[1] - matching_object.position[1], next_object.position[2] - matching_object.position[2]) 
@@ -750,7 +750,7 @@ function synthesize_update_functions(object_id, time, object_decomposition, user
 
     prev_objects = vcat(prev_existing_objects..., prev_removed_objects...)
 
-    ## # @show prev_objects
+    ## # # @show prev_objects
     solutions = []
     unformatted_solutions = []
     iters = 0
@@ -898,8 +898,8 @@ function synthesize_update_functions(object_id, time, object_decomposition, user
         max_iters = length(prev_used_rules)
         sort!(prev_used_rules)
         # # println("PEDRO LOOK HERE")
-        @show prev_used_rules 
-        @show max_iters
+        # @show prev_used_rules 
+        # @show max_iters
         return unique(prev_used_rules)
       end 
 
@@ -908,10 +908,10 @@ function synthesize_update_functions(object_id, time, object_decomposition, user
         update_rule = """(= obj$(object_id) (updateObj obj$(object_id) "color" "$(next_object.custom_field_values[1])"))"""
       elseif prev_used_rules_index <= length(prev_used_rules)
         update_rule = replace(prev_used_rules[prev_used_rules_index], "objX" => "obj$(object_id)")
-        @show update_rule
+        # # @show update_rule
         using_prev = true
         prev_used_rules_index += 1
-        # # @show prev_used_rules_index
+        # # # @show prev_used_rules_index
       else
         if pedro 
           break
@@ -920,10 +920,10 @@ function synthesize_update_functions(object_id, time, object_decomposition, user
         using_prev = false
         update_rule = generate_hypothesis_update_rule(prev_object, (object_types, prev_objects, background, grid_size), p=0.0) # "(= obj1 (moveDownNoCollision (moveDownNoCollision (prev obj1))))"
         # # println("IS THIS THE REAL LIFE")
-        # # @show update_rule 
+        # # # # @show update_rule 
       end 
-      @show time      
-      @show update_rule 
+      # # @show time      
+      # # @show update_rule 
       if occursin("NoCollision", update_rule) || occursin("closest", update_rule) || occursin("farthest", update_rule) || occursin("nextLiquid", update_rule) || occursin("color", update_rule)
         hypothesis_program = string(hypothesis_program[1:end-2], "\n\t (on true\n", update_rule, ")\n)")
         println("HYPOTHESIS_PROGRAM")
@@ -932,17 +932,17 @@ function synthesize_update_functions(object_id, time, object_decomposition, user
         # println(prev_object)
         println(hypothesis_program)
         # push!(lol_programs, hypothesis_program)
-        # # # @show global_iters
-        # # # @show update_rule
+        # # # # @show global_iters
+        # # # # # @show update_rule
   
         expr = parseautumn(hypothesis_program)
         # global expr = striplines(compiletojulia(parseautumn(hypothesis_program)))
         hypothesis_frame_state = interpret_over_time(expr, 1).state
         
-        # # @show hypothesis_frame_state
+        # # # @show hypothesis_frame_state
         hypothesis_object = filter(o -> o.id == object_id, hypothesis_frame_state.scene.objects)[1]
-        ## # @show hypothesis_frame_state.scene.objects
-        ## # @show hypothesis_object
+        ## # # @show hypothesis_frame_state.scene.objects
+        ## # # @show hypothesis_object
         println("render_equals_begin")
         equals = render_equals(hypothesis_object, next_object, hypothesis_frame_state)
         println("render_equals_end")
@@ -959,7 +959,7 @@ function synthesize_update_functions(object_id, time, object_decomposition, user
           equals = false
         end        
       end
-      # @show equals 
+      # # @show equals 
       if equals
         if using_prev
           # # println("HOORAY")
@@ -1383,21 +1383,21 @@ function compute_closest_objects(curr_objects, next_objects, object_mapping, tim
     # if the object type has a color field, order tuples with a same-color closest next object before those without one
     if length([curr_objects..., next_objects...][1].type.custom_fields) == 0 # no color field
       # println("WOO")
-      @show time 
-      @show equal_distance_dict
+      # # @show time 
+      # # @show equal_distance_dict
       for key in sort(collect(keys(equal_distance_dict)))
         new_tuples = sort_with_velocity_bias(equal_distance_dict[key], curr_objects, next_objects, object_mapping, time)
         sorted_tuples = sort(new_tuples, by=tuple -> intersect(filter(o -> o.id == tuple[1], curr_objects)[1].position, (0, (grid_size isa AbstractArray ? grid_size .- 1 : [grid_size - 1])...)) == [] ? 0 : 1)
         equal_distance_dict[key] = sorted_tuples
       end
-      @show equal_distance_dict
+      # # @show equal_distance_dict
       
       closest_objects = vcat(map(key -> equal_distance_dict[key], sort(collect(keys(equal_distance_dict))))...)
     else # color field
       closest_objects = []
       for key in sort(collect(keys(equal_distance_dict)))
-        # # @show key 
-        # # @show equal_distance_dict[key]
+        # # # @show key 
+        # # # @show equal_distance_dict[key]
 
         next_objects_length_dict = Dict() 
         
@@ -1430,18 +1430,18 @@ function compute_closest_objects(curr_objects, next_objects, object_mapping, tim
 
     # closest_objects = sort(closest_objects, by=x -> distance(filter(o -> o.id == x[1], curr_objects)[1].position, filter(o -> o.id == x[2][1], next_objects)[1].position))
     
-    # # # # @show vcat(zero_distance_objects, closest_objects)
+    # # # # # @show vcat(zero_distance_objects, closest_objects)
     vcat(zero_distance_objects, closest_objects)  
   end
 end
 
 function sort_with_velocity_bias(tuples, curr_objects, next_objects, object_mapping, time) 
   # println("sort_with_velocity_bias")
-  @show tuples 
-  @show curr_objects 
-  @show next_objects 
-  @show object_mapping 
-  @show time
+  # @show tuples 
+  # @show curr_objects 
+  # @show next_objects 
+  # @show object_mapping 
+  # @show time
   # tuple structure: (object_id, [list of closest object_id's])
   tuples_with_matching_velocity = []
   tuples_without_matching_velocity = []
@@ -1466,6 +1466,7 @@ function sort_with_velocity_bias(tuples, curr_objects, next_objects, object_mapp
 
   vcat(tuples_with_matching_velocity, tuples_without_matching_velocity)
 end
+
 function distance(pos1, pos2)
   pos1_x, pos1_y = pos1
   pos2_x, pos2_y = pos2
@@ -1977,7 +1978,7 @@ function generate_on_clauses(matrix, unformatted_matrix, object_decomposition, u
         @show type_id 
         @show all_update_rules
         for update_rule_index in context_update_rule_index:length(all_update_rules)
-          # @show update_rule_index 
+          # # @show update_rule_index 
           # @show length(all_update_rules)
           update_rule = all_update_rules[update_rule_index]
           # # @show global_object_decomposition
@@ -1998,7 +1999,7 @@ function generate_on_clauses(matrix, unformatted_matrix, object_decomposition, u
               on_clauses = unique(on_clauses)
               # # println("ADDING EVENT WITHOUT NEW STATE")
               @show event 
-              @show update_rule
+              # @show update_rule
               @show on_clause
               @show length(on_clauses)
               @show on_clauses
@@ -2062,7 +2063,7 @@ function generate_on_clauses(matrix, unformatted_matrix, object_decomposition, u
                   on_clauses = unique(on_clauses)
 
                   # # println("ADDING EVENT WITH NEW STATE")
-                  @show update_rule
+                  # @show update_rule
                   @show on_clause
                   @show length(on_clauses)
                   @show on_clauses    
@@ -4667,7 +4668,7 @@ end
 # generation of new global state 
 function generate_new_state(update_rule, update_function_times, event_vector_dict, object_trajectory, init_global_var_dict, state_update_times_dict, object_decomposition, type_id, desired_per_matrix_solution_count, interval_painting_param)
   # # println("GENERATE_NEW_STATE")
-  @show update_rule 
+  # @show update_rule 
   @show update_function_times
   @show event_vector_dict 
   @show object_trajectory    
@@ -5109,7 +5110,7 @@ end
 
 function generate_new_object_specific_state(update_rule, update_function_times_dict, event_vector_dict, type_id, object_decomposition, init_state_update_times, global_var_dict)
   # # println("GENERATE_NEW_OBJECT_SPECIFIC_STATE")
-  @show update_rule
+  # @show update_rule
   @show update_function_times_dict
   @show event_vector_dict
   @show type_id 
@@ -5458,7 +5459,7 @@ function generate_new_object_specific_state(update_rule, update_function_times_d
     end
     new_object_decomposition = new_object_types, new_object_mapping, background, grid_size
 
-    @show new_object_decomposition
+    # @show new_object_decomposition
 
     formatted_co_occurring_event = replace(co_occurring_event, "(filter (--> obj (== (.. obj id) x)) (prev addedObjType$(type_id)List))" => "(list (prev obj))")
     if !occursin("field1", formatted_co_occurring_event)
@@ -5529,7 +5530,7 @@ function format_on_clause_full_program(on_clause, object_decomposition, matrix)
 end
 
 function full_program_given_on_clauses(on_clauses, new_object_decomposition, global_var_dict, grid_size, matrix)
-  @show new_object_decomposition
+  # @show new_object_decomposition
   object_types, object_mapping, background, _ = new_object_decomposition
 
   # for object_id in object_ids

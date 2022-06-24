@@ -832,7 +832,7 @@ function gen_event_bool(object_decomposition, object_id, type_id, update_rule, u
   # # @show object_decomposition 
   # @show object_id 
   # @show type_id 
-  # @show update_rule 
+  # # @show update_rule 
   # @show user_events 
   # @show global_var_dict 
   

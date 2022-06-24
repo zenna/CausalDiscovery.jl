@@ -448,7 +448,7 @@ end
 
 function generate_global_automaton_sketch(run_id, update_rule, update_function_times, event_vector_dict, object_trajectory, init_global_var_dict, state_update_times_dict, object_decomposition, type_id, type_displacements, interval_offsets, source_exists_events_dict, filtered_matrix, desired_per_matrix_solution_count, interval_painting_param, addObj_based_list, double_removeObj_update_functions, linked_removeObj_update_functions, sketch_timeout=0, ordered_update_functions=[], global_update_functions = [], co_occurring_param=false, co_occurring_distinct=1, co_occurring_same=1, co_occurring_threshold=1, transition_distinct=1, transition_same=1, transition_threshold=1; stop_times=[])
   println("GENERATE_NEW_STATE_SKETCH")
-  @show update_rule 
+  # @show update_rule 
   @show update_function_times
   # @show event_vector_dict 
   @show object_trajectory    
@@ -687,7 +687,7 @@ function generate_global_automaton_sketch(run_id, update_rule, update_function_t
     state_update_times_dict = deepcopy(init_state_update_times_dict)
     
     # println("HERE WE GO")
-    # @show update_rule 
+    # # @show update_rule 
     # @show augmented_positive_times
 
     num_transition_decisions = length(init_grouped_ranges)
@@ -1704,7 +1704,7 @@ end
 
 function generate_object_specific_automaton_sketch(run_id, update_rule, update_function_times_dict, event_vector_dict, type_id, filtered_matrix, object_decomposition, init_state_update_times, global_var_dict, type_displacements, interval_offsets, source_exists_events_dict, addObj_based_list, double_removeObj_update_functions, linked_removeObj_update_functions, sketch_timeout, co_occurring_param=false, co_occurring_distinct=1, co_occurring_same=1, co_occurring_threshold=1, transition_distinct=1, transition_same=1, transition_threshold=1; stop_times=[])
   # println("GENERATE_NEW_OBJECT_SPECIFIC_STATE")
-  # @show update_rule
+  # # @show update_rule
   # @show update_function_times_dict
   # @show event_vector_dict
   # @show type_id 

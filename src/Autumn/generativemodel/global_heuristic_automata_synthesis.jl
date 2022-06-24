@@ -945,7 +945,7 @@ function generate_on_clauses_GLOBAL(run_id, matrix, unformatted_matrix, object_d
                   on_clauses = unique(on_clauses)
 
                   println("ADDING EVENT WITH NEW STATE")
-                  # @show update_rule
+                  # # @show update_rule
                   @show new_on_clauses
                   @show length(on_clauses)
                   @show on_clauses
@@ -1018,7 +1018,7 @@ function generate_on_clauses_GLOBAL(run_id, matrix, unformatted_matrix, object_d
                   println("BAD NAME CHOSEN")
                   @show new_on_clauses 
                   @show new_state_update_on_clauses 
-                  @show new_object_decomposition 
+                  # @show new_object_decomposition 
                   @show new_object_specific_state_update_times_dict
 
                   # # @show new_object_specific_state_update_times_dict
@@ -2002,7 +2002,7 @@ function generate_stateless_on_clauses(run_id, interval_offsets, source_exists_e
 
     update_functions = update_functions_dict[type_id]
     for update_rule in update_functions
-      # @show update_rule_index 
+      # # @show update_rule_index 
       # @show length(all_update_rules)
       # update_rule = all_update_rules[update_rule_index]
       # # @show global_object_decomposition
@@ -2024,7 +2024,7 @@ function generate_stateless_on_clauses(run_id, interval_offsets, source_exists_e
             # determine color
             println("HANDLING SPECIAL COLOR UPDATE CASE") 
             
-            @show update_rule 
+            # @show update_rule 
             @show event 
             
             color = split(split(update_rule, """ "color" """)[2], ")")[1]
@@ -2034,7 +2034,7 @@ function generate_stateless_on_clauses(run_id, interval_offsets, source_exists_e
               event = "(& $(event) (!= (.. (prev obj) color) $(color)))"
             end
             
-            @show update_rule
+            # @show update_rule
             @show event 
 
             on_clause = format_on_clause(replace(update_rule, ".. obj id) x" => ".. obj id) $(object_ids[1])"), replace(event, ".. obj id) x" => ".. obj id) $(object_ids[1])"), object_ids[1], object_ids, type_id, group_addObj_rules, addObj_rules, object_mapping, event_is_global, grid_size, addObj_count)
@@ -2046,7 +2046,7 @@ function generate_stateless_on_clauses(run_id, interval_offsets, source_exists_e
           new_on_clauses = unique(new_on_clauses)
           println("ADDING EVENT WITHOUT NEW STATE")
           @show event 
-          @show update_rule
+          # @show update_rule
           @show on_clause
           @show length(new_on_clauses)
           @show new_on_clauses
