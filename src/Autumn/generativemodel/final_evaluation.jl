@@ -112,13 +112,13 @@ function run_model(model_name::String, algorithm, iteration, desired_per_matrix_
 
     if singlecell
       if isnothing(singlecell_decomp)
-        decomp_time_single = @timed singletimestepsolution_matrix(observations, user_events, grid_size, singlecell=true, upd_func_space=6, multi_trace=multi_trace)
+        decomp_time_single = @timed singletimestepsolution_matrix(observations, user_events, grid_size, singlecell=true, upd_func_space=6, multiple_traces=multi_trace)
         singlecell_decomp = decomp_time_single.value 
         total_time += decomp_time_single.time
       end
     else
       if isnothing(multicell_decomp)
-        decomp_time_multi = @timed singletimestepsolution_matrix(observations, user_events, grid_size, singlecell=false, upd_func_space=6, multi_trace=multi_trace)
+        decomp_time_multi = @timed singletimestepsolution_matrix(observations, user_events, grid_size, singlecell=false, upd_func_space=6, multiple_traces=multi_trace)
         multicell_decomp = decomp_time_multi.value 
         total_time += decomp_time_multi.time
       end

@@ -1,4 +1,4 @@
-const saved_traces_directory = "/Users/riadas/Documents/urop/today_temp/CausalDiscovery.jl/saved/"
+const saved_traces_directory = "/Users/riadas/Documents/urop/today_temp/CausalDiscovery.jl/saved_test_traces/"
 
 # remove out-of-bounds cells from frames 
 function filter_out_of_bounds_cells(observations, grid_size) 
