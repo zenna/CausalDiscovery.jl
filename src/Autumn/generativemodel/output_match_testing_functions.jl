@@ -7,13 +7,13 @@ function check_observations_equivalence(observations1, observations2)
     obs1_tuples = sort(map(cell -> (cell.position.x, cell.position.y, cell.color), obs1), by=x -> repr(x))
     obs2_tuples = sort(map(cell -> (cell.position.x, cell.position.y, cell.color), obs2), by=x -> repr(x))
   
-    # # @show obs1_tuples 
-    # # @show obs2_tuples
+    # # # @show obs1_tuples 
+    # # # @show obs2_tuples
 
     if obs1_tuples != obs2_tuples
-      @show i
-      # # @show obs1_tuples 
-      # # @show obs2_tuples
+      # @show i
+      # # # @show obs1_tuples 
+      # # # @show obs2_tuples
       return false
     end
   end
