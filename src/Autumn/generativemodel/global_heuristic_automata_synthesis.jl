@@ -750,7 +750,12 @@ function re_order_on_clauses(on_clauses, ordered_update_functions_dict)
     for update_function in ordered_update_functions_list 
       # @show update_function
       if !is_no_change_rule(update_function)
-        matching_on_clause = filter(tup -> tup[2] == update_function, regular_on_clauses)[1][1]        
+        if occursin("addObj", update_function)
+          matching_on_clause = filter(tup -> occursin(update_function, tup[1]), regular_on_clauses)[1][1]        
+        else
+          matching_on_clause = filter(tup -> tup[2] == update_function, regular_on_clauses)[1][1]        
+        end
+        
         push!(ordered_on_clauses, matching_on_clause)
       end
     end
