@@ -1,5 +1,25 @@
 const saved_traces_directory = "/Users/riadas/Documents/urop/today_temp/CausalDiscovery.jl/saved_test_traces/"
 
+# function shorten(arr)
+#   indices_to_remove = []
+#   segment_length = 0 
+#   for i in 1:length(arr)
+#     if arr[i] == "nothing"
+#       segment_length += 1
+#     else
+#       segment_length = 0
+#     end
+
+#     if segment_length >= 2 
+#       push!(indices_to_remove, i)
+#     end
+#   end
+
+#   new_arr = [arr[i] for i in 1:length(arr) if !(i in indices_to_remove)]
+
+#   new_arr
+# end
+
 # remove out-of-bounds cells from frames 
 function filter_out_of_bounds_cells(observations, grid_size) 
   map(obs -> filter(cell -> cell.position.x in collect(0:(grid_size - 1)) && cell.position.y in collect(0:(grid_size - 1)), obs), observations)

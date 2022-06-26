@@ -590,6 +590,12 @@ function gen_event_bool(object_decomposition, object_id, type_id, update_rule, u
   
                 push!(choices, """(in (Position $(xCoord) $(yCoord)) (map (--> obj2 (displacement (.. obj2 origin) (if (== 0 (length $(filtered_list))) then (Position -10 -10) else (.. (first $(filtered_list)) origin)))) (filter (--> obj2 (== (.. obj2 color) "$(color)")) (prev addedObjType$(type.id)List))))""")
                 push!(choices, """(! (in (Position $(xCoord) $(yCoord)) (map (--> obj2 (displacement (.. obj2 origin) (if (== 0 (length $(filtered_list))) then (Position -10 -10) else (.. (first $(filtered_list)) origin)))) (filter (--> obj2 (== (.. obj2 color) "$(color)")) (prev addedObjType$(type.id)List)))))""")
+                
+                for dir in ["left", "right", "up", "down"]
+                  push!(choices, """(& $(dir) (in (Position $(xCoord) $(yCoord)) (map (--> obj2 (displacement (.. obj2 origin) (if (== 0 (length $(filtered_list))) then (Position -10 -10) else (.. (first $(filtered_list)) origin)))) (filter (--> obj2 (== (.. obj2 color) "$(color)")) (prev addedObjType$(type.id)List)))))""")
+                  push!(choices, """(& $(dir) (! (in (Position $(xCoord) $(yCoord)) (map (--> obj2 (displacement (.. obj2 origin) (if (== 0 (length $(filtered_list))) then (Position -10 -10) else (.. (first $(filtered_list)) origin)))) (filter (--> obj2 (== (.. obj2 color) "$(color)")) (prev addedObjType$(type.id)List))))))""")
+                end
+              
               end
 
             end
