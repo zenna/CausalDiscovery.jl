@@ -35,6 +35,7 @@ function run_multi_trace(model_name, singlecell=false, pedro=false; indices=[])
   solutions
 end
 
+
 function run_model(model_name::String, algorithm, iteration, desired_per_matrix_solution_count, desired_solution_count; multi_trace=false, indices=[])
   run_id = string(model_name, "_", algorithm)
   # build desired directory structure

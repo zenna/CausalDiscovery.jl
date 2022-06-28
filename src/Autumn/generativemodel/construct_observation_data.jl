@@ -238,10 +238,11 @@ function generate_observations_water_plug(m::Module)
   push!(observations, Base.invokelatest(m.render, state.scene))
 
   clicks = Dict([0 => (4, 5), # purple
-                 1 => (8, 3), # purple 
+                 1 => (0, 0), # purple (WAS (8, 3))
                  2 => (5, 0), # switch to yellow!
                  3 => (4, 5), # click same purple
                  5 => (6, 6), # yellow
+                 6 => (15, 0), # yellow (NEWLY ADDED)
                  7 => (7, 4), # yellow
                  8 => (8, 0), # switch to blue!
                  10 => (6, 10), # blue ...
@@ -253,7 +254,7 @@ function generate_observations_water_plug(m::Module)
                  16 => (8, 10),
                  17 => (9, 10),
                  19 => (6, 6), # click same yellow
-                 20 => (15, 15), # blue
+                 20 => (2, 0), # blue
                  22 => (11, 0), # erase yellow!
                  24 => (0, 14), # blue
                  26 => (5, 0), # switch to yellow 
@@ -265,9 +266,19 @@ function generate_observations_water_plug(m::Module)
                  34 => (2, 0), # click purple 
                  36 => (5, 5), # purple 
                  38 => (7, 8), # purple
+                 40 => (14, 0), # remove all
+                 41 => (14, 0), # remove all 
+                 42 => (0, 0),
+                 43 => (1, 0),
+                 44 => (1, 1),
+                 45 => (2, 1),
+                 46 => (3, 1),
+                 47 => (3, 0),
+                 48 => (4, 0),
+                 49 => (14, 0), # remove all 
                 ])
 
-  for i in 0:40
+  for i in 0:50
     if i in collect(keys(clicks))
       click_x, click_y = clicks[i]
       state = Base.invokelatest(m.next, state, Base.invokelatest(m.Click, click_x, click_y), nothing, nothing, nothing, nothing)
@@ -1719,7 +1730,7 @@ function generate_observations_gravity4(m::Module)
                  30 => (99, 8),
                 ])
 
-  for i in 0:46
+  for i in 0:41
     if i in collect(keys(clicks))
       click_x, click_y = clicks[i]
       state = Base.invokelatest(m.next, state, Base.invokelatest(m.Click, click_x, click_y), nothing, nothing, nothing, nothing)

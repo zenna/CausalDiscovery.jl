@@ -16,7 +16,7 @@ function generate_on_clauses_GLOBAL(run_id, random, matrix, unformatted_matrix, 
   # @show length(filtered_matrices)
 
   # filtered_matrices = filtered_matrices[22:22]
-  filtered_matrices = filtered_matrices[1:1]
+  # filtered_matrices = filtered_matrices[1:1]
   # filtered_matrices = filtered_matrices[2:2]
   # filtered_matrices = filtered_matrices[4:4]
   # filtered_matrices = filtered_matrices[6:6]
@@ -1698,7 +1698,7 @@ function generate_stateless_on_clauses(run_id, update_functions_dict, matrix, fi
     
     group_addObj_rules = false
     addObj_count = 0
-    if length(unique(collect(values(addObj_times_dict)))) == 1
+    if (length(unique(collect(values(addObj_times_dict)))) == 1) && occursin("randomPositions", join(unique_addObj_rules))
       group_addObj_rules = true
       all_update_rules = filter(r -> !(r in addObj_rules), all_update_rules)
       push!(all_update_rules, addObj_rules[1])
