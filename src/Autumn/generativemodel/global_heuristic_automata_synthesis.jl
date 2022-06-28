@@ -2256,7 +2256,7 @@ function generate_new_object_specific_state_GLOBAL(co_occurring_event, update_fu
 
     augmented_false_positive_times = map(t -> (t, max_state_value + 1), false_positive_times)
     augmented_positive_times = sort(vcat(augmented_true_positive_times, augmented_false_positive_times), by=x -> x[1])  
-    max_v = maximum(map(tup -> tup[2], augmented_positive_times))
+    max_v = maximum(vcat(map(tup -> tup[2], augmented_positive_times)..., max_v))
     augmented_positive_times_dict[object_id] = augmented_positive_times 
   end
 

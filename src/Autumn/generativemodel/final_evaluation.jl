@@ -37,7 +37,28 @@ include("test_synthesis.jl")
 #   end
 # end
 
-function run_pedro_model(model_name, state_synthesis_algorithm)
+function run_pedro_model(model_name; state_synthesis_algorithm="heuristic", multi_trace=false)
+  if multi_trace 
+    folder = string(pedro_interface_output_folder, "/", model_name)
+    if !isdir(folder)
+      files = reverse(sort(filter(x -> occursin(".json", x), readdir(folder))))
+      l = [] 
+      for i in 1:length(files)
+        push!(l, generate_observations_pedro_interface(model_name, i))
+      end
+      observations = map(tup -> tup[1], l)
+      user_events = map(tup -> tup[2], l)
+      grid_size = l[1][3]
+      return run_pedro_model_multi_trace(observations, user_events, grid_size, state_synthesis_algorithm)
+    else
+      return ""
+    end
+  else
+    return run_pedro_model_single_trace(model_name, state_synthesis_algorithm)
+  end
+end
+
+function run_pedro_model_single_trace(model_name, state_synthesis_algorithm)
   observations, user_events, grid_size = generate_observations_pedro_interface(model_name)
   matrix, unformatted_matrix, object_decomposition, prev_used_rules = singletimestepsolution_matrix(observations, user_events, grid_size, singlecell=true, pedro=true, upd_func_space=6)
   global_event_vector_dict = Dict()
@@ -45,7 +66,7 @@ function run_pedro_model(model_name, state_synthesis_algorithm)
   solutions = generate_on_clauses_GLOBAL(string(model_name, "_apr"), matrix, unformatted_matrix, object_decomposition, user_events, global_event_vector_dict, redundant_events_set, grid_size, state_synthesis_algorithm=state_synthesis_algorithm)
 end
 
-function run_pedro_model_multi_trace(observations, old_user_events, state_synthesis_algorithm)
+function run_pedro_model_multi_trace(observations, old_user_events, grid_size, state_synthesis_algorithm)
   stop_times = map(i -> length(observations[i]) + (i == 1 ? 0 : sum(map(j -> length(observations[j]), 1:(i - 1)))), 1:(length(observations) - 1))
   matrix, unformatted_matrix, object_decomposition, prev_used_rules = singletimestepsolution_matrix(observations, old_user_events, grid_size, singlecell=true, pedro=true, upd_func_space=6, multiple_traces=true)
   global_event_vector_dict = Dict()

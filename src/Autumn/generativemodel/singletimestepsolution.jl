@@ -3426,7 +3426,7 @@ function construct_regularity_matrix_old(matrix, unformatted_matrix, object_deco
   end
 end
 
-function construct_regularity_matrix(matrix, unformatted_matrix, object_decomposition, regularity_types, adjacency_barred) 
+function construct_regularity_matrix(matrix, unformatted_matrix, object_decomposition, regularity_types, adjacency_barred; stop_times=[]) 
   object_types, object_mapping, _, grid_size = object_decomposition 
 
   new_matrix = deepcopy(matrix) 
@@ -3453,6 +3453,9 @@ function construct_regularity_matrix(matrix, unformatted_matrix, object_decompos
       @show id 
       object_values = object_mapping[id]
       boundary_positions = findall(t -> isnothing(object_values[t]) || is_on_boundary(object_values[t], grid_size) || (adjacency_barred ? adjacent_to_other_objects(object_values[t], t, object_types, object_mapping) : false), 1:length(object_values))
+      
+      push!(boundary_positions, stop_times...)
+      
       @show boundary_positions
       continuous_segments_dict[id] = getindex.(Ref(object_values), UnitRange.([1; boundary_positions .+ 1], [boundary_positions .- 1; length(object_values)]))
       continuous_segments_dict[id] = filter(arr -> length(arr) > 0, continuous_segments_dict[id])
@@ -3481,73 +3484,82 @@ function construct_regularity_matrix(matrix, unformatted_matrix, object_decompos
         push!(actual_regularity_types, type)
         interval_size = minimum(interval_sizes) + 1
         @show interval_size
-        
-        all_nonzero_disp_times_across_ids = []
-        for id in object_ids_with_type 
-          first_nonzero_disp_times = filter(t -> !isnothing(object_mapping[id][t]) && !isnothing(object_mapping[id][t + 1]) && displacement(object_mapping[id][t].position, object_mapping[id][t + 1].position) != (0, 0),  collect(1:(length(object_mapping[id]) - 1)))
-          if first_nonzero_disp_times != [] 
-            nonzero_disp_time = first_nonzero_disp_times[1]
-            all_nonzero_disp_times = filter(t -> t != 0, collect((nonzero_disp_time % interval_size):interval_size:(length(object_mapping[id]) - 1)))
-            push!(all_nonzero_disp_times_across_ids, all_nonzero_disp_times...)
-          end
-        end
-        sort!(unique!(all_nonzero_disp_times_across_ids))
-        @show all_nonzero_disp_times_across_ids
-        for id in object_ids_with_type 
-          @show id 
-          nonzero_disp_time = filter(t -> !isnothing(object_mapping[id][t]) && !isnothing(object_mapping[id][t + 1]) && displacement(object_mapping[id][t].position, object_mapping[id][t + 1].position) != (0, 0),  collect(1:(length(object_mapping[id]) - 1)))
-          if nonzero_disp_time == [] 
-            println("oh")
-            if length(unique(diff(all_nonzero_disp_times_across_ids))) == [interval_size]
-              nonzero_disp_time = all_nonzero_disp_times_across_ids[1]
-            else # displacement times are staggered based on time of object addition 
-              added_object_ids = filter(new_id -> isnothing(object_mapping[new_id][1]) && id != new_id, object_ids_with_type)
-              if added_object_ids != [] && isnothing(object_mapping[id][1])
-                added_object_ids_with_nonzero_disps = [] # ids with observed movements 
-                for added_object_id in added_object_ids 
-                  addition_time = findall(obj -> !isnothing(obj), object_mapping[added_object_id])[1] - 1
-                  nonzero_times_after_addition = filter(t -> (t > addition_time) && !isnothing(object_mapping[added_object_id][t]) && !isnothing(object_mapping[added_object_id][t + 1]) && displacement(object_mapping[added_object_id][t].position, object_mapping[added_object_id][t + 1].position) != (0, 0),  collect(1:(length(object_mapping[added_object_id]) - 1)))
-                  if nonzero_times_after_addition != [] 
-                    first_time = nonzero_times_after_addition[1]
-                    push!(added_object_ids_with_nonzero_disps, (added_object_id, first_time - addition_time))
-                  end
-                end
 
-                if added_object_ids_with_nonzero_disps != [] 
-                  offset = mode(map(tup -> tup[2] % interval_size == 1 ? ((tup[2] % interval_size == 1) + interval_size) : tup[2] % interval_size == 1, added_object_ids_with_nonzero_disps))
-                  current_id_addition_time = findall(obj -> !isnothing(obj), object_mapping[id])[1] - 1
-                  nonzero_disp_time = (offset + current_id_addition_time) # % interval_size
+        modified_stop_times = vcat(0, stop_times..., size(matrix)[2] + 1)
+        
+        for stop_index in 2:length(modified_stop_times)
+          first_stop = modified_stop_times[stop_index - 1]
+          second_stop = modified_stop_times[stop_index]
+
+          all_nonzero_disp_times_across_ids = []
+          for id in object_ids_with_type 
+            first_nonzero_disp_times = filter(t -> !isnothing(object_mapping[id][t]) && !isnothing(object_mapping[id][t + 1]) && displacement(object_mapping[id][t].position, object_mapping[id][t + 1].position) != (0, 0),  collect((first_stop + 1):(second_stop - 1)))
+            if first_nonzero_disp_times != [] 
+              nonzero_disp_time = first_nonzero_disp_times[1]
+              all_nonzero_disp_times = filter(t -> (t != 0) && (t > first_stop) && (t < second_stop), collect((nonzero_disp_time % interval_size):interval_size:(length(object_mapping[id]) - 1)))
+              push!(all_nonzero_disp_times_across_ids, all_nonzero_disp_times...)
+            end
+          end
+          sort!(unique!(all_nonzero_disp_times_across_ids))
+          @show all_nonzero_disp_times_across_ids
+          for id in object_ids_with_type 
+            @show id 
+            nonzero_disp_time = filter(t -> !isnothing(object_mapping[id][t]) && !isnothing(object_mapping[id][t + 1]) && displacement(object_mapping[id][t].position, object_mapping[id][t + 1].position) != (0, 0),  collect((first_stop + 1):(second_stop - 1)))
+            if nonzero_disp_time == [] 
+              println("oh")
+              if length(unique(diff(all_nonzero_disp_times_across_ids))) == [interval_size]
+                nonzero_disp_time = all_nonzero_disp_times_across_ids[1]
+              else # displacement times are staggered based on time of object addition 
+                added_object_ids = filter(new_id -> isnothing(object_mapping[new_id][first_stop + 1]) && (unique(object_mapping[new_id][first_stop+1:second_stop-1]) != [nothing]) && id != new_id, object_ids_with_type)
+                if added_object_ids != [] && isnothing(object_mapping[id][1])
+                  added_object_ids_with_nonzero_disps = [] # ids with observed movements 
+                  for added_object_id in added_object_ids 
+                    addition_time = filter(t -> (t > first_stop) && (t < second_stop), findall(obj -> !isnothing(obj), object_mapping[added_object_id]))[1] - 1
+                    nonzero_times_after_addition = filter(t -> (t > addition_time) && (t < second_stop) && !isnothing(object_mapping[added_object_id][t]) && !isnothing(object_mapping[added_object_id][t + 1]) && displacement(object_mapping[added_object_id][t].position, object_mapping[added_object_id][t + 1].position) != (0, 0),  collect(1:(length(object_mapping[added_object_id]) - 1)))
+                    if nonzero_times_after_addition != [] 
+                      first_time = nonzero_times_after_addition[1]
+                      push!(added_object_ids_with_nonzero_disps, (added_object_id, first_time - addition_time))
+                    end
+                  end
+  
+                  if added_object_ids_with_nonzero_disps != [] 
+                    offset = mode(map(tup -> tup[2] % interval_size == 1 ? ((tup[2] % interval_size == 1) + interval_size) : tup[2] % interval_size == 1, added_object_ids_with_nonzero_disps))
+                    current_id_addition_time = findall(obj -> !isnothing(obj), object_mapping[id])[1] - 1
+                    nonzero_disp_time = (offset + current_id_addition_time) # % interval_size
+                  else
+                    nonzero_disp_time = all_nonzero_disp_times_across_ids[1]
+                  end
                 else
                   nonzero_disp_time = all_nonzero_disp_times_across_ids[1]
                 end
-              else
-                nonzero_disp_time = all_nonzero_disp_times_across_ids[1]
               end
+            else
+              nonzero_disp_time = nonzero_disp_time[1]
             end
-          else
-            nonzero_disp_time = nonzero_disp_time[1]
-          end
-          @show nonzero_disp_time
-          if !isnothing(object_mapping[id][1])
-            all_nonzero_disp_times = filter(t -> t != 0, collect((nonzero_disp_time % interval_size):interval_size:(length(object_mapping[id]) - 1)))
-          else
-            current_id_addition_time = findall(obj -> !isnothing(obj), object_mapping[id])[1] - 1
-            all_nonzero_disp_times = filter(t -> t > current_id_addition_time + 1, collect((nonzero_disp_time % interval_size):interval_size:(length(object_mapping[id]) - 1)))
-          end
-          @show all_nonzero_disp_times
-          @show all_nonzero_disp_times
-          for time in 1:(length(object_mapping[id]) - 1)
-            if (new_matrix[id, time] != [""])
-              if !(time in all_nonzero_disp_times)
-                new_matrix[id, time] = filter(r -> !occursin("NoCollision", r) && !occursin("closest", r) && !occursin("farthest", r), new_matrix[id, time]) # keep only the no-change rule 
-                new_unformatted_matrix[id, time] = filter(r -> !occursin("NoCollision", r) && !occursin("closest", r) && !occursin("farthest", r), new_unformatted_matrix[id, time]) # keep only the no-change rule  
-              elseif length(new_matrix[id, time]) > 1
-                new_matrix[id, time] = filter(r -> !occursin("--> obj (prev obj)", r) && !occursin("= obj$(id) (prev obj$(id))", r), new_matrix[id, time]) # keep only the no-change rule 
-                new_unformatted_matrix[id, time] = filter(r -> !occursin("--> obj (prev obj)", r) && !occursin("= obj$(id) (prev obj$(id))", r), new_unformatted_matrix[id, time]) # keep only the no-change rule  
+            @show nonzero_disp_time
+            if !isnothing(object_mapping[id][1])
+              all_nonzero_disp_times = filter(t -> (t != 0) && (t > first_stop) && (t < second_stop), collect((nonzero_disp_time % interval_size):interval_size:(length(object_mapping[id]) - 1)))
+            else
+              current_id_addition_time = filter(t -> (t > first_stop) && (t < second_stop), findall(obj -> !isnothing(obj), object_mapping[id]))[1] - 1
+              all_nonzero_disp_times = filter(t -> t > (current_id_addition_time + 1) && (t < second_stop), collect((nonzero_disp_time % interval_size):interval_size:(length(object_mapping[id]) - 1)))
+            end
+            @show all_nonzero_disp_times
+            for time in 1:(length(object_mapping[id]) - 1)
+              if (new_matrix[id, time] != [""])
+                if !(time in all_nonzero_disp_times)
+                  new_matrix[id, time] = filter(r -> !occursin("NoCollision", r) && !occursin("closest", r) && !occursin("farthest", r), new_matrix[id, time]) # keep only the no-change rule 
+                  new_unformatted_matrix[id, time] = filter(r -> !occursin("NoCollision", r) && !occursin("closest", r) && !occursin("farthest", r), new_unformatted_matrix[id, time]) # keep only the no-change rule  
+                elseif length(new_matrix[id, time]) > 1
+                  new_matrix[id, time] = filter(r -> !occursin("--> obj (prev obj)", r) && !occursin("= obj$(id) (prev obj$(id))", r), new_matrix[id, time]) # keep only the no-change rule 
+                  new_unformatted_matrix[id, time] = filter(r -> !occursin("--> obj (prev obj)", r) && !occursin("= obj$(id) (prev obj$(id))", r), new_unformatted_matrix[id, time]) # keep only the no-change rule  
+                end
               end
             end
           end
+
+
         end
+        
       end
     end
   end
