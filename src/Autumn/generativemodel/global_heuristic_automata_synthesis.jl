@@ -44,8 +44,8 @@ function generate_on_clauses_GLOBAL(run_id, random, matrix, unformatted_matrix, 
 
     if (length(filter(x -> x[1] != [], solutions)) >= desired_solution_count) # || Dates.value(Dates.now() - start_time) > 3600 * 2 * 1000 # || ((length(filter(x -> x[1] != [], solutions)) > 0) && length(filter(x -> occursin("randomPositions", x), vcat(vcat(filtered_matrix...)...))) > 0) 
       # if we have reached a sufficient solution count or have found a solution before trying random solutions, exit
-      println("BREAKING")
-      println("elapsed time: $(Dates.value(Dates.now() - start_time))")
+      # println("BREAKING")
+      # println("elapsed time: $(Dates.value(Dates.now() - start_time))")
       # @show length(solutions)
       break
     end
@@ -82,7 +82,7 @@ function generate_on_clauses_GLOBAL(run_id, random, matrix, unformatted_matrix, 
     # return values: state_based_update_functions_dict has form type_id => [unsolved update functions]
     new_on_clauses, state_based_update_functions_dict, observation_vectors_dict, addObj_params_dict, global_event_vector_dict, ordered_update_functions_dict = generate_stateless_on_clauses(run_id, update_functions_dict, matrix, filtered_matrix, anonymized_filtered_matrix, object_decomposition, user_events, state_update_on_clauses, global_var_dict, global_event_vector_dict, redundant_events_set, z3_option, time_based, z3_timeout, sketch_timeout, symmetry, stop_times=stop_times)
     
-    println("I AM HERE NOW")
+    # println("I AM HERE NOW")
     # @show new_on_clauses
     # @show state_based_update_functions_dict
     # @show ordered_update_functions_dict
@@ -182,13 +182,13 @@ function generate_on_clauses_GLOBAL(run_id, random, matrix, unformatted_matrix, 
               end
             end
           end
-          println("BEFORE")
+          # println("BEFORE")
           # @show co_occurring_events
           # if co_occurring_param
-          #   println("here 1") 
+          #   # println("here 1") 
           #   co_occurring_events = sort(filter(x -> !occursin("(! (intersects", x[1]) && !occursin("(list)", x[1]) && !occursin("(move ", x[1]) && !occursin("(== (prev addedObjType", x[1]) && !occursin("objClicked", x[1]) && !occursin("intersects (list", x[1]) && (!occursin("&", x[1]) || x[1] == "(& clicked (isFree click))") && !(occursin("(! (in (objClicked click (prev addedObjType3List)) (filter (--> obj (== (.. obj id) x)) (prev addedObjType3List))))", x[1])), co_occurring_events), by=x -> x[2]) # [1][1]
           # else
-          #   println("here 2")
+          #   # println("here 2")
           #   co_occurring_events = sort(filter(x -> !occursin("(! (intersects", x[1]) && !occursin("(list)", x[1]) && !occursin("|", x[1]) && !occursin("(== (prev addedObjType", x[1]) && !occursin("objClicked", x[1]) && !occursin("(move ", x[1]) && !occursin("intersects (list", x[1]) && (!occursin("&", x[1]) || x[1] == "(& clicked (isFree click))")  && !(occursin("(! (in (objClicked click (prev addedObjType3List)) (filter (--> obj (== (.. obj id) x)) (prev addedObjType3List))))", x[1])), co_occurring_events), by=x -> x[2]) # [1][1]
           # end
           co_occurring_events = sort(filter(x -> !occursin("(! (in (Position", x[1]) && !occursin("(! (intersects", x[1]) && !occursin("(list)", x[1]) && !occursin("(move ", x[1]) && !occursin("(== (prev addedObjType", x[1]) && !occursin("objClicked", x[1]) && !occursin("intersects (list", x[1]) && (!occursin("&", x[1]) || x[1] == "(& clicked (isFree click))") && !(occursin("(! (in (objClicked click (prev addedObjType3List)) (filter (--> obj (== (.. obj id) x)) (prev addedObjType3List))))", x[1])), co_occurring_events), by=x -> x[2]) # [1][1]
@@ -197,7 +197,7 @@ function generate_on_clauses_GLOBAL(run_id, random, matrix, unformatted_matrix, 
             co_occurring_events = filter(x -> !occursin("obj id) x)", x[1]) || occursin("(clicked (filter (--> obj (== (.. obj id)", x[1]), co_occurring_events)
           end 
   
-          println("THIS IS WEIRD HUH")
+          # println("THIS IS WEIRD HUH")
           # @show type_id 
           # @show update_function
           # @show co_occurring_events
@@ -343,7 +343,7 @@ function generate_on_clauses_GLOBAL(run_id, random, matrix, unformatted_matrix, 
             update_functions = co_occurring_events_dict[(type_id, co_occurring_event)]
             delete!(co_occurring_events_dict, (type_id, co_occurring_event))
 
-            println("DID DELETE WORK?")
+            # println("DID DELETE WORK?")
             # @show length(collect(keys(co_occurring_events_dict)))
             # @show co_occurring_events_dict
 
@@ -392,7 +392,7 @@ function generate_on_clauses_GLOBAL(run_id, random, matrix, unformatted_matrix, 
               end
             end
 
-            println("CURRENT DEBUGGING")
+            # println("CURRENT DEBUGGING")
             # @show anonymized_filtered_matrix 
             # @show object_ids_with_type 
             # @show update_functions 
@@ -405,7 +405,7 @@ function generate_on_clauses_GLOBAL(run_id, random, matrix, unformatted_matrix, 
                 object_trajectory = []
                 ordered_update_functions = []
 
-                println("DEBUGGING GROUP_ADDOBJ_RULES")
+                # println("DEBUGGING GROUP_ADDOBJ_RULES")
                 group_addObj_rules, addObj_rules, addObj_count = addObj_params_dict[type_id[1]]
                 if group_addObj_rules 
                   u = sort(collect(keys(times_dict)))[1]
@@ -431,7 +431,7 @@ function generate_on_clauses_GLOBAL(run_id, random, matrix, unformatted_matrix, 
                 state_solutions = generate_global_multi_automaton_sketch(co_occurring_event, times_dict, global_event_vector_dict, object_trajectory, global_var_dict, global_state_update_times_dict, object_decomposition, type_id, desired_per_matrix_solution_count, interval_painting_param, true)
               else
                 state_solutions = generate_new_state_GLOBAL(co_occurring_event, times_dict, global_event_vector_dict, object_trajectory, global_var_dict, global_state_update_times_dict, object_decomposition, type_id, user_events, desired_per_matrix_solution_count, false, false, transition_param, ordered_update_functions, transition_distinct, transition_same, transition_threshold, num_transition_decisions, bias_first_events=true, stop_times=stop_times)
-                println("DONT STOP ME NOW")
+                # println("DONT STOP ME NOW")
                 # @show state_solutions 
 
                 if length(filter(sol -> sol[1] != "", state_solutions)) == 0
@@ -450,7 +450,7 @@ function generate_on_clauses_GLOBAL(run_id, random, matrix, unformatted_matrix, 
 
               if length(filter(sol -> sol[1] != "", state_solutions)) == 0 # failure 
                 failed = true 
-                println("STATE SEARCH FAILURE")
+                # println("STATE SEARCH FAILURE")
                 break 
               else
                 state_solutions = filter(sol -> sol[1] != "", state_solutions) 
@@ -467,7 +467,7 @@ function generate_on_clauses_GLOBAL(run_id, random, matrix, unformatted_matrix, 
                 # update current problem context with state solution 
                 curr_state_solution = state_solutions[1]
                 new_on_clauses, new_global_var_dict, new_state_update_times_dict = curr_state_solution 
-                println("GLOBAL STATE SOLUTION")
+                # println("GLOBAL STATE SOLUTION")
                 # @show new_on_clauses 
                 # @show new_global_var_dict 
                 # @show new_state_update_times_dict
@@ -495,7 +495,7 @@ function generate_on_clauses_GLOBAL(run_id, random, matrix, unformatted_matrix, 
                 state_update_on_clauses = filter(c -> !occursin("fake_time", c), unique(state_update_on_clauses))
                 on_clauses = unique(on_clauses)
 
-                println("ADDING EVENT WITH NEW STATE")
+                # println("ADDING EVENT WITH NEW STATE")
                 # @show new_on_clauses
                 # @show length(on_clauses)
                 # @show on_clauses
@@ -555,7 +555,7 @@ function generate_on_clauses_GLOBAL(run_id, random, matrix, unformatted_matrix, 
               # construct new object-specific state
               new_on_clauses, new_state_update_on_clauses, new_object_decomposition, new_object_specific_state_update_times_dict, field_id, global_var_dict, transitions = generate_new_object_specific_state_GLOBAL(false, co_occurring_event, update_functions, times_dict, global_event_vector_dict, type_id, global_object_decomposition, object_specific_state_update_times_dict, global_var_dict, transition_param, z3_option, z3_timeout, sketch_timeout, transition_distinct, transition_same, transition_threshold, num_transition_decisions, stop_times=stop_times)
               if new_on_clauses == [] 
-                println("trying global now!")
+                # println("trying global now!")
                 co_occurring_tuples = sort(filter(t -> t[1] == type_id, collect(keys(co_occurring_events_dict))), by=x -> x[2]) # sort by co-occurring event 
                 time_sets_dict = Dict()
                 for tuple in co_occurring_tuples
@@ -592,7 +592,7 @@ function generate_on_clauses_GLOBAL(run_id, random, matrix, unformatted_matrix, 
                     times_dict[update_function] = Dict(map(id -> id => findall(r -> r == update_function, vcat(anonymized_filtered_matrix[id, :]...)), ids))
                   end
                   # something
-                  println("YODELER")
+                  # println("YODELER")
                   # @show new_co_occurring_event 
                   # @show sorted_all_update_funcs 
                   # @show times_dict 
@@ -607,7 +607,7 @@ function generate_on_clauses_GLOBAL(run_id, random, matrix, unformatted_matrix, 
                 failed = true 
                 break
               else
-                println("BAD NAME CHOSEN")
+                # println("BAD NAME CHOSEN")
                 # @show new_on_clauses 
                 # @show new_state_update_on_clauses 
                 # @show new_object_decomposition 
@@ -625,7 +625,7 @@ function generate_on_clauses_GLOBAL(run_id, random, matrix, unformatted_matrix, 
                 global_object_decomposition = new_object_decomposition
                 object_types, object_mapping, background, dim = global_object_decomposition
                 
-                println("UPDATEEE")
+                # println("UPDATEEE")
                 # # @show global_object_decomposition
     
                 # new_state_update_on_clauses = map(x -> format_on_clause(split(x, "\n")[2][1:end-1], replace(split(x, "\n")[1], "(on " => ""), object_ids[1], object_ids, object_type, group_addObj_rules, addObj_rules, object_mapping, false), new_state_update_on_clauses)
@@ -642,7 +642,7 @@ function generate_on_clauses_GLOBAL(run_id, random, matrix, unformatted_matrix, 
               end
             end
 
-            println("NOW HERE")
+            # println("NOW HERE")
             # @show length(on_clauses)
             # @show on_clauses
             # @show co_occurring_events_dict
@@ -674,11 +674,11 @@ function generate_on_clauses_GLOBAL(run_id, random, matrix, unformatted_matrix, 
             end
 
             new_on_clauses, state_based_update_functions_dict, _, _, global_event_vector_dict, _ = generate_stateless_on_clauses(run_id, update_functions_dict, matrix, filtered_matrix, anonymized_filtered_matrix, global_object_decomposition, user_events, state_update_on_clauses, global_var_dict, global_event_vector_dict, redundant_events_set, z3_option, time_based, z3_timeout, sketch_timeout, symmetry, stop_times=stop_times)          
-            println("WHATS GOING ON NOW")
+            # println("WHATS GOING ON NOW")
             # @show new_on_clauses 
             # @show state_based_update_functions_dict
 
-            println("NOW HERE 2")
+            # println("NOW HERE 2")
             # @show length(on_clauses)
             # @show on_clauses
 
@@ -691,7 +691,7 @@ function generate_on_clauses_GLOBAL(run_id, random, matrix, unformatted_matrix, 
               # update co_occurring_events_dict by removing 
               co_occurring_events_dict = update_co_occurring_events_dict(co_occurring_events_dict, state_based_update_functions_dict)
             end
-            println("WBU")
+            # println("WBU")
             # @show on_clauses
             # @show collect(keys(co_occurring_events_dict))
             # @show co_occurring_events_dict
@@ -703,7 +703,7 @@ function generate_on_clauses_GLOBAL(run_id, random, matrix, unformatted_matrix, 
             push!(solutions, ([], [], [], Dict()))
           else
             # @show filtered_matrix_index
-            println("HERE I AM")
+            # println("HERE I AM")
             # @show on_clauses 
             # @show state_update_on_clauses
 
@@ -721,8 +721,8 @@ function generate_on_clauses_GLOBAL(run_id, random, matrix, unformatted_matrix, 
         # check if appropriate number of solutions has been reached, or too many co_occurring_dict options have been cycled through 
         if (length(filter(x -> x[1] != [], solutions)) >= desired_solution_count) || Dates.value(Dates.now() - start_time) > 3600 * 2 * 1000 || co_occurring_index > co_occurring_threshold # || ((length(filter(x -> x[1] != [], solutions)) > 0) && length(filter(x -> occursin("randomPositions", x), vcat(vcat(filtered_matrix...)...))) > 0) 
           # if we have reached a sufficient solution count or have found a solution before trying random solutions, exit
-          println("BREAKING OUT OF CO-OCCURRING EVENT DICT LOOP")
-          println("elapsed time: $(Dates.value(Dates.now() - start_time))")
+          # println("BREAKING OUT OF CO-OCCURRING EVENT DICT LOOP")
+          # println("elapsed time: $(Dates.value(Dates.now() - start_time))")
           # @show length(solutions)
           break
         end
@@ -736,7 +736,7 @@ function generate_on_clauses_GLOBAL(run_id, random, matrix, unformatted_matrix, 
 end
 
 function re_order_on_clauses(on_clauses, ordered_update_functions_dict) 
-  println("RE-ORDERING")
+  # println("RE-ORDERING")
   # @show on_clauses 
   # @show ordered_update_functions_dict
 
@@ -792,7 +792,7 @@ function update_co_occurring_events_dict(co_occurring_events_dict, state_based_u
 end
 
 function generate_new_state_GLOBAL(co_occurring_event, times_dict, event_vector_dict, object_trajectory, init_global_var_dict, state_update_times_dict, object_decomposition, type_id, user_events, desired_per_matrix_solution_count, user_event_simplified=false, interval_painting_param=false, transition_param=false, ordered_update_functions=[], transition_distinct=1, transition_same=1, transition_threshold=1, num_transition_decisions=15; bias_first_events=false, stop_times=[]) 
-  println("GENERATE_NEW_STATE_GLOBAL")
+  # println("GENERATE_NEW_STATE_GLOBAL")
   # @show co_occurring_event
   # @show times_dict 
   # # @show event_vector_dict 
@@ -935,7 +935,7 @@ function generate_new_state_GLOBAL(co_occurring_event, times_dict, event_vector_
       push!(ranges, (init_augmented_positive_times[i], init_augmented_positive_times[i + 1]))
     end
   end
-  println("WHY THO")
+  # println("WHY THO")
   # @show init_state_update_times_dict 
 
   # filter ranges where both the range's start and end times are already included
@@ -1065,7 +1065,7 @@ function generate_new_state_GLOBAL(co_occurring_event, times_dict, event_vector_
       transition_decision_index = 1
       continue_search = false
       
-      println("STARTING NEW PROBLEM CONTEXT")
+      # println("STARTING NEW PROBLEM CONTEXT")
       # @show length(solutions)
       # @show extra_global_var_values
   
@@ -1112,7 +1112,7 @@ function generate_new_state_GLOBAL(co_occurring_event, times_dict, event_vector_
           events_in_range = [transition_event_cache[cache_key]]
         else
           events_in_range = find_state_update_events(small_event_vector_dict, filled_augmented_positive_times, time_ranges, start_value, end_value, global_var_dict, global_var_id, 1, no_object_times, all_stop_var_values)
-          println("PRE PRUNING: EVENTS IN RANGE")
+          # println("PRE PRUNING: EVENTS IN RANGE")
     
           # @show events_in_range
           events_to_remove = []
@@ -1128,10 +1128,10 @@ function generate_new_state_GLOBAL(co_occurring_event, times_dict, event_vector_
     
           events_in_range = filter(tuple -> !(tuple in events_to_remove), events_in_range)
         end
-        println("POST PRUNING: EVENTS IN RANGE")
+        # println("POST PRUNING: EVENTS IN RANGE")
         # @show events_in_range
         if events_in_range != [] # event with zero false positives found
-          println("PLS WORK 2")
+          # println("PLS WORK 2")
           # if bias_first_events 
           #   matching_events = filter(e_in_range -> foldl(|, map(init_event -> occursin(init_event, e_in_range[1]), events_from_init_grouped_ranges)), events_in_range)
           #   if matching_events != [] 
@@ -1161,7 +1161,7 @@ function generate_new_state_GLOBAL(co_occurring_event, times_dict, event_vector_
           end
           transition_decision_index += 1
 
-          println("WEE")
+          # println("WEE")
           # @show state_update_event 
     
           # construct state update on-clause
@@ -1233,7 +1233,7 @@ function generate_new_state_GLOBAL(co_occurring_event, times_dict, event_vector_
             failed = true 
             break  
           end
-          println("WEE")
+          # println("WEE")
           # @show false_positive_event 
 
           transition_decision_index = 1
@@ -1244,9 +1244,9 @@ function generate_new_state_GLOBAL(co_occurring_event, times_dict, event_vector_
   
           # @show length(matching_grouped_ranges)
           if length(matching_grouped_ranges) > 0 
-            println("WOAHHH")
+            # println("WOAHHH")
             if length(matching_grouped_ranges[1]) > 0 
-              println("WOAHHH 2")
+              # println("WOAHHH 2")
               # @show false_positive_event 
               # @show true_positive_times 
               # @show false_positive_times
@@ -1342,7 +1342,7 @@ function generate_new_state_GLOBAL(co_occurring_event, times_dict, event_vector_
                 delete!(transition_event_cache, k)
               end
             end
-            println("YO")
+            # println("YO")
             continue_search = true
             break          
           end
@@ -1374,7 +1374,7 @@ function generate_new_state_GLOBAL(co_occurring_event, times_dict, event_vector_
           end
           augmented_positive_times_labeled = vcat(map(t -> same_time_tuples[t], sort(collect(keys(same_time_tuples))))...)
           # augmented_positive_times_labeled = sort(augmented_positive_times_labeled, by=x->x[1])
-          println("INTERVAL PAINTING DEBUGGING")
+          # println("INTERVAL PAINTING DEBUGGING")
           # @show augmented_positive_times_labeled
           # @show false_positive_times 
           # @show user_events 
@@ -1396,11 +1396,11 @@ function generate_new_state_GLOBAL(co_occurring_event, times_dict, event_vector_
                 # @show prev_tuple 
                 # @show same_time_value 
                 if !(prev_tuple[2] in [same_time_value]) || prev_tuple[3] == "event"
-                  println("huh?")
+                  # println("huh?")
                   push!(possible_interval_painting_stop_points_dict[false_positive_time], prev_tuple[1])
                   break
                 else
-                  println("huh 2?")
+                  # println("huh 2?")
                   prev_time = prev_tuple[1]
                   if !isnothing(user_events[prev_time]) && user_events[prev_time] != "nothing"
                     # possible stopping time! 
@@ -1474,7 +1474,7 @@ function generate_new_state_GLOBAL(co_occurring_event, times_dict, event_vector_
                                                                                                                                               true_positive_times, 
                                                                                                                                               new_context_extra_global_var_values,
                                                                                                                                               true)
-                println("WHATS GOING ON")
+                # println("WHATS GOING ON")
                 if !(new_context_augmented_positive_times in old_augmented_positive_times)
                   push!(old_augmented_positive_times, deepcopy(new_context_augmented_positive_times))
                   # @show new_context_extra_global_var_values
@@ -1485,7 +1485,7 @@ function generate_new_state_GLOBAL(co_occurring_event, times_dict, event_vector_
   
           end
 
-          println("PRE-WHAT THE")
+          # println("PRE-WHAT THE")
           # @show augmented_positive_times 
 
           augmented_positive_times, extra_global_var_values = relabel_via_interval_painting(augmented_positive_times_labeled, global_var_value, max_global_var_value, extra_global_var_values, times_dict, curr_interval_painting_stop_points_dict, false_positive_times, update_function_indices)
@@ -1494,7 +1494,7 @@ function generate_new_state_GLOBAL(co_occurring_event, times_dict, event_vector_
             failed = true
             return solutions
           end
-          println("WHAT THE")
+          # println("WHAT THE")
           # @show augmented_positive_times 
   
           # compute new ranges and find state update events
@@ -1562,7 +1562,7 @@ function generate_new_state_GLOBAL(co_occurring_event, times_dict, event_vector_
 
           filter!(c -> !occursin("fake_time", c[1]), on_clauses)
 
-          println("LOOK AT ME")
+          # println("LOOK AT ME")
           # @show on_clauses
           solution = (on_clauses, global_var_dict, new_state_update_times_dict)
           push!(solutions, solution)
@@ -1583,7 +1583,7 @@ function generate_new_state_GLOBAL(co_occurring_event, times_dict, event_vector_
 end
 
 function relabel_via_interval_painting(augmented_positive_times_labeled, global_var_value, max_global_var_value, extra_global_var_values, times_dict, curr_interval_painting_stop_points_dict, false_positive_times, update_function_indices)
-  println("RELABEL_VIA_INTERVAL_PAINTING")
+  # println("RELABEL_VIA_INTERVAL_PAINTING")
   # relabel false positive times 
   # based on relabeling, relabel other existing labels if necessary 
   later_adds = []
@@ -1636,11 +1636,11 @@ function relabel_via_interval_painting(augmented_positive_times_labeled, global_
           
           # stop condition
           if prev_tuple[2] <= global_var_value || prev_tuple[2] in vcat(collect(values(extra_global_var_values))...)
-            println("HERE 2")
+            # println("HERE 2")
             # @show prev_tuple 
             # @show tuple
             if prev_tuple[1] == tuple[1] # && !(prev_tuple[2] in vcat(collect(values(extra_global_var_values))...)) # if the false positive time is the same as the global_var_value time, change the value
-              println("HERE")
+              # println("HERE")
   
               augmented_positive_times_labeled[prev_index] = (prev_tuple[1], max_global_var_value + 1, prev_tuple[3])
               # find update function index that contains this time 
@@ -1718,12 +1718,12 @@ function generate_stateless_on_clauses(run_id, update_functions_dict, matrix, fi
     no_change_rules = filter(x -> is_no_change_rule(x), unique(all_update_rules))
     all_update_rules = reverse(sort(filter(x -> !is_no_change_rule(x), unique(all_update_rules)), by=x -> count(y -> y == x, update_rule_set)))
 
-    println("woot 1")
+    # println("woot 1")
     # @show all_update_rules 
     # move all addObj-based update rules to the end 
     all_update_rules = [filter(x -> !(x in unique_addObj_rules), all_update_rules)..., unique_addObj_rules...]
 
-    println("woot 2")
+    # println("woot 2")
     # @show all_update_rules 
 
     ordered_update_functions_dict[type_id] = all_update_rules
@@ -1736,14 +1736,14 @@ function generate_stateless_on_clauses(run_id, update_functions_dict, matrix, fi
       # update_rule = all_update_rules[update_rule_index]
       # # @show global_object_decomposition
       if update_rule != "" && !is_no_change_rule(update_rule)
-        println("UPDATE_RULEEE")
-        println(update_rule)
+        # println("UPDATE_RULEEE")
+        # println(update_rule)
         events, event_is_globals, event_vector_dict, observation_data_dict = generate_event(run_id, update_rule, all_update_rules, object_ids[1], object_ids, matrix, filtered_matrix, global_object_decomposition, user_events, state_update_on_clauses, global_var_dict, global_event_vector_dict, grid_size, redundant_events_set, 1, 400, z3_option, time_based, z3_timeout, sketch_timeout, symmetry, stop_times=stop_times)
         global_event_vector_dict = event_vector_dict
         observation_vectors_dict[update_rule] = observation_data_dict
 
-        println("EVENTS")
-        println(events)
+        # println("EVENTS")
+        # println(events)
         # # @show event_vector_dict
         # # @show observation_data_dict
         if events != []
@@ -1751,7 +1751,7 @@ function generate_stateless_on_clauses(run_id, update_functions_dict, matrix, fi
           event_is_global = event_is_globals[1]
           if occursin(""" "color" """, update_rule) 
             # determine color
-            println("HANDLING SPECIAL COLOR UPDATE CASE") 
+            # println("HANDLING SPECIAL COLOR UPDATE CASE") 
             
             # @show update_rule 
             # @show event 
@@ -1774,7 +1774,7 @@ function generate_stateless_on_clauses(run_id, update_functions_dict, matrix, fi
 
           push!(new_on_clauses, (on_clause, update_rule))
           new_on_clauses = unique(new_on_clauses)
-          println("ADDING EVENT WITHOUT NEW STATE")
+          # println("ADDING EVENT WITHOUT NEW STATE")
           # @show event 
           # @show update_rule
           # @show on_clause
@@ -1797,7 +1797,7 @@ function generate_stateless_on_clauses(run_id, update_functions_dict, matrix, fi
 end
 
 function generate_new_object_specific_state_GLOBAL(global_events, co_occurring_event, update_functions, times_dict, event_vector_dict, type_id, object_decomposition, init_state_update_times, global_var_dict, transition_param=false, z3_option="full", time_based=false, z3_timeout=0, sketch_timeout=0, transition_distinct=1, transition_same=1, transition_threshold=1, num_transition_decisions=15; stop_times=[])
-  println("GENERATE_NEW_OBJECT_SPECIFIC_STATE")
+  # println("GENERATE_NEW_OBJECT_SPECIFIC_STATE")
   # @show global_events
   # @show co_occurring_event
   # @show update_functions 
@@ -1834,7 +1834,7 @@ function generate_new_object_specific_state_GLOBAL(global_events, co_occurring_e
       end
     end
   end
-  println("LETS GO NOW")
+  # println("LETS GO NOW")
   # @show small_event_vector_dict 
   # choices, event_vector_dict, redundant_events_set, object_decomposition
   
@@ -1886,7 +1886,7 @@ function generate_new_object_specific_state_GLOBAL(global_events, co_occurring_e
   end
 
   if field_id > 1 # should not have more than 9 fields
-    println("WEIRD")
+    # println("WEIRD")
     return ([], [], object_decomposition, state_update_times, field_id, global_var_dict, [])
   end
 
@@ -1900,7 +1900,7 @@ function generate_new_object_specific_state_GLOBAL(global_events, co_occurring_e
   end
   curr_state_value = 1
 
-  println("# check state_update_times again 3")
+  # println("# check state_update_times again 3")
   # @show state_update_times 
   if co_occurring_event isa AbstractArray 
     co_occurring_event_trajectory = Dict(map(id -> id => zeros(Int, length(object_mapping[id])), object_ids))
@@ -1967,7 +1967,7 @@ function generate_new_object_specific_state_GLOBAL(global_events, co_occurring_e
   unique!(all_stop_var_values)
 
 
-  println("# check state_update_times again 4")
+  # println("# check state_update_times again 4")
   # @show state_update_times 
   # compute ranges 
   grouped_ranges = recompute_ranges_object_specific(augmented_positive_times_dict, 1, object_mapping, object_ids)
@@ -1987,7 +1987,7 @@ function generate_new_object_specific_state_GLOBAL(global_events, co_occurring_e
     transition_decision_index = 1
     transitions_for_generalization = []
 
-    println("# check state_update_times again 5")
+    # println("# check state_update_times again 5")
     # @show state_update_times 
     iters = 0
     while length(grouped_ranges) > 0 && (iters < 50)
@@ -2005,7 +2005,7 @@ function generate_new_object_specific_state_GLOBAL(global_events, co_occurring_e
   
       # TODO: try global events too  
       events_in_range = []
-      println("# check state_update_times again 6")
+      # println("# check state_update_times again 6")
       # @show state_update_times
       if events_in_range == [] # if no global events are found, try object-specific events 
         # events_in_range = find_state_update_events(event_vector_dict, augmented_positive_times, time_ranges, start_value, end_value, global_var_dict, global_var_value)
@@ -2019,7 +2019,7 @@ function generate_new_object_specific_state_GLOBAL(global_events, co_occurring_e
         end
       end
       # @show events_in_range
-      println("# check state_update_times again")
+      # println("# check state_update_times again")
       # @show state_update_times
       if length(events_in_range) > 0 # only handling perfect matches currently (UPDATE: <- now generalized)
         index = min(length(events_in_range), transition_decision_index > num_transition_decisions ? 1 : transition_decision_string[transition_decision_index])
@@ -2039,19 +2039,19 @@ function generate_new_object_specific_state_GLOBAL(global_events, co_occurring_e
           state_update_function = "(on $(formatted_event)\n(= globalVar$(field_id) $(end_value)))"
         end
 
-        println(state_update_function)
+        # println(state_update_function)
         for id in object_ids # collect(keys(state_update_times))
           object_event_times = map(t -> t[1], filter(time -> time[2] == id, event_times))
           for time in object_event_times
-            println(id)
-            println(time)
-            println(end_value)
+            # println(id)
+            # println(time)
+            # println(end_value)
             state_update_times[field_id][id][time] = (state_update_function, end_value)
           end
         end
         transition_decision_index += 1
       else
-        println("# check state_update_times")
+        # println("# check state_update_times")
         # @show state_update_times 
         false_positive_events = find_state_update_events_object_specific_false_positives(small_event_vector_dict, augmented_positive_times_dict, grouped_range, object_ids, object_mapping, curr_state_value, all_stop_var_values)      
         false_positive_events_with_state = filter(e -> occursin("field$(field_id)", e[1]), false_positive_events) # want the most specific events in the false positive case
@@ -2128,11 +2128,11 @@ function generate_new_object_specific_state_GLOBAL(global_events, co_occurring_e
                 # if we have reached a prev_tuple with global_var_value or extra value, then we stop the relabeling based on this event tuple
                 if prev_tuple[2] == curr_state_value # || prev_tuple[2] in extra_global_var_values
                   break
-                  println("HERE 2")
+                  # println("HERE 2")
                   # @show prev_tuple 
                   # @show tuple
                   # if prev_tuple[1] == tuple[1] && !(prev_tuple[2] in extra_global_var_values) # if the false positive time is the same as the global_var_value time, change the value
-                  #   println("HERE")
+                  #   # println("HERE")
     
                   #   augmented_positive_times_labeled[prev_index] = (prev_tuple[1], max_state_value + 1, prev_tuple[3])
                   #   push!(extra_global_var_values, max_state_value + 1)
@@ -2194,7 +2194,7 @@ function generate_new_object_specific_state_GLOBAL(global_events, co_occurring_e
             end
           end
           # init_value = length(augmented_positive_times_dict[object_id]) == 0 ? (max_state_value + 1) : augmented_positive_times_dict[object_id][1][2]
-          println("INTERESTING")
+          # println("INTERESTING")
           # @show init_value 
           # @show state_update_times 
           # @show object_field_values
@@ -2280,7 +2280,7 @@ function generate_new_object_specific_state_GLOBAL(global_events, co_occurring_e
   
         if occursin(""" "color" """, update_function) 
           # determine color
-          println("HANDLING SPECIAL COLOR UPDATE CASE") 
+          # println("HANDLING SPECIAL COLOR UPDATE CASE") 
           
           # @show update_function       
           color = split(split(update_function, """ "color" """)[2], ")")[1]
