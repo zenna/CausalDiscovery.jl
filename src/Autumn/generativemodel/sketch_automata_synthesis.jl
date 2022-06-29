@@ -1,6 +1,6 @@
 if Sys.islinux() 
-  sketch_directory = "/scratch/riadas/sketch-1.7.6/sketch-frontend/"
-  temp_directory = "/scratch/riadas/.sketch/tmp"
+  sketch_directory = "/home/ria/sketch-1.7.6/sketch-frontend/"
+  temp_directory = "/home/ria/.sketch/tmp"
   local_sketch_directory = "src/Autumn/generativemodel/sketch/"
 else
   sketch_directory = "/Users/riadas/Documents/urop/sketch-1.7.6/sketch-frontend/"
