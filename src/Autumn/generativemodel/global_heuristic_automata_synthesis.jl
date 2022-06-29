@@ -965,7 +965,9 @@ function generate_new_state_GLOBAL(co_occurring_event, times_dict, event_vector_
   # biasing transition events from the originally observed augmented_positive_times/init_grouped_ranges
   events_from_init_grouped_ranges = []
   if bias_first_events 
+    println("AINT_NOTHING")
     for grouped_range in init_grouped_ranges 
+      @show grouped_range
       range = grouped_range[1]
       start_value = range[1][2]
       end_value = range[2][2]
@@ -974,6 +976,7 @@ function generate_new_state_GLOBAL(co_occurring_event, times_dict, event_vector_
       max_global_var_value = maximum(map(tuple -> tuple[2], init_augmented_positive_times))
 
       events_in_range = find_state_update_events(small_event_vector_dict, init_augmented_positive_times, time_ranges, start_value, end_value, init_global_var_dict, global_var_id, 1, no_object_times, all_stop_var_values)
+      @show events_in_range
       if events_in_range != [] 
         if filter(tuple -> !occursin("true", tuple[1]), events_in_range) != []
           if filter(tuple -> !occursin("globalVar", tuple[1]) && !occursin("true", tuple[1]), events_in_range) != []
@@ -1003,6 +1006,7 @@ function generate_new_state_GLOBAL(co_occurring_event, times_dict, event_vector_
         false_positive_events_with_state = filter(e -> occursin("globalVar$(global_var_id)", e[1]), false_positive_events) # want the most specific events in the false positive case
         
         events_without_true = filter(tuple -> !occursin("true", tuple[1]) && tuple[2] == minimum(map(t -> t[2], false_positive_events_with_state)), false_positive_events_with_state)
+        @show events_without_true
         if events_without_true != []
           false_positive_event, _, true_positive_times, false_positive_times = events_without_true[1] 
           push!(events_from_init_grouped_ranges, split(false_positive_event, " (== (prev globalVar")[1][4:end])
