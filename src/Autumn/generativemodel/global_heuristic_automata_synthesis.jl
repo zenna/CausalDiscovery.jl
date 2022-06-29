@@ -1698,7 +1698,7 @@ function generate_stateless_on_clauses(run_id, update_functions_dict, matrix, fi
     
     group_addObj_rules = false
     addObj_count = 0
-    if (length(unique(collect(values(addObj_times_dict)))) == 1) && occursin("randomPositions", join(unique_addObj_rules))
+    if (length(unique(collect(values(addObj_times_dict)))) == 1) && (occursin("randomPositions", join(unique_addObj_rules)) || length(unique_addObj_rules) > 1)
       group_addObj_rules = true
       all_update_rules = filter(r -> !(r in addObj_rules), all_update_rules)
       push!(all_update_rules, addObj_rules[1])
