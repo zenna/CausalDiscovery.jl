@@ -266,6 +266,8 @@ function generate_observations(model_name::String)
   elseif model_name == "mario_ii"
     observations, user_events, grid_size = generate_observations_mario2(nothing)
     return observations, user_events, grid_size
+  elseif model_name == "coins"
+    return generate_observations_coins(nothing)
   elseif model_name == "coins_5"
     return generate_observations_coins5(nothing)
   elseif model_name == "coins_7"
@@ -1378,5 +1380,39 @@ programs = Dict("particles"                                 => """(program
                        (= globalState "left"))))
              
              )
-             """
+             """,
+             "coins" => """(program
+             (= GRID_SIZE 16)
+             
+             (object Agent (Cell 0 0 "red"))
+             (object Coin (Cell 0 0 "gold"))
+             (object Bullet (Cell 0 0 "mediumpurple"))
+           
+             (: agent Agent)
+             (= agent (initnext (Agent (Position 7 9)) (prev agent)))
+           
+             (: coins (List Coin))
+             (= coins (initnext (map (--> pos (Coin pos)) (filter (--> p (& (== (% (.. p y) 2) 0) (== (% (.. p x) 2) 0))) (rect (Position 3 2) (Position 12 4)))) (prev coins)))
+           
+             (: bullets (List Bullet))
+             (= bullets (initnext (list) (prev bullets)))
+             
+             (: numBullets Int)
+             (= numBullets (initnext 0 (prev numBullets)))
+             
+             (on left (= agent (moveLeft agent)))
+             (on right (= agent (moveRight agent)))
+             (on up (= agent (moveUp agent)))
+             (on down (= agent (moveDown agent)))
+           
+             (on true (= bullets (updateObj bullets (--> obj (moveUp (prev obj))))))
+             
+             (on (& clicked (> (prev numBullets) 0)) 
+                 (let ((= numBullets (- (prev numBullets) 1)) 
+                       (= bullets (addObj bullets (Bullet (.. (prev agent) origin)))))))  
+           
+             (on (intersects (prev agent) (prev coins)) 
+                 (let ((= numBullets (+ (prev numBullets) 1)) 
+                       (= coins (removeObj coins (--> obj (intersects (prev obj) (prev agent))))))))
+           )"""
                 )

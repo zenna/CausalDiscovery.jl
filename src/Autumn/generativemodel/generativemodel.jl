@@ -551,7 +551,7 @@ function gen_event_bool(object_decomposition, object_id, type_id, update_rule, u
     # push!(choices, "(!= (prev addedObjType$(type.id)List) (list))")    
 
   #   # out-of-bounds handling 
-    displacements = ["(moveUp obj)", "(moveDown obj)", "(moveLeft obj)", "(moveRight obj)", "(move obj -1 1)", "(move obj 1 1)"]
+    displacements = ["(moveUp obj)", "(moveDown obj)", "(moveLeft obj)", "(moveRight obj)", "(move obj -1 1)", "(move obj 1 1)", "(move obj 1 -1)"]
     for disp1 in displacements 
       push!(choices, "(in true       (map (--> obj (! (isWithinBounds $(disp1)))) (filter (--> obj (== (.. obj id) $(object_id))) (prev addedObjType$(type.id)List))))")
       # for disp2 in displacements 

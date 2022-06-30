@@ -1,5 +1,5 @@
 """On-clause generation, where we collect all unsolved (latent state dependent) on-clauses at the end"""
-function generate_on_clauses_GLOBAL(run_id, random, matrix, unformatted_matrix, object_decomposition, user_events, global_event_vector_dict, redundant_events_set, grid_size=16, desired_solution_count=1, desired_per_matrix_solution_count=1, interval_painting_param=false, sketch=false, z3_option="partial", time_based=true, z3_timeout=0, sketch_timeout=0, co_occurring_param=false, transition_param=false, co_occurring_distinct=1, co_occurring_same=1, co_occurring_threshold=1, transition_distinct=1, transition_same=1, transition_threshold=1, num_transition_decisions=15, symmetry=false; stop_times=[])
+function generate_on_clauses_GLOBAL(run_id, random, matrix, unformatted_matrix, object_decomposition, user_events, global_event_vector_dict, redundant_events_set, grid_size=16, desired_solution_count=1, desired_per_matrix_solution_count=1, interval_painting_param=false, sketch=false, z3_option="full", time_based=false, z3_timeout=0, sketch_timeout=0, co_occurring_param=false, transition_param=false, co_occurring_distinct=1, co_occurring_same=1, co_occurring_threshold=1, transition_distinct=1, transition_same=1, transition_threshold=1, num_transition_decisions=15, symmetry=false; stop_times=[])
   start_time = Dates.now()
   
   object_types, object_mapping, background, dim = object_decomposition
@@ -1707,8 +1707,8 @@ function generate_stateless_on_clauses(run_id, update_functions_dict, matrix, fi
       all_update_rules = filter(r -> !(r in addObj_rules), all_update_rules)
       push!(all_update_rules, addObj_rules[1])
       times = unique(vcat(collect(values(addObj_times_dict))...))
-      counts = map(t -> count(r -> occursin("addObj", r), vcat(filtered_matrix[:, t]...)), times)
-      if length(counts) == 1 
+      counts = unique(map(t -> count(r -> occursin("addObj", r), vcat(filtered_matrix[:, t]...)), times))
+      if length(unique(counts)) == 1 
         addObj_count = counts[1]
       else
         addObj_count = [minimum(counts), maximum(counts)]
