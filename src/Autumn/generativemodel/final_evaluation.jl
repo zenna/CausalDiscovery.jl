@@ -59,7 +59,7 @@ function run_model(model_name::String, algorithm, iteration, desired_per_matrix_
   # define synthesis parameter options 
   random_param_vals = [false, true] # false, true
   transition_param_vals = [false] # this option exists because of ambiguity in one model :( -- should make this a primitive 
-  co_occurring_param_vals = [false, true] # [false, true]
+  co_occurring_param_vals = [false] # [false, true]
   z3_option_vals = ["partial", "full"] # ["partial", "full"]
   time_based_vals = [false, true] # false, true 
   singlecell_vals = [false, true] # false, true
