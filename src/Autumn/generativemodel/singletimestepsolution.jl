@@ -2267,6 +2267,7 @@ function generate_event(run_id, anonymized_update_rule, distinct_update_rules, o
         end
       end
       if (anonymized_event in keys(event_vector_dict)) && is_event_object_specific_with_correct_type
+        println("hello tis i")
         # if this is not true, then there was a failure above (the event contained "first" but had nothing's in object_mapping),
         # or the event is object-specific with the wrong type 
         event_values_dicts = []
@@ -2345,6 +2346,8 @@ function generate_event(run_id, anonymized_update_rule, distinct_update_rules, o
     # # @show length(collect(keys(event_vector_dict)))
     # # @show event_vector_dict
 
+    @show "(== (prev globalVar1) 3)" in keys(event_vector_dict)
+    @show "(== (prev globalVar1) 1)" in keys(event_vector_dict)
     event_vector_dict, redundant_events_set = prune_by_observational_equivalence(event_vector_dict, redundant_events_set)
 
     # println("POST PRUNING")

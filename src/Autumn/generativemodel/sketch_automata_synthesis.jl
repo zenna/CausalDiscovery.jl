@@ -1,6 +1,6 @@
 if Sys.islinux() 
-  sketch_directory = "/home/ria/sketch-1.7.6/sketch-frontend/"
-  temp_directory = "/home/ria/.sketch/tmp"
+  sketch_directory = "/scratch/riadas/sketch-1.7.6/sketch-frontend/"
+  temp_directory = "/scratch/riadas/.sketch/tmp"
   local_sketch_directory = "src/Autumn/generativemodel/sketch/"
 else
   sketch_directory = "/Users/riadas/Documents/urop/sketch-1.7.6/sketch-frontend/"
@@ -8,7 +8,7 @@ else
   local_sketch_directory = "src/Autumn/generativemodel/sketch/"
 end
 
-function generate_on_clauses_SKETCH_SINGLE(run_id, random, matrix, unformatted_matrix, object_decomposition, user_events, global_event_vector_dict, redundant_events_set, grid_size=16, desired_solution_count=1, desired_per_matrix_solution_count=1, interval_painting_param=false, z3_option="partial", time_based=false, z3_timeout=0, sketch_timeout=0, co_occurring_param=false, transition_param=false, co_occurring_distinct=2, co_occurring_same=1, co_occurring_threshold=1, transition_distinct=1, transition_same=1, transition_threshold=1; stop_times=[], linked_ids=Dict())   
+function generate_on_clauses_SKETCH_SINGLE(run_id, random, matrix, unformatted_matrix, object_decomposition, user_events, global_event_vector_dict, redundant_events_set, grid_size=16, desired_solution_count=1, desired_per_matrix_solution_count=1, interval_painting_param=false, z3_option="partial", time_based=false, z3_timeout=0, sketch_timeout=0, co_occurring_param=false, transition_param=false, co_occurring_distinct=2, co_occurring_same=1, co_occurring_threshold=1, transition_distinct=1, transition_same=1, transition_threshold=1; symmetry=false, stop_times=[], linked_ids=Dict())   
   start_time = Dates.now()
   
   object_types, object_mapping, background, dim = object_decomposition
@@ -279,12 +279,74 @@ function generate_on_clauses_SKETCH_SINGLE(run_id, random, matrix, unformatted_m
           # state_transition_on_clauses = map(trans -> "(on (& $(trans[3]) (== (prev globalVar1) $(trans[1])))\n(= globalVar1 $(trans[2])))", new_transitions)
           state_transition_on_clauses = format_state_transition_functions(new_transitions, collect(values(old_to_new_state_values)), global_var_id=1)
           fake_global_var_dict = Dict(1 => [new_start_state for i in 1:length(user_events)])
+
+          state_values = collect(values(old_to_new_state_values))
+          counter = 0
+          for i in 1:length(state_values)
+            if state_values[i] != new_start_state 
+              fake_global_var_dict[1][end - counter] = state_values[i]
+              counter += 1
+            end
+          end
+          global_var_dict = fake_global_var_dict
+
           global_var_dict = fake_global_var_dict
           push!(on_clauses, state_based_update_func_on_clauses...)
           push!(on_clauses, state_transition_on_clauses...)  
+
+          push!(global_state_update_on_clauses, state_transition_on_clauses...)
         end
-  
+        
+
+
       end
+      
+      # check if some update functions are actually solved by previously generated new state 
+      # construct new update_functions_dict from object_specific_update_functions_dict 
+      println("OH BOY")
+      @show object_specific_update_functions_dict
+      update_functions_dict = object_specific_update_functions_dict 
+
+      @show update_functions_dict
+      @show global_state_update_on_clauses
+
+      new_on_clauses, state_based_update_functions_dict, _, _, global_event_vector_dict, _ = generate_stateless_on_clauses(run_id, update_functions_dict, matrix, filtered_matrix, anonymized_filtered_matrix, global_object_decomposition, user_events, global_state_update_on_clauses, global_var_dict, global_event_vector_dict, redundant_events_set, z3_option, time_based, z3_timeout, sketch_timeout, symmetry, stop_times=stop_times)          
+      println("WHATS GOING ON NOW")
+      @show new_on_clauses 
+      @show state_based_update_functions_dict
+
+      println("NOW HERE 2")
+      @show length(on_clauses)
+      @show on_clauses
+
+      @show collect(keys(object_specific_update_functions_dict))
+      @show object_specific_update_functions_dict
+      
+      # if some other update functions are solved, add their on-clauses + remove them from object_specific_update_functions_dict 
+      if new_on_clauses != [] 
+        push!(on_clauses, new_on_clauses...)
+        # update object_specific_update_functions_dict by removing newly solved update functions
+        for t_id in collect(keys(object_specific_update_functions_dict)) 
+          if !(t_id in keys(state_based_update_functions_dict)) 
+            delete!(object_specific_update_functions_dict, t_id)
+          else
+            for u in object_specific_update_functions_dict[t_id]
+              if !(u in state_based_update_functions_dict[t_id]) # if u is not in the new state_based_update_functions_dict, then it has already been solved!
+                filter!(x -> x != u, object_specific_update_functions_dict[t_id])
+              end
+            end
+
+            if object_specific_update_functions_dict[t_id] == []
+              delete!(object_specific_update_functions_dict, t_id)
+            end
+          end
+        end
+
+      end
+      println("WBU")
+      @show on_clauses
+      @show collect(keys(object_specific_update_functions_dict))
+      @show object_specific_update_functions_dict
 
       # OBJECT-SPECIFIC STATE HANDLING 
       @show object_specific_update_functions_dict

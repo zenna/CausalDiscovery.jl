@@ -1,6 +1,6 @@
 if Sys.islinux() 
-  sketch_directory = "/home/ria/sketch-1.7.6/sketch-frontend/"
-  temp_directory = "/home/ria/.sketch/tmp"
+  sketch_directory = "/scratch/riadas/sketch-1.7.6/sketch-frontend/"
+  temp_directory = "/scratch/riadas/.sketch/tmp"
   local_sketch_directory = "src/Autumn/generativemodel/sketch/"
 else
   sketch_directory = "/Users/riadas/Documents/urop/sketch-1.7.6/sketch-frontend/"
@@ -8,7 +8,7 @@ else
   local_sketch_directory = "src/Autumn/generativemodel/sketch/"
 end
 
-function generate_on_clauses_SKETCH_MULTI(run_id, random, matrix, unformatted_matrix, object_decomposition, user_events, global_event_vector_dict, redundant_events_set, grid_size=16, desired_solution_count=1, desired_per_matrix_solution_count=1, interval_painting_param=false, z3_option="full", time_based=false, z3_timeout=0, sketch_timeout=0, co_occurring_param=false, transition_param=false, co_occurring_distinct=1, co_occurring_same=1, co_occurring_threshold=1, transition_distinct=1, transition_same=1, transition_threshold=1; stop_times=[], linked_ids=Dict())
+function generate_on_clauses_SKETCH_MULTI(run_id, random, matrix, unformatted_matrix, object_decomposition, user_events, global_event_vector_dict, redundant_events_set, grid_size=16, desired_solution_count=1, desired_per_matrix_solution_count=1, interval_painting_param=false, z3_option="full", time_based=false, z3_timeout=0, sketch_timeout=0, co_occurring_param=false, transition_param=false, co_occurring_distinct=1, co_occurring_same=1, co_occurring_threshold=1, transition_distinct=1, transition_same=1, transition_threshold=1; symmetry=false, stop_times=[], linked_ids=Dict())
   start_time = Dates.now()
   
   object_types, object_mapping, background, dim = object_decomposition
@@ -518,6 +518,15 @@ function generate_on_clauses_SKETCH_MULTI(run_id, random, matrix, unformatted_ma
             @show collect(values(old_to_new_state_values))
             state_transition_on_clauses = format_state_transition_functions(new_transitions, collect(values(old_to_new_state_values)), global_var_id=1)
             fake_global_var_dict = Dict(1 => [new_start_state for i in 1:length(user_events)])
+            
+            state_values = collect(values(old_to_new_state_values))
+            counter = 0
+            for i in 1:length(state_values)
+              if state_values[i] != new_start_state 
+                fake_global_var_dict[1][end - counter] = state_values[i]
+                counter += 1
+              end
+            end
             global_var_dict = fake_global_var_dict
 
             # format on_clauses 
@@ -526,7 +535,62 @@ function generate_on_clauses_SKETCH_MULTI(run_id, random, matrix, unformatted_ma
             push!(on_clauses, state_based_update_func_on_clauses...)
             push!(on_clauses, state_transition_on_clauses...)
 
+            push!(global_state_update_on_clauses, state_transition_on_clauses...)
           end
+
+          # check if some update functions are actually solved by previously generated new state 
+          # construct new update_functions_dict from object_specific_update_functions_dict 
+          println("OH BOY")
+          @show object_specific_update_functions_dict
+          update_functions_dict = Dict() 
+          for key in keys(object_specific_update_functions_dict)
+            type_id, _ = key 
+            update_functions = deepcopy(object_specific_update_functions_dict[key])
+            if type_id isa Tuple 
+              ids = collect(type_id)
+              for id in ids 
+                update_functions_with_id = filter(x -> occursin("addedObjType$(id)List", x), update_functions)
+                if id in keys(update_functions_dict)
+                  push!(update_functions_dict[id], update_functions_with_id...)
+                else
+                  update_functions_dict[id] = update_functions_with_id
+                end
+              end 
+            else
+              if type_id in keys(update_functions_dict)
+                push!(update_functions_dict[type_id], update_functions...)
+              else
+                update_functions_dict[type_id] = update_functions
+              end
+            end
+
+          end
+          @show update_functions_dict
+          @show global_state_update_on_clauses
+
+          new_on_clauses, state_based_update_functions_dict, _, _, global_event_vector_dict, _ = generate_stateless_on_clauses(run_id, update_functions_dict, matrix, filtered_matrix, anonymized_filtered_matrix, global_object_decomposition, user_events, global_state_update_on_clauses, global_var_dict, global_event_vector_dict, redundant_events_set, z3_option, time_based, z3_timeout, sketch_timeout, symmetry, stop_times=stop_times)          
+          println("WHATS GOING ON NOW")
+          @show new_on_clauses 
+          @show state_based_update_functions_dict
+
+          println("NOW HERE 2")
+          @show length(on_clauses)
+          @show on_clauses
+
+          @show collect(keys(object_specific_update_functions_dict))
+          @show object_specific_update_functions_dict
+          
+          # if some other update functions are solved, add their on-clauses + remove them from object_specific_update_functions_dict 
+          if new_on_clauses != [] 
+            push!(on_clauses, new_on_clauses...)
+            # update object_specific_update_functions_dict by removing 
+            object_specific_update_functions_dict = update_co_occurring_events_dict(object_specific_update_functions_dict, state_based_update_functions_dict)
+          end
+          println("WBU")
+          @show on_clauses
+          @show collect(keys(object_specific_update_functions_dict))
+          @show object_specific_update_functions_dict
+
 
           # OBJECT-SPECIFIC STATE HANDLING 
           @show object_specific_update_functions_dict
@@ -693,7 +757,7 @@ function generate_on_clauses_SKETCH_MULTI(run_id, random, matrix, unformatted_ma
 end
 
 function generate_global_multi_automaton_sketch(run_id, co_occurring_event, times_dict, event_vector_dict, object_trajectory, init_global_var_dict, state_update_times_dict, object_decomposition, type_id, desired_per_matrix_solution_count, sketch_timeout=0, incremental=false, ordered_update_functions=[], transition_distinct=1, transition_same=1, transition_threshold=1; stop_times=[])
-  # # println("GENERATE_NEW_STATE_GLOBAL_SKETCH")
+  println("GENERATE_NEW_STATE_GLOBAL_SKETCH")
   @show co_occurring_event
   @show times_dict 
   @show event_vector_dict 
@@ -708,6 +772,10 @@ function generate_global_multi_automaton_sketch(run_id, co_occurring_event, time
   failed = false
   solutions = []
   object_types, object_mapping, _, _ = object_decomposition
+
+  if co_occurring_event == "(== 1 1)"
+    co_occurring_event = "true"
+  end
 
   events = filter(e -> event_vector_dict[e] isa AbstractArray, collect(keys(event_vector_dict)))
   atomic_events = gen_event_bool_human_prior(object_decomposition, "x", type_id isa Tuple ? type_id[1] : type_id, ["nothing"], init_global_var_dict, collect(keys(times_dict))[1])
@@ -1224,7 +1292,7 @@ function generate_global_multi_automaton_sketch(run_id, co_occurring_event, time
 end
 
 function generate_object_specific_multi_automaton_sketch(run_id, co_occurring_event, update_functions, times_dict, event_vector_dict, type_id, object_decomposition, init_state_update_times, global_var_dict, sketch_timeout=0, incremental=false, transition_param=false, transition_distinct=1, transition_same=1, transition_threshold=1; stop_times=[]) 
-  # println("GENERATE_NEW_OBJECT_SPECIFIC_STATE")
+  println("GENERATE_NEW_OBJECT_SPECIFIC_STATE")
   @show co_occurring_event
   @show update_functions 
   @show times_dict
@@ -1236,6 +1304,10 @@ function generate_object_specific_multi_automaton_sketch(run_id, co_occurring_ev
   failed = false
   object_types, object_mapping, background, grid_size = object_decomposition 
   object_ids = sort(filter(k -> filter(obj -> !isnothing(obj), object_mapping[k])[1].type.id == type_id, collect(keys(object_mapping))))
+
+  if co_occurring_event == "(== 1 1)"
+    co_occurring_event = "true"
+  end
 
   atomic_events = gen_event_bool_human_prior(object_decomposition, "x", type_id, ["nothing"], global_var_dict, update_functions[1])
 

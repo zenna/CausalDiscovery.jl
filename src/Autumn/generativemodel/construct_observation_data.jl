@@ -688,6 +688,8 @@ end
 
 function generate_observations_magnets(m::Module)
   observations, user_events, grid_size = JLD.load("magnets_final.jld", "data") # JLD.load("magnets_i_observations.jld")["observations"]
+  observations = observations[1]
+  user_events = user_events[1]
   observations, user_events, grid_size 
   # state = Base.invokelatest(m.init, nothing, nothing, nothing, nothing, nothing)
   # observations = []
