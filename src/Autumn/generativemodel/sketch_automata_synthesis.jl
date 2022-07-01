@@ -1703,7 +1703,7 @@ function generalize_automaton(aut, user_events, event_vector_dict, all_labels)
 end
 
 function generate_object_specific_automaton_sketch(run_id, update_rule, update_function_times_dict, event_vector_dict, type_id, filtered_matrix, object_decomposition, init_state_update_times, global_var_dict, type_displacements, interval_offsets, source_exists_events_dict, addObj_based_list, double_removeObj_update_functions, linked_removeObj_update_functions, sketch_timeout, co_occurring_param=false, co_occurring_distinct=1, co_occurring_same=1, co_occurring_threshold=1, transition_distinct=1, transition_same=1, transition_threshold=1; stop_times=[])
-  # println("GENERATE_NEW_OBJECT_SPECIFIC_STATE")
+  println("GENERATE_NEW_OBJECT_SPECIFIC_STATE")
   @show update_rule
   @show update_function_times_dict
   @show event_vector_dict
