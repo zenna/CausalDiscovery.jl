@@ -74,7 +74,7 @@ function generate_on_clauses_GLOBAL(run_id, matrix, unformatted_matrix, object_d
     # @show solutions
     filtered_matrix = filtered_matrices[filtered_matrix_index]
 
-    interval_offsets = compute_regularity_interval_sizes(filtered_matrix, object_decomposition)
+    interval_offsets = compute_regularity_interval_sizes(filtered_matrix, object_decomposition, stop_times=stop_times)
     source_exists_events_dict = compute_source_objects(filtered_matrix, object_decomposition)
 
     # reset global_event_vector_dict and redundant_events_set for each new context:

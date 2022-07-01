@@ -2806,7 +2806,7 @@ function construct_filtered_matrices_pedro(old_matrix, object_decomposition, use
   regularity_found = false
   if potential_regularity_types != []
     for adjacency_barred in [true, false]
-      regularity_matrix, regularity_unformatted_matrix, actual_regularity_types = construct_regularity_matrix(matrix, unformatted_matrix, object_decomposition, potential_regularity_types, adjacency_barred)
+      regularity_matrix, regularity_unformatted_matrix, actual_regularity_types = construct_regularity_matrix(matrix, unformatted_matrix, object_decomposition, potential_regularity_types, adjacency_barred, stop_times=stop_times)
       @show regularity_matrix
       @show actual_regularity_types
       if !isnothing(regularity_matrix)
@@ -3540,11 +3540,13 @@ function construct_regularity_matrix(matrix, unformatted_matrix, object_decompos
             if !isnothing(object_mapping[id][1])
               all_nonzero_disp_times = filter(t -> (t != 0) && (t > first_stop) && (t < second_stop), collect((nonzero_disp_time % interval_size):interval_size:(length(object_mapping[id]) - 1)))
             else
-              current_id_addition_time = filter(t -> (t > first_stop) && (t < second_stop), findall(obj -> !isnothing(obj), object_mapping[id]))[1] - 1
+              @show first_stop 
+              @show second_stop
+              current_id_addition_time = filter(t -> (t > first_stop) && (t < (stop_index == length(modified_stop_times) ? (second_stop + 1) : second_stop)), findall(obj -> !isnothing(obj), object_mapping[id]))[1] - 1
               all_nonzero_disp_times = filter(t -> t > (current_id_addition_time + 1) && (t < second_stop), collect((nonzero_disp_time % interval_size):interval_size:(length(object_mapping[id]) - 1)))
             end
             @show all_nonzero_disp_times
-            for time in 1:(length(object_mapping[id]) - 1)
+            for time in (first_stop + 1):(second_stop - 1)
               if (new_matrix[id, time] != [""])
                 if !(time in all_nonzero_disp_times)
                   new_matrix[id, time] = filter(r -> !occursin("NoCollision", r) && !occursin("closest", r) && !occursin("farthest", r), new_matrix[id, time]) # keep only the no-change rule 
@@ -3570,7 +3572,7 @@ function construct_regularity_matrix(matrix, unformatted_matrix, object_decompos
   end
 end
 
-function compute_regularity_interval_sizes(original_filtered_matrix, object_decomposition)
+function compute_regularity_interval_sizes(original_filtered_matrix, object_decomposition; stop_times=[])
   object_types, object_mapping, _, _ = object_decomposition 
   interval_sizes = []
 
@@ -3582,41 +3584,49 @@ function compute_regularity_interval_sizes(original_filtered_matrix, object_deco
   end
 
   # standard regularity intervals 
-  for object_type in object_types 
-    type_id = object_type.id
-    object_ids_with_type = filter(id -> filter(obj -> !isnothing(obj), object_mapping[id])[1].type.id == type_id, collect(keys(object_mapping)))
-    all_update_functions = filter(r -> r != "", unique(vcat(map(id -> vcat(filtered_matrix[id, :]...), object_ids_with_type)...)))
-    if length(all_update_functions) > 1 
-      @show type_id 
-      @show object_ids_with_type
-      non_prev_times = sort(unique(vcat(map(id -> findall(rule -> rule != [""] && !occursin("addObj",rule[1]) && !occursin("removeObj",rule[1]) && !occursin("= obj$(object_ids_with_type[1]) (prev obj$(object_ids_with_type[1]))", rule[1]) && !occursin("--> obj (prev obj)", rule[1]), filtered_matrix[id, :]), object_ids_with_type)...)))
-      @show non_prev_times 
-      intervals = unique([non_prev_times[i + 1] - non_prev_times[i] for i in 2:(length(non_prev_times) - 2)])
-      if length(intervals) == 1 && intervals[1] != 1
-        push!(interval_sizes, ((non_prev_times[1] - 1) % intervals[1], intervals[1]))
-      end
+  modified_stop_times = [0, stop_times..., size(original_filtered_matrix)[2] + 1]
+  for stop_index in 2:length(modified_stop_times)
+    first_stop = modified_stop_times[stop_index - 1]
+    second_stop = modified_stop_times[stop_index]
 
-      # addObj-regularity intervals 
-      addObj_times = sort(unique(vcat(map(id -> findall(rule -> occursin("addObj", rule[1]), filtered_matrix[id, :]), object_ids_with_type)...)))
-      if length(addObj_times) > 2 
-        intervals = unique([addObj_times[i + 1] - addObj_times[i] for i in 1:(length(addObj_times) - 1)])
-        if length(intervals) == 1 
-          push!(interval_sizes, (addObj_times[1] - 1, intervals[1]))
-        else 
-          distinct_sizes = unique(intervals)
-          unit_size = gcd(distinct_sizes)
-          if unit_size != 1 && unit_size in distinct_sizes
-            # imperfect addObj-regularity intervals
-            push!(interval_sizes, (unit_size - 1, unit_size)) 
-          end
+    for object_type in object_types 
+      type_id = object_type.id
+      object_ids_with_type = filter(id -> filter(obj -> !isnothing(obj), object_mapping[id])[1].type.id == type_id, collect(keys(object_mapping)))
+      all_update_functions = filter(r -> r != "", unique(vcat(map(id -> vcat(filtered_matrix[id, (first_stop + 1):(second_stop - 1)]...), object_ids_with_type)...)))
+      if length(all_update_functions) > 1 
+        @show type_id 
+        @show object_ids_with_type
+        non_prev_times = sort(unique(vcat(map(id -> findall(rule -> rule != [""] && !occursin("addObj",rule[1]) && !occursin("removeObj",rule[1]) && !occursin("= obj$(object_ids_with_type[1]) (prev obj$(object_ids_with_type[1]))", rule[1]) && !occursin("--> obj (prev obj)", rule[1]), filtered_matrix[id, (first_stop + 1):(second_stop - 1)]), object_ids_with_type)...)))
+        @show non_prev_times 
+        intervals = unique([non_prev_times[i + 1] - non_prev_times[i] for i in 2:(length(non_prev_times) - 2)])
+        if length(intervals) == 1 && intervals[1] != 1
+          push!(interval_sizes, ((non_prev_times[1] - 1) % intervals[1], intervals[1]))
         end
-      end 
-
+  
+        # addObj-regularity intervals 
+        addObj_times = sort(unique(vcat(map(id -> findall(rule -> occursin("addObj", rule[1]), filtered_matrix[id, (first_stop + 1):(second_stop - 1)]), object_ids_with_type)...)))
+        if length(addObj_times) > 2 
+          intervals = unique([addObj_times[i + 1] - addObj_times[i] for i in 1:(length(addObj_times) - 1)])
+          if length(intervals) == 1 
+            push!(interval_sizes, (addObj_times[1] - 1, intervals[1]))
+          else 
+            distinct_sizes = unique(intervals)
+            unit_size = gcd(distinct_sizes)
+            if unit_size != 1 && unit_size in distinct_sizes
+              # imperfect addObj-regularity intervals
+              push!(interval_sizes, (unit_size - 1, unit_size)) 
+            end
+          end
+        end 
+  
+      end
     end
+
   end
 
+
   # unique!(filter(x -> x != (0, 5), interval_sizes)) # TEMP HACK FOR ALIENS
-  interval_sizes 
+  unique(interval_sizes) 
 end
 
 function compute_source_objects_old(object_decomposition)
