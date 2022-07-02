@@ -57,7 +57,7 @@ function run_model(model_name::String, algorithm, iteration, desired_per_matrix_
   end
 
   # define synthesis parameter options 
-  random_param_vals = [true] # false, true
+  random_param_vals = [false, true] # false, true
   transition_param_vals = [false] # this option exists because of ambiguity in one model :( -- should make this a primitive 
   co_occurring_param_vals = [false] # [false, true]
   z3_option_vals = ["partial", "full"] # ["partial", "full"]
@@ -195,7 +195,7 @@ function run_model(model_name::String, algorithm, iteration, desired_per_matrix_
   if !found_enough # length(all_sols) == 0 
     # co_occurring_param (Water Plug), transition_param (Disease)
 
-    for time_based in [false, true] 
+    for z3_option in ["partial", "full"] 
       for singlecell in [false, true] 
                         # @timed sols = synthesize_program(model_name, 
                         #                                   upd_func_spaces=[6], 
@@ -211,8 +211,8 @@ function run_model(model_name::String, algorithm, iteration, desired_per_matrix_
                                                              singlecell ? singlecell_global_event_vector_dict : multicell_global_event_vector_dict,
                                                              singlecell ? singlecell_redundant_events_set : multicell_redundant_events_set, 
                                                              upd_func_spaces=[6], 
-                                                             time_based=time_based,
-                                                             z3_option="full",
+                                                             time_based=false,
+                                                             z3_option=z3_option,
                                                              desired_per_matrix_solution_count=10000,
                                                              desired_solution_count=desired_solution_count,
                                                              algorithm=algorithm,

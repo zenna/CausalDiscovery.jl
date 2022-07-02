@@ -504,31 +504,30 @@ programs = Dict("particles"                                 => """(program
                 "tetris" => ""
                 ,"snake" => ""
                 ,"magnets_i"                                  => """(program
-                                                                (= GRID_SIZE 16)
-                                                                
-                                                                (object Magnet (: color String) (list (Cell 0 0 color) (Cell 0 1 color)))
-                                                                
-                                                                (: fixedMagnet Magnet)
-                                                                (= fixedMagnet (initnext (Magnet "red" (Position 7 7)) (prev fixedMagnet)))
-                                                              
-                                                                (: mobileMagnet Magnet)
-                                                                (= mobileMagnet (initnext (Magnet "blue" (Position 4 7)) (prev mobileMagnet)))
-                                                              
-                                                                (on clicked (= mobileMagnet (rotateNoCollision (prev mobileMagnet))))
-                                                                (on left (= mobileMagnet (moveNoCollision (prev mobileMagnet) -1 0)))
-                                                                (on right (= mobileMagnet (moveNoCollision (prev mobileMagnet) 1 0)))
-                                                                (on up (= mobileMagnet (moveNoCollision (prev mobileMagnet) 0 -1)))
-                                                                (on down (= mobileMagnet (moveNoCollision (prev mobileMagnet) 0 1)))
-                                                                (on (adjacent (posPole mobileMagnet) (posPole fixedMagnet)) (= mobileMagnet (prev mobileMagnet)))
-                                                                (on (adjacent (negPole mobileMagnet) (negPole fixedMagnet)) (= mobileMagnet (prev mobileMagnet)))
-                                                                (on (in (displacement (posPole mobileMagnet) (negPole fixedMagnet)) attractVectors) (= mobileMagnet (move mobileMagnet    (unitVector (displacement (posPole mobileMagnet) (negPole fixedMagnet))))))
-                                                                (on (in (displacement (negPole mobileMagnet) (posPole fixedMagnet)) attractVectors) (= mobileMagnet (move mobileMagnet (unitVector (displacement (negPole mobileMagnet) (posPole fixedMagnet))))))
-                                                                  
-                                                                (= posPole (fn (magnet) (first (render magnet))))  
-                                                                (= negPole (fn (magnet) (last (render magnet))))  
-                                                              
-                                                                (= attractVectors (list (Position 0 2) (Position 2 0) (Position -2 0) (Position 0 -2)))
-                                                              )"""
+                (= GRID_SIZE 16)
+                
+                (object Magnet (: color String) (list (Cell 0 0 color) (Cell 0 1 color)))
+                
+                (: fixedMagnet Magnet)
+                (= fixedMagnet (initnext (Magnet "red" (Position 7 7)) (prev fixedMagnet)))
+                
+                (: mobileMagnet Magnet)
+                (= mobileMagnet (initnext (Magnet "blue" (Position 4 7)) (prev mobileMagnet)))
+                
+                (on left (= mobileMagnet (moveNoCollision (prev mobileMagnet) -1 0)))
+                (on right (= mobileMagnet (moveNoCollision (prev mobileMagnet) 1 0)))
+                (on up (= mobileMagnet (moveNoCollision (prev mobileMagnet) 0 -1)))
+                (on down (= mobileMagnet (moveNoCollision (prev mobileMagnet) 0 1)))
+                (on (adjacent (posPole mobileMagnet) (posPole fixedMagnet) 1) (= mobileMagnet (prev mobileMagnet)))
+                (on (adjacent (negPole mobileMagnet) (negPole fixedMagnet) 1) (= mobileMagnet (prev mobileMagnet)))
+                (on (in (displacement (posPole mobileMagnet) (negPole fixedMagnet)) attractVectors) (= mobileMagnet (move mobileMagnet    (unitVector (displacement (posPole mobileMagnet) (negPole fixedMagnet))))))
+                (on (in (displacement (negPole mobileMagnet) (posPole fixedMagnet)) attractVectors) (= mobileMagnet (move mobileMagnet (unitVector (displacement (negPole mobileMagnet) (posPole fixedMagnet))))))
+                  
+                (= posPole (fn (magnet) (first (render magnet))))  
+                (= negPole (fn (magnet) (last (render magnet))))  
+                
+                (= attractVectors (list (Position 0 2) (Position 2 0) (Position -2 0) (Position 0 -2)))
+                )"""
                 ,"magnets_ii" => ""
                 ,"magnets_iii" => ""
                 ,"disease"                                    => """(program
@@ -622,48 +621,47 @@ programs = Dict("particles"                                 => """(program
                                                           )"""
                 ,"gol" => ""
                 ,"sokoban_i" =>                               """(program
-                                                                  (= GRID_SIZE 16)
-                                                                  
-                                                                  (object Agent (Cell 0 0 "blue"))
-                                                                  (object Box (Cell 0 0 "black"))
-                                                                  (object Goal (Cell 0 0 "red"))
-                                                                  
-                                                                  (: agent Agent)
-                                                                  (= agent (initnext (Agent (Position 7 4)) (prev agent)))
+                                                                    (= GRID_SIZE 16)
                                                                     
-                                                                  (: boxes (List Box))
-                                                                  (= boxes (initnext (list (Box (Position 1 2)) (Box (Position 0 4)) (Box (Position 4 4)) (Box (Position 9 9)) (Box (Position 10 9)) (Box (Position 0 11))) (prev boxes)))
-                                                                
-                                                                  (: goal Goal)
-                                                                  (= goal (initnext (Goal (Position 0 0)) (prev goal)))
-                                                                  
-                                                                  (on left (let ((= boxes (moveBoxes (prev boxes) (prev agent) (prev goal) -1 0)) 
-                                                                                (= agent (moveAgent (prev agent) (prev boxes) (prev goal) -1 0))))) 
-                                                                
-                                                                  (on right (let ((= boxes (moveBoxes (prev boxes) (prev agent) (prev goal) 1 0)) 
-                                                                                  (= agent (moveAgent (prev agent) (prev boxes) (prev goal) 1 0))))) 
-                                                                
-                                                                  (on up (let ((= boxes (moveBoxes (prev boxes) (prev agent) (prev goal) 0 -1)) 
-                                                                              (= agent (moveAgent (prev agent) (prev boxes) (prev goal) 0 -1))))) 
-                                                                
-                                                                  (on down (let ((= boxes (moveBoxes (prev boxes) (prev agent) (prev goal) 0 1)) 
-                                                                                (= agent (moveAgent (prev agent) (prev boxes) (prev goal) 0 1))))) 
-                                                                  
-                                                                  (on (& clicked (isFree click)) (= boxes (addObj boxes (Box (Position (.. click x) (.. click y))))))
-                                                                
-                                                                  (: moveBoxes (-> (List Box) Agent Goal Int Int (List Box)))
-                                                                  (= moveBoxes (fn (boxes agent goal x y) 
-                                                                                  (updateObj boxes 
-                                                                                    (--> obj (if (intersects (move obj x y) goal) then (removeObj obj) else (moveNoCollision obj x y))) 
-                                                                                    (--> obj (== (displacement (.. obj origin) (.. agent origin)) (Position (- 0 x) (- 0 y)))))))
-                                                                
-                                                                  (: moveAgent (-> Agent (List Box) Goal Int Int Agent))
-                                                                  (= moveAgent (fn (agent boxes goal x y) 
-                                                                                  (if (| (intersects (list (move agent x y)) (moveBoxes boxes agent goal x y)) 
-                                                                                          (! (isWithinBounds (move agent x y)))) 
-                                                                                    then agent 
-                                                                                    else (move agent x y))))
-                                                                )"""
+                                                                    (object Agent (Cell 0 0 "blue"))
+                                                                    (object Box (Cell 0 0 "black"))
+                                                                    (object Goal (Cell 0 0 "red"))
+                                                                    
+                                                                    (: agent Agent)
+                                                                    (= agent (initnext (Agent (Position 7 4)) (prev agent)))
+                                                                      
+                                                                    (: boxes (List Box))
+                                                                    (= boxes (initnext (list (Box (Position 14 2)) (Box (Position 9 14)) (Box (Position 1 2)) (Box (Position 0 4)) (Box (Position 4 4)) (Box (Position 9 9)) (Box (Position 10 9)) (Box (Position 0 11))) (prev boxes)))
+                                                                    
+                                                                    (: goal Goal)
+                                                                    (= goal (initnext (Goal (Position 0 0)) (prev goal)))
+                                                                    
+                                                                    (on left (let ((= boxes (moveBoxes (prev boxes) (prev agent) (prev goal) -1 0)) 
+                                                                                  (= agent (moveAgent (prev agent) (prev boxes) (prev goal) -1 0))))) 
+                                                                    
+                                                                    (on right (let ((= boxes (moveBoxes (prev boxes) (prev agent) (prev goal) 1 0)) 
+                                                                                    (= agent (moveAgent (prev agent) (prev boxes) (prev goal) 1 0))))) 
+                                                                    
+                                                                    (on up (let ((= boxes (moveBoxes (prev boxes) (prev agent) (prev goal) 0 -1)) 
+                                                                                (= agent (moveAgent (prev agent) (prev boxes) (prev goal) 0 -1))))) 
+                                                                    
+                                                                    (on down (let ((= boxes (moveBoxes (prev boxes) (prev agent) (prev goal) 0 1)) 
+                                                                                  (= agent (moveAgent (prev agent) (prev boxes) (prev goal) 0 1))))) 
+                                                                    
+                                                                    (on (& clicked (isFree click)) (= boxes (addObj boxes (Box (Position (.. click x) (.. click y))))))
+                                                                    
+                                                                    (: moveBoxes (-> (List Box) Agent Goal Int Int (List Box)))
+                                                                    (= moveBoxes (fn (boxes agent goal x y) 
+                                                                                    (updateObj boxes 
+                                                                                      (--> obj (if (intersects (move obj x y) goal) then (removeObj obj) else (moveNoCollision obj x y))) 
+                                                                                      (--> obj (== (displacement (.. obj origin) (.. agent origin)) (Position (- 0 x) (- 0 y)))))))
+                                                                    
+                                                                    (: moveAgent (-> Agent (List Box) Goal Int Int Agent))
+                                                                    (= moveAgent (fn (agent boxes goal x y) 
+                                                                                    (if (intersects (list (move agent x y)) (moveBoxes boxes agent goal x y))
+                                                                                      then agent 
+                                                                                      else (move agent x y))))
+                                                                    )"""
                 ,"sokoban_ii" => ""
                 ,"grow"                                      => """(program
                 (= GRID_SIZE 7)
