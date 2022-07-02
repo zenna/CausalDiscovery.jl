@@ -307,8 +307,55 @@ function generate_on_clauses_SKETCH_SINGLE(run_id, matrix, unformatted_matrix, o
           push!(on_clauses, state_based_update_func_on_clauses...)
           push!(on_clauses, state_transition_on_clauses...)  
         end
-  
       end
+
+      println("OH BOY")
+      @show object_specific_update_functions_dict
+      update_functions_dict = object_specific_update_functions_dict 
+
+      @show update_functions_dict
+      @show global_state_update_on_clauses
+
+      new_on_clauses, state_based_update_functions_dict, _, _, global_event_vector_dict, _ = generate_stateless_on_clauses(run_id, update_functions_dict, matrix, filtered_matrix, anonymized_filtered_matrix, global_object_decomposition, user_events, global_state_update_on_clauses, global_var_dict, global_event_vector_dict, redundant_events_set, z3_option, time_based, z3_timeout, sketch_timeout, symmetry, stop_times=stop_times)          
+      println("WHATS GOING ON NOW")
+      @show new_on_clauses 
+      @show state_based_update_functions_dict
+
+      println("NOW HERE 2")
+      @show length(on_clauses)
+      @show on_clauses
+
+      @show collect(keys(object_specific_update_functions_dict))
+      @show object_specific_update_functions_dict
+      
+      # if some other update functions are solved, add their on-clauses + remove them from object_specific_update_functions_dict 
+      if new_on_clauses != [] 
+        push!(on_clauses, new_on_clauses...)
+        # update object_specific_update_functions_dict by removing newly solved update functions
+        for t_id in collect(keys(object_specific_update_functions_dict)) 
+          if !(t_id in keys(state_based_update_functions_dict)) 
+            delete!(object_specific_update_functions_dict, t_id)
+          else
+            for u in object_specific_update_functions_dict[t_id]
+              if !(u in state_based_update_functions_dict[t_id]) # if u is not in the new state_based_update_functions_dict, then it has already been solved!
+                filter!(x -> x != u, object_specific_update_functions_dict[t_id])
+              end
+            end
+
+            if object_specific_update_functions_dict[t_id] == []
+              delete!(object_specific_update_functions_dict, t_id)
+            end
+          end
+        end
+
+      end
+      println("WBU")
+      @show on_clauses
+      @show collect(keys(object_specific_update_functions_dict))
+      @show object_specific_update_functions_dict
+
+
+
 
       # OBJECT-SPECIFIC STATE HANDLING 
       @show object_specific_update_functions_dict
@@ -345,90 +392,96 @@ function generate_on_clauses_SKETCH_SINGLE(run_id, matrix, unformatted_matrix, o
         if !failed && collect(keys(object_specific_state_solutions_dict)) != []
           @show object_specific_state_solutions_dict
 
-          type_id = collect(keys(object_specific_update_functions_dict))[1]
-          object_ids = filter(id -> filter(obj -> !isnothing(obj), object_mapping[id])[1].type.id == type_id, collect(keys(object_mapping)))
-  
-          # OBJECT-SPECIFIC AUTOMATON CONSTRUCTION 
-          object_specific_update_functions = sort(vcat(collect(keys(object_specific_state_solutions_dict))...))
-  
-          # compute products of component automata to find simplest 
-          println("PRE-GENERALIZATION (OBJECT-SPECIFIC)")
-          @show object_specific_state_solutions_dict
-          object_specific_state_solutions_dict = generalize_all_automata(object_specific_state_solutions_dict, user_events, global_event_vector_dict, global_aut=false)
-          println("POST-GENERALIZATION (OBJECT-SPECIFIC)")
-          @show object_specific_state_solutions_dict 
-  
-          product_automata = compute_all_products(object_specific_state_solutions_dict, global_aut=false, generalized=true)
-          best_automaton = optimal_automaton(product_automata)
-          best_prod_states, best_prod_transitions, best_start_state, best_accept_states, best_co_occurring_event = best_automaton 
-  
-          @show best_prod_states 
-          @show best_prod_transitions 
-          @show best_start_state 
-          @show best_accept_states 
-          @show best_co_occurring_event 
-  
-          # re-label product states (tuples) to integers
-          old_to_new_state_values = Dict(map(tup -> tup => findall(x -> x == tup, sort(best_prod_states))[1], sort(best_prod_states)))
-  
-          # construct product transitions under relabeling 
-          new_transitions = map(old_trans -> (old_to_new_state_values[old_trans[1]], old_to_new_state_values[old_trans[2]], old_trans[3]), best_prod_transitions)
-  
-          # construct accept states for each update function under relabeling
-          new_accept_state_dict = Dict()
-          for update_function_index in 1:length(object_specific_update_functions)
-            update_function = object_specific_update_functions[update_function_index]
-            orig_accept_states = best_accept_states[update_function_index]
-            prod_accept_states = filter(tup -> tup[update_function_index] in orig_accept_states, best_prod_states)
-            final_accept_states = map(tup -> old_to_new_state_values[tup], prod_accept_states)
-            new_accept_state_dict[update_function] = final_accept_states
-          end 
-  
-          # construct start state under relabeling 
-          orig_start_states = best_start_state
-          new_start_states = map(tup -> old_to_new_state_values[tup], orig_start_states)
-        
-          # TODO: something generalization-based needs to happen here 
-          state_based_update_func_on_clauses = map(idx -> ("(on true\n$(replace(object_specific_update_functions[idx], "(== (.. obj id) x)" => "(& $(best_co_occurring_event[idx]) (in (.. (prev obj) field1) (list $(join(new_accept_state_dict[object_specific_update_functions[idx]], " ")))))")))", object_specific_update_functions[idx]), 1:length(object_specific_update_functions))
-          new_transitions = map(trans -> (trans[1], trans[2], replace(trans[3], "(filter (--> obj (== (.. obj id) x)) (prev addedObjType$(type_id)List))" => "(list (prev obj))")), new_transitions)
-          # state_transition_on_clauses = map(trans -> """(on true\n(= addedObjType$(type_id)List (updateObj addedObjType$(type_id)List (--> obj (updateObj (prev obj) "field1" $(trans[2]))) (--> obj $(trans[3])))))""", new_transitions)
-          state_transition_on_clauses = map(x -> replace(x, "(filter (--> obj (== (.. obj id) x)) (prev addedObjType$(type_id)List))" => "(list (prev obj))"), format_state_transition_functions(new_transitions, collect(values(old_to_new_state_values)), type_id=type_id))
-  
-          fake_object_field_values = Dict(map(idx -> sort(collect(keys(object_mapping)))[idx] => [new_start_states[idx] for i in 1:length(object_mapping[object_ids[1]])], sort(collect(keys(object_mapping)))))
-  
+          object_specific_state_solutions_dict_full = deepcopy(object_specific_state_solutions_dict)
+
           new_object_types = deepcopy(object_types)
-          new_object_type = filter(type -> type.id == type_id, new_object_types)[1]
-          if !("field1" in map(field_tuple -> field_tuple[1], new_object_type.custom_fields))
-            push!(new_object_type.custom_fields, ("field1", "Int", collect(values(old_to_new_state_values))))
-          else
-            custom_field_index = findall(field_tuple -> field_tuple[1] == "field1", filter(obj -> !isnothing(obj), object_mapping[object_ids[1]])[1].type.custom_fields)[1]
-            new_object_type.custom_fields[custom_field_index][3] = sort(unique(vcat(new_object_type.custom_fields[custom_field_index][3], collect(values(old_to_new_state_values)))))
-          end
-          
-          ## modify objects in object_mapping
           new_object_mapping = deepcopy(object_mapping)
-          for id in collect(keys(new_object_mapping))
-            if id in object_ids
-              for time in 1:length(new_object_mapping[id])
-                if !isnothing(object_mapping[id][time])
-                  values = new_object_mapping[id][time].custom_field_values
-                  if !((values != []) && (values[end] isa Int) && (values[end] < curr_state_value))
-                    new_object_mapping[id][time].type = new_object_type
-                    if (values != []) && (values[end] isa Int)
-                      new_object_mapping[id][time].custom_field_values = vcat(new_object_mapping[id][time].custom_field_values[1:end-1], fake_object_field_values[id][time])
-                    else
-                      new_object_mapping[id][time].custom_field_values = vcat(new_object_mapping[id][time].custom_field_values, fake_object_field_values[id][time])
+
+          for type_id in collect(keys(object_specific_update_functions_dict))
+            object_ids = filter(id -> filter(obj -> !isnothing(obj), object_mapping[id])[1].type.id == type_id, collect(keys(object_mapping)))
+  
+            # OBJECT-SPECIFIC AUTOMATON CONSTRUCTION 
+            object_specific_update_functions = sort(object_specific_update_functions_dict[type_id])
+            # object_specific_update_functions = sort(vcat(collect(keys(object_specific_state_solutions_dict))...))
+    
+            # compute products of component automata to find simplest 
+            # # # # # println("PRE-GENERALIZATION (OBJECT-SPECIFIC)")
+            object_specific_state_solutions_dict = Dict(map(u -> u => object_specific_state_solutions_dict_full[u], object_specific_update_functions))
+            # @show object_specific_state_solutions_dict
+            object_specific_state_solutions_dict = generalize_all_automata(object_specific_state_solutions_dict, user_events, global_event_vector_dict, global_aut=false)
+            # # # # # println("POST-GENERALIZATION (OBJECT-SPECIFIC)")
+            # @show object_specific_state_solutions_dict 
+    
+            product_automata = compute_all_products(object_specific_state_solutions_dict, global_aut=false, generalized=true)
+            best_automaton = optimal_automaton(product_automata)
+            best_prod_states, best_prod_transitions, best_start_state, best_accept_states, best_co_occurring_event = best_automaton 
+    
+            # @show best_prod_states 
+            # @show best_prod_transitions 
+            # @show best_start_state 
+            # @show best_accept_states 
+            # @show best_co_occurring_event 
+    
+            # re-label product states (tuples) to integers
+            old_to_new_state_values = Dict(map(tup -> tup => findall(x -> x == tup, sort(best_prod_states))[1], sort(best_prod_states)))
+    
+            # construct product transitions under relabeling 
+            new_transitions = map(old_trans -> (old_to_new_state_values[old_trans[1]], old_to_new_state_values[old_trans[2]], old_trans[3]), best_prod_transitions)
+    
+            # construct accept states for each update function under relabeling
+            new_accept_state_dict = Dict()
+            for update_function_index in 1:length(object_specific_update_functions)
+              update_function = object_specific_update_functions[update_function_index]
+              orig_accept_states = best_accept_states[update_function_index]
+              prod_accept_states = filter(tup -> tup[update_function_index] in orig_accept_states, best_prod_states)
+              final_accept_states = map(tup -> old_to_new_state_values[tup], prod_accept_states)
+              new_accept_state_dict[update_function] = final_accept_states
+            end 
+    
+            # construct start state under relabeling 
+            orig_start_states = best_start_state
+            new_start_states = map(tup -> old_to_new_state_values[tup], orig_start_states)
+          
+            # TODO: something generalization-based needs to happen here 
+            state_based_update_func_on_clauses = map(idx -> ("(on true\n$(replace(object_specific_update_functions[idx], "(== (.. obj id) x)" => "(& $(best_co_occurring_event[idx]) (in (.. (prev obj) field1) (list $(join(new_accept_state_dict[object_specific_update_functions[idx]], " ")))))")))", object_specific_update_functions[idx]), 1:length(object_specific_update_functions))
+            new_transitions = map(trans -> (trans[1], trans[2], replace(trans[3], "(filter (--> obj (== (.. obj id) x)) (prev addedObjType$(type_id)List))" => "(list (prev obj))")), new_transitions)
+            # state_transition_on_clauses = map(trans -> """(on true\n(= addedObjType$(type_id)List (updateObj addedObjType$(type_id)List (--> obj (updateObj (prev obj) "field1" $(trans[2]))) (--> obj $(trans[3])))))""", new_transitions)
+            state_transition_on_clauses = map(x -> replace(x, "(filter (--> obj (== (.. obj id) x)) (prev addedObjType$(type_id)List))" => "(list (prev obj))" ), format_state_transition_functions(new_transitions, collect(values(old_to_new_state_values)), type_id=type_id))
+    
+            fake_object_field_values = Dict(map(idx -> sort(object_ids)[idx] => [new_start_states[idx] for i in 1:length(object_mapping[object_ids[1]])], 1:length(object_ids)))    
+            new_object_type = filter(type -> type.id == type_id, new_object_types)[1]
+            if !("field1" in map(field_tuple -> field_tuple[1], new_object_type.custom_fields))
+              push!(new_object_type.custom_fields, ("field1", "Int", collect(values(old_to_new_state_values))))
+            else
+              custom_field_index = findall(field_tuple -> field_tuple[1] == "field1", filter(obj -> !isnothing(obj), object_mapping[object_ids[1]])[1].type.custom_fields)[1]
+              new_object_type.custom_fields[custom_field_index][3] = sort(unique(vcat(new_object_type.custom_fields[custom_field_index][3], collect(values(old_to_new_state_values)))))
+            end
+            
+            ## modify objects in object_mapping
+            for id in collect(keys(new_object_mapping))
+              if id in object_ids
+                for time in 1:length(new_object_mapping[id])
+                  if !isnothing(object_mapping[id][time])
+                    values = new_object_mapping[id][time].custom_field_values
+                    if !((values != []) && (values[end] isa Int) && (values[end] < curr_state_value))
+                      new_object_mapping[id][time].type = new_object_type
+                      if (values != []) && (values[end] isa Int)
+                        new_object_mapping[id][time].custom_field_values = vcat(new_object_mapping[id][time].custom_field_values[1:end-1], fake_object_field_values[id][time])
+                      else
+                        new_object_mapping[id][time].custom_field_values = vcat(new_object_mapping[id][time].custom_field_values, fake_object_field_values[id][time])
+                      end
                     end
                   end
                 end
               end
             end
+            
+            # TODO: formatting
+            push!(on_clauses, state_based_update_func_on_clauses...)
+            push!(on_clauses, reverse(state_transition_on_clauses)...)
+  
           end
           object_decomposition = (new_object_types, new_object_mapping, background, grid_size)
-          
-          # TODO: formatting
-          push!(on_clauses, state_based_update_func_on_clauses...)
-          push!(on_clauses, reverse(state_transition_on_clauses)...)
         end
       end
 
