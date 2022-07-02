@@ -359,7 +359,7 @@ function gen_event_bool_human_prior(object_decomposition, object_id, type_id, us
   if non_list_objects != []  
     for object_1 in non_list_objects
       push!(choices, "(.. (prev obj$(object_1.id)) alive)")
-      push!(choices, "(! (.. (prev obj$(object_1.id)) alive))")
+      # push!(choices, "(! (.. (prev obj$(object_1.id)) alive))")
       # NEW SYMMETRIZATION
       if symmetry 
         push!(choices, "(isFree (.. (move (prev obj$(object_1.id)) arrow) origin))")
