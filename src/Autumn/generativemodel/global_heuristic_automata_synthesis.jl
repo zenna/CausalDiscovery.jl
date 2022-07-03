@@ -165,21 +165,40 @@ function generate_on_clauses_GLOBAL(run_id, random, matrix, unformatted_matrix, 
           for event in events
             # @show event 
             if global_event_vector_dict[event] isa AbstractArray
-              event_vector = global_event_vector_dict[event]
-              co_occurring = foldl(&, map(update_function_times -> is_co_occurring(event, event_vector, update_function_times), collect(values(update_function_times_dict))), init=true)      
-            
-              if co_occurring
-                false_positive_count = foldl(+, map(k -> num_false_positives(event_vector, update_function_times_dict[k], object_mapping[k]), collect(keys(update_function_times_dict))), init=0)
-                push!(co_occurring_events, (event, false_positive_count))
-              end
-            elseif (Set(collect(keys(global_event_vector_dict[event]))) == Set(collect(keys(update_function_times_dict))))
-              event_vector = global_event_vector_dict[event]
-              co_occurring = foldl(&, map(id -> is_co_occurring(event, event_vector[id], update_function_times_dict[id]), collect(keys(update_function_times_dict))), init=true)
+              if occursin("addObj", update_function)
+                addObj_times = unique(vcat(collect(values(update_function_times_dict))...))
+
+                event_vector = global_event_vector_dict[event]
+                co_occurring = is_co_occurring(event, event_vector, addObj_times)   
+
+                if co_occurring
+                  false_positive_count = num_false_positives(event_vector, addObj_times, [1 for i in 1:length(object_mapping[1])], addObj=true)
+                  push!(co_occurring_events, (event, false_positive_count))
+                end
+
+              else
+                event_vector = global_event_vector_dict[event]
+                co_occurring = foldl(&, map(update_function_times -> is_co_occurring(event, event_vector, update_function_times), collect(values(update_function_times_dict))), init=true)      
               
-              if co_occurring
-                false_positive_count = foldl(+, map(id -> num_false_positives(event_vector[id], update_function_times_dict[id], object_mapping[id]), collect(keys(update_function_times_dict))), init=0)
-                push!(co_occurring_events, (event, false_positive_count))
+                if co_occurring
+                  false_positive_count = foldl(+, map(k -> num_false_positives(event_vector, update_function_times_dict[k], object_mapping[k]), collect(keys(update_function_times_dict))), init=0)
+                  push!(co_occurring_events, (event, false_positive_count))
+                end
               end
+
+            elseif (Set(collect(keys(global_event_vector_dict[event]))) == Set(collect(keys(update_function_times_dict))))
+              if !occursin("addObj", update_function) # disallowing object-specific events to cause object additions 
+
+                event_vector = global_event_vector_dict[event]
+                co_occurring = foldl(&, map(id -> is_co_occurring(event, event_vector[id], update_function_times_dict[id]), collect(keys(update_function_times_dict))), init=true)
+                
+                if co_occurring
+                  false_positive_count = foldl(+, map(id -> num_false_positives(event_vector[id], update_function_times_dict[id], object_mapping[id]), collect(keys(update_function_times_dict))), init=0)
+                  push!(co_occurring_events, (event, false_positive_count))
+                end
+              
+              end
+
             end
           end
           # println("BEFORE")
@@ -831,7 +850,8 @@ function generate_new_state_GLOBAL(co_occurring_event, times_dict, event_vector_
   small_event_vector_dict = deepcopy(event_vector_dict)    
   deleted = []
   for e in keys(event_vector_dict)
-    if occursin("adj", e) || !(e in atomic_events) || (!(event_vector_dict[e] isa AbstractArray) && !(e in map(x -> "(clicked (filter (--> obj (== (.. obj id) x)) (prev addedObjType$(x)List)))", map(x -> x.id, object_types))) )
+    if occursin("globalVar", e) || occursin("field1", e) || occursin("adj", e) || !(e in atomic_events) || (!(event_vector_dict[e] isa AbstractArray) && !(e in map(x -> "(clicked (filter (--> obj (== (.. obj id) x)) (prev addedObjType$(x)List)))", map(x -> x.id, object_types))) )
+      # @show e
       push!(deleted, e)
       delete!(small_event_vector_dict, e)    
     end
@@ -1833,7 +1853,7 @@ function generate_new_object_specific_state_GLOBAL(global_events, co_occurring_e
 
   small_event_vector_dict = deepcopy(event_vector_dict)    
   for e in keys(event_vector_dict)
-    if occursin("adj", e) || !(e in atomic_events) # && foldl(|, map(x -> occursin(x, e), atomic_events))
+    if occursin("globalVar", e) || occursin("field", e) || occursin("adj", e) || !(e in atomic_events) # && foldl(|, map(x -> occursin(x, e), atomic_events))
       delete!(small_event_vector_dict, e)
     else
       object_specific_event_with_wrong_type = !(event_vector_dict[e] isa AbstractArray) && (Set(collect(keys(event_vector_dict[e]))) != Set(object_ids))
