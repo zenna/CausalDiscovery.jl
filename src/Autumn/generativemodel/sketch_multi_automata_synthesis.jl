@@ -1505,6 +1505,10 @@ function generate_object_specific_multi_automaton_sketch(run_id, co_occurring_ev
   @show transition_same
   @show transition_threshold
 
+  if co_occurring_event == "(== 1 1)"
+    co_occurring_event = "true"
+  end
+
   state_update_times = deepcopy(init_state_update_times)  
   failed = false
   object_types, object_mapping, background, grid_size = object_decomposition 
