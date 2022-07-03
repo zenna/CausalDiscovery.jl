@@ -3455,6 +3455,8 @@ function construct_regularity_matrix(matrix, unformatted_matrix, object_decompos
       boundary_positions = findall(t -> isnothing(object_values[t]) || is_on_boundary(object_values[t], grid_size) || (adjacency_barred ? adjacent_to_other_objects(object_values[t], t, object_types, object_mapping) : false), 1:length(object_values))
       
       push!(boundary_positions, stop_times...)
+
+      sort!(boundary_positions)
       
       @show boundary_positions
       continuous_segments_dict[id] = getindex.(Ref(object_values), UnitRange.([1; boundary_positions .+ 1], [boundary_positions .- 1; length(object_values)]))
