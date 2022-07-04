@@ -1859,7 +1859,7 @@ function generate_object_specific_automaton_sketch(run_id, update_rule, update_f
   for event in events
     # @show event 
     if global_event_vector_dict[event] isa AbstractArray
-      if occursin("addObj", update_function)
+      if occursin("addObj", update_rule)
         addObj_times = unique(vcat(collect(values(update_function_times_dict))...))
 
         event_vector = global_event_vector_dict[event]
@@ -1881,7 +1881,7 @@ function generate_object_specific_automaton_sketch(run_id, update_rule, update_f
       end
 
     elseif (Set(collect(keys(global_event_vector_dict[event]))) == Set(collect(keys(update_function_times_dict))))
-      if !occursin("addObj", update_function) # disallowing object-specific events to cause object additions 
+      if !occursin("addObj", update_rule) # disallowing object-specific events to cause object additions 
 
         event_vector = global_event_vector_dict[event]
         co_occurring = foldl(&, map(id -> is_co_occurring(event, event_vector[id], update_function_times_dict[id]), collect(keys(update_function_times_dict))), init=true)
