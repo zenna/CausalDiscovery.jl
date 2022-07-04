@@ -1800,6 +1800,12 @@ function generate_object_specific_automaton_sketch(run_id, update_rule, update_f
   @show transition_threshold
   @show stop_times
 
+  object_types, object_mapping, _, _ = object_decomposition
+
+  start_objects = map(k -> object_mapping[k][1], filter(key -> !isnothing(object_mapping[key][1]), collect(keys(object_mapping))))
+  non_list_objects = filter(x -> (count(y -> y.type.id == x.type.id, start_objects) == 1) && (count(obj_id -> filter(z -> !isnothing(z), object_mapping[obj_id])[1].type.id == x.type.id, collect(keys(object_mapping))) == 1), start_objects)
+  non_list_object_ids = map(obj -> obj.id, non_list_objects)
+
   # ----- START: construct small_event_vector_dict
   atomic_events = gen_event_bool_human_prior(object_decomposition, "x", type_id, ["nothing"], global_var_dict, update_rule, type_displacements, interval_offsets, source_exists_events_dict)
 
