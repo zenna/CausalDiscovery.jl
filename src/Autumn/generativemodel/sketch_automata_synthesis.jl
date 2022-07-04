@@ -997,13 +997,14 @@ function generate_global_automaton_sketch(run_id, update_rule, update_function_t
               include "$(local_sketch_directory)string.skh"; 
               include "$(local_sketch_directory)mstatemachine_stops.skh";
             
-              bit recognize([int n, int p], char[n] events, int[n] functions, char true_char, int min_states, int min_transitions, int start, int[p] stop_times, int min_stop_val, int[n] desired_out){
-                return matches(MSM(events, true_char, min_states, min_transitions, start, stop_times, min_stop_val, desired_out), functions);
+              bit recognize([int n, int m, int p], char[n] events, int[n] functions, it[n][m] old_state_seqs, char true_char, int min_states, int min_transitions, int start, int[p] stop_times, int min_stop_val, int[n] desired_out){
+                return matches(MSM_unique(events, old_state_seqs, true_char, min_states, min_transitions, start, stop_times, min_stop_val, desired_out), functions);
               }  
             
               harness void h() {
                 assert recognize( { $(join(map(c -> "'$(c)'", sketch_event_arr), ", ")) }, 
-                                  { $(join(sketch_update_function_arr, ", ")) }, 
+                                  { $(join(sketch_update_function_arr, ", ")) },
+                                  { $(join(map(old_seq -> "{ $(join(old_seq, ", ")) }", old_state_seqs), ", \n")) }, 
                                   '$(true_char)', 
                                   $(min_states), 
                                   $(min_transitions),
