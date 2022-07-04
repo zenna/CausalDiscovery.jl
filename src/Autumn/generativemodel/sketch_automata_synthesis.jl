@@ -251,8 +251,8 @@ function generate_on_clauses_SKETCH_SINGLE(run_id, matrix, unformatted_matrix, o
             if state_solutions == [] 
               failed = true 
               break
-            elseif !(state_solutions isa Tuple)
-              push!(on_clauses, state_solutions...)
+            elseif state_solutions[1] == "special"
+              push!(on_clauses, state_solutions[2:end]...)
             else
               global_state_solutions_dict[update_function] = state_solutions 
             end
@@ -377,8 +377,8 @@ function generate_on_clauses_SKETCH_SINGLE(run_id, matrix, unformatted_matrix, o
               # println("SKETCH AUTOMATA SEARCH FAILED")
               failed = true 
               break
-            elseif !(state_solutions isa Tuple)
-              push!(on_clauses, state_solutions...)
+            elseif state_solutions[1] == "special"
+              push!(on_clauses, state_solutions[2:end]...)
             else
               object_specific_state_solutions_dict[update_function] = state_solutions
             end
@@ -567,7 +567,7 @@ function generate_global_automaton_sketch(run_id, update_rule, update_function_t
 
   specially_handled_on_clauses = special_addObj_removeObj_handling(update_rule, filtered_matrix, co_occurring_events, addObj_based_list, double_removeObj_update_functions, linked_removeObj_update_functions, source_exists_events_dict, object_decomposition)
   if specially_handled_on_clauses != []
-    return specially_handled_on_clauses
+    return vcat("special", specially_handled_on_clauses...)
   end
 
   false_positive_counts = sort(unique(map(x -> x[2], co_occurring_events)))
@@ -1868,7 +1868,7 @@ function generate_object_specific_automaton_sketch(run_id, update_rule, update_f
 
     unique_state_values = unique(vcat(map(id -> map(t -> object_mapping[id][t].custom_field_values[end], update_function_times_dict[id]), object_ids)...))
     if unique_state_values != [curr_state_value]
-      return ("", [], object_decomposition, state_update_times)  
+      return []  
     end
   end
 
@@ -1929,7 +1929,7 @@ function generate_object_specific_automaton_sketch(run_id, update_rule, update_f
 
   specially_handled_on_clauses = special_addObj_removeObj_handling(update_rule, filtered_matrix, co_occurring_events, addObj_based_list, double_removeObj_update_functions, linked_removeObj_update_functions, source_exists_events_dict, object_decomposition)
   if specially_handled_on_clauses != []
-    return specially_handled_on_clauses
+    return vcat("special", specially_handled_on_clauses...)
   end
 
   false_positive_counts = sort(unique(map(x -> x[2], co_occurring_events)))
