@@ -11,7 +11,7 @@ function check_observations_equivalence(observations1, observations2)
     # # # @show obs2_tuples
 
     if obs1_tuples != obs2_tuples
-      # @show i
+      @show i
       # # # @show obs1_tuples 
       # # # @show obs2_tuples
       return false

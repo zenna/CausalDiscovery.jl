@@ -280,8 +280,14 @@ function generate_on_clauses_SKETCH_SINGLE(run_id, random, matrix, unformatted_m
           state_transition_on_clauses = format_state_transition_functions(new_transitions, collect(values(old_to_new_state_values)), global_var_id=1)
           fake_global_var_dict = Dict(1 => [new_start_state for i in 1:length(user_events)])
 
-          state_values = collect(values(old_to_new_state_values))
+          state_values = unique(collect(values(old_to_new_state_values)))
+          if length(state_values) > length(user_events)
+            state_values = state_values[1:length(user_events)]
+          end
+
           counter = 0
+          # @show state_values 
+          # @show counter 
           for i in 1:length(state_values)
             if state_values[i] != new_start_state 
               fake_global_var_dict[1][end - counter] = state_values[i]
