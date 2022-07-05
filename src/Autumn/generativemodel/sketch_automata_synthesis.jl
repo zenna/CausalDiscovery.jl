@@ -495,7 +495,7 @@ function generate_on_clauses_SKETCH_SINGLE(run_id, random, matrix, unformatted_m
 end
 
 function generate_global_automaton_sketch(run_id, single_update_func_with_type, update_rule, update_function_times, event_vector_dict, object_trajectory, init_global_var_dict, state_update_times_dict, object_decomposition, type_id, desired_per_matrix_solution_count, interval_painting_param, sketch_timeout=0, ordered_update_functions=[], global_update_functions = [], co_occurring_param=false, co_occurring_distinct=1, co_occurring_same=1, co_occurring_threshold=1, transition_distinct=1, transition_same=1, transition_threshold=1; stop_times=[])
-  # # # println("GENERATE_NEW_STATE_SKETCH")
+  # println("GENERATE_NEW_STATE_SKETCH")
   # @show run_id 
   # @show single_update_func_with_type
   # @show update_rule 
@@ -1780,7 +1780,7 @@ function generalize_automaton(aut, user_events, event_vector_dict, all_labels)
 end
 
 function generate_object_specific_automaton_sketch(run_id, update_rule, update_function_times_dict, event_vector_dict, type_id, object_decomposition, init_state_update_times, global_var_dict, sketch_timeout, co_occurring_param=false, co_occurring_distinct=1, co_occurring_same=1, co_occurring_threshold=1, transition_distinct=1, transition_same=1, transition_threshold=1; stop_times=[])
-  # # # println("GENERATE_NEW_OBJECT_SPECIFIC_STATE")
+  # println("GENERATE_NEW_OBJECT_SPECIFIC_STATE")
   # @show update_rule
   # @show update_function_times_dict
   # @show event_vector_dict
@@ -1793,7 +1793,7 @@ function generate_object_specific_automaton_sketch(run_id, update_rule, update_f
   object_ids = sort(collect(keys(update_function_times_dict)))
   # @show object_ids
 
-  atomic_events = gen_event_bool_human_prior(object_decomposition, "x", type_id, ["nothing"], global_var_dict, update_functions[1])
+  atomic_events = gen_event_bool_human_prior(object_decomposition, "x", type_id, ["nothing"], global_var_dict, update_rule)
 
   small_event_vector_dict = deepcopy(event_vector_dict)    
   for e in keys(event_vector_dict)
@@ -1858,11 +1858,11 @@ function generate_object_specific_automaton_sketch(run_id, update_rule, update_f
   co_occurring_events = []
   for event in events
     # @show event 
-    if global_event_vector_dict[event] isa AbstractArray
+    if event_vector_dict[event] isa AbstractArray
       if occursin("addObj", update_rule)
         addObj_times = unique(vcat(collect(values(update_function_times_dict))...))
 
-        event_vector = global_event_vector_dict[event]
+        event_vector = event_vector_dict[event]
         co_occurring = is_co_occurring(event, event_vector, addObj_times)   
 
         if co_occurring
@@ -1871,7 +1871,7 @@ function generate_object_specific_automaton_sketch(run_id, update_rule, update_f
         end
 
       else
-        event_vector = global_event_vector_dict[event]
+        event_vector = event_vector_dict[event]
         co_occurring = foldl(&, map(update_function_times -> is_co_occurring(event, event_vector, update_function_times), collect(values(update_function_times_dict))), init=true)      
       
         if co_occurring
@@ -1880,10 +1880,10 @@ function generate_object_specific_automaton_sketch(run_id, update_rule, update_f
         end
       end
 
-    elseif (Set(collect(keys(global_event_vector_dict[event]))) == Set(collect(keys(update_function_times_dict))))
+    elseif (Set(collect(keys(event_vector_dict[event]))) == Set(collect(keys(update_function_times_dict))))
       if !occursin("addObj", update_rule) # disallowing object-specific events to cause object additions 
 
-        event_vector = global_event_vector_dict[event]
+        event_vector = event_vector_dict[event]
         co_occurring = foldl(&, map(id -> is_co_occurring(event, event_vector[id], update_function_times_dict[id]), collect(keys(update_function_times_dict))), init=true)
         
         if co_occurring
