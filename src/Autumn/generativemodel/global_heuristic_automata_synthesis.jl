@@ -1466,9 +1466,9 @@ function generate_new_state_GLOBAL(co_occurring_event, times_dict, event_vector_
         max_global_var_value = maximum(map(tuple -> tuple[2], augmented_positive_times))
         
         if (start_value in all_stop_var_values)
-          events_in_range = ["(== (prev fake_time) $(time_ranges[1][1] - 1))", [time_ranges[1][1] - 1]]
+          events_in_range = [("(== (prev fake_time) $(time_ranges[1][1] - 1))", [time_ranges[1][1] - 1])]
         elseif (end_value in all_stop_var_values)
-          events_in_range = ["(== (prev fake_time) $(time_ranges[1][2]))", [time_ranges[1][2]]]
+          events_in_range = [("(== (prev fake_time) $(time_ranges[1][2]))", [time_ranges[1][2]])]
         end
 
         # search for events within range
@@ -2373,9 +2373,9 @@ function generate_new_object_specific_state_GLOBAL(co_occurring_event, update_fu
       if events_in_range == [] # if no global events are found, try object-specific events 
         # events_in_range = find_state_update_events(event_vector_dict, augmented_positive_times, time_ranges, start_value, end_value, global_var_dict, global_var_value)
         if (start_value in all_stop_var_values)
-          events_in_range = ["(== (prev fake_time) $(time_ranges[1][1] - 1))", [(time_ranges[1][1], id) for id in object_ids]]
+          events_in_range = [("(== (prev fake_time) $(time_ranges[1][1] - 1))", [(time_ranges[1][1], id) for id in object_ids])]
         elseif (end_value in all_stop_var_values)
-          events_in_range = ["(== (prev fake_time) $(time_ranges[1][2]))", [(time_ranges[1][2], id) for id in object_ids]]
+          events_in_range = [("(== (prev fake_time) $(time_ranges[1][2]))", [(time_ranges[1][2], id) for id in object_ids])]
         else
           events_in_range = find_state_update_events_object_specific(small_event_vector_dict, augmented_positive_times_dict, grouped_range, object_ids, object_mapping, curr_state_value, all_stop_var_values)
         end
