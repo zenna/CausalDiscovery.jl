@@ -3544,8 +3544,15 @@ function construct_regularity_matrix(matrix, unformatted_matrix, object_decompos
             else
               @show first_stop 
               @show second_stop
-              current_id_addition_time = filter(t -> (t > first_stop) && (t < (stop_index == length(modified_stop_times) ? (second_stop + 1) : second_stop)), findall(obj -> !isnothing(obj), object_mapping[id]))[1] - 1
-              all_nonzero_disp_times = filter(t -> t > (current_id_addition_time + 1) && (t < second_stop), collect((nonzero_disp_time % interval_size):interval_size:(length(object_mapping[id]) - 1)))
+              
+              current_id_addition_time = filter(t -> (t > first_stop) && (t < (stop_index == length(modified_stop_times) ? (second_stop + 1) : second_stop)), findall(obj -> !isnothing(obj), object_mapping[id]))
+              if current_id_addition_time == [] # not added yet during entire trace! wait until next trace in multi-trace 
+                all_nonzero_disp_times = []
+              else
+                current_id_addition_time = current_id_addition_time[1] - 1
+                all_nonzero_disp_times = filter(t -> t > (current_id_addition_time + 1) && (t < second_stop), collect((nonzero_disp_time % interval_size):interval_size:(length(object_mapping[id]) - 1)))
+              end
+
             end
             @show all_nonzero_disp_times
             for time in (first_stop + 1):(second_stop - 1)
