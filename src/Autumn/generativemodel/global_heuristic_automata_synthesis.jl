@@ -2360,6 +2360,8 @@ function generate_new_object_specific_state_GLOBAL(co_occurring_event, update_fu
       range = grouped_range[1]
       start_value = range[1][2]
       end_value = range[2][2]
+
+      time_ranges = map(r -> (r[1][1], r[2][1] - 1), grouped_range)
   
       max_state_value = maximum(vcat(map(id -> map(tuple -> tuple[2], augmented_positive_times_dict[id]), collect(keys(augmented_positive_times_dict)))...))
       @show max_state_value
