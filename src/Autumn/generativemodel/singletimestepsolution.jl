@@ -1019,7 +1019,7 @@ function has_dups(list::AbstractArray)
 end
 
 function abstract_position(position, prev_abstract_positions, user_event, object_decomposition, pedro=false, max_iters=100)
-  # println("ABSTRACT POSITION")
+  # # println("ABSTRACT POSITION")
   # @show position 
   # @show prev_abstract_positions 
   # @show user_event 
@@ -1056,8 +1056,8 @@ function abstract_position(position, prev_abstract_positions, user_event, object
                                 """, "\n",
                               ")")
 
-    # println("HYPOTHESIS PROGRAM")
-    # println(hypothesis_position_program)
+    # # println("HYPOTHESIS PROGRAM")
+    # # println(hypothesis_position_program)
     expr = parseautumn(hypothesis_position_program)
     # global expr = striplines(compiletojulia(parseautumn(hypothesis_position_program)))
     # ## # # # # @show expr
@@ -2272,7 +2272,7 @@ function generate_event(run_id, anonymized_update_rule, distinct_update_rules, o
         end
       end
       if (anonymized_event in keys(event_vector_dict)) && is_event_object_specific_with_correct_type
-        # println("hello tis i")
+        # # println("hello tis i")
         # if this is not true, then there was a failure above (the event contained "first" but had nothing's in object_mapping),
         # or the event is object-specific with the wrong type 
         event_values_dicts = []
