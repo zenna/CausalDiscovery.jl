@@ -1,5 +1,5 @@
 """On-clause generation, where we collect all unsolved (latent state dependent) on-clauses at the end"""
-function generate_on_clauses_GLOBAL(run_id, random, matrix, unformatted_matrix, object_decomposition, user_events, global_event_vector_dict, redundant_events_set, grid_size=16, desired_solution_count=1, desired_per_matrix_solution_count=1, interval_painting_param=false, sketch=false, z3_option="full", time_based=false, z3_timeout=0, sketch_timeout=0, co_occurring_param=false, transition_param=false, co_occurring_distinct=1, co_occurring_same=1, co_occurring_threshold=1, transition_distinct=1, transition_same=1, transition_threshold=1, num_transition_decisions=15, symmetry=false; stop_times=[])
+function generate_on_clauses_GLOBAL(run_id, random, matrix, unformatted_matrix, object_decomposition, user_events, global_event_vector_dict, redundant_events_set, grid_size=16, desired_solution_count=1, desired_per_matrix_solution_count=1, interval_painting_param=false, sketch=false, z3_option="partial", time_based=false, z3_timeout=0, sketch_timeout=0, co_occurring_param=false, transition_param=false, co_occurring_distinct=1, co_occurring_same=1, co_occurring_threshold=1, transition_distinct=1, transition_same=1, transition_threshold=1, num_transition_decisions=15, symmetry=false; stop_times=[])
   start_time = Dates.now()
   
   object_types, object_mapping, background, dim = object_decomposition
@@ -17,7 +17,7 @@ function generate_on_clauses_GLOBAL(run_id, random, matrix, unformatted_matrix, 
 
   # filtered_matrices = filtered_matrices[22:22]
   # filtered_matrices = filtered_matrices[1:1]
-  # filtered_matrices = filtered_matrices[2:2]
+  filtered_matrices = filtered_matrices[2:2]
   # filtered_matrices = filtered_matrices[4:4]
   # filtered_matrices = filtered_matrices[6:6]
 
@@ -239,7 +239,7 @@ function generate_on_clauses_GLOBAL(run_id, random, matrix, unformatted_matrix, 
           end
 
           # best_co_occurring_events = sort(filter(e -> e[2] == minimum(map(x -> x[2], co_occurring_events)), co_occurring_events), by=z -> length(z[1]))
-          # # # @show best_co_occurring_events
+          # # @show best_co_occurring_events
           # co_occurring_event = best_co_occurring_events[1][1]        
   
           # if (type_id, co_occurring_event) in keys(co_occurring_events_dict)
@@ -635,7 +635,7 @@ function generate_on_clauses_GLOBAL(run_id, random, matrix, unformatted_matrix, 
                 # @show global_var_dict 
                 # @show transitions 
  
-                # # @show new_object_specific_state_update_times_dict
+                # @show new_object_specific_state_update_times_dict
                 object_specific_state_update_times_dict = new_object_specific_state_update_times_dict
     
                 # on_clause = format_on_clause(split(on_clause, "\n")[2][1:end-1], replace(replace(split(on_clause, "\n")[1], "(on " => ""), "(== (.. obj id) x)" => "(== (.. obj id) $(object_ids[1]))"), object_ids[1], object_ids, object_type, group_addObj_rules, addObj_rules, object_mapping, false)
@@ -645,7 +645,7 @@ function generate_on_clauses_GLOBAL(run_id, random, matrix, unformatted_matrix, 
                 object_types, object_mapping, background, dim = global_object_decomposition
                 
                 # println("UPDATEEE")
-                # # @show global_object_decomposition
+                # @show global_object_decomposition
     
                 # new_state_update_on_clauses = map(x -> format_on_clause(split(x, "\n")[2][1:end-1], replace(split(x, "\n")[1], "(on " => ""), object_ids[1], object_ids, object_type, group_addObj_rules, addObj_rules, object_mapping, false), new_state_update_on_clauses)
                 object_specific_state_update_on_clauses = unique(vcat(deepcopy(object_specific_state_update_on_clauses)..., deepcopy(new_state_update_on_clauses)...))
@@ -818,7 +818,7 @@ function generate_new_state_GLOBAL(co_occurring_event, times_dict, event_vector_
   # println("GENERATE_NEW_STATE_GLOBAL")
   # @show co_occurring_event
   # @show times_dict 
-  # # @show event_vector_dict 
+  # @show event_vector_dict 
   # @show object_trajectory    
   # @show init_global_var_dict 
   # @show state_update_times_dict  
@@ -899,8 +899,8 @@ function generate_new_state_GLOBAL(co_occurring_event, times_dict, event_vector_
   # @show false_positive_times
 
   # construct true_positive_times and false_positive_times 
-  # # @show length(user_events)
-  # # @show length(co_occurring_event_trajectory)
+  # @show length(user_events)
+  # @show length(co_occurring_event_trajectory)
   for time in 1:length(co_occurring_event_trajectory)
     if co_occurring_event_trajectory[time] == 1 && !(time in true_positive_times)
       if foldl(&, map(update_rule -> occursin("addObj", update_rule), collect(keys(times_dict))))
@@ -1167,10 +1167,10 @@ function generate_new_state_GLOBAL(co_occurring_event, times_dict, event_vector_
           #   end
           # end
 
-          # # @show event_vector_dict
+          # @show event_vector_dict
           # @show events_in_range 
-          # # @show events_in_range
-          # # @show events_in_range 
+          # @show events_in_range
+          # @show events_in_range 
           if filter(tuple -> !occursin("true", tuple[1]), events_in_range) != []
             if filter(tuple -> !occursin("globalVar", tuple[1]) && !occursin("true", tuple[1]), events_in_range) != []
               min_times = minimum(map(tup -> length(tup[2]), filter(tuple -> !occursin("globalVar", tuple[1]) && !occursin("true", tuple[1]), events_in_range)))
@@ -1200,8 +1200,8 @@ function generate_new_state_GLOBAL(co_occurring_event, times_dict, event_vector_
           end
           
           # # add to state_update_times 
-          # # # @show event_times
-          # # # # @show state_update_on_clause  
+          # # @show event_times
+          # # # @show state_update_on_clause  
           # for time in event_times 
           #   # TODO: update filled_augmented_positive_times
 
@@ -1762,7 +1762,7 @@ function generate_stateless_on_clauses(run_id, update_functions_dict, matrix, fi
     for update_rule in update_functions
       # @show length(all_update_rules)
       # update_rule = all_update_rules[update_rule_index]
-      # # @show global_object_decomposition
+      # @show global_object_decomposition
       if update_rule != "" && !is_no_change_rule(update_rule)
         # println("UPDATE_RULEEE")
         # println(update_rule)
@@ -1772,8 +1772,8 @@ function generate_stateless_on_clauses(run_id, update_functions_dict, matrix, fi
 
         # println("EVENTS")
         # println(events)
-        # # @show event_vector_dict
-        # # @show observation_data_dict
+        # @show event_vector_dict
+        # @show observation_data_dict
         if events != []
           event = events[1]
           event_is_global = event_is_globals[1]
@@ -2095,10 +2095,10 @@ function generate_new_object_specific_state_GLOBAL(global_events, co_occurring_e
           break  
         end
 
-        if length(unique(map(tup -> tup[2], vcat(collect(values(augmented_positive_times_dict))...)))) > 10
-          failed = true 
-          break
-        end
+        # if length(unique(map(tup -> tup[2], vcat(collect(values(augmented_positive_times_dict))...)))) > 10
+        #   failed = true 
+        #   break
+        # end
 
         transition_decision_index = 1
   
@@ -2211,10 +2211,10 @@ function generate_new_object_specific_state_GLOBAL(global_events, co_occurring_e
           if length(filter(tup -> !(tup[1] in stop_times), augmented_positive_times_dict[object_id])) != 0 
             init_value = filter(tup -> !(tup[1] in stop_times), augmented_positive_times_dict[object_id])[1][2]
           else
-            # # @show state_update_times
+            # @show state_update_times
             no_state_updates = length(unique(collect(Base.values(state_update_times)))) == 1
             # @show no_state_updates 
-            # # @show state_update_times
+            # @show state_update_times
             # @show augmented_positive_times_dict 
             # @show type_id 
             if no_state_updates 
