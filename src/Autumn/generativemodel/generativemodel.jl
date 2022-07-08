@@ -488,8 +488,8 @@ function gen_event_bool(object_decomposition, object_id, type_id, update_rule, u
             push!(choices, "(pushConfiguration arrow (prev obj$(object.id)) $(filtered_list))")
             push!(choices, "(pushConfiguration arrow (prev obj$(object.id)) (prev addedObjType$(type.id)List))")    
           end
-          push!(choices, "(adj (prev obj$(object.id)) $(filtered_list) 1)")
-          push!(choices, "(adj (prev obj$(object.id)) (prev addedObjType$(type.id)List) 1)")
+          # push!(choices, "(adj (prev obj$(object.id)) $(filtered_list) 1)")
+          # push!(choices, "(adj (prev obj$(object.id)) (prev addedObjType$(type.id)List) 1)")
         end
 
         #   (& left 
@@ -516,8 +516,8 @@ function gen_event_bool(object_decomposition, object_id, type_id, update_rule, u
             # NEW SYMMETRIZATION
             if symmetry 
               push!(choices, "(moveIntersects arrow (prev obj$(object.id)) (prev obj$(object_2.id)))")
-              push!(choices, "(adj (prev obj$(object.id)) (prev obj$(object_2.id)) 1)")
-              push!(choices, "(! (adj (prev obj$(object.id)) (prev obj$(object_2.id)) 1))")
+              # push!(choices, "(adj (prev obj$(object.id)) (prev obj$(object_2.id)) 1)")
+              # push!(choices, "(! (adj (prev obj$(object.id)) (prev obj$(object_2.id)) 1))")
               push!(choices, "(pushConfiguration arrow (prev obj$(object.id)) (prev obj$(object_2.id)))") 
             end
 
@@ -730,9 +730,9 @@ function gen_event_bool(object_decomposition, object_id, type_id, update_rule, u
         push!(choices, "(intersects (prev addedObjType$(type.id)List) (prev addedObjType$(type2.id)List))")
         push!(choices, "(intersects (filter (--> obj (== (.. obj id) $(object_id))) (prev addedObjType$(type.id)List)) (prev addedObjType$(type2.id)List))")
 
-        # NEW SYMMETRIZATION 
-        push!(choices, "(adj $(filtered_list) (prev addedObjType$(type2.id)List) 1)")
-        push!(choices, "(! (adj $(filtered_list) (prev addedObjType$(type2.id)List) 1))")
+        # # NEW SYMMETRIZATION 
+        # push!(choices, "(adj $(filtered_list) (prev addedObjType$(type2.id)List) 1)")
+        # push!(choices, "(! (adj $(filtered_list) (prev addedObjType$(type2.id)List) 1))")
 
       end
     end
