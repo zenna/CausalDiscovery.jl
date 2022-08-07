@@ -953,12 +953,20 @@ function prune_by_observational_equivalence(event_vector_dict, redundant_events_
       delete!(all_values, event_values)
       values_to_events[event_values] = [event] 
     else
-      if event == "(in true (map (--> obj (isFree (.. (moveRight (prev obj)) origin))) (filter (--> obj (== (.. obj id) x)) (prev addedObjType2List))))"
+      if event == "(intersects (filter (--> obj (== (.. obj color) \"gold\")) (prev addedObjType1List)) (filter (--> obj (== (.. obj color) \"red\")) (prev addedObjType1List)))"
         # println("WTF")
         # @show values_to_events[event_values]
         # @show event_values 
         # @show values_to_events
       end
+
+      if event == "(intersects (filter (--> obj (== (.. obj color) \"red\")) (prev addedObjType1List)) (filter (--> obj (== (.. obj color) \"gold\")) (prev addedObjType1List)))"
+        # println("WTF2")
+        # @show values_to_events[event_values]
+        # @show event_values 
+        # @show values_to_events
+      end
+
       existing_events = values_to_events[event_values]
       if (occursin("globalVar", event) && foldl(|, map(e -> occursin("globalVar", e), existing_events))) || (!occursin("globalVar", event) && !foldl(|, map(e -> occursin("globalVar", e), existing_events)))
         delete!(event_vector_dict, event)
