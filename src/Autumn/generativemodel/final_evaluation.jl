@@ -37,7 +37,7 @@ end
 
 
 function run_model(model_name::String, algorithm, iteration, desired_per_matrix_solution_count, desired_solution_count; multi_trace=false, indices=[])
-  run_id = string(model_name, "_", algorithm)
+  run_id = string(model_name, "_", algorithm, "_", iteration)
   # build desired directory structure
   date_string = Dates.format(Dates.now(), "yyyy-mm-dd HH:MM:SS")
 
