@@ -1086,7 +1086,7 @@ function generate_global_automaton_sketch(run_id, single_update_func_with_type, 
             close(f)
       
             if first_automaton 
-              if occursin("void distinct_state_count", modified_cpp_content) 
+              if occursin("void distinct_state_count", cpp_content) 
                 modified_cpp_content = string(replace(cpp_content, """void intAsChar(int x, char& _out) {
                   _out = x % 10;
                   return;
