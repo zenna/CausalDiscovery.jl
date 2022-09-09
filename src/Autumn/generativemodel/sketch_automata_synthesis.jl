@@ -1065,7 +1065,7 @@ function generate_global_automaton_sketch(run_id, single_update_func_with_type, 
             end
           end
 
-          # @show command 
+          @show command 
           
           sketch_output = try 
                             readchomp(eval(Meta.parse("`$(command)`")))
@@ -1073,7 +1073,7 @@ function generate_global_automaton_sketch(run_id, single_update_func_with_type, 
                             ""
                           end
 
-          # @show sketch_output
+          @show sketch_output
           if sketch_output == "" || occursin("The sketch could not be resolved.", sketch_output)
             break
           else
@@ -1179,7 +1179,11 @@ function generate_global_automaton_sketch(run_id, single_update_func_with_type, 
       
             # compile modified cpp program 
             command = "g++ -o $(cpp_out_file_name) $(cpp_file_name)"
-            compile_output = readchomp(eval(Meta.parse("`$(command)`"))) 
+            compile_output = readchomp(eval(Meta.parse("`$(command)`")))
+            
+            if compile_output == ""
+              break
+            end
       
             # run compiled cpp program 
             command = "./$(cpp_out_file_name)"
