@@ -7,15 +7,15 @@ function check_model_against_test_traces(model_name, program_str)
   files = filter(x -> occursin(".jld", x), readdir(model_directory)) 
 
   accs = []
-  for i in 1:length(files)
-    _, user_events, _ = generate_observations_interface(model_name, i, dir=test_trace_directory)
+  for file_index in 1:length(files)
+    @show file_index
+    _, user_events, _ = generate_observations_interface(model_name, file_index, dir=test_trace_directory)
 
-    if i == 2 
+    # if i == 2 
       @show user_events
-    end
+    # end
 
-    acc = check_match_synthesized_and_original(model_name, program_str, user_events)
-    @show i 
+    acc = check_match_synthesized_and_original(model_name, program_str, user_events) 
     @show acc
     push!(accs, acc)
   end

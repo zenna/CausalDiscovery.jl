@@ -36,7 +36,7 @@ function run_multi_trace(model_name, singlecell=false, pedro=false; indices=[])
 end
 
 
-function run_model(model_name::String, algorithm, iteration, desired_per_matrix_solution_count, desired_solution_count; multi_trace=false, indices=[])
+function run_model(model_name::String, algorithm, iteration, desired_per_matrix_solution_count, desired_solution_count; multi_trace=false, indices=[], observations_tup=[])
   run_id = string(model_name, "_", algorithm, "_", iteration)
   # build desired directory structure
   date_string = Dates.format(Dates.now(), "yyyy-mm-dd HH:MM:SS")
@@ -69,23 +69,25 @@ function run_model(model_name::String, algorithm, iteration, desired_per_matrix_
 
   if !multi_trace 
     observations, user_events, grid_size = generate_observations(model_name)
-    observation_tuple = (observations, user_events, grid_size)  
-  else
-    files = filter(x -> occursin(".jld", x), readdir("multi_trace_data/$(model_name)"))
-    observation_tuples = []
-    for file in files 
-      push!(observation_tuples, JLD.load("multi_trace_data/$(model_name)/$(file)")["data"])
-    end
-
-    if indices != []
-      observation_tuples = map(i -> observation_tuples[i], indices)
-    end
-
-    observations = map(tup -> tup[1], observation_tuples)
-    user_events = map(tup -> tup[2], observation_tuples)
-    grid_size = observation_tuples[1][3]
-
     observation_tuple = (observations, user_events, grid_size)
+    old_user_events = user_events  
+  else
+    # files = filter(x -> occursin(".jld", x), readdir("multi_trace_data/$(model_name)"))
+    # observation_tuples = []
+    # for file in files 
+    #   push!(observation_tuples, JLD.load("multi_trace_data/$(model_name)/$(file)")["data"])
+    # end
+
+    # if indices != []
+    #   observation_tuples = map(i -> observation_tuples[i], indices)
+    # end
+
+    # observations = map(tup -> tup[1], observation_tuples)
+    # user_events = map(tup -> tup[2], observation_tuples)
+    # grid_size = observation_tuples[1][3]
+    observation_tuple = observations_tup
+    observations, user_events, grid_size = observation_tuple
+    old_user_events = user_events
   end
 
   singlecell_decomp = nothing # decomp_time_single.value 
@@ -111,6 +113,8 @@ function run_model(model_name::String, algorithm, iteration, desired_per_matrix_
 
     singlecell, time_based, z3_option, co_occurring_param, transition_param, random_param = param_option
 
+    user_events = old_user_events
+
     if singlecell
       if isnothing(singlecell_decomp)
         decomp_time_single = @timed singletimestepsolution_matrix(observations, user_events, grid_size, singlecell=true, upd_func_space=6, multiple_traces=multi_trace)
@@ -128,6 +132,7 @@ function run_model(model_name::String, algorithm, iteration, desired_per_matrix_
     if multi_trace 
       user_events = vcat(map(events -> vcat(events..., nothing), old_user_events)...)[1:end-1]
       stop_times = map(i -> length(observations[i]) + (i == 1 ? 0 : sum(map(j -> length(observations[j]), 1:(i - 1)))), 1:(length(observations) - 1))
+      observation_tuple = (observations, user_events, grid_size)
     else
       stop_times = []  
     end

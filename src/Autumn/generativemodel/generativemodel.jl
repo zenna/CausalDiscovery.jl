@@ -372,7 +372,7 @@ function gen_event_bool_human_prior(object_decomposition, object_id, type_id, us
     end
     # more object_id-based  
     push!(choices, "(in (objClicked click (prev addedObjType$(type.id)List)) (filter (--> obj (== (.. obj id) $(object_id))) (prev addedObjType$(type.id)List)))")
-    push!(choices, "(! (in (objClicked click (prev addedObjType$(type.id)List)) (filter (--> obj (== (.. obj id) $(object_id))) (prev addedObjType$(type.id)List))))")  
+    # push!(choices, "(! (in (objClicked click (prev addedObjType$(type.id)List)) (filter (--> obj (== (.. obj id) $(object_id))) (prev addedObjType$(type.id)List))))")  
     push!(choices, "(& clicked (! (in (objClicked click (prev addedObjType$(type.id)List)) (filter (--> obj (== (.. obj id) $(object_id))) (prev addedObjType$(type.id)List)))))")  
 
     push!(choices, "(clicked (filter (--> obj (== (.. obj id) $(object_id))) (prev addedObjType$(type.id)List)))")
@@ -667,7 +667,7 @@ function gen_event_bool(object_decomposition, object_id, type_id, update_rule, u
 
     # more object_id-based  
     push!(choices, "(& true (in (objClicked click (prev addedObjType$(type.id)List)) (filter (--> obj (== (.. obj id) $(object_id))) (prev addedObjType$(type.id)List))))")
-    push!(choices, "(& true (! (in (objClicked click (prev addedObjType$(type.id)List)) (filter (--> obj (== (.. obj id) $(object_id))) (prev addedObjType$(type.id)List)))))")  
+    # push!(choices, "(& true (! (in (objClicked click (prev addedObjType$(type.id)List)) (filter (--> obj (== (.. obj id) $(object_id))) (prev addedObjType$(type.id)List)))))")  
     push!(choices, "(clicked (filter (--> obj (== (.. obj id) $(object_id))) (prev addedObjType$(type.id)List)))")
     push!(choices, "(in true (map (--> obj (== (.. obj id) $(object_id))) (filter (--> obj (== (.. obj id) $(object_id))) (prev addedObjType$(type.id)List))))")
     push!(choices, "(in false (map (--> obj (== (.. obj id) $(object_id))) (filter (--> obj (== (.. obj id) $(object_id))) (prev addedObjType$(type.id)List))))")
