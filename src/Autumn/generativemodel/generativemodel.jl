@@ -619,6 +619,13 @@ function gen_event_bool_human_prior(object_decomposition, object_id, type_id, us
 
           # TEMP DEBUGGING: DELETE LATER 
           if filter(x -> x[1] == "field1", object_type_1.custom_fields) != []
+
+            # plaqueattack new field-based events
+            ## global event triggering triple-linked addObj
+            push!(choices, "(!= (filter (--> obj (adj obj (prev addedObjType$(object_type_2.id)List) 10)) (filter (--> obj2 (== (.. obj2 field1) 1)) (prev addedObjType$(object_type_1.id)List))) (list))")
+            ## object-specific event triggering triple-linked removeObj
+            push!(choices, "(adj (filter (--> obj (== (.. obj id) x)) (prev addedObjType$(object_type_2.id)List)) (filter (--> obj2 (== (.. obj2 field1) 1)) (prev addedObjType$(object_type_1.id)List)) 10)") 
+
             field_values = filter(x -> x[1] == "field1", object_type_1.custom_fields)[1][3]
             for v in field_values 
               if type_displacements[object_type_1.id] != []

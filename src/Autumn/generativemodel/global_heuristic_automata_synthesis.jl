@@ -152,6 +152,7 @@ function generate_on_clauses_GLOBAL(run_id, matrix, unformatted_matrix, object_d
     double_removeObj_update_functions = compute_double_removeObj_objects(vcat(collect(values(state_based_update_functions_dict))...), 
                                                                          observation_vectors_dict, 
                                                                          filtered_matrix)
+    
     # # add on-clauses for the state-based addObj with non-deterministic events
     # for addObj_update_function in addObj_based_list 
     #   addObj_on_clause = "(on (== (uniformChoice (list 1 2 3 4 5 6 7 8 9 10)) 1)\n$(addObj_update_function))"
@@ -187,8 +188,36 @@ function generate_on_clauses_GLOBAL(run_id, matrix, unformatted_matrix, object_d
         end
       end
 
-      linked_removeObj_update_functions = []
       all_state_based_update_functions = vcat(collect(values(state_based_update_functions_dict))...)
+
+      # triple-linked update functions
+      triple_linked_type_ids_dict = compute_source_objects_triple_linked(filtered_matrix, object_decomposition)
+      triple_linked_update_functions = []
+      for addObj_type_id in keys(triple_linked_type_ids_dict)
+        source1_type_id, source2_type_id = triple_linked_type_ids_dict[addObj_type_id]
+        addObj_update_functions = filter(u -> occursin("addObj", u) && occursin("addedObjType$(addObj_type_id)List", u), all_state_based_update_functions)
+        source1_update_functions = filter(u -> occursin("removeObj", u) && occursin("addedObjType$(source1_type_id)List", u), all_state_based_update_functions)
+        source2_update_functions = filter(u -> occursin("removeObj", u) && occursin("addedObjType$(source2_type_id)List", u), all_state_based_update_functions)
+        if addObj_update_functions != [] && source1_update_functions != [] && source2_update_functions != []
+          # TODO: override addObj so it refers to both source1 and source2 type id's
+          push!(triple_linked_update_functions, [addObj_update_functions[1], source1_update_functions[1], source2_update_functions[1]]...)
+          
+          object_ids_with_addObj_type = filter(id -> filter(obj -> !isnothing(obj), object_mapping[id])[1].type.id == addObj_type_id, collect(keys(object_mapping)))
+          matching_addObj_functions = map(id -> filter(u -> occursin("addObj", u) && !occursin("uniformChoice", u) && occursin("firstWithDefault", u), vcat(matrix[id, :]...)), 
+                                         object_ids_with_addObj_type)
+          if intersect(matching_addObj_functions...) != []
+            new_addObj_function = intersect(matching_addObj_functions...)[1]
+            for id in object_ids_with_addObj_type
+              add_time = findall(o -> isnothing(o), object_mapping[id])[end]
+              filtered_matrix[id, add_time] = [new_addObj_function]
+            end 
+          end
+        end
+      end
+
+      @show triple_linked_update_functions 
+
+      linked_removeObj_update_functions = []
       for addObj_removeObj_pair in keys(source_exists_events_dict)
         addObj_type_id, removeObj_type_id = addObj_removeObj_pair
         source_exists_event, state_based = source_exists_events_dict[addObj_removeObj_pair]
@@ -203,6 +232,11 @@ function generate_on_clauses_GLOBAL(run_id, matrix, unformatted_matrix, object_d
       for pair in double_removeObj_update_functions 
         push!(linked_removeObj_update_functions, pair[2])
       end
+
+      linked_removeObj_update_functions = filter(u -> !(u in triple_linked_update_functions), linked_removeObj_update_functions)
+
+      @show linked_removeObj_update_functions
+      @show double_removeObj_update_functions
 
       # compute co-occurring event for each state-based update function 
       # co_occurring_events_dict = Dict() # keys are tuples (type_id, co-occurring event), values are lists of update_functions with that co-occurring event
@@ -304,7 +338,13 @@ function generate_on_clauses_GLOBAL(run_id, matrix, unformatted_matrix, object_d
             co_occurring_events = filter(x -> !occursin("globalVar", x[1]), co_occurring_events)
           end
 
-          specially_handled_on_clauses = special_addObj_removeObj_handling(update_function, filtered_matrix, co_occurring_events, addObj_based_list, double_removeObj_update_functions, linked_removeObj_update_functions, source_exists_events_dict, object_decomposition)
+          if update_function in triple_linked_update_functions
+            specially_handled_on_clauses = []
+          else
+            specially_handled_on_clauses = special_addObj_removeObj_handling(update_function, filtered_matrix, co_occurring_events, addObj_based_list, double_removeObj_update_functions, linked_removeObj_update_functions, source_exists_events_dict, object_decomposition)
+          end
+          @show specially_handled_on_clauses
+
           if specially_handled_on_clauses != [] 
             push!(on_clauses, specially_handled_on_clauses...)
           else
@@ -364,7 +404,7 @@ function generate_on_clauses_GLOBAL(run_id, matrix, unformatted_matrix, object_d
           update_function, type_id = update_function_tup 
           co_occurring_event = event_comb[update_function_tup_index]
 
-          if occursin("removeObj", update_function) && co_occurring_event == "true"
+          if (occursin("removeObj", update_function) && co_occurring_event == "true") || (update_function in triple_linked_update_functions)
             co_occurring_events_dict[(type_id, "(== 1 1)")] = [update_function]            
           else
             if (type_id, co_occurring_event) in keys(co_occurring_events_dict)
@@ -503,10 +543,10 @@ function generate_on_clauses_GLOBAL(run_id, matrix, unformatted_matrix, object_d
   
             if length(collect(keys(global_update_functions_dict))) > 0
               tuples = collect(keys(global_update_functions_dict))
-              multi_id_tuples = sort(filter(t -> t[1] isa Tuple, tuples), by=x -> length(x[2]))
-              single_id_tuples = sort(filter(t -> !(t[1] isa Tuple), tuples), by=x -> length(x[2]))
-              single_id_tuples_with_remove = filter(t -> occursin("removeObj", join(global_update_functions_dict[t], "")), single_id_tuples)
-              single_id_tuples_without_remove = filter(t -> !occursin("removeObj", join(global_update_functions_dict[t], "")), single_id_tuples)
+              multi_id_tuples = [] # sort(filter(t -> t[1] isa Tuple, tuples), by=x -> length(x[2]))
+              single_id_tuples = tuples # sort(filter(t -> !(t[1] isa Tuple), tuples), by=x -> length(x[2]))
+              single_id_tuples_with_remove = filter(t -> occursin("removeObj", join(global_update_functions_dict[t], "")) || occursin("addObj", join(global_update_functions_dict[t], "")), single_id_tuples)
+              single_id_tuples_without_remove = filter(t -> !occursin("removeObj", join(global_update_functions_dict[t], "")) && !occursin("addObj", join(global_update_functions_dict[t], "")), single_id_tuples)
               sorted_tuples = vcat(multi_id_tuples..., single_id_tuples_without_remove..., single_id_tuples_with_remove...)
 
               for tuple in sorted_tuples
@@ -668,10 +708,10 @@ function generate_on_clauses_GLOBAL(run_id, matrix, unformatted_matrix, object_d
             # @show observation_vectors_dict
             if length(collect(keys(object_specific_update_functions_dict))) > 0 
               tuples = collect(keys(object_specific_update_functions_dict))
-              multi_id_tuples = sort(filter(t -> t[1] isa Tuple, tuples), by=x -> length(x[2]))
-              single_id_tuples = sort(filter(t -> !(t[1] isa Tuple), tuples), by=x -> length(x[2]))
-              single_id_tuples_with_remove = filter(t -> occursin("removeObj", join(object_specific_update_functions_dict[t], "")), single_id_tuples)
-              single_id_tuples_without_remove = filter(t -> !occursin("removeObj", join(object_specific_update_functions_dict[t], "")), single_id_tuples)
+              multi_id_tuples = [] # sort(filter(t -> t[1] isa Tuple, tuples), by=x -> length(x[2]))
+              single_id_tuples = tuples # sort(filter(t -> !(t[1] isa Tuple), tuples), by=x -> length(x[2]))
+              single_id_tuples_with_remove = filter(t -> occursin("removeObj", join(object_specific_update_functions_dict[t], "")) || occursin("addObj", join(object_specific_update_functions_dict[t], "")), single_id_tuples)
+              single_id_tuples_without_remove = filter(t -> !occursin("removeObj", join(object_specific_update_functions_dict[t], "")) && !occursin("addObj", join(object_specific_update_functions_dict[t], "")), single_id_tuples)
               sorted_tuples = vcat(multi_id_tuples..., single_id_tuples_without_remove..., single_id_tuples_with_remove...)
 
               for tuple in sorted_tuples
@@ -817,12 +857,12 @@ function generate_on_clauses_GLOBAL(run_id, matrix, unformatted_matrix, object_d
             # generate new state until all unmatched update functions are matched 
             while length(collect(keys(co_occurring_events_dict))) != 0
               # type_id, co_occurring_event = sort(collect(keys(co_occurring_events_dict)), by=tuple -> length(tuple[2]))[1]
-              
+
               tuples = collect(keys(co_occurring_events_dict))
-              multi_id_tuples = sort(filter(t -> t[1] isa Tuple, tuples), by=x -> length(x[2]))
-              single_id_tuples = sort(filter(t -> !(t[1] isa Tuple), tuples), by=x -> length(x[2]))
-              single_id_tuples_with_remove = filter(t -> occursin("removeObj", join(co_occurring_events_dict[t], "")), single_id_tuples)
-              single_id_tuples_without_remove = filter(t -> !occursin("removeObj", join(co_occurring_events_dict[t], "")), single_id_tuples)
+              multi_id_tuples = [] # sort(filter(t -> t[1] isa Tuple, tuples), by=x -> length(x[2]))
+              single_id_tuples = tuples # sort(filter(t -> !(t[1] isa Tuple), tuples), by=x -> length(x[2]))
+              single_id_tuples_with_remove = filter(t -> occursin("removeObj", join(co_occurring_events_dict[t], "")) || occursin("addObj", join(co_occurring_events_dict[t], "")), single_id_tuples)
+              single_id_tuples_without_remove = filter(t -> !occursin("removeObj", join(co_occurring_events_dict[t], "")) && !occursin("addObj", join(co_occurring_events_dict[t], "")), single_id_tuples)
               sorted_tuples = vcat(multi_id_tuples..., single_id_tuples_without_remove..., single_id_tuples_with_remove...)
               type_id, co_occurring_event = sorted_tuples[1]
 
@@ -832,6 +872,8 @@ function generate_on_clauses_GLOBAL(run_id, matrix, unformatted_matrix, object_d
               println("DID DELETE WORK?")
               @show length(collect(keys(co_occurring_events_dict)))
               @show co_occurring_events_dict
+              @show (type_id, co_occurring_event)
+              @show update_functions 
 
               # construct update_function_times_dict for this type_id/co_occurring_event pair 
               times_dict = Dict() # form: update function => object_id => times when update function occurred for object_id
@@ -1080,7 +1122,7 @@ function generate_on_clauses_GLOBAL(run_id, matrix, unformatted_matrix, object_d
                 if type_id isa Tuple 
                   ids = collect(type_id)
                   for id in ids 
-                    update_functions_with_id = filter(x -> occursin("addedObjType$(id)List", x), update_functions)
+                    update_functions_with_id = filter(x -> occursin("= addedObjType$(id)List", x), update_functions)
                     if id in keys(update_functions_dict)
                       push!(update_functions_dict[id], update_functions_with_id...)
                     else

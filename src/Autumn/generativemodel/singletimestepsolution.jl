@@ -843,13 +843,13 @@ function synthesize_update_functions(object_id, time, object_decomposition, user
                     end
                   end
     
-                  # add farthest-based update functions 
-                  for desc in ["Left", "Right", "Up", "Down"]
-                    for other_type_id_1 in other_type_ids # closest w.r.t. single other type 
-                      push!(prev_used_rules, """(= objX (moveNoCollisionColor objX (farthest$(desc) objX (list ObjType$(other_type_id_1)) $(unit_size)) "darkgray"))""")
-                      push!(prev_used_rules, """(= objX (moveNoCollisionColor objX (farthest$(desc) objX (list ObjType$(other_type_id_1)) $(unit_size)) "null"))""")
-                    end
-                  end
+                  # # add farthest-based update functions 
+                  # for desc in ["Left", "Right", "Up", "Down"]
+                  #   for other_type_id_1 in other_type_ids # closest w.r.t. single other type 
+                  #     push!(prev_used_rules, """(= objX (moveNoCollisionColor objX (farthest$(desc) objX (list ObjType$(other_type_id_1)) $(unit_size)) "darkgray"))""")
+                  #     push!(prev_used_rules, """(= objX (moveNoCollisionColor objX (farthest$(desc) objX (list ObjType$(other_type_id_1)) $(unit_size)) "null"))""")
+                  #   end
+                  # end
 
                 end
               end
@@ -878,15 +878,15 @@ function synthesize_update_functions(object_id, time, object_decomposition, user
                 end
               end
   
-              # add farthest-based update functions 
-              unit_size = filter(x -> x != 0, [x_displacement, y_displacement]) != [] ? abs(filter(x -> x != 0, [x_displacement, y_displacement])[1]) : 1 
-              for desc in ["Left", "Right", "Up", "Down"]
-                other_type_ids = filter(x -> x != type_id, type_ids)
-                for other_type_id_1 in other_type_ids # closest w.r.t. single other type 
-                  push!(prev_used_rules, """(= objX (moveNoCollisionColor objX (farthest$(desc) objX (list ObjType$(other_type_id_1)) $(unit_size)) "darkgray"))""")
-                  push!(prev_used_rules, """(= objX (moveNoCollisionColor objX (farthest$(desc) objX (list ObjType$(other_type_id_1)) $(unit_size)) "null"))""")
-                end
-              end
+              # # add farthest-based update functions 
+              # unit_size = filter(x -> x != 0, [x_displacement, y_displacement]) != [] ? abs(filter(x -> x != 0, [x_displacement, y_displacement])[1]) : 1 
+              # for desc in ["Left", "Right", "Up", "Down"]
+              #   other_type_ids = filter(x -> x != type_id, type_ids)
+              #   for other_type_id_1 in other_type_ids # closest w.r.t. single other type 
+              #     push!(prev_used_rules, """(= objX (moveNoCollisionColor objX (farthest$(desc) objX (list ObjType$(other_type_id_1)) $(unit_size)) "darkgray"))""")
+              #     push!(prev_used_rules, """(= objX (moveNoCollisionColor objX (farthest$(desc) objX (list ObjType$(other_type_id_1)) $(unit_size)) "null"))""")
+              #   end
+              # end
   
             end
   
@@ -1546,13 +1546,16 @@ function singletimestepsolution_program_given_matrix_NEW(matrix, object_decompos
   if occursin("field1", join(state_update_on_clauses, "\n  "))
     update_rule_times = filter(time -> !(time in stop_times) && join(filter(r -> !occursin("addObj", r), map(l -> l[1], matrix_copy[:, time])), "") != "", [1:size(matrix_copy)[2]...])    
     addObj_update_rule_times = filter(time -> !(time in stop_times) && join(filter(r -> occursin("addObj", r), map(l -> l[1], matrix_copy[:, time])), "") != "", [1:size(matrix_copy)[2]...])
+
+    update_rules = join(map(time -> """(on (== actual_time $(time - 1))\n  (let\n    ($(join(map(id -> !occursin("--> obj (prev obj)", matrix_copy[id, time][1]) ? (occursin("addObj", matrix_copy[id, time][1]) ? "" : matrix_copy[id, time][1]) : "", 
+    collect(1:size(matrix_copy)[1])), "\n    "))))\n  )""", update_rule_times), "\n  ")
   else
     update_rule_times = filter(time -> !(time in stop_times) && join(map(l -> l[1], matrix_copy[:, time]), "") != "", [1:size(matrix_copy)[2]...])
     addObj_update_rule_times = []
-  end
 
-  update_rules = join(map(time -> """(on (== actual_time $(time - 1))\n  (let\n    ($(join(map(id -> !occursin("--> obj (prev obj)", matrix_copy[id, time][1]) ? (occursin("addObj", matrix_copy[id, time][1]) ? format_matrix_function(matrix_copy[id, time][1], object_mapping[id][time + 1]) : matrix_copy[id, time][1]) : "", 
-                          collect(1:size(matrix_copy)[1])), "\n    "))))\n  )""", update_rule_times), "\n  ")
+    update_rules = join(map(time -> """(on (== actual_time $(time - 1))\n  (let\n    ($(join(map(id -> !occursin("--> obj (prev obj)", matrix_copy[id, time][1]) ? (occursin("addObj", matrix_copy[id, time][1]) ? format_matrix_function(matrix_copy[id, time][1], object_mapping[id][time + 1]) : matrix_copy[id, time][1]) : "", 
+    collect(1:size(matrix_copy)[1])), "\n    "))))\n  )""", update_rule_times), "\n  ")
+  end
                         
   for type in object_types
     update_rules = replace(update_rules, "(prev addedObjType$(type.id)List)" => "addedObjType$(type.id)List")
@@ -1597,7 +1600,7 @@ function singletimestepsolution_program_given_matrix_NEW(matrix, object_decompos
 
     if occursin("field1", join(state_update_on_clauses, "\n  "))
       # add addObj-based events to the end of the program
-      addObj_update_rules = join(map(time -> """(on (== time $(time - 1))\n  (let\n    ($(join(map(id -> !occursin("--> obj (prev obj)", matrix_copy[id, time][1]) ? (occursin("addObj", matrix_copy[id, time][1]) ? format_matrix_function(matrix_copy[id, time][1], object_mapping[id][time + 1]) : matrix_copy[id, time][1]) : "", 
+      addObj_update_rules = join(map(time -> """(on (== time $(time - 1))\n  (let\n    ($(join(map(id -> !occursin("--> obj (prev obj)", matrix_copy[id, time][1]) ? (occursin("addObj", matrix_copy[id, time][1]) ? format_matrix_function(matrix_copy[id, time][1], object_mapping[id][time + 1]) : "") : "", 
                                     collect(1:size(matrix_copy)[1])), "\n    "))))\n  )""", addObj_update_rule_times), "\n  ")
     
       for type in object_types
@@ -3498,6 +3501,8 @@ function construct_regularity_matrix(matrix, unformatted_matrix, object_decompos
             first_nonzero_disp_times = filter(t -> !isnothing(object_mapping[id][t]) && !isnothing(object_mapping[id][t + 1]) && displacement(object_mapping[id][t].position, object_mapping[id][t + 1].position) != (0, 0),  collect((first_stop + 1):(second_stop - 1)))
             if first_nonzero_disp_times != [] 
               nonzero_disp_time = first_nonzero_disp_times[1]
+              @show id
+              @show nonzero_disp_time
               all_nonzero_disp_times = filter(t -> (t != 0) && (t > first_stop) && (t < second_stop), collect((nonzero_disp_time % interval_size):interval_size:(length(object_mapping[id]) - 1)))
               push!(all_nonzero_disp_times_across_ids, all_nonzero_disp_times...)
             end
@@ -3509,7 +3514,7 @@ function construct_regularity_matrix(matrix, unformatted_matrix, object_decompos
             nonzero_disp_time = filter(t -> !isnothing(object_mapping[id][t]) && !isnothing(object_mapping[id][t + 1]) && displacement(object_mapping[id][t].position, object_mapping[id][t + 1].position) != (0, 0),  collect((first_stop + 1):(second_stop - 1)))
             if nonzero_disp_time == [] 
               println("oh")
-              if length(unique(diff(all_nonzero_disp_times_across_ids))) == [interval_size]
+              if length(unique(diff(all_nonzero_disp_times_across_ids))) == 1
                 nonzero_disp_time = all_nonzero_disp_times_across_ids[1]
               else # displacement times are staggered based on time of object addition 
                 added_object_ids = filter(new_id -> isnothing(object_mapping[new_id][first_stop + 1]) && (unique(object_mapping[new_id][first_stop+1:second_stop-1]) != [nothing]) && id != new_id, object_ids_with_type)
@@ -3541,6 +3546,12 @@ function construct_regularity_matrix(matrix, unformatted_matrix, object_decompos
             @show nonzero_disp_time
             if !isnothing(object_mapping[id][1])
               all_nonzero_disp_times = filter(t -> (t != 0) && (t > first_stop) && (t < second_stop), collect((nonzero_disp_time % interval_size):interval_size:(length(object_mapping[id]) - 1)))
+
+              added_object_ids = filter(new_id -> isnothing(object_mapping[new_id][first_stop + 1]) && (unique(object_mapping[new_id][first_stop+1:second_stop-1]) != [nothing]) && id != new_id, object_ids_with_type)
+              if added_object_ids != [] 
+                all_nonzero_disp_times = filter(t -> t > (first_stop + 1), all_nonzero_disp_times)
+              end
+            
             else
               @show first_stop 
               @show second_stop
@@ -3724,6 +3735,8 @@ function compute_source_objects(filtered_matrix, object_decomposition)
   # keys are pairs of the form (addObj_type_id, removeObj_type_id) for corresponding bullet-source types
   # values: tuples of the form (source_exists_event, state-based bool, formatted addObj rule, formatted removeObj rule) 
   for object_type in object_types 
+    println("OBJECT_TYPE.ID")
+    println(object_type.id)
     type_id = object_type.id 
     object_ids_with_type = filter(id -> filter(obj -> !isnothing(obj), object_mapping[id])[1].type.id == type_id, collect(keys(object_mapping)))
     addObj_times = vcat(map(id -> findall(t -> isnothing(object_mapping[id][t - 1]) && !isnothing(object_mapping[id][t]), 2:length(object_mapping[id])), object_ids_with_type)...)
@@ -3743,6 +3756,97 @@ function compute_source_objects(filtered_matrix, object_decomposition)
                                 addObj_times) != [], collect(keys(object_mapping)))    
 
 
+    if removeObj_ids != [] 
+      source_object_id = removeObj_ids[1]
+      source_type_id = filter(obj -> !isnothing(obj), object_mapping[source_object_id])[1].type.id
+      c = maximum(map(p -> length(filter(id -> filter(obj -> !isnothing(obj), object_mapping[id])[1].position == p,
+                                      object_ids_with_type)), 
+              addObj_positions))
+
+      contained_in_list = isnothing(object_mapping[source_object_id][1]) || (count(id -> (filter(x -> !isnothing(x), object_mapping[id]))[1].type.id == object_mapping[source_object_id][1].type.id, collect(keys(object_mapping))) > 1)
+
+      @show type_id 
+      @show source_object_id 
+      @show source_type_id
+      @show addObj_positions 
+      @show contained_in_list
+
+      removeObj_to_addObj_dict = Dict()
+
+      # compute state_based value 
+      state_based = false
+      for r_id in removeObj_ids
+        r_position = filter(obj -> !isnothing(obj), object_mapping[r_id])[end].position
+        # below: id's of all added objects that were added to r_position
+        a_ids = findall(source_id -> filter(obj -> !isnothing(obj), object_mapping[source_id])[1].position == r_position, object_ids_with_type)
+        if length(a_ids) > 1
+          state_based = true
+          break
+        end
+      end
+
+      # compute source_exists_event
+      if contained_in_list # if the source is in a list
+        if filter(t -> t.id == source_type_id, object_types)[1].color == "darkgray"
+          source_exists_event = "(!= (filter (--> obj (== (.. obj id) $(removeObj_ids[1]))) (prev addedObjType$(source_type_id)List)) (list))"
+        else
+          if length(removeObj_ids) > 1 
+            source_exists_event = "(!= (prev addedObjType$(source_type_id)List) (list))"
+          else
+            source_exists_event = "(!= (prev addedObjType$(source_type_id)List) (list))" # "(!= (map (--> obj (== (.. obj id) $(source_object_id))) (prev addedObjType$(source_type_id)List)) (list))"
+          end
+        end
+      else
+        source_exists_event = "(.. (prev obj$(source_object_id)) alive)"
+      end
+      addObj_removeObj_data_dict[(type_id, source_type_id)] = (source_exists_event, c)
+    end
+    
+    if removeObj_ids_prox != []
+      source_object_id = removeObj_ids_prox[1]
+      source_type_id = filter(obj -> !isnothing(obj), object_mapping[source_object_id])[1].type.id
+
+      source_exists_event = "true" 
+      if object_type_is_brownian(type_id, filtered_matrix, object_decomposition) || object_type_is_brownian(source_type_id, filtered_matrix, object_decomposition)
+        addObj_removeObj_data_dict[(type_id, source_type_id)] = (source_exists_event, 0)
+      end
+
+    end
+  
+  end
+  addObj_removeObj_data_dict
+end
+
+function compute_source_objects_triple_linked(filtered_matrix, object_decomposition)
+  object_types, object_mapping, _, _ = object_decomposition
+  start_objects = sort(filter(obj -> obj != nothing, [object_mapping[i][1] for i in 1:length(collect(keys(object_mapping)))]), by=(x -> x.id))
+
+  addObj_removeObj_data_dict = Dict() 
+  # structure of addObj_removeObj_data_dict: 
+  # keys are pairs of the form (addObj_type_id, removeObj_type_id) for corresponding bullet-source types
+  # values: tuples of the form (source_exists_event, state-based bool, formatted addObj rule, formatted removeObj rule) 
+  for object_type in object_types 
+    println("OBJECT_TYPE.ID")
+    println(object_type.id)
+    type_id = object_type.id 
+    object_ids_with_type = filter(id -> filter(obj -> !isnothing(obj), object_mapping[id])[1].type.id == type_id, collect(keys(object_mapping)))
+    addObj_times = vcat(map(id -> findall(t -> isnothing(object_mapping[id][t - 1]) && !isnothing(object_mapping[id][t]), 2:length(object_mapping[id])), object_ids_with_type)...)
+    addObj_times = map(t -> t + 1, addObj_times) # first non-nothing time for object_id's
+    addObj_positions = unique(vcat(map(id -> map(mt -> object_mapping[id][mt + 1].position, findall(t -> isnothing(object_mapping[id][t - 1]) && !isnothing(object_mapping[id][t]), 2:length(object_mapping[id]))), object_ids_with_type)...))
+    removeObj_ids = filter(id -> findall(t -> (t - 1) > 0 && 
+                                               !isnothing(object_mapping[id][t - 1]) && 
+                                               isnothing(object_mapping[id][t]) && 
+                                               object_mapping[id][t - 1].position in addObj_positions, 
+                                          addObj_times) != [], collect(keys(object_mapping)))
+
+    removeObj_ids_prox = filter(id -> findall(t -> (t - 1) > 0 && 
+                                                   !isnothing(object_mapping[id][t - 1]) && 
+                                                   isnothing(object_mapping[id][t]) && 
+                                                   !(object_mapping[id][t - 1].position in addObj_positions) && 
+                                                   filter(scalar -> scalar <= 40, map(disp -> abs(disp[1]) + abs(disp[2]), map(p -> [displacement(p, object_mapping[id][t - 1].position)...], addObj_positions))) != [], 
+                                addObj_times) != [], collect(keys(object_mapping)))    
+
+    sources = []
     if removeObj_ids != [] 
       source_object_id = removeObj_ids[1]
       source_type_id = filter(obj -> !isnothing(obj), object_mapping[source_object_id])[1].type.id
@@ -3782,20 +3886,27 @@ function compute_source_objects(filtered_matrix, object_decomposition)
       else
         source_exists_event = "(.. (prev obj$(source_object_id)) alive)"
       end
-      addObj_removeObj_data_dict[(type_id, source_type_id)] = (source_exists_event, state_based)
+      push!(sources, source_type_id)
+      println("yo 1")
+      println((source_exists_event, state_based))
     end
     
     if removeObj_ids_prox != []
+      println("yo 3")
       source_object_id = removeObj_ids_prox[1]
       source_type_id = filter(obj -> !isnothing(obj), object_mapping[source_object_id])[1].type.id
 
       source_exists_event = "true" 
-      if object_type_is_brownian(type_id, filtered_matrix, object_decomposition) || object_type_is_brownian(source_type_id, filtered_matrix, object_decomposition)
-        addObj_removeObj_data_dict[(type_id, source_type_id)] = (source_exists_event, false)
+      if !object_type_is_brownian(type_id, filtered_matrix, object_decomposition) && !object_type_is_brownian(source_type_id, filtered_matrix, object_decomposition)
+        push!(sources, source_type_id)
+        println("yo 2")
+        println((source_exists_event, false))
       end
 
     end
-  
+    if length(sources) == 2 
+      addObj_removeObj_data_dict[type_id] = sources
+    end
   end
   addObj_removeObj_data_dict
 end
@@ -3975,6 +4086,7 @@ function sort_update_function_matrices(matrices, object_decomposition)
       end
     end
     push!(counts, sum(type_level_counts))
+    @show type_level_counts
   end
   @show length(matrices)
   @show length(counts)
@@ -4250,7 +4362,9 @@ function generate_event(run_id, interval_offsets, source_exists_events_dict, ano
           for time in 1:length(observation_data)
             if (observation_data[time] != event_values[time]) && (observation_data[time] != -1)
               equals = false
-              # # # println("NO SUCCESS")
+              @show object_id
+              @show time 
+              println("NO SUCCESS")
               break
             end
           end

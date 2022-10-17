@@ -146,8 +146,25 @@ function generate_on_clauses_SKETCH_SINGLE(run_id, matrix, unformatted_matrix, o
     else # GENERATE NEW STATE 
 
       # ----- START: SPECIAL ADDOBJ HANDLING: PART 1 -----
-      linked_removeObj_update_functions = []
       all_state_based_update_functions = vcat(collect(values(state_based_update_functions_dict))...)
+
+      # triple-linked update functions
+      triple_linked_type_ids_dict = compute_source_objects_triple_linked(filtered_matrix, object_decomposition)
+      triple_linked_update_functions = []
+      for addObj_type_id in keys(triple_linked_type_ids_dict)
+        source1_type_id, source2_type_id = triple_linked_type_ids_dict[addObj_type_id]
+        addObj_update_functions = filter(u -> occursin("addObj", u) && occursin("addedObjType$(addObj_type_id)List", u), all_state_based_update_functions)
+        source1_update_functions = filter(u -> occursin("removeObj", u) && occursin("addedObjType$(source1_type_id)List", u), all_state_based_update_functions)
+        source2_update_functions = filter(u -> occursin("removeObj", u) && occursin("addedObjType$(source2_type_id)List", u), all_state_based_update_functions)
+        if addObj_update_functions != [] && source1_update_functions != [] && source2_update_functions != []
+          # TODO: override addObj so it refers to both source1 and source2 type id's
+          push!(triple_linked_update_functions, [addObj_update_functions[1], source1_update_functions[1], source2_update_functions[1]]...)
+        end
+      end
+
+      @show triple_linked_update_functions 
+
+      linked_removeObj_update_functions = []
       for addObj_removeObj_pair in keys(source_exists_events_dict)
         addObj_type_id, removeObj_type_id = addObj_removeObj_pair
         source_exists_event, state_based = source_exists_events_dict[addObj_removeObj_pair]
@@ -162,6 +179,12 @@ function generate_on_clauses_SKETCH_SINGLE(run_id, matrix, unformatted_matrix, o
       for pair in double_removeObj_update_functions 
         push!(linked_removeObj_update_functions, pair[2])
       end
+
+      linked_removeObj_update_functions = filter(u -> !(u in triple_linked_update_functions), linked_removeObj_update_functions)
+
+      @show linked_removeObj_update_functions
+      @show double_removeObj_update_functions
+
       # ----- END: SPECIAL ADDOBJ HANDLING: PART 2 -----
 
 
@@ -222,9 +245,9 @@ function generate_on_clauses_SKETCH_SINGLE(run_id, matrix, unformatted_matrix, o
 
       # GLOBAL STATE HANDLING
       if length(collect(keys(global_update_functions_dict))) > 0 
-        global_update_functions = sort(vcat(collect(keys(global_update_functions_dict))...))
+        global_update_function_type_ids = sort(vcat(collect(keys(global_update_functions_dict))...))
         # construct update_function_times_dict for this type_id/co_occurring_event pair 
-        for type_id in global_update_functions
+        for type_id in global_update_function_type_ids
           global_update_functions = global_update_functions_dict[type_id]
           for update_function in global_update_functions 
             times_dict = Dict() # form: update function => object_id => times when update function occurred for object_id
@@ -2316,7 +2339,7 @@ function special_addObj_removeObj_handling(update_function, filtered_matrix, co_
   @show double_removeObj_update_functions 
   @show linked_removeObj_update_functions 
   @show source_exists_events_dict 
-  @show object_decomposition
+  # @show object_decomposition
   
   object_types, object_mapping, _, _ = object_decomposition
   
@@ -2357,87 +2380,130 @@ function special_addObj_removeObj_handling(update_function, filtered_matrix, co_
     end
 
     if !isnothing(addObj_removeObj_pair)
+      e, c = source_exists_events_dict[addObj_removeObj_pair]
+
       ids_with_removeObj_type_id = filter(id -> filter(obj -> !isnothing(obj), object_mapping[id])[1].type.id in (removeObj_type_id isa AbstractArray ? removeObj_type_id : [removeObj_type_id]), collect(keys(object_mapping)))
       if removeObj_type_id isa AbstractArray 
         removeObj_update_function = filter(u -> foldl(|, map(x -> occursin("removeObj addedObjType$(x)List", u), removeObj_type_id)) || occursin("removeObj (prev obj$(ids_with_removeObj_type_id[1]))", u), linked_removeObj_update_functions)
         removeObj_update_function = join(removeObj_update_function, "\t")
       else
-        removeObj_update_function = filter(u -> occursin("removeObj addedObjType$(removeObj_type_id)List", u) || occursin("removeObj (prev obj$(ids_with_removeObj_type_id[1]))", u), linked_removeObj_update_functions)[1]
+        removeObj_update_functions = filter(u -> occursin("removeObj addedObjType$(removeObj_type_id)List", u) || occursin("removeObj (prev obj$(ids_with_removeObj_type_id[1]))", u), linked_removeObj_update_functions)
+        if removeObj_update_functions != []
+          removeObj_update_function = removeObj_update_functions[1]
+        else
+          removeObj_update_function = ""
+        end
       end
       
-      if time_based_co_occurring_events != [] && source_exists_co_occurring_events != [] 
-        addObj_on_clause = "(on (& $(time_based_co_occurring_events[1]) (& $(source_exists_co_occurring_events[1]) (== (uniformChoice (list 1 2 3 4 5 6 7 8 9 10)) 1)))\n(let ($(update_function) $(removeObj_update_function))))"
-      elseif time_based_co_occurring_events != [] && source_exists_co_occurring_events == []
-        addObj_on_clause = "(on (& $(time_based_co_occurring_events[1]) (== (uniformChoice (list 1 2 3 4 5 6 7 8 9 10)) 1))\n(let ($(update_function) $(removeObj_update_function))))"
-      elseif time_based_co_occurring_events == [] && source_exists_co_occurring_events != []
-        addObj_on_clause = "(on (& $(source_exists_co_occurring_events[1]) (== (uniformChoice (list 1 2 3 4 5 6 7 8 9 10)) 1))\n(let ($(update_function) $(removeObj_update_function))))"
-      else
-        addObj_on_clause = "(on (== (uniformChoice (list 1 2 3 4 5 6 7 8 9 10)) 1)\n(let ($(update_function) $(removeObj_update_function))))"
-      end
-
-      println("LOOK AT ME HERE")
-      @show co_occurring_events 
-      proximity_based_co_occurring_events = filter(e -> occursin("(<= (distance", e), map(x -> x[1], co_occurring_events))
-
-      # only consider proximity events where at least one involved type is brownian 
-      brownian_type_ids = []
-      for t in object_types 
-        object_ids_with_type = filter(id -> filter(obj -> !isnothing(obj), object_mapping[id])[1].type.id == t.id, collect(keys(object_mapping)))
-        if filter(r -> occursin("uniformChoice", r) && !occursin("addObj", r), vcat(vcat(map(id -> filtered_matrix[id, :], object_ids_with_type)...)...)) != []
-          push!(brownian_type_ids, t.id)
-        end
-      end
-
-      proximity_based_co_occurring_events_new = []
-      for option in proximity_based_co_occurring_events 
-        if occursin(".. obj id) x", option)
-          option_first_half = split(replace(replace(option, "(" => ""), ")" => ""), "obj id) x")[1]
-          option_second_half = split(replace(replace(option, "(" => ""), ")" => ""), "obj id) x")[2]
-
-          first_type_id = parse(Int, split(match(r"distance prev obj prev addedObjType\d+", option_first_half).match, "addedObjType")[end])
-          second_type_id = parse(Int, split(match(r"20 prev addedObjType\d+", option_second_half).match, "addedObjType")[end])
-  
-          if (first_type_id in brownian_type_ids) || (second_type_id in brownian_type_ids)
-            push!(proximity_based_co_occurring_events_new, option)
-          end
-  
-        elseif occursin("(list)", option)
-          option_first_half = split(replace(replace(option, "(" => ""), ")" => ""), "20")[1]
-          option_second_half = split(replace(replace(option, "(" => ""), ")" => ""), "20")[2]
-
-          first_type_id = parse(Int, split(match(r"distance prev obj prev addedObjType\d+", option_first_half).match, "addedObjType")[end])
-          second_type_id = parse(Int, split(match(r"prev addedObjType\d+", option_second_half).match, "addedObjType")[end])
-  
-          if (first_type_id in brownian_type_ids) || (second_type_id in brownian_type_ids)
-            push!(proximity_based_co_occurring_events_new, option)
-          end
-
+      if removeObj_update_function == "" 
+        if time_based_co_occurring_events != [] && source_exists_co_occurring_events == []
+          addObj_on_clause = "(on (& (& $(time_based_co_occurring_events[1]) $(source_exists_co_occurring_events[1])) (== (uniformChoice (list 1 2 3 4 5 6 7 8 9 10)) 1))\n$(update_function))"
+        elseif time_based_co_occurring_events != []
+          addObj_on_clause = "(on (& $(time_based_co_occurring_events[1]) (== (uniformChoice (list 1 2 3 4 5 6 7 8 9 10)) 1))\n$(update_function))"
+        elseif source_exists_co_occurring_events != []
+          addObj_on_clause = "(on (& $(source_exists_co_occurring_events[1]) (== (uniformChoice (list 1 2 3 4 5 6 7 8 9 10)) 1))\n$(update_function))"
         else
-          first_object_id = parse(Int, split(match(r"distance prev obj\d+", replace(replace(option, "(" => ""), ")" => "")).match, "prev obj")[end])
-          first_type_id = filter(o -> !isnothing(o), object_mapping[first_object_id])[1].type.id
-          second_type_id = parse(Int, split(match(r"addedObjType\d+", replace(replace(option, "(" => ""), ")" => "")).match, "addedObjType")[end])
-  
-          if (first_type_id in brownian_type_ids) || (second_type_id in brownian_type_ids)
-            push!(proximity_based_co_occurring_events_new, option)
-          end
+          addObj_on_clause = "(on (== (uniformChoice (list 1 2 3 4 5 6 7 8 9 10)) 1)\n$(update_function))"
         end
-      end
-      proximity_based_co_occurring_events = proximity_based_co_occurring_events_new
-
-      if proximity_based_co_occurring_events != [] # occursin("firstWithDefault", addObj_on_clause) && 
-        parts = split(addObj_on_clause, "\n")
-        original_event = replace(parts[1], "(on " => "")
-        new_event = "(& $(original_event) $(proximity_based_co_occurring_events[1]))"
-        addObj_on_clause = "(on $(new_event)\n$(parts[2])"          
-      end
-
-      if occursin("\t", removeObj_update_function)
-        funcs = split(removeObj_update_function, "\t")
-        for f in funcs 
-          push!(on_clauses, (addObj_on_clause, f))
-        end
+        push!(on_clauses, (addObj_on_clause, update_function))
       else
-        push!(on_clauses, (addObj_on_clause, removeObj_update_function))
+
+        if c > 1
+          source_exists_co_occurring_events = [e]
+          old_removeObj_update_function = removeObj_update_function
+          removeObj_update_function = replace(removeObj_update_function, "(--> obj (== (.. obj id) x))" => "(uniformChoice (prev addedObjType$(removeObj_type_id)List))")
+          if time_based_co_occurring_events != [] && source_exists_co_occurring_events != []
+            addObj_on_clause = "(on (& (& $(time_based_co_occurring_events[1]) $(source_exists_co_occurring_events[1])) (== (uniformChoice (list 1 2 3 4 5 6 7 8 9 10)) 1))\n(let ($(update_function) $(removeObj_update_function))))"
+          elseif time_based_co_occurring_events != []
+            addObj_on_clause = "(on (& $(time_based_co_occurring_events[1]) (== (uniformChoice (list 1 2 3 4 5 6 7 8 9 10)) 1))\n(let ($(update_function) $(removeObj_update_function))))"
+          elseif source_exists_co_occurring_events != []
+            addObj_on_clause = "(on (& $(source_exists_co_occurring_events[1]) (== (uniformChoice (list 1 2 3 4 5 6 7 8 9 10)) 1))\n(let ($(update_function) $(removeObj_update_function))))"
+          else
+            addObj_on_clause = "(on (== (uniformChoice (list 1 2 3 4 5 6 7 8 9 10)) 1)\n(let ($(update_function) $(removeObj_update_function))))"
+          end
+
+          push!(on_clauses, (addObj_on_clause, update_function))
+  
+          addObj_on_clause = "(on (== (uniformChoice (list 1 2 3 4 5 6 7 8 9 10)) 1)\n$(removeObj_update_function))"
+          push!(on_clauses, (addObj_on_clause, old_removeObj_update_function))
+        else
+  
+          if time_based_co_occurring_events != [] && source_exists_co_occurring_events != [] 
+            addObj_on_clause = "(on (& $(time_based_co_occurring_events[1]) (& $(source_exists_co_occurring_events[1]) (== (uniformChoice (list 1 2 3 4 5 6 7 8 9 10)) 1)))\n(let ($(update_function) $(removeObj_update_function))))"
+          elseif time_based_co_occurring_events != [] && source_exists_co_occurring_events == []
+            addObj_on_clause = "(on (& $(time_based_co_occurring_events[1]) (== (uniformChoice (list 1 2 3 4 5 6 7 8 9 10)) 1))\n(let ($(update_function) $(removeObj_update_function))))"
+          elseif time_based_co_occurring_events == [] && source_exists_co_occurring_events != []
+            addObj_on_clause = "(on (& $(source_exists_co_occurring_events[1]) (== (uniformChoice (list 1 2 3 4 5 6 7 8 9 10)) 1))\n(let ($(update_function) $(removeObj_update_function))))"
+          else
+            addObj_on_clause = "(on (== (uniformChoice (list 1 2 3 4 5 6 7 8 9 10)) 1)\n(let ($(update_function) $(removeObj_update_function))))"
+          end
+    
+          println("LOOK AT ME HERE")
+          @show co_occurring_events 
+          proximity_based_co_occurring_events = filter(e -> occursin("(<= (distance", e), map(x -> x[1], co_occurring_events))
+    
+          # only consider proximity events where at least one involved type is brownian 
+          brownian_type_ids = []
+          for t in object_types 
+            object_ids_with_type = filter(id -> filter(obj -> !isnothing(obj), object_mapping[id])[1].type.id == t.id, collect(keys(object_mapping)))
+            if filter(r -> occursin("uniformChoice", r) && !occursin("addObj", r), vcat(vcat(map(id -> filtered_matrix[id, :], object_ids_with_type)...)...)) != []
+              push!(brownian_type_ids, t.id)
+            end
+          end
+    
+          proximity_based_co_occurring_events_new = []
+          for option in proximity_based_co_occurring_events 
+            if occursin(".. obj id) x", option)
+              option_first_half = split(replace(replace(option, "(" => ""), ")" => ""), "obj id) x")[1]
+              option_second_half = split(replace(replace(option, "(" => ""), ")" => ""), "obj id) x")[2]
+    
+              first_type_id = parse(Int, split(match(r"distance prev obj prev addedObjType\d+", option_first_half).match, "addedObjType")[end])
+              second_type_id = parse(Int, split(match(r"20 prev addedObjType\d+", option_second_half).match, "addedObjType")[end])
+      
+              if (first_type_id in brownian_type_ids) || (second_type_id in brownian_type_ids)
+                push!(proximity_based_co_occurring_events_new, option)
+              end
+      
+            elseif occursin("(list)", option)
+              option_first_half = split(replace(replace(option, "(" => ""), ")" => ""), "20")[1]
+              option_second_half = split(replace(replace(option, "(" => ""), ")" => ""), "20")[2]
+    
+              first_type_id = parse(Int, split(match(r"distance prev obj prev addedObjType\d+", option_first_half).match, "addedObjType")[end])
+              second_type_id = parse(Int, split(match(r"prev addedObjType\d+", option_second_half).match, "addedObjType")[end])
+      
+              if (first_type_id in brownian_type_ids) || (second_type_id in brownian_type_ids)
+                push!(proximity_based_co_occurring_events_new, option)
+              end
+    
+            else
+              first_object_id = parse(Int, split(match(r"distance prev obj\d+", replace(replace(option, "(" => ""), ")" => "")).match, "prev obj")[end])
+              first_type_id = filter(o -> !isnothing(o), object_mapping[first_object_id])[1].type.id
+              second_type_id = parse(Int, split(match(r"addedObjType\d+", replace(replace(option, "(" => ""), ")" => "")).match, "addedObjType")[end])
+      
+              if (first_type_id in brownian_type_ids) || (second_type_id in brownian_type_ids)
+                push!(proximity_based_co_occurring_events_new, option)
+              end
+            end
+          end
+          proximity_based_co_occurring_events = proximity_based_co_occurring_events_new
+    
+          if proximity_based_co_occurring_events != [] # occursin("firstWithDefault", addObj_on_clause) && 
+            parts = split(addObj_on_clause, "\n")
+            original_event = replace(parts[1], "(on " => "")
+            new_event = "(& $(original_event) $(proximity_based_co_occurring_events[1]))"
+            addObj_on_clause = "(on $(new_event)\n$(parts[2])"          
+          end
+    
+          if occursin("\t", removeObj_update_function)
+            funcs = split(removeObj_update_function, "\t")
+            for f in funcs 
+              push!(on_clauses, (addObj_on_clause, f))
+            end
+          else
+            push!(on_clauses, (addObj_on_clause, removeObj_update_function))
+          end
+          push!(on_clauses, (addObj_on_clause, update_function))
+        end  
       end
 
     else
@@ -2446,8 +2512,8 @@ function special_addObj_removeObj_handling(update_function, filtered_matrix, co_
       else
         addObj_on_clause = "(on (== (uniformChoice (list 1 2 3 4 5 6 7 8 9 10)) 1)\n$(update_function))"
       end
+      push!(on_clauses, (addObj_on_clause, update_function))
     end
-    push!(on_clauses, (addObj_on_clause, update_function))
     println("WOOT YAY")
     @show addObj_on_clause 
     @show on_clauses 
