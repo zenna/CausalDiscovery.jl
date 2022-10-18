@@ -1,10 +1,10 @@
 #!/bin/bash
 
 curr_date=$(date '+%Y-%m-%d_%H:%M:%S')
-# algorithms=("heuristic"
-#             "sketch_multi"
-#             "sketch_single")
-algorithms=("sketch_multi")
+algorithms=("heuristic"
+            "sketch_multi"
+            "sketch_single")
+# algorithms=("sketch_multi")
 num_repeats=3
 
 # model_names=("paint"
@@ -100,7 +100,7 @@ model_names=("paint"
 #              "space_invaders"
 #              "sokoban")
 # # "space_invaders"
-#model_names=("grow")
+model_names=("sand")
 
 for  (( i = 1 ; i <= $num_repeats; i++ ))
 do
