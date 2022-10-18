@@ -430,9 +430,11 @@ function generate_observations_sand_simple(m::Module)
                  12 => (8, 1),
                  17 => (2, 0),
                  18 => (5, 3),
+                 30 => (2, 7),
+                 32 => (1, 7),
                 ])
 
-  for i in 0:30
+  for i in 0:35
     if i in collect(keys(clicks))
       click_x, click_y = clicks[i]
       state = Base.invokelatest(m.next, state, Base.invokelatest(m.Click, click_x, click_y), nothing, nothing, nothing, nothing)
