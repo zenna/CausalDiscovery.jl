@@ -115,6 +115,7 @@ function synthesize_program_given_decomp(run_id, random, decomp, observation_tup
                                           sketch_timeout=0,
                                           stop_times=[]) 
 
+  @show run_id
   program_strings = []
 
   # reset global_event_vector_dict and redundant_events_set for each new context:

@@ -1065,7 +1065,8 @@ function generate_global_automaton_sketch(run_id, single_update_func_with_type, 
             end
           end
 
-          @show command 
+          # println("WOWIE")
+          # @show command 
           
           sketch_output = try 
                             readchomp(eval(Meta.parse("`$(command)`")))
@@ -1073,17 +1074,19 @@ function generate_global_automaton_sketch(run_id, single_update_func_with_type, 
                             ""
                           end
 
-          @show sketch_output
+          # @show sketch_output
           if sketch_output == "" || occursin("The sketch could not be resolved.", sketch_output)
             break
           else
-            # # # # # println("SKETCH SUCCESS!")
+            # println("SKETCH SUCCESS!")
             # update intAsChar and add main function to output cpp file 
             cpp_file_name = "automata_sketch_$(run_id).cpp"
             cpp_out_file_name = "automata_sketch_$(run_id).out"
             f = open(cpp_file_name, "r")
             cpp_content = read(f, String)
             close(f)
+
+            # @show cpp_content
       
             if first_automaton 
               if occursin("void distinct_state_count", cpp_content) 
@@ -1180,16 +1183,26 @@ function generate_global_automaton_sketch(run_id, single_update_func_with_type, 
             # compile modified cpp program 
             command = "g++ -o $(cpp_out_file_name) $(cpp_file_name)"
             compile_output = readchomp(eval(Meta.parse("`$(command)`")))
+
+            # println("ANOTHER COMMAND")
+            # @show command 
+            # @show compile_output
             
-            if compile_output == ""
-              break
-            end
+            # if compile_output == ""
+            #   break
+            # end
       
             # run compiled cpp program 
             command = "./$(cpp_out_file_name)"
             run_output = readchomp(eval(Meta.parse("`$(command)`")))  
             run_output = replace(run_output, "\x01" => "")
       
+            # @show run_output
+
+            if run_output == ""
+              break
+            end
+
             parts = split(run_output, "STATE TRAJECTORY")
             state_transition_string = parts[1]
             states_and_table_string = parts[2]

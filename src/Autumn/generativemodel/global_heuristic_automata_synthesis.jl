@@ -861,6 +861,7 @@ function generate_new_state_GLOBAL(co_occurring_event, times_dict, event_vector_
   else
     object_ids_with_type = filter(id -> filter(obj -> !isnothing(obj), object_mapping[id])[1].type.id == type_id, collect(keys(object_mapping)))
   end
+  
   if length(object_ids_with_type) != 1 
     for e in keys(small_event_vector_dict)
       if !isnothing(match(r"obj\d+", e)) && occursin("origin", e) # || occursin("up", e) || occursin("left", e) # !occursin("clicked", e) && !occursin("intersects", e)
