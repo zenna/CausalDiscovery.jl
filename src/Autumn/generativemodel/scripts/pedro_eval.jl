@@ -59,7 +59,7 @@ x = @timed begin
     end
   end
 
-  results_directory = "october_final_results/$(model_name)"
+  results_directory = "october_final_results_bulk/$(model_name)"
   if !isdir(results_directory)
       mkdir(results_directory)
   end
