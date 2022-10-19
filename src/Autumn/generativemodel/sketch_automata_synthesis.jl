@@ -2380,7 +2380,7 @@ function special_addObj_removeObj_handling(update_function, filtered_matrix, co_
     end
 
     if !isnothing(addObj_removeObj_pair)
-      e, c = source_exists_events_dict[addObj_removeObj_pair]
+      e, c = addObj_removeObj_pair isa AbstractArray ? ("true", 0) : source_exists_events_dict[addObj_removeObj_pair]
 
       ids_with_removeObj_type_id = filter(id -> filter(obj -> !isnothing(obj), object_mapping[id])[1].type.id in (removeObj_type_id isa AbstractArray ? removeObj_type_id : [removeObj_type_id]), collect(keys(object_mapping)))
       if removeObj_type_id isa AbstractArray 
@@ -2408,7 +2408,7 @@ function special_addObj_removeObj_handling(update_function, filtered_matrix, co_
         push!(on_clauses, (addObj_on_clause, update_function))
       else
 
-        if c > 1
+        if c > 2
           source_exists_co_occurring_events = [e]
           old_removeObj_update_function = removeObj_update_function
           removeObj_update_function = replace(removeObj_update_function, "(--> obj (== (.. obj id) x))" => "(uniformChoice (prev addedObjType$(removeObj_type_id)List))")

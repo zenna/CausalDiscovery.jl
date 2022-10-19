@@ -1670,6 +1670,7 @@ function generate_observations_pedro_interface(game_name, index=1)
 
   files = reverse(sort(filter(x -> occursin(".json", x), readdir(game_folder))))
   file_location = string(game_folder, "/", files[index])
+  @show file_location
   dict = JSON.parse(JSON.parsefile(file_location))
   # @show dict 
   observations_raw = dict["history"]

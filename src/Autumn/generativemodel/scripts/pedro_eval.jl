@@ -68,7 +68,7 @@ x = @timed begin
     println(io, join(program_strings, "\n"))
   end
 
-  program_strings[1]
+  program_strings
 end
 
 save(string("$(alg_subdirectory_name)/full_data_$(iteration).jld"), model_name, x)

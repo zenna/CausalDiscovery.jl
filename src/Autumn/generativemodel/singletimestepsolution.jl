@@ -3762,6 +3762,20 @@ function compute_source_objects(filtered_matrix, object_decomposition)
       c = maximum(map(p -> length(filter(id -> filter(obj -> !isnothing(obj), object_mapping[id])[1].position == p,
                                       object_ids_with_type)), 
               addObj_positions))
+      
+      is_removeObj_type_stationary = unique(map(id -> length(unique(filter(x -> !isnothing(x), map(o -> !isnothing(o) ? o.position : nothing, object_mapping[id])))), removeObj_ids)) == [1]
+      is_addObj_type_stationary = unique(map(id -> length(unique(filter(x -> !isnothing(x), map(o -> !isnothing(o) ? o.position : nothing, object_mapping[id])))), object_ids_with_type)) == [1]
+      is_addObj_type_random = occursin("uniformChoice (list", join(vcat(map(id -> vcat(filtered_matrix[id, :]...), object_ids_with_type)...)))
+
+      @show type_id 
+      @show source_type_id
+      @show is_removeObj_type_stationary
+      @show is_addObj_type_stationary
+      @show is_addObj_type_random
+
+      if !is_removeObj_type_stationary || is_addObj_type_stationary || is_addObj_type_random
+        c = 0
+      end
 
       contained_in_list = isnothing(object_mapping[source_object_id][1]) || (count(id -> (filter(x -> !isnothing(x), object_mapping[id]))[1].type.id == object_mapping[source_object_id][1].type.id, collect(keys(object_mapping))) > 1)
 
