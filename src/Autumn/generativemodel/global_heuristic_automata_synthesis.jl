@@ -21,12 +21,16 @@ function generate_on_clauses_GLOBAL(run_id, matrix, unformatted_matrix, object_d
 
     for id in object_ids_with_type 
       for time in 1:(length(object_mapping[id]) - 1)
-        if !isnothing(object_mapping[id][time]) && !isnothing(object_mapping[id][time + 1])
-          disp = displacement(object_mapping[id][time].position, object_mapping[id][time + 1].position)
-          if disp != (0, 0)
-            scalars = map(y -> abs(y), filter(x -> x != 0, [disp...]))
-            push!(type_displacements[type_id], scalars...)
+        if !(time in stop_times)
+
+          if !isnothing(object_mapping[id][time]) && !isnothing(object_mapping[id][time + 1])
+            disp = displacement(object_mapping[id][time].position, object_mapping[id][time + 1].position)
+            if disp != (0, 0)
+              scalars = map(y -> abs(y), filter(x -> x != 0, [disp...]))
+              push!(type_displacements[type_id], scalars...)
+            end
           end
+
         end
       end
     end
