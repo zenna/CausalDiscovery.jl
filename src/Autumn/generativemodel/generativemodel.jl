@@ -477,6 +477,10 @@ function gen_event_bool_human_prior(object_decomposition, object_id, type_id, us
                   # push!(displacements, "(map (--> obj (moveNoCollision (prev obj) $(x*scalar) $(y*scalar))) $(filtered_list))")
                   # PORTALS FIX
                   push!(choices, "(intersects (prev obj$(object_1.id)) (map (--> obj (move (prev obj) $(x*scalar) $(y*scalar))) (prev addedObjType$(object_type.id)List)))")
+                  if type_displacements[object_1.type.id] == [10] && scalar == 5
+                    push!(choices, "(! (intersects (prev obj$(object_1.id)) (map (--> obj (move (prev obj) $(x*scalar) $(y*scalar))) (filter (--> obj (== (.. obj id) x)) (prev addedObjType$(object_type.id)List)))))")
+                  end
+                
                 end
               end
             end  
@@ -625,6 +629,11 @@ function gen_event_bool_human_prior(object_decomposition, object_id, type_id, us
             push!(choices, "(!= (filter (--> obj (adj obj (prev addedObjType$(object_type_2.id)List) 10)) (filter (--> obj2 (== (.. obj2 field1) 1)) (prev addedObjType$(object_type_1.id)List))) (list))")
             ## object-specific event triggering triple-linked removeObj
             push!(choices, "(adj (filter (--> obj (== (.. obj id) x)) (prev addedObjType$(object_type_2.id)List)) (filter (--> obj2 (== (.. obj2 field1) 1)) (prev addedObjType$(object_type_1.id)List)) 10)") 
+
+            # survivezombies: global event triggering agent removal
+            for o in non_list_objects
+              push!(choices, "(adj (prev obj$(o.id)) (filter (--> obj2 (== (.. obj2 field1) 1)) (prev addedObjType$(object_type_1.id)List)) 10)") 
+            end
 
             field_values = filter(x -> x[1] == "field1", object_type_1.custom_fields)[1][3]
             for v in field_values 
