@@ -305,6 +305,9 @@ function generate_hypothesis_string_program(hypothesis_string, actual_string, ob
 end
 
 function gen_event_bool_human_prior(object_decomposition, object_id, type_id, user_events, global_var_dict, update_rule, type_displacements, interval_offsets, source_exists_events_dict, symmetry=false) 
+  println("WHAT IS GOING ON.")
+  @show type_displacements
+  
   object_types, object_mapping, _, grid_size = object_decomposition
   start_objects = map(k -> object_mapping[k][1], filter(key -> !isnothing(object_mapping[key][1]), collect(keys(object_mapping))))
   non_list_objects = filter(x -> (count(y -> y.type.id == x.type.id, start_objects) == 1) && (count(obj_id -> filter(z -> !isnothing(z), object_mapping[obj_id])[1].type.id == x.type.id, collect(keys(object_mapping))) == 1), start_objects)

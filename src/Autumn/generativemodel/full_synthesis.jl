@@ -364,7 +364,7 @@ programs = Dict("particles"                                 => """(program
                                                                                       (prev ants)))
                                                                   
                                                                     (: agent Agent)
-                                                                    (= agent (initnext (Agent (Position 7 5)) (prev agent))) 
+                                                                    (= agent (initnext (Agent (Position 13 13)) (prev agent))) 
                                                                                                                                                                                     
                                                                     (: time Int)
                                                                     (= time (initnext 0 (+ (prev time) 1)))                                                                                                                   
