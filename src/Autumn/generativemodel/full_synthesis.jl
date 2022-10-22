@@ -136,9 +136,9 @@ function synthesize_program_given_decomp(decomp, observation_tuple, global_event
   if algorithm == "heuristic"
     solutions = generate_on_clauses_GLOBAL(matrix, unformatted_matrix, object_decomposition, user_events, global_event_vector_dict, redundant_events_set, grid_size, desired_solution_count, desired_per_matrix_solution_count, interval_painting_param, false, z3_option, time_based, 0, sketch_timeout, co_occurring_param, transition_param, state_synthesis_algorithm="heuristic", symmetry=symmetry)
   elseif algorithm == "sketch_single"
-    solutions = generate_on_clauses_GLOBAL(matrix, unformatted_matrix, object_decomposition, user_events, global_event_vector_dict, redundant_events_set, grid_size, desired_solution_count, desired_per_matrix_solution_count, interval_painting_param, false, z3_option, time_based, 0, sketch_timeout, co_occurring_param, transition_param, state_synthesis_algorithm="sketch_multi", symmetry=symmetry)
-  elseif algorithm == "sketch_multi"
     solutions = generate_on_clauses_GLOBAL(matrix, unformatted_matrix, object_decomposition, user_events, global_event_vector_dict, redundant_events_set, grid_size, desired_solution_count, desired_per_matrix_solution_count, interval_painting_param, false, z3_option, time_based, 0, sketch_timeout, co_occurring_param, transition_param, state_synthesis_algorithm="sketch_single", symmetry=symmetry)
+  elseif algorithm == "sketch_multi"
+    solutions = generate_on_clauses_GLOBAL(matrix, unformatted_matrix, object_decomposition, user_events, global_event_vector_dict, redundant_events_set, grid_size, desired_solution_count, desired_per_matrix_solution_count, interval_painting_param, false, z3_option, time_based, 0, sketch_timeout, co_occurring_param, transition_param, state_synthesis_algorithm="sketch_multi", symmetry=symmetry)
   else 
     error("algorithm $(algorithm) does not exist")
   end

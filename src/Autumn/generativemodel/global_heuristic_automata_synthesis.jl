@@ -1,6 +1,7 @@
 """On-clause generation, where we collect all unsolved (latent state dependent) on-clauses at the end"""
 function generate_on_clauses_GLOBAL(run_id, matrix, unformatted_matrix, object_decomposition, user_events, global_event_vector_dict, redundant_events_set, grid_size=16, desired_solution_count=1, desired_per_matrix_solution_count=1, interval_painting_param=false, sketch=false, z3_option="full", time_based=false, z3_timeout=0, sketch_timeout=0, co_occurring_param=false, transition_param=false, co_occurring_distinct=1, co_occurring_same=1, co_occurring_threshold=1, transition_distinct=1, transition_same=1, transition_threshold=1, num_transition_decisions=15, pedro=true; state_synthesis_algorithm="heuristic", symmetry=false, stop_times=[])
   if state_synthesis_algorithm == "sketch_single"
+    @show symmetry
     return generate_on_clauses_SKETCH_SINGLE(run_id, matrix, unformatted_matrix, object_decomposition, user_events, global_event_vector_dict, redundant_events_set, grid_size, desired_solution_count, desired_per_matrix_solution_count, interval_painting_param, z3_option, time_based, z3_timeout, sketch_timeout, co_occurring_param, transition_param, co_occurring_distinct, co_occurring_same, co_occurring_threshold, transition_distinct, transition_same, transition_threshold, symmetry=symmetry)
   end
   
@@ -2004,6 +2005,8 @@ function relabel_via_interval_painting(augmented_positive_times_labeled, global_
 end
 
 function generate_stateless_on_clauses(run_id, type_displacements, interval_offsets, source_exists_events_dict, update_functions_dict, matrix, filtered_matrix, anonymized_filtered_matrix, global_object_decomposition, user_events, state_update_on_clauses, global_var_dict, global_event_vector_dict, redundant_events_set, z3_option="full", time_based=false, z3_timeout=0, sketch_timeout=0, symmetry=false; stop_times=[])
+  println("generate_stateless_on_clauses")
+  @show symmetry 
   object_types, object_mapping, background, grid_size = global_object_decomposition
   new_on_clauses = []
   observation_vectors_dict = Dict() 
