@@ -402,7 +402,7 @@ programs = Dict("particles"                                 => """(program
                                                                                       (prev ants)))
                                                                   
                                                                     (: agent Agent)
-                                                                    (= agent (initnext (Agent (Position 7 5)) (prev agent))) 
+                                                                    (= agent (initnext (Agent (Position 13 13)) (prev agent))) 
                                                                                                                                                                                     
                                                                     (: time Int)
                                                                     (= time (initnext 0 (+ (prev time) 1)))                                                                                                                   
@@ -592,8 +592,8 @@ programs = Dict("particles"                                 => """(program
                                                             
                                                             (on true (= enemyBullets (updateObj enemyBullets (--> obj (moveDown obj)))))
                                                             (on true (= bullets (updateObj bullets (--> obj (moveUp obj)))))
-                                                            (on left (= hero (moveLeftNoCollision (prev hero))))
-                                                            (on right (= hero (moveRightNoCollision (prev hero))))
+                                                            (on left (= hero (moveLeft (prev hero))))
+                                                            (on right (= hero (moveRight (prev hero))))
                                                             (on (& up (.. (prev hero) alive)) (= bullets (addObj bullets (Bullet (.. (prev hero) origin)))))  
                                                           
                                                             (on (== (% time 10) 5) (= enemies1 (updateObj enemies1 (--> obj (moveLeft obj)))))

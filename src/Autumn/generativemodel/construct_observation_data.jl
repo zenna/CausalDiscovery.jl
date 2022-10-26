@@ -1,4 +1,4 @@
-const saved_traces_directory = "/Users/riadas/Documents/urop/today_temp/CausalDiscovery.jl/saved_test_traces/"
+const saved_traces_directory = "/Users/riadas/Documents/urop/CausalDiscoveryApp/saved_test_traces_user_study/"
 
 # function shorten(arr)
 #   indices_to_remove = []
@@ -197,7 +197,9 @@ function generate_observations_space_invaders(m::Module)
   # end
   # # observations, user_events, 16
   # filter_out_of_bounds_cells(observations, 16), user_events, 16
-  JLD.load("deterministic_space_invaders_output_2.jld", "chase")
+  observations, user_events, grid_size = JLD.load("deterministic_space_invaders_output_2.jld", "chase")
+  user_events[end-1] = "up"
+  observations, user_events, grid_size
 end
 
 function generate_observations_disease(m::Module)
@@ -856,7 +858,7 @@ function generate_observations_particles(m::Module)
 end
 
 function generate_observations_chase(m::Module) 
-  JLD.load("deterministic_chase_output_2.jld", "chase")
+  JLD.load("deterministic_chase_output_4.jld")["data"]
   # state = Base.invokelatest(m.init, nothing, nothing, nothing, nothing, nothing)
   # observations = []
   # user_events = []

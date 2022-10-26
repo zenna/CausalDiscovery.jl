@@ -4,7 +4,7 @@ test_trace_directory = "/Users/riadas/Documents/urop/CausalDiscoveryApp/saved_te
 
 function check_model_against_test_traces(model_name, program_str)
   model_directory = string(test_trace_directory, model_name)
-  files = filter(x -> occursin(".jld", x), readdir(model_directory)) 
+  files = filter(x -> occursin(".jld", x), readdir(model_directory))[1:7]
 
   accs = []
   for file_index in 1:length(files)
@@ -14,10 +14,13 @@ function check_model_against_test_traces(model_name, program_str)
     # if i == 2 
       @show user_events
     # end
+    try 
+      acc = check_match_synthesized_and_original(model_name, program_str, user_events) 
+      @show acc
+      push!(accs, acc)
+    catch e 
 
-    acc = check_match_synthesized_and_original(model_name, program_str, user_events) 
-    @show acc
-    push!(accs, acc)
+    end
   end
   round(Statistics.mean(accs), digits=3)
 end
@@ -53,8 +56,8 @@ function check_match_synthesized_and_original(model_name, program_str, user_even
 
   _, _, grid_size = generate_observations(model_name)
 
-  ground_truth_observations = interpret_over_time_observations(parseautumn(ground_truth_program_str), length(user_events_for_interpreter), user_events_for_interpreter) 
-  synthesized_observations = interpret_over_time_observations(parseautumn(program_str), length(user_events_for_interpreter), user_events_for_interpreter)
+  ground_truth_observations = interpret_over_time_observations(parseautumn(ground_truth_program_str), length(user_events_for_interpreter), user_events_for_interpreter, Random.MersenneTwister(0)) 
+  synthesized_observations = interpret_over_time_observations(parseautumn(program_str), length(user_events_for_interpreter), user_events_for_interpreter, Random.MersenneTwister(0))
 
   ground_truth_observations = filter_out_of_bounds_cells(map(obs -> filter(c -> c.color != "white", obs), ground_truth_observations), grid_size)
   synthesized_observations = filter_out_of_bounds_cells(map(obs -> filter(c -> c.color != "white", obs), synthesized_observations), grid_size)
