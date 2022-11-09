@@ -704,7 +704,7 @@ programs = Dict("particles"                                 => """(program
 (on (== (.. (.. (prev sun) origin) x) 0) (= sun (updateObj (prev sun) "movingLeft" false)))
 (on (== (.. (.. (prev sun) origin) x) 5) (= sun (updateObj (prev sun) "movingLeft" true)))
 
-(on clicked (= sun (if (.. (prev sun) movingLeft) then (moveLeft (prev sun)) else (moveRight (prev sun)))))
+(on (clicked (prev sun)) (= sun (if (.. (prev sun) movingLeft) then (moveLeft (prev sun)) else (moveRight (prev sun)))))
 )"""
                 ,"mario_3"                                       => """(program
                                                                       (= GRID_SIZE 16)
