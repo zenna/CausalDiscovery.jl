@@ -29,6 +29,7 @@ function check_match_synthesized_and_original(model_name, program_str, user_even
   # first convert user_events to interpreter form 
   user_events_for_interpreter = []
   for e in user_events 
+    # @show e
     if isnothing(e) || e == "nothing"
       push!(user_events_for_interpreter, Dict())
     elseif e == "left"

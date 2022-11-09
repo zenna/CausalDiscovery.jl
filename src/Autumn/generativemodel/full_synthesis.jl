@@ -1172,12 +1172,12 @@ programs = Dict("particles"                                 => """(program
                                                                       (on clicked (= foods (addObj foods (map Food (randomPositions GRID_SIZE 2)))))
                                                                     )"""
                 ,"bullets" =>                                     """(program
-                                                                      (= GRID_SIZE 16)
+                                                                      (= GRID_SIZE 200)
                                                                       (object Particle (Cell 0 0 "blue"))
                                                                       (object Bullet (: dir String) (Cell 0 0 "red"))
                                                                       
                                                                       (: particle Particle)
-                                                                      (= particle (initnext (Particle (Position 8 8)) (prev particle)))
+                                                                      (= particle (initnext (Particle (Position 100 100)) (prev particle)))
                                                                       
                                                                       (: bullets (List Bullet))
                                                                       (= bullets (initnext (list) (prev bullets)))

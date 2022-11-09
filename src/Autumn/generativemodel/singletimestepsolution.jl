@@ -2161,7 +2161,8 @@ function generate_event(run_id, anonymized_update_rule, distinct_update_rules, o
   new_choices = filter(e -> !(e in redundant_events_set), choices)
 
   if (z3_option == "partial") 
-    filter!(event -> !((occursin("(in (Position", event) || occursin("&", event) && !occursin("click", event))), new_choices) # only use &-based events (other than isFree click) during "full" z3 option
+    # filter!(event -> !((occursin("(in (Position", event) || occursin("&", event) && !occursin("click", event))), new_choices) # only use &-based events (other than isFree click) during "full" z3 option
+    filter!(event -> !((occursin("&", event) && !occursin("click", event))), new_choices) # only use &-based events (other than isFree click) during "full" z3 option
   end
 
   println("STRANGE BEHAVIOR")
@@ -2200,7 +2201,7 @@ function generate_event(run_id, anonymized_update_rule, distinct_update_rules, o
             event_string = "\n\t (: event Bool) \n\t (= event (initnext false $(formatted_event)))\n"
             program_str = singletimestepsolution_program_given_matrix_NEW(matrix, object_decomposition, global_var_dict, state_update_on_clauses, event_string, grid_size, stop_times=stop_times) # CHANGE BACK TO DIM LATER
 
-            # # # # # println(program_str)
+            println(program_str)
             global expr = parseautumn(program_str)
             # global expr = striplines(compiletojulia(parseautumn(program_str)))
             # ## # # @show expr

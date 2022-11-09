@@ -658,9 +658,10 @@ function generate_observations_grow(m::Module)
                  87 => (3, 0),
                  89 => (2, 0),
                  91 => (1, 0),
+                 92 => (0, 6),
                 ])
 
-  for i in -1:92
+  for i in -1:93
     if i in collect(keys(events))
       event = events[i]
       if event == "left"
@@ -1582,7 +1583,7 @@ function generate_observations_bullets(m::Module)
     end
     push!(observations, Base.invokelatest(m.render, state.scene))
   end
-  filter_out_of_bounds_cells(observations, 16), user_events, 16
+  filter_out_of_bounds_cells(observations, 200), user_events, 200
 end
 
 function generate_observations_double_count_1(m::Module) 
