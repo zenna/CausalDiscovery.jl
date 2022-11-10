@@ -277,21 +277,26 @@ function generate_observations_water_plug(m::Module)
                  46 => (3, 1),
                  47 => (3, 0),
                  48 => (4, 0),
-                 49 => (8, 0), # switch to blue again
-                 50 => (13, 0),
-                 51 => (9, 15),
-                 52 => (10, 15),
-                 53 => (11, 15),
-                 54 => (12, 15),
+                 49 => (9, 0),
+                 50 => (8, 0), # switch to blue again
+                 51 => (13, 0),
+                 52 => (6, 0), # new 
+                 53 => (7, 0),
+                 54 => (10, 0),
                  55 => (12, 0),
-                 56 => (15, 0),
-                 57 => (13, 0), # try with and without this
-                 58 => (14, 0), # remove all 
-                 59 => (13, 0),
-                 60 => (10, 1),
+                 56 => (9, 15),
+                 57 => (10, 15),
+                 58 => (11, 15),
+                 59 => (12, 15),
+                 60 => (12, 0),
+                 61 => (15, 0),
+                 62 => (13, 0), # try with and without this
+                 63 => (14, 0), # remove all 
+                 64 => (13, 0),
+                 65 => (10, 1),
                 ])
 
-  for i in 0:62
+  for i in 0:66
     if i in collect(keys(clicks))
       click_x, click_y = clicks[i]
       state = Base.invokelatest(m.next, state, Base.invokelatest(m.Click, click_x, click_y), nothing, nothing, nothing, nothing)
