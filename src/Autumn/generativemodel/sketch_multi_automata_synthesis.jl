@@ -1019,7 +1019,12 @@ function generate_global_multi_automaton_sketch(run_id, co_occurring_event, time
 
         if occursin("globalVar", state_update_event)
           state_update_event = split(state_update_event, " (== (prev globalVar")[1][4:end]
-          event_times = findall(x -> x == 1, event_vector_dict[state_update_event])
+          if occursin("(clicked (filter (--> obj (== (.. obj id) ", state_update_event)
+            id = parse(Int, split(split(state_update_event, "(clicked (filter (--> obj (== (.. obj id) ")[2], ")")[1])
+            event_times = findall(x -> x == 1, event_vector_dict[replace(state_update_event, ".. obj id) $(id)" => ".. obj id) x")][id])
+          else
+            event_times = findall(x -> x == 1, event_vector_dict[state_update_event])
+          end
         end
 
         @show state_update_event 

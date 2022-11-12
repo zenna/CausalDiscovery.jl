@@ -827,8 +827,13 @@ function generate_global_automaton_sketch(run_id, single_update_func_with_type, 
 
             if occursin("globalVar", state_update_event)
               state_update_event = split(state_update_event, " (== (prev globalVar")[1][4:end]
-              event_times = findall(x -> x == 1, event_vector_dict[state_update_event])
-            end
+              if occursin("(clicked (filter (--> obj (== (.. obj id) ", state_update_event)
+                id = parse(Int, split(split(state_update_event, "(clicked (filter (--> obj (== (.. obj id) ")[2], ")")[1])
+                event_times = findall(x -> x == 1, event_vector_dict[replace(state_update_event, ".. obj id) $(id)" => ".. obj id) x")][id])
+              else
+                event_times = findall(x -> x == 1, event_vector_dict[state_update_event])
+              end
+            end    
           
             for time in event_times 
               sketch_event_trajectory[time] = state_update_event
@@ -1237,6 +1242,11 @@ function generate_global_automaton_sketch(run_id, single_update_func_with_type, 
             lines = filter(l -> l != " ", split(state_transition_string, "\n"))
             grouped_transitions = collect(Iterators.partition(lines, 6))
             transitions = []
+            @show grouped_transitions
+            if unique(map(t -> length(t), grouped_transitions)) != [6]
+              break 
+            end
+
             for grouped_transition in grouped_transitions 
               start_state = parse(Int, grouped_transition[2])
               transition_label = distinct_events[parse(Int, grouped_transition[4])]
