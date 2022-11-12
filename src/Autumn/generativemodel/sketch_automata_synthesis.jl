@@ -30,8 +30,8 @@ function generate_on_clauses_SKETCH_SINGLE(run_id, random, matrix, unformatted_m
   for filtered_matrix_index in 1:length(filtered_matrices)
     # @show filtered_matrix_index
     failed = false
-    # # @show length(filtered_matrices)
-    # # @show solutions
+    # @show length(filtered_matrices)
+    # @show solutions
     filtered_matrix = filtered_matrices[filtered_matrix_index]
     
     # reset global_event_vector_dict and redundant_events_set for each new context:
@@ -53,7 +53,7 @@ function generate_on_clauses_SKETCH_SINGLE(run_id, random, matrix, unformatted_m
       # if we have reached a sufficient solution count or have found a solution before trying random solutions, exit
       # # # # # println("BREAKING")
       # # # # # println("elapsed time: $(Dates.value(Dates.now() - start_time))")
-      # # @show length(solutions)
+      # @show length(solutions)
       break
     end
 
@@ -152,7 +152,7 @@ function generate_on_clauses_SKETCH_SINGLE(run_id, random, matrix, unformatted_m
       # # # # # println("DEBUGGING HERE NOW")
       # @show global_update_functions_dict
       # @show object_specific_update_functions_dict
-      # # @show type_id 
+      # @show type_id 
       # @show object_mapping 
       # @show anonymized_filtered_matrix
 
@@ -510,7 +510,7 @@ function generate_global_automaton_sketch(run_id, single_update_func_with_type, 
   # @show object_trajectory    
   # @show init_global_var_dict 
   # @show state_update_times_dict 
-  # # @show object_decomposition
+  # @show object_decomposition
   # @show type_id 
   # @show desired_per_matrix_solution_count
   # @show interval_painting_param
@@ -569,7 +569,7 @@ function generate_global_automaton_sketch(run_id, single_update_func_with_type, 
       push!(co_occurring_events, (event, num_false_positives(event_vector, update_function_times, object_trajectory, addObj=occursin("addObj", update_rule))))
     end 
   end
-  # # @show co_occurring_events
+  # @show co_occurring_events
   # co_occurring_events = sort(filter(x -> !occursin("|", x[1]) && (!occursin("&", x[1]) || occursin("click", x[1])), co_occurring_events), by=x->x[2]) # [1][1]
   
   # if co_occurring_param 
@@ -590,11 +590,11 @@ function generate_global_automaton_sketch(run_id, single_update_func_with_type, 
   optimal_co_occurring_events = optimal_co_occurring_events[1:min(length(optimal_co_occurring_events), co_occurring_threshold)]
 
   # best_co_occurring_events = sort(filter(e -> e[2] == minimum(map(x -> x[2], co_occurring_events)), co_occurring_events), by=z -> length(z[1]))
-  # # # @show best_co_occurring_events
+  # # @show best_co_occurring_events
   # co_occurring_event = best_co_occurring_events[1][1]
   # co_occurring_event_trajectory = event_vector_dict[co_occurring_event]
-  # # @show co_occurring_event 
-  # # @show co_occurring_event_trajectory
+  # @show co_occurring_event 
+  # @show co_occurring_event_trajectory
 
   for co_occurring_event in optimal_co_occurring_events
     co_occurring_event_trajectory = event_vector_dict[co_occurring_event]
@@ -631,8 +631,8 @@ function generate_global_automaton_sketch(run_id, single_update_func_with_type, 
     false_positive_times = [] # times when user_event happened and update_rule didn't happen
 
     # construct true_positive_times and false_positive_times 
-    # # # @show length(user_events)
-    # # # @show length(co_occurring_event_trajectory)
+    # # @show length(user_events)
+    # # @show length(co_occurring_event_trajectory)
     for time in 1:length(co_occurring_event_trajectory)
       if co_occurring_event_trajectory[time] == 1 && !(time in true_positive_times)
         if occursin("addObj", update_rule)
@@ -686,8 +686,8 @@ function generate_global_automaton_sketch(run_id, single_update_func_with_type, 
         prev_val = init_global_var_dict[global_var_id][time]
         next_val = init_global_var_dict[global_var_id][time + 1]
         # # # # # println("HELLO 1")
-        # # @show prev_val 
-        # # @show next_val 
+        # @show prev_val 
+        # @show next_val 
         if (prev_val < global_var_value) && (next_val == global_var_value)
           if (filter(t -> t[1] == time + 1, init_augmented_positive_times) != []) && (filter(t -> t[1] == time + 1, init_augmented_positive_times)[1][2] != global_var_value)
             new_value = filter(t -> t[1] == time + 1, init_augmented_positive_times)[1][2]
@@ -727,7 +727,7 @@ function generate_global_automaton_sketch(run_id, single_update_func_with_type, 
       end
     end
     # # # # # println("WHY THO")
-    # # @show init_state_update_times_dict 
+    # @show init_state_update_times_dict 
 
     # filter ranges where both the range's start and end times are already included
     ranges = unique(ranges)
@@ -741,7 +741,7 @@ function generate_global_automaton_sketch(run_id, single_update_func_with_type, 
     end
 
     init_grouped_ranges = group_ranges(new_ranges)
-    # # @show init_grouped_ranges
+    # @show init_grouped_ranges
 
     init_extra_global_var_values = []
 
@@ -1239,19 +1239,20 @@ function generate_global_automaton_sketch(run_id, single_update_func_with_type, 
             on_clause = "(on (& $(co_occurring_event) (in (prev globalVar$(global_var_id)) (list $(join(extra_global_var_values, " ")))))\n$(update_rule))"
       
             # parse state transitions string to construct state_update_on_clauses and state_update_times 
-            lines = filter(l -> l != " ", split(state_transition_string, "\n"))
+            lines = filter(l -> l != " " && l != "", split(state_transition_string, "\n"))
             grouped_transitions = collect(Iterators.partition(lines, 6))
             transitions = []
-            @show grouped_transitions
-            if unique(map(t -> length(t), grouped_transitions)) != [6] && unique(map(t -> length(t), grouped_transitions)) != []
-              break 
-            end
-
-            for grouped_transition in grouped_transitions 
-              start_state = parse(Int, grouped_transition[2])
-              transition_label = distinct_events[parse(Int, grouped_transition[4])]
-              end_state = parse(Int, grouped_transition[6])
-              push!(transitions, (start_state, end_state, transition_label))
+            # @show grouped_transitions
+            # if unique(map(t -> length(t), grouped_transitions)) != [6] && unique(map(t -> length(t), grouped_transitions)) != []
+            #   grouped_transitions = [] 
+            # end
+            if grouped_transitions != [[""]]
+              for grouped_transition in grouped_transitions 
+                start_state = parse(Int, grouped_transition[2])
+                transition_label = distinct_events[parse(Int, grouped_transition[4])]
+                end_state = parse(Int, grouped_transition[6])
+                push!(transitions, (start_state, end_state, transition_label))
+              end              
             end
 
             filter!(trans -> !occursin("fake_time", trans[3]), transitions)
@@ -1484,9 +1485,9 @@ function automata_product(aut1, aut2; global_aut::Bool=true)
       push!(visited_states, prod_state)
       # neighbors == target states of transitions emitting from prod_state
       neighbors_ = map(t -> t[2], filter(trans -> trans[1] == prod_state, product_transitions))
-      # # @show prod_state
-      # # @show neighbors_ 
-      # # @show visited_states
+      # @show prod_state
+      # @show neighbors_ 
+      # @show visited_states
       for n in neighbors_
         if !(n in visited_states) 
           enqueue!(queue, n)
@@ -1504,9 +1505,9 @@ function automata_product(aut1, aut2; global_aut::Bool=true)
         push!(object_specific_visited_states, prod_state)
         # neighbors == target states of transitions emitting from prod_state
         neighbors_ = map(t -> t[2], filter(trans -> trans[1] == prod_state, product_transitions))
-        # # @show prod_state 
-        # # @show neighbors_
-        # # @show visited_states
+        # @show prod_state 
+        # @show neighbors_
+        # @show visited_states
         for n in neighbors_
           if !(n in object_specific_visited_states) 
             enqueue!(queue, n)
@@ -1983,7 +1984,7 @@ function generate_object_specific_automaton_sketch(run_id, update_rule, update_f
   optimal_co_occurring_events = optimal_co_occurring_events[1:min(length(optimal_co_occurring_events), co_occurring_threshold)]
   # @show optimal_co_occurring_events
   # best_co_occurring_events = sort(filter(e -> e[2] == minimum(map(x -> x[2], co_occurring_events)), co_occurring_events), by=z -> length(z[1]))
-  # # # # @show best_co_occurring_events
+  # # # @show best_co_occurring_events
   # co_occurring_event = best_co_occurring_events[1][1]
   # co_occurring_event_trajectory = event_vector_dict[co_occurring_event]
 
@@ -2304,13 +2305,16 @@ function generate_object_specific_automaton_sketch(run_id, update_rule, update_f
           
           # parse state transitions string to construct state_update_on_clauses and state_update_times 
           if state_transition_string != "" 
-            lines = filter(l -> l != " ", split(state_transition_string, "\n"))
+            lines = filter(l -> l != " " && l != "", split(state_transition_string, "\n"))
             grouped_transitions = collect(Iterators.partition(lines, 6))  
-            for grouped_transition in grouped_transitions 
-              start_state = parse(Int, grouped_transition[2])
-              transition_label = distinct_events[parse(Int, grouped_transition[4])]
-              end_state = parse(Int, grouped_transition[6])
-              push!(transitions, (start_state, end_state, transition_label))
+
+            if grouped_transitions != [[""]]
+              for grouped_transition in grouped_transitions 
+                start_state = parse(Int, grouped_transition[2])
+                transition_label = distinct_events[parse(Int, grouped_transition[4])]
+                end_state = parse(Int, grouped_transition[6])
+                push!(transitions, (start_state, end_state, transition_label))
+              end  
             end
           
           end

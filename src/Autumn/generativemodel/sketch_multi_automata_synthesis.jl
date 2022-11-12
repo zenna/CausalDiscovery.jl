@@ -1282,7 +1282,7 @@ function generate_global_multi_automaton_sketch(run_id, co_occurring_event, time
       end 
 
       # parse state transitions string to construct state_update_on_clauses and state_update_times 
-      lines = filter(l -> l != " ", split(state_transition_string, "\n"))
+      lines = filter(l -> l != " " && l != "", split(state_transition_string, "\n"))
       grouped_transitions = collect(Iterators.partition(lines, 6))
       transitions = []
       # @show grouped_transitions
@@ -1756,13 +1756,15 @@ function generate_object_specific_multi_automaton_sketch(run_id, co_occurring_ev
         
         # parse state transitions string to construct state_update_on_clauses and state_update_times 
         if state_transition_string != "" 
-          lines = filter(l -> l != " ", split(state_transition_string, "\n"))
+          lines = filter(l -> l != " " && l != "", split(state_transition_string, "\n"))
           grouped_transitions = collect(Iterators.partition(lines, 6))  
-          for grouped_transition in grouped_transitions 
-            start_state = parse(Int, grouped_transition[2])
-            transition_label = distinct_events[parse(Int, grouped_transition[4])]
-            end_state = parse(Int, grouped_transition[6])
-            push!(transitions, (start_state, end_state, transition_label))
+          if grouped_transitions != [[""]]
+            for grouped_transition in grouped_transitions 
+              start_state = parse(Int, grouped_transition[2])
+              transition_label = distinct_events[parse(Int, grouped_transition[4])]
+              end_state = parse(Int, grouped_transition[6])
+              push!(transitions, (start_state, end_state, transition_label))
+            end
           end
 
           for time in 2:length(field_values)
