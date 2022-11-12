@@ -1243,7 +1243,7 @@ function generate_global_automaton_sketch(run_id, single_update_func_with_type, 
             grouped_transitions = collect(Iterators.partition(lines, 6))
             transitions = []
             @show grouped_transitions
-            if unique(map(t -> length(t), grouped_transitions)) != [6]
+            if unique(map(t -> length(t), grouped_transitions)) != [6] && unique(map(t -> length(t), grouped_transitions)) != []
               break 
             end
 
