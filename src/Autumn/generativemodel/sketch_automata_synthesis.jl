@@ -1279,6 +1279,8 @@ function format_state_transition_functions(transitions, distinct_states; global_
 end
 
 function compute_all_products(state_solutions; global_aut=true, generalized=false)
+  println("COMPUTE_ALL_PRODUCTS")
+  @show state_solutions
   update_functions = sort(collect(keys(state_solutions)), by=x -> x isa Tuple ? length(x) : x)
   product_automata = [] 
   for update_function_index in 1:length(update_functions)
@@ -1547,6 +1549,8 @@ function automata_product2(aut1, aut2; global_aut::Bool=true)
   else 
     for id_index in 1:length(start_state1)
       @show id_index
+      @show start_state1 
+      @show start_state2
       object_specific_visited_states = Set()
       local queue = Queue{Any}()
       enqueue!(queue, (start_state1[id_index], start_state2[id_index]))
