@@ -1561,6 +1561,15 @@ function generate_object_specific_multi_automaton_sketch(run_id, co_occurring_ev
     distinct_events = sort(unique(vcat(collect(values(sketch_event_arrs_dict))...)))  
     sketch_event_arrs_dict_formatted = Dict(map(id -> id => map(e -> findall(x -> x == e, distinct_events)[1], sketch_event_arrs_dict[id]) , collect(keys(sketch_event_arrs_dict)))) # map(e -> findall(x -> x == e, distinct_events)[1], sketch_event_trajectory)
     
+    # if the object didn't exist yet, change the event from "true" to "false" ("0")
+    for id in object_ids 
+      for time in 1:length(object_mapping[id])
+        if isnothing(object_mapping[id][time])
+          sketch_event_arrs_dict_formatted[id][time] = 0
+        end
+      end
+    end
+
     if length(distinct_events) > 9
       return [([], [], [], "")]
     end
