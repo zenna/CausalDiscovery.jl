@@ -448,6 +448,12 @@ function gen_event_bool_human_prior(object_decomposition, object_id, type_id, us
         if object_type.id != object_1.type.id
           filtered_list = "(filter (--> obj (== (.. obj id) $(object_id))) (prev addedObjType$(object_type.id)List))" 
           
+          if symmetry 
+            if object_type.color == "darkblue"
+              push!(choices, "(in true (map (--> obj (moveIntersects arrow obj (prev obj$(object_1.id)List))) $(filtered_list)))")
+            end
+          end
+
           # NEW SYMMETRIZATION
           if symmetry 
             push!(choices, "(moveIntersects arrow (prev obj$(object_1.id)) $(filtered_list))")
@@ -532,7 +538,6 @@ function gen_event_bool_human_prior(object_decomposition, object_id, type_id, us
     push!(choices, "(== (filter (--> obj (.. obj alive)) (prev addedObjType$(object_type_1.id)List)) (list))")
     push!(choices, "(!= (filter (--> obj (.. obj alive)) (prev addedObjType$(object_type_1.id)List)) (list))")
 
-
     displacements = []
     if type_displacements[object_type_1.id] != []
       scalar = type_displacements[object_type_1.id][1]
@@ -579,6 +584,12 @@ function gen_event_bool_human_prior(object_decomposition, object_id, type_id, us
         # NEW SYMMETRIZATION 
         push!(choices, "(adj $(filtered_list) (prev addedObjType$(object_type_2.id)List) 10)")
         push!(choices, "(! (adj $(filtered_list) (prev addedObjType$(object_type_2.id)List) 10))")
+
+        if symmetry 
+          if object_type_1.color == "darkblue"
+            push!(choices, "(in true (map (--> obj (moveIntersects arrow obj (prev addedObjType$(object_type_2.id)List))) $(filtered_list)))")
+          end
+        end
 
         # PORTALS FIX 
         # push!(choices, "(intersects (unfold (map (--> obj (adjacentObjs (prev obj))) $(filtered_list))) (prev addedObjType$(object_type_2.id)List))")

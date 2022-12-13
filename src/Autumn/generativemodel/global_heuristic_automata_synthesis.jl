@@ -2724,11 +2724,11 @@ function generate_new_object_specific_state_GLOBAL(co_occurring_event, update_fu
       end    
       state_update_on_clauses = map(x -> x[1], unique(filter(r -> r != ("", -1), vcat([state_update_times[k] for k in collect(keys(state_update_times))]...))))
       println("WOAH")
-      # return (on_clauses, state_update_on_clauses, new_object_decomposition, state_update_times)
+      return (on_clauses, state_update_on_clauses, new_object_decomposition, state_update_times)
     end
 
   end # end of transtion_decision_strings loop 
   # failed :(
-    println("WOAH 2")
-  # [], [], object_decomposition, state_update_times
+  println("WOAH 2")
+  [], [], object_decomposition, state_update_times
 end

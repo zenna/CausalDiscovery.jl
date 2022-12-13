@@ -4173,7 +4173,7 @@ function generate_event(run_id, type_displacements, interval_offsets, source_exi
         rule = object_trajectory[time][1]
         # # @show rule
         # # @show distinct_update_rules
-        if (rule == "") || (findall(r -> replace(r, "obj id) x" => "obj id) $(object_id)") == rule, distinct_update_rules)[1] > update_rule_index) && !occursin("addObj", rule) #
+        if (rule == "") || (findall(r -> replace(r, "obj id) x" => "obj id) $(object_id)") == rule, distinct_update_rules)[1] > update_rule_index) # && !occursin("addObj", rule) #
           observation_data[time] = -1
         elseif (findall(r -> replace(r, "obj id) x" => "obj id) $(object_id)") == rule, distinct_update_rules)[1] < update_rule_index)
           observation_data[time] = 0
