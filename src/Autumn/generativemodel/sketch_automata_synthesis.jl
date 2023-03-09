@@ -2506,7 +2506,11 @@ function special_addObj_removeObj_handling(update_function, filtered_matrix, co_
             parts = split(addObj_on_clause, "\n")
             original_event = replace(parts[1], "(on " => "")
             new_event = "(& $(original_event) $(proximity_based_co_occurring_events[1]))"
-            addObj_on_clause = "(on $(new_event)\n$(parts[2])"          
+            addObj_on_clause = "(on $(new_event)\n$(parts[2])"
+            if occursin("id) x", addObj_on_clause)
+              removeObj_type_id = parse(Int, split(split(removeObj_update_function, "= addedObjType")[2], "List")[1])
+              addObj_on_clause = replace(addObj_on_clause, "(== (.. obj id) x)" => replace(proximity_based_co_occurring_events[1], "(prev addedObjType$(type_id)List)" => "(prev obj)"))
+            end
           end
     
           if occursin("\t", removeObj_update_function)
@@ -2535,14 +2539,34 @@ function special_addObj_removeObj_handling(update_function, filtered_matrix, co_
     handled_via_special_addObj_rules = true             
   elseif update_function in vcat(double_removeObj_update_functions...)
     proximity_based_co_occurring_events = filter(e -> occursin("(<= (distance", e), map(x -> x[1], co_occurring_events)) 
-    linked_update_function = filter(x -> x[1] == update_function, double_removeObj_update_functions)[2]
-    if proximity_based_co_occurring_events != [] 
+    linked_update_functions = filter(x -> x[1] == update_function, double_removeObj_update_functions) 
+    if linked_update_functions != [] 
+      linked_update_function = linked_update_functions[1][2]
+    else 
+      linked_update_functions = filter(x -> x[2] == update_function, double_removeObj_update_functions) 
+      linked_update_function = update_function 
+      update_function = linked_update_functions[1][1] 
+    end
+
+    if proximity_based_co_occurring_events != []
+      old_update_function = update_function 
+      if occursin("id) x)", update_function)
+        type_id = parse(Int, split(split(update_function, "= addedObjType")[2], "List")[1])
+        update_function = replace(update_function, "(== (.. obj id) x)" => replace(proximity_based_co_occurring_events[1], "(prev addedObjType$(type_id)List)" => "(prev obj)"))        
+      end
+
+      old_linked_update_function = linked_update_function 
+      if occursin("id) x)", linked_update_function)
+        type_id = parse(Int, split(split(linked_update_function, "= addedObjType")[2], "List")[1])
+        linked_update_function = replace(linked_update_function, "(== (.. obj id) x)" => replace(proximity_based_co_occurring_events[1], "(prev addedObjType$(type_id)List)" => "(prev obj)"))        
+      end
+  
       removeObj_on_clause = "(on (& $(proximity_based_co_occurring_events[1]) (== (uniformChoice (list 1 2 3 4 5 6 7 8 9 10)) 1))\n$(update_function) $(linked_update_function))" 
     else
       removeObj_on_clause = "(on (== (uniformChoice (list 1 2 3 4 5 6 7 8 9 10)) 1)\n$(update_function) $(linked_update_function))"
     end
-    push!(on_clauses, (removeObj_on_clause, update_function))
-    push!(on_clauses, (removeObj_on_clause, other_update_function))
+    push!(on_clauses, (removeObj_on_clause, old_update_function))
+    push!(on_clauses, (removeObj_on_clause, old_linked_update_function))
   else
     
     special_handling = false
@@ -2568,8 +2592,13 @@ function special_addObj_removeObj_handling(update_function, filtered_matrix, co_
       end
 
       if filter(type_id -> object_type_is_brownian(type_id, filtered_matrix, object_decomposition), involved_types) != [] 
+        old_update_function = update_function 
+        if occursin("id) x)", update_function)
+          type_id = parse(Int, split(split(update_function, "= addedObjType")[2], "List")[1])
+          update_function = replace(update_function, "(== (.. obj id) x)" => replace(proximity_event, "(prev addedObjType$(type_id)List)" => "(prev obj)"))        
+        end
         removeObj_on_clause = "(on (& $(proximity_event) (== (uniformChoice (list 1 2 3 4 5 6 7 8 9 10)) 1))\n$(update_function))"
-        push!(on_clauses, (removeObj_on_clause, update_function))
+        push!(on_clauses, (removeObj_on_clause, old_update_function))
         special_handling = true
       end
     end    

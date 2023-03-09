@@ -3702,6 +3702,8 @@ function compute_source_objects_old(object_decomposition)
 end
 
 function compute_double_removeObj_objects(all_update_functions, observation_vectors_dict, filtered_matrix)
+  @show all_update_functions
+  @show observation_vectors_dict 
   removeObj_update_functions = filter(u -> occursin("removeObj", u), all_update_functions)
   times_to_update_functions_dict = Dict()
   for update_function in removeObj_update_functions
@@ -3723,6 +3725,7 @@ function compute_double_removeObj_objects(all_update_functions, observation_vect
   end
 
   pairs = map(k -> times_to_update_functions_dict[k], filter(t -> length(times_to_update_functions_dict[t]) == 2, collect(keys(times_to_update_functions_dict))))
+  @show pairs
   filter(p -> object_type_is_brownian(p[1], filtered_matrix, object_decomposition) || object_type_is_brownian(p[2], filtered_matrix, object_decomposition), pairs)
 end
 
@@ -3927,6 +3930,18 @@ end
 
 function object_type_is_brownian(type_id, filtered_matrix, object_decomposition)
   object_types, object_mapping, _, _ = object_decomposition
+
+  println("OBJECT_TYPE_IS_BROWNIAN")
+  @show type_id 
+  if type_id isa String 
+    if occursin("= addedObjType", type_id)
+      type_id = parse(Int, split(split(type_id, "= addedObjType")[2], "List")[1])
+    else
+      object_id = parse(Int, split(split(type_id, "= obj")[2], " "))
+      type_id = filter(obj -> !isnothing(obj), object_mapping[object_id])[1].type.id
+    end
+  end
+  @show type_id
 
   object_ids_with_type = filter(id -> filter(obj -> !isnothing(obj), object_mapping[id])[1].type.id == type_id, collect(keys(object_mapping)))
   occursin("(uniformChoice (list", join(vcat(map(id -> vcat(filtered_matrix[id, :]...), object_ids_with_type)...), ""))
@@ -5652,7 +5667,7 @@ function full_program(observations, user_events, matrix, grid_size=16; singlecel
   matrix = new_matrix
 
   on_clauses, new_object_decomposition, global_var_dict = generate_on_clauses(matrix, unformatted_matrix, object_decomposition, user_events, grid_size)[1]
-  s = full_program_given_on_clauses(on_clauses, new_object_decomposition, global_var_dict, grid_size, matrix)
+  s = full_program_given_on_clauses(on_clauses, new_object_decomposition, global_var_dict, grid_size, matrix, user_events)
 end
 
 function format_on_clause_full_program(on_clause, object_decomposition, matrix)
@@ -5689,7 +5704,17 @@ function format_on_clause_full_program(on_clause, object_decomposition, matrix)
   end
 end
 
-function full_program_given_on_clauses(on_clauses, new_object_decomposition, global_var_dict, grid_size, matrix)
+function type_contains_update_function(type_id, update_function, matrix, user_events, object_decomposition)
+  object_types, object_mapping, background, _ = object_decomposition
+
+  filtered_matrices = construct_filtered_matrices_pedro(matrix, object_decomposition, user_events, true, stop_times=[])
+  filtered_matrix = filtered_matrices[1]
+
+  object_ids_with_type = filter(id -> filter(obj -> !isnothing(obj), object_mapping[id])[1].type.id == type_id, collect(keys(object_mapping)))
+  occursin(update_function, join(vcat(vcat(map(id -> filtered_matrix[id, :], object_ids_with_type)...)...), ""))
+end
+
+function full_program_given_on_clauses(on_clauses, new_object_decomposition, global_var_dict, grid_size, matrix, user_events)
   # @show new_object_decomposition
   object_types, object_mapping, background, _ = new_object_decomposition
 
@@ -5706,9 +5731,88 @@ function full_program_given_on_clauses(on_clauses, new_object_decomposition, glo
 
   on_clauses = unique(on_clauses)
 
+  special_closestRandom_on_clauses = []
+
+  modified_on_clauses = []
+  for on_clause in on_clauses 
+    new_on_clause = on_clause
+    if occursin("removeObj", on_clause) && occursin("(adj ", on_clause) && !occursin("uniformChoice", on_clause)
+      if !occursin("List (--> obj", on_clause) # global remove function
+        object_id = parse(Int, split(split(on_clause, "= obj")[2], " ")[1])
+        type_id = filter(obj -> !isnothing(obj), object_mapping[object_id])[1].type.id
+        if occursin("adj (prev obj$(object_id)) (prev obj", on_clause)
+          other_object_id = parse(Int, split(split(on_clause, "adj (prev obj$(object_id)) (prev obj")[2], ")")[1])
+          other_type_id = filter(obj -> !isnothing(obj), object_mapping[other_object_id])[1].type.id        
+        elseif occursin("adj (prev obj$(object_id)) (prev addedObjType", on_clause)
+          other_object_id = nothing 
+          other_type_id = parse(Int, split(split(on_clause, "adj (prev obj$(object_id)) (prev addedObjType")[2], "List")[1])
+        elseif occursin("adj (prev obj$(object_id)) (filter (--> obj2 (== (.. obj2 field1) 1)) (prev addedObjType", on_clause)
+          other_object_id = nothing 
+          other_type_id = parse(Int, split(split(on_clause, "adj (prev obj$(object_id)) (filter (--> obj2 (== (.. obj2 field1) 1)) (prev addedObjType")[2], " ")[1])
+        elseif occursin("adj (prev obj", on_clause)
+          other_object_id = parse(Int, split(split(on_clause, "adj (prev obj")[2], ")")[1]) 
+          other_type_id = filter(obj -> !isnothing(obj), object_mapping[other_object_id])[1].type.id        
+        end
+
+        if type_contains_update_function(other_type_id, "closestRandom", matrix, user_events, object_decomposition)
+          # enemy object moves randomly, but not removed object 
+          if !isnothing(other_object_id)
+            new_event = """(& (moveIntersects arrow (prev obj$(object_id)) (moveNoCollisionColor (prev obj$(other_object_id)) (closestRandom (prev obj$(other_object_id)) (list ObjType$(type_id)) 10) "darkgray")) (adjCorner (prev obj$(object_id)) (prev obj$(other_object_id)) 10))"""
+          else
+            if occursin("field1", on_clause)
+              new_event = """(& (moveIntersects arrow (prev obj$(object_id)) (map (--> obj (moveNoCollisionColor (prev obj$(other_object_id)) (closestRandom obj (list ObjType$(type_id)) 10) "darkgray")) (filter (--> obj2 (== (.. obj2 field1) 1)) (prev addedObjType$(other_type_id)List)))) (adjCorner (prev obj$(object_id)) (prev addedObjType$(other_type_id)List) 10))"""
+            else
+              new_event = """(& (moveIntersects arrow (prev obj$(object_id)) (map (--> obj (moveNoCollisionColor (prev obj$(other_object_id)) (closestRandom obj (list ObjType$(type_id)) 10) "darkgray")) (prev addedObjType$(other_type_id)List))) (adjCorner (prev obj$(object_id)) (prev addedObjType$(other_type_id)List) 10))"""
+            end
+          end
+
+          new_event = "(& (!= arrow (Position 0 0)) $(new_event))"
+        
+          # add time-based trigger if it exists 
+          time_based_match = match(r"\(== \(% \(prev time\) \d+\) \d+\)", on_clause)
+          if !isnothing(time_based_match)
+            time_based_str = time_based_match.match 
+            new_event = "(& $(time_based_str) $(new_event))"
+          end
+  
+          parts = split(on_clause, "\n")
+          old_event = replace(parts[1], "(on " => "")
+          new_event = "(| $(old_event) $(new_event))"
+          new_on_clause = "(on $(new_event)\n$(parts[2])"
+  
+        end
+
+      else # object-specific remove function (Helper)
+        type_id = parse(Int, split(split(on_clause, "= addedObjType")[2], "List")[1])
+        object_id = parse(Int, split(split(on_clause, "adj (prev obj")[2], ")")[1]) 
+        if occursin("adj (prev obj$(object_id)) (list (prev obj))", on_clause)
+          other_object_id = parse(Int, split(split(on_clause, "adj (prev obj")[2], ")")[1])
+          other_type_id = filter(obj -> !isnothing(obj), object_mapping[other_object_id])[1].type.id        
+          
+          if type_contains_update_function(other_type_id, "closestRandom", matrix, user_events, object_decomposition)
+            new_event = """(& (moveIntersects arrow obj (moveNoCollisionColor (prev obj$(other_object_id)) (closestRandom (prev obj$(other_object_id)) (list ObjType$(type_id)) 10) "darkgray")) (adjCorner obj (prev obj$(other_object_id)) 10))"""
+
+            # add time-based trigger if it exists 
+            time_based_match = match(r"\(== \(% \(prev time\) \d+\) \d+\)", on_clause)
+            if !isnothing(time_based_match)
+              time_based_str = time_based_match.match 
+              new_event = "(& $(time_based_str) $(new_event))"
+            end
+
+            parts = split(on_clause, "List (--> obj ")
+            new_parts = [parts[1], "List (--> obj ", "(| ", new_event, " ", parts[2], ")"]            
+            new_on_clause = join(new_parts, "")
+          end
+        end
+      end
+    end
+    push!(modified_on_clauses, new_on_clause)
+  end
+  on_clauses = vcat(modified_on_clauses, special_closestRandom_on_clauses)
+
   # format on_clauses with fields
   on_clauses = map(c -> format_on_clause_full_program(c, new_object_decomposition, matrix), on_clauses)
-
+  unique!(on_clauses)
   # true_on_clauses = filter(on_clause -> occursin("on true", on_clause), on_clauses)
   # user_event_on_clauses = filter(on_clause -> !(on_clause in true_on_clauses) && foldl(|, map(event -> occursin(event, on_clause) , ["clicked", "left", "right", "down", "up"])), on_clauses)
   # other_on_clauses = filter(on_clause -> !((on_clause in true_on_clauses) || (on_clause in user_event_on_clauses)), on_clauses)

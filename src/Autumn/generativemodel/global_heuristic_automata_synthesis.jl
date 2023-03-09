@@ -234,9 +234,9 @@ function generate_on_clauses_GLOBAL(run_id, matrix, unformatted_matrix, object_d
         end
       end
 
-      for pair in double_removeObj_update_functions 
-        push!(linked_removeObj_update_functions, pair[2])
-      end
+      # for pair in double_removeObj_update_functions 
+      #   push!(linked_removeObj_update_functions, pair[2])
+      # end
 
       linked_removeObj_update_functions = filter(u -> !(u in triple_linked_update_functions), linked_removeObj_update_functions)
 

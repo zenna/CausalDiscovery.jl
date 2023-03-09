@@ -450,7 +450,8 @@ function gen_event_bool_human_prior(object_decomposition, object_id, type_id, us
           
           if symmetry 
             if object_type.color == "darkblue"
-              push!(choices, "(in true (map (--> obj (moveIntersects arrow obj (prev obj$(object_1.id)List))) $(filtered_list)))")
+              push!(choices, "(in true (map (--> obj (moveIntersects arrow obj (prev obj$(object_1.id)))) $(filtered_list)))")
+              # (in true (map (--> obj (moveIntersects arrow obj (prev obj$(object_1.id)))) $(filtered_list)))
             end
           end
 
@@ -588,6 +589,7 @@ function gen_event_bool_human_prior(object_decomposition, object_id, type_id, us
         if symmetry 
           if object_type_1.color == "darkblue"
             push!(choices, "(in true (map (--> obj (moveIntersects arrow obj (prev addedObjType$(object_type_2.id)List))) $(filtered_list)))")
+            push!(choices, "(in true (map (--> obj (moveIntersects arrow obj (prev addedObjType$(object_type_2.id)List))) (prev addedObjType$(object_type_1.id)List)))")
           end
         end
 

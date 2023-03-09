@@ -148,7 +148,7 @@ function synthesize_program_given_decomp(decomp, observation_tuple, global_event
       on_clauses, new_object_decomposition, global_var_dict = solution
       # @show on_clauses 
       
-      program = full_program_given_on_clauses(on_clauses, new_object_decomposition, global_var_dict, grid_size, matrix)
+      program = full_program_given_on_clauses(on_clauses, new_object_decomposition, global_var_dict, grid_size, matrix, user_events)
       push!(program_strings, program)
     end
   end
@@ -208,7 +208,7 @@ function synthesize_program(model_name::String;
         on_clauses, new_object_decomposition, global_var_dict = solution
         # @show on_clauses 
         
-        program = full_program_given_on_clauses(on_clauses, new_object_decomposition, global_var_dict, grid_size, matrix)
+        program = full_program_given_on_clauses(on_clauses, new_object_decomposition, global_var_dict, grid_size, matrix, user_events)
         push!(program_strings, program)
       end
     end
