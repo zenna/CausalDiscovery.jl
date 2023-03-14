@@ -1,4 +1,4 @@
-include("full_synthesis.jl");
+include("../generativemodel/full_synthesis.jl");
 using Combinatorics
 
 function compute_likelihood(program, observation_seq)
@@ -92,10 +92,10 @@ function compute_log_likelihood_empa_lower_bound(on_clauses, concrete_update_fun
   log_prob
 end
 
-function compute_log_likelihood_empa(program_, observations, user_events) 
+function compute_log_likelihood(program_, observations, user_events) 
   # @show observations
   log_prob = 0
-  aex = parseautumn(replace(program_, "(uniformChoice (list 1 2 3 4 5 6 7 8 9 10))" => "(uniformChoice (list 1))"))
+  aex = parseautumn(replace(program_, "(uniformChoice (list 1 2 3 4 5 6 7 8 9 10))" => "(& (== 1 1) (uniformChoice (list 1 2 3 4 5 6 7 8 9 10)))"))
   program = repr(aex)
 
   aex, _ = start(aex)
@@ -167,7 +167,7 @@ function compute_log_likelihood_empa(program_, observations, user_events)
           push!(on_clauses_with_nondeterminism, lines)      
         elseif occursin("updateObj", event_update_line) && occursin("-->", event_update_line) && (occursin("uniformChoice", event_update_line) || occursin("closestRandom", event_update_line))
           if ("----- updateObj 2 -----" in lines) || (("----- updateObj 3 -----" in lines) && ("object_id" in lines))
-            push!(on_clauses_with_nondeterminism, lines)      
+            push!(on_clauses_with_nondeterminism, lines)
           end
         end
       end
@@ -178,8 +178,10 @@ function compute_log_likelihood_empa(program_, observations, user_events)
         event, update_ = eval(Meta.parse(event_update_line))
         on_clause_replacements = []
         determ_update_nondeterm_event = false
-        if occursin("(uniformChoice (list 1))", event isa Symbol ? string(event) : event)
-          event_prob_factor = 1/10
+        event_ = event isa Symbol ? string(event) : event isa String ? event : repr(event))
+        if occursin("(== 1 1)", event_)
+          parts = filter(y -> y != "", split(filter(x -> x != "", split(replace(replace(event_, "(" => ""), ")" => ""), "uniformChoice (list "))[end], " "))
+          event_prob_factor = 1/length(parts)
         else
           event_prob_factor = 1
         end
@@ -309,16 +311,16 @@ function compute_log_likelihood_empa(program_, observations, user_events)
             push!(on_clause_replacements, new_on_clause_str)
           end
           push!(replacements_per_on_clause, ["(on $(event isa Symbol ? string(event) : (event isa String ? event : repr(event))) $(update_))", on_clause_replacements, [event_prob_factor/(length(possibilities)) for i in 1:length(on_clause_replacements)]])
-        elseif occursin("(uniformChoice (list 1))", event isa Symbol ? string(event) : event) # update is deterministic, but event is not
+        elseif occursin("(& (== 1 1)", event isa Symbol ? string(event) : event) # update is deterministic, but event is not
           true_on_clause = "(on $(event isa Symbol ? string(event) : (event isa String ? event : repr(event))) $(update_))"
           false_on_clause = replace(true_on_clause, "(list 1)" => "(list 0)")
           push!(replacements_per_on_clause, [true_on_clause, [true_on_clause, false_on_clause], [event_prob_factor, 1 - event_prob_factor]])
           determ_update_nondeterm_event = true          
         end
 
-        if !determ_update_nondeterm_event && occursin("(uniformChoice (list 1))", event isa Symbol ? string(event) : event)
+        if !determ_update_nondeterm_event && occursin("(& (== 1 1)", event isa Symbol ? string(event) : event)
           true_on_clause = "(on $(event isa Symbol ? string(event) : (event isa String ? event : repr(event))) $(update_))"
-          false_on_clause = replace(true_on_clause, "(list 1)" => "(list 0)")
+          false_on_clause = replace(true_on_clause, "(== 1 1)" => "(== 1 0)")
 
           push!(replacements_per_on_clause[end][2], false_on_clause)
           push!(replacements_per_on_clause[end][3], 1 - event_prob_factor)
