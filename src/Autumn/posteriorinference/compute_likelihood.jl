@@ -4,7 +4,7 @@ using Combinatorics
 function compute_log_likelihood(program_, observations, user_events) 
   # @show observations
   log_prob = 0
-  aex = parseautumn(replace(program_, "(uniformChoice (list 1 2 3 4 5 6 7 8 9 10)) 1" => "1 (uniformChoice (range 10))"))
+  aex = parseautumn(replace(program_, "(== (uniformChoice (list 1 2 3 4 5 6 7 8 9 10)) 1)" => "(| (== 1 1) (== 1 (uniformChoice (range 10))))"))
   program = repr(aex)
 
   aex, _ = start(aex)
@@ -62,9 +62,13 @@ function compute_log_likelihood(program_, observations, user_events)
         _ = Autumn.Interpret.step(aex, deepcopy(global_env), user_events[time])
         global_env.show_rules = -1
       end
-  
-      triggered_on_clauses_output = open("likelihood_output_1.txt", "r") do io
-                                      read(io, String)
+      
+      triggered_on_clauses_output = try 
+                                      open("likelihood_output_1.txt", "r") do io
+                                        read(io, String)
+                                      end
+                                    catch e 
+                                      ""
                                     end
   
       global_splits = filter(x -> x != "", split(triggered_on_clauses_output, "----- global -----"))
@@ -87,9 +91,9 @@ function compute_log_likelihood(program_, observations, user_events)
         event, update_ = eval(Meta.parse(event_update_line))
         on_clause_replacements = []
         determ_update_nondeterm_event = false
-        event_ = event isa Symbol ? string(event) : event isa String ? event : repr(event))
+        event_ = event isa Symbol ? string(event) : (event isa String ? event : repr(event))
         if occursin("uniformChoice (range", event_)
-          parts = filter(y -> y != "", split(filter(x -> x != "", split(replace(replace(event_, "(" => ""), ")" => ""), "uniformChoice (range "))[end], " "))[1]
+          parts = filter(y -> y != "", split(filter(x -> x != "", split(replace(replace(event_, "(" => ""), ")" => ""), "uniformChoice (range "))[end], " "))[end]
           event_prob_factor = 1/parse(Int, parts)
         else
           event_prob_factor = 1
@@ -220,16 +224,16 @@ function compute_log_likelihood(program_, observations, user_events)
             push!(on_clause_replacements, new_on_clause_str)
           end
           push!(replacements_per_on_clause, ["(on $(event isa Symbol ? string(event) : (event isa String ? event : repr(event))) $(update_))", on_clause_replacements, [event_prob_factor/(length(possibilities)) for i in 1:length(on_clause_replacements)]])
-        elseif occursin("(uniformChoice (range", event isa Symbol ? string(event) : event) # update is deterministic, but event is not
+        elseif occursin("(== 1 1)", event isa Symbol ? string(event) : event) # update is deterministic, but event is not
           true_on_clause = "(on $(event isa Symbol ? string(event) : (event isa String ? event : repr(event))) $(update_))"
-          false_on_clause = replace(true_on_clause, "range $(parse(Int, 1/event_prob_factor))" => "range 0")
+          false_on_clause = replace(true_on_clause, "| (== 1 1)" => "& (== 1 0)")
           push!(replacements_per_on_clause, [true_on_clause, [true_on_clause, false_on_clause], [event_prob_factor, 1 - event_prob_factor]])
           determ_update_nondeterm_event = true          
         end
 
-        if !determ_update_nondeterm_event && occursin("(uniformChoice (range", event isa Symbol ? string(event) : event)
+        if !determ_update_nondeterm_event && occursin("(== 1 1)", event isa Symbol ? string(event) : event)
           true_on_clause = "(on $(event isa Symbol ? string(event) : (event isa String ? event : repr(event))) $(update_))"
-          false_on_clause = replace(true_on_clause, "range $(parse(Int, 1/event_prob_factor))" => "range 0")
+          false_on_clause = replace(true_on_clause, "| (== 1 1)" => "& (== 1 0)")
 
           push!(replacements_per_on_clause[end][2], false_on_clause)
           push!(replacements_per_on_clause[end][3], 1 - event_prob_factor)
@@ -270,6 +274,7 @@ function compute_log_likelihood(program_, observations, user_events)
       prob = prob * global_prob_factor
       
       if prob == 0 
+        @show time
         return -Inf
       else 
         global_envs = unique_envs(new_envs, prob)
@@ -277,7 +282,8 @@ function compute_log_likelihood(program_, observations, user_events)
       end
   
       log_prob += log2(prob)
-      # @show log_prob
+      @show time 
+      @show log_prob
     end
 
   end
