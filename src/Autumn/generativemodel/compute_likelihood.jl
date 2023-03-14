@@ -98,6 +98,8 @@ function compute_log_likelihood_empa(program_, observations, user_events)
   aex = parseautumn(replace(program_, "(uniformChoice (list 1 2 3 4 5 6 7 8 9 10))" => "(uniformChoice (list 1))"))
   program = repr(aex)
 
+  aex, _ = start(aex)
+
   user_events_for_interpreter = []
 
   if user_events != [] && (user_events[1] isa NamedTuple || user_events[1] isa Tuple)
@@ -193,10 +195,10 @@ function compute_log_likelihood_empa(program_, observations, user_events)
             possible_positions_product = combinations(possible_positions, num_positions) |> collect
             for pos_tuple in possible_positions_product 
               new_updates_str = "(let ($(join(map(pos -> replace(update_, random_positions_str => "(list (Position $(pos.x) $(pos.y)))"), pos_tuple), "\n"))))"
-              new_on_clause_str = "(on $(event isa Symbol ? string(event) : repr(event))\n$(new_updates_str))"
+              new_on_clause_str = "(on $(event isa Symbol ? string(event) : (event isa String ? event : repr(event)))\n$(new_updates_str))"
               push!(on_clause_replacements, new_on_clause_str)
             end
-            push!(replacements_per_on_clause, ["(on $(event isa Symbol ? string(event) : repr(event)) $(update_))", on_clause_replacements, [event_prob_factor/(global_env.current_var_values[:GRID_SIZE]^(2 * num_positions)) for i in 1:length(on_clause_replacements)]])
+            push!(replacements_per_on_clause, ["(on $(event isa Symbol ? string(event) : (event isa String ? event : repr(event))) $(update_))", on_clause_replacements, [event_prob_factor/(global_env.current_var_values[:GRID_SIZE]^(2 * num_positions)) for i in 1:length(on_clause_replacements)]])
           elseif occursin("uniformChoice", update_)
             if occursin("addObj", update_) 
               var_to_update = filter(x -> x != "", split(update_[length("( = "):end], " "))[1]
@@ -213,10 +215,10 @@ function compute_log_likelihood_empa(program_, observations, user_events)
               for pos in possible_positions 
                 new_added_obj_str = replace(added_obj_str, repr(a.args[2].args[2]) => "(list (Position $(pos.x) $(pos.y)))")
                 new_update_str = "(= $(var_to_update) (addObj $(var_to_update) $(new_added_obj_str)))"
-                new_on_clause_str = "(on $(event isa Symbol ? string(event) : repr(event))\n$(new_update_str))"
+                new_on_clause_str = "(on $(event isa Symbol ? string(event) : (event isa String ? event : repr(event)))\n$(new_update_str))"
                 push!(on_clause_replacements, new_on_clause_str)  
               end
-              push!(replacements_per_on_clause, ["(on $(event isa Symbol ? string(event) : repr(event)) $(update_))", on_clause_replacements, [event_prob_factor/(length(list_value)) for i in 1:length(on_clause_replacements)]])
+              push!(replacements_per_on_clause, ["(on $(event isa Symbol ? string(event) : (event isa String ? event : repr(event))) $(update_))", on_clause_replacements, [event_prob_factor/(length(list_value)) for i in 1:length(on_clause_replacements)]])
             end
           end
         elseif occursin("updateObj", update_) && occursin("-->", update_) && occursin("uniformChoice", update_)
@@ -232,11 +234,11 @@ function compute_log_likelihood_empa(program_, observations, user_events)
           for possibility in possibility_cross_product       
             new_updates = map(i -> replace(replace(update_, map_body => possibility[i]), "(--> $(string(filter_arg)) $(filter_body))" => "(--> $(string(filter_arg)) (& (== (.. obj id) $(object_ids[i])) $(filter_body)))"), 1:length(object_ids))
             new_updates_str = "(let ($(join(new_updates, "\n"))))"
-            new_on_clause_str = "(on $(event isa Symbol ? string(event) : repr(event))\n$(new_updates_str))"
+            new_on_clause_str = "(on $(event isa Symbol ? string(event) : (event isa String ? event : repr(event)))\n$(new_updates_str))"
             push!(on_clause_replacements, new_on_clause_str)
           
           end
-          push!(replacements_per_on_clause, ["(on $(event isa Symbol ? string(event) : repr(event)) $(update_))", on_clause_replacements, [event_prob_factor/(length(uniformChoice_list_strings)^(length(object_ids))) for i in 1:length(on_clause_replacements)]])
+          push!(replacements_per_on_clause, ["(on $(event isa Symbol ? string(event) : (event isa String ? event : repr(event))) $(update_))", on_clause_replacements, [event_prob_factor/(length(uniformChoice_list_strings)^(length(object_ids))) for i in 1:length(on_clause_replacements)]])
         elseif occursin("updateObj", update_) && occursin("-->", update_) && occursin("closestRandom", update_)
           object_ids = sort(map(x -> parse(Int, lines[x + 1]), findall(x -> x == "object_id", lines)))
           list, map_arg, map_body, filter_arg, filter_body = eval(Meta.parse(lines[findall(x -> x == "----- updateObj 3 -----", lines)[1] + 1]))
@@ -266,10 +268,10 @@ function compute_log_likelihood_empa(program_, observations, user_events)
           for possibility in possibility_cross_product       
             new_updates = map(i -> replace(replace(update_, map_body => replace(map_body, "closestRandom" => possibility[i])), "(--> $(string(filter_arg)) $(filter_body))" => "(--> $(string(filter_arg)) (& (== (.. obj id) $(object_ids[i])) $(filter_body)))"), 1:length(object_ids))
             new_updates_str = "(let ($(join(new_updates, "\n"))))"
-            new_on_clause_str = "(on $(event isa Symbol ? string(event) : repr(event))\n$(new_updates_str))"
+            new_on_clause_str = "(on $(event isa Symbol ? string(event) : (event isa String ? event : repr(event)))\n$(new_updates_str))"
             push!(on_clause_replacements, new_on_clause_str)
           end
-          push!(replacements_per_on_clause, ["(on $(event isa Symbol ? string(event) : repr(event)) $(update_))", on_clause_replacements, [event_prob_factor/(prod(map(id -> length(id_to_closest_variants[id]), object_ids))) for i in 1:length(on_clause_replacements)]])  
+          push!(replacements_per_on_clause, ["(on $(event isa Symbol ? string(event) : (event isa String ? event : repr(event))) $(update_))", on_clause_replacements, [event_prob_factor/(prod(map(id -> length(id_to_closest_variants[id]), object_ids))) for i in 1:length(on_clause_replacements)]])  
 
         elseif occursin("uniformChoice", update_)
           var_to_update = filter(x -> x != "", split(update_[length("( = "):end], " "))[1]
@@ -279,10 +281,10 @@ function compute_log_likelihood_empa(program_, observations, user_events)
           list_length = length(list_value)
           for obj_expr in a.args[2].args
             new_updates_str = "(= $(var_to_update) $(repr(obj_expr)))"
-            new_on_clause_str = "(on $(event isa Symbol ? string(event) : repr(event))\n$(new_updates_str))"
+            new_on_clause_str = "(on $(event isa Symbol ? string(event) : (event isa String ? event : repr(event)))\n$(new_updates_str))"
             push!(on_clause_replacements, new_on_clause_str)
           end
-          push!(replacements_per_on_clause, ["(on $(event isa Symbol ? string(event) : repr(event)) $(update_))", on_clause_replacements, [event_prob_factor/(list_length) for i in 1:length(on_clause_replacements)]])
+          push!(replacements_per_on_clause, ["(on $(event isa Symbol ? string(event) : (event isa String ? event : repr(event))) $(update_))", on_clause_replacements, [event_prob_factor/(list_length) for i in 1:length(on_clause_replacements)]])
         elseif occursin("closestRandom", update_)
           var_to_update = filter(x -> x != "", split(update_[length("( = "):end], " "))[1]
           updated_obj_str = replace(update_, "(= $(var_to_update) " => "")[1:end-1]
@@ -303,19 +305,19 @@ function compute_log_likelihood_empa(program_, observations, user_events)
 
           for possibility in possibilities 
             new_updates_str = replace(update_, "closestRandom" => possibility)
-            new_on_clause_str = "(on $(event isa Symbol ? string(event) : repr(event))\n$(new_updates_str))"
+            new_on_clause_str = "(on $(event isa Symbol ? string(event) : (event isa String ? event : repr(event)))\n$(new_updates_str))"
             push!(on_clause_replacements, new_on_clause_str)
           end
-          push!(replacements_per_on_clause, ["(on $(event isa Symbol ? string(event) : repr(event)) $(update_))", on_clause_replacements, [event_prob_factor/(length(possibilities)) for i in 1:length(on_clause_replacements)]])
+          push!(replacements_per_on_clause, ["(on $(event isa Symbol ? string(event) : (event isa String ? event : repr(event))) $(update_))", on_clause_replacements, [event_prob_factor/(length(possibilities)) for i in 1:length(on_clause_replacements)]])
         elseif occursin("(uniformChoice (list 1))", event isa Symbol ? string(event) : event) # update is deterministic, but event is not
-          true_on_clause = "(on $(event isa Symbol ? string(event) : repr(event)) $(update_))"
+          true_on_clause = "(on $(event isa Symbol ? string(event) : (event isa String ? event : repr(event))) $(update_))"
           false_on_clause = replace(true_on_clause, "(list 1)" => "(list 0)")
           push!(replacements_per_on_clause, [true_on_clause, [true_on_clause, false_on_clause], [event_prob_factor, 1 - event_prob_factor]])
           determ_update_nondeterm_event = true          
         end
 
         if !determ_update_nondeterm_event && occursin("(uniformChoice (list 1))", event isa Symbol ? string(event) : event)
-          true_on_clause = "(on $(event isa Symbol ? string(event) : repr(event)) $(update_))"
+          true_on_clause = "(on $(event isa Symbol ? string(event) : (event isa String ? event : repr(event))) $(update_))"
           false_on_clause = replace(true_on_clause, "(list 1)" => "(list 0)")
 
           push!(replacements_per_on_clause[end][2], false_on_clause)
@@ -348,6 +350,7 @@ function compute_log_likelihood_empa(program_, observations, user_events)
         
         if check_observations_equivalence([deterministic_observations], observations[time + 1:time + 1])
           println("woo")
+          println(new_program)
           add_prob = prod(probabilities_per_program[i])
           prob += add_prob
           push!(new_envs, (env, add_prob))
