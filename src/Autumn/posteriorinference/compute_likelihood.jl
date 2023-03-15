@@ -94,7 +94,7 @@ function compute_log_likelihood(program_, observations, user_events)
         event_ = event isa Symbol ? string(event) : (event isa String ? event : repr(event))
         if occursin("uniformChoice (range", event_)
           parts = filter(y -> y != "", split(filter(x -> x != "", split(replace(replace(event_, "(" => ""), ")" => ""), "uniformChoice (range "))[end], " "))[end]
-          event_prob_factor = 1/parse(Int, parts)
+          event_prob_factor = 1/(parts == 0 ? 1 : abs(parse(Int, parts)))
         else
           event_prob_factor = 1
         end
@@ -119,7 +119,11 @@ function compute_log_likelihood(program_, observations, user_events)
               var_to_update = filter(x -> x != "", split(update_[length("( = "):end], " "))[1]
               added_obj_str = replace(update_, "(= $(var_to_update) (addObj $(var_to_update) " => "")[1:end-2]
               a = parseautumn(added_obj_str)
-              list_value = interpret(a.args[2].args[2], global_env)[1]
+              if occursin(".. (uniformChoice", added_obj_str)
+                list_value = map(x -> x.origin, interpret(a.args[end].args[1].args[end], global_env)[1])
+              else
+                list_value = interpret(a.args[end].args[end], global_env)[1]
+              end
               list_length = length(list_value)
               possible_positions_without_repeats = intersect(list_value, map(c -> c.position, observations[time + 1]))
               possible_positions = []
@@ -127,8 +131,12 @@ function compute_log_likelihood(program_, observations, user_events)
                 push!(possible_positions, filter(p -> p == pos, list_value)...)
               end
 
-              for pos in possible_positions 
-                new_added_obj_str = replace(added_obj_str, repr(a.args[2].args[2]) => "(list (Position $(pos.x) $(pos.y)))")
+              for pos in possible_positions
+                if occursin(".. (uniformChoice", added_obj_str)
+                  new_added_obj_str = replace(added_obj_str, repr(a.args[end]) => "(Position $(pos.x) $(pos.y))")
+                else
+                  new_added_obj_str = replace(added_obj_str, repr(a.args[end].args[end]) => "(list (Position $(pos.x) $(pos.y)))")
+                end
                 new_update_str = "(= $(var_to_update) (addObj $(var_to_update) $(new_added_obj_str)))"
                 new_on_clause_str = "(on $(event isa Symbol ? string(event) : (event isa String ? event : repr(event)))\n$(new_update_str))"
                 push!(on_clause_replacements, new_on_clause_str)  
@@ -240,7 +248,9 @@ function compute_log_likelihood(program_, observations, user_events)
         end
 
       end
-  
+
+      # @show replacements_per_on_clause
+
       replacements_per_program = Iterators.product(map(r -> r[2], replacements_per_on_clause)...) |> collect
       probabilities_per_program = Iterators.product(map(r -> r[3], replacements_per_on_clause)...) |> collect
 
@@ -264,26 +274,39 @@ function compute_log_likelihood(program_, observations, user_events)
         end
         
         if check_observations_equivalence([deterministic_observations], observations[time + 1:time + 1])
-          println("woo")
-          println(new_program)
+          # println("woo")
+          # println(new_program)
           add_prob = prod(probabilities_per_program[i])
           prob += add_prob
+          # println("hm") 
+          # @show prob
+          # @show add_prob
+          # @show probabilities_per_program[i]
+          # @show i
           push!(new_envs, (env, add_prob))
         end
       end
       prob = prob * global_prob_factor
       
+      # @show length(new_envs) 
+
       if prob == 0 
-        @show time
+        # @show time
         return -Inf
       else 
         global_envs = unique_envs(new_envs, prob)
         new_envs = []
       end
   
-      log_prob += log2(prob)
-      @show time 
-      @show log_prob
+      # @show prob
+      
+      if repr(log2(prob)) == repr(NaN)
+        return -Inf
+      else
+        log_prob += log2(prob)
+      end
+      # @show time 
+      # @show log_prob
     end
 
   end
