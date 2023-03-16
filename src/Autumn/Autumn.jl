@@ -17,12 +17,6 @@ include("subexpr.jl")
 include("sexpr.jl")
 @reexport using .SExpr
 
-include("compileutils.jl")
-@reexport using .CompileUtils
-
-include("compile.jl")
-@reexport using .Compile
-
 include("abstractinterpretation.jl")
 @reexport using .AbstractInterpretation
 

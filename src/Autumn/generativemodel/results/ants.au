@@ -1,0 +1,21 @@
+(program
+  (= GRID_SIZE 16)
+  (= background "white")
+  (object ObjType1  (list (Cell 0 0  "gray" )))
+  (object ObjType2  (list (Cell 0 0  "red" )))
+
+  (: addedObjType1List (List ObjType1))
+
+  (: addedObjType2List (List ObjType2))
+
+  (= addedObjType1List (initnext (list (ObjType1  (Position 3 3)) (ObjType1  (Position 9 10)) (ObjType1  (Position 1 14)) (ObjType1  (Position 14 1))) (prev addedObjType1List)))
+  
+  (= addedObjType2List (initnext (list) (prev addedObjType2List)))
+
+
+  (: time Int)
+  (= time (initnext 0 (+ time 1)))
+
+  (on true (= addedObjType1List (updateObj (prev addedObjType1List) (--> obj (move obj (unitVector obj (closest obj ObjType2)))) (--> obj true))))
+  (on (intersects (prev addedObjType2List) (prev addedObjType1List)) (= addedObjType2List (removeObj (prev addedObjType2List) (--> obj (intersects obj (prev addedObjType1List))))))
+  (on clicked (= addedObjType2List (addObj addedObjType2List (ObjType2  (Position (.. click x) (.. click y)))))))

@@ -1,41 +1,12 @@
 (program
-  (: GRID_SIZE Int)
   (= GRID_SIZE 16)
-
-  (type alias Position ((: x Int) (: y Int)))
-  (type alias Particle ((: position Position)))
-
-  (external (: click Click))
+  
+  (object Particle (Cell 0 0 "blue"))
 
   (: particles (List Particle))
-  (= particles (initnext (list) (if (occurred click) 
-                               then (push! (prev particles) (particleGen (Position 1 1))) 
-                               else (map nextParticle (prev particles)))))
-  (: nparticles Int)
-  (= nparticles (length particles))
+  (= particles 
+     (initnext (list) 
+               (updateObj (prev particles) (--> obj (Particle (uniformChoice (adjPositions (.. obj origin))))))))	
   
-  (: isFree (-> Position Bool))
-  (= isFree (fn (position) 
-                (== (length (filter (--> particle (== (.. particle position) position)) (prev particles))) 0)))
-
-  (: isWithinBounds (-> Position Bool))
-  (= isWithinBounds (fn (position) 
-                        (& (>= (.. position x) 0) (& (< (.. position x) GRID_SIZE) (& (>= (.. position y) 0) (< (.. position y) GRID_SIZE))))))
-  
-  (: adjacentPositions (-> Position (List Position)))
-  (= adjacentPositions (fn (position) 
-                           (let ((= x (.. position x)) 
-                                 (= y (.. position y)) 
-                                 (= positions (filter isWithinBounds (list (Position (+ x 1) y) (Position (- x 1) y) (Position x (+ y 1)) (Position x (- y 1))))))
-                                positions)))
-
-  (: nextParticle (-> Particle Particle))
-  (= nextParticle (fn (particle) 
-                      (let ((= freePositions (filter isFree (adjacentPositions (.. particle position))))) 
-                           (case freePositions
-                                (=> (list) particle)
-                                (=> _ (Particle (uniformChoice freePositions)))))))
-
-  (: particleGen (-> Position Particle))
-  (= particleGen (fn (initPosition) (Particle initPosition)))
+  (on clicked (= particles (addObj (prev particles) (Particle (Position (.. click x) (.. click y))))))
 )

@@ -1,0 +1,34 @@
+(program
+  (= GRID_SIZE 16)
+  (= background "white")
+  (object ObjType1 (: color String) (list (Cell 0 0 color)))
+
+  
+
+  (: addedObjType1List (List ObjType1))
+
+  
+  
+  (= addedObjType1List (initnext (list) (prev addedObjType1List)))
+(: globalVar1 Int)
+ (= globalVar1 (initnext 1 (prev globalVar1)))
+
+  (: time Int)
+  (= time (initnext 0 (+ time 1)))
+
+  (on (& (== globalVar1 1) (& clicked (isFree click)))
+(= addedObjType1List (addObj addedObjType1List (ObjType1  "red"  (Position (.. click x) (.. click y))))))
+  (on (& (& clicked (isFree click)) (== (prev globalVar1) 5)) (= addedObjType1List (addObj addedObjType1List (ObjType1  "gold"  (Position (.. click x) (.. click y))))))
+  (on (& (& clicked (isFree click)) (== (prev globalVar1) 4)) (= addedObjType1List (addObj addedObjType1List (ObjType1  "green"  (Position (.. click x) (.. click y))))))
+  (on (& (& clicked (isFree click)) (== (prev globalVar1) 3)) (= addedObjType1List (addObj addedObjType1List (ObjType1  "blue"  (Position (.. click x) (.. click y))))))
+  (on (& (& clicked (isFree click)) (== (prev globalVar1) 2)) (= addedObjType1List (addObj addedObjType1List (ObjType1  "purple"  (Position (.. click x) (.. click y))))))
+  (on (& up (== (prev globalVar1) 1))
+(= globalVar1 5))
+  (on (& up (== (prev globalVar1) 5))
+(= globalVar1 4))
+  (on (& up (== (prev globalVar1) 4))
+(= globalVar1 3))
+  (on (& up (== (prev globalVar1) 3))
+(= globalVar1 2))
+  (on (& up (== (prev globalVar1) 2))
+(= globalVar1 1)))
