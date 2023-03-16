@@ -2464,12 +2464,12 @@ function z3_event_search_partial(observed_data_dict, event_vector_dict, timeout=
   # run python command for z3 event search 
   for option in [1, 2]
     if timeout == 0 
-      command = "python3 scratch/z3_event_search.py $(option)"
+      command = "python3 src/synthesis/z3_event_search.py $(option)"
     else
       if Sys.islinux() 
-        command = "gtimeout $(timeout) python3 scratch/z3_event_search.py $(option)"
+        command = "gtimeout $(timeout) python3 src/synthesis/z3_event_search.py $(option)"
       else
-        command = "timeout $(timeout) python3 scratch/z3_event_search.py $(option)"
+        command = "timeout $(timeout) python3 src/synthesis/z3_event_search.py $(option)"
       end
     end
     z3_output = try 
@@ -2515,12 +2515,12 @@ function z3_event_search_full(run_id, observed_data_dict, event_vector_dict, red
   for option in options
     shortest_length = 0
     if timeout == 0 
-      command = "python3 scratch/z3_event_search_full.py $(option) $(run_id) $(shortest_length)"
+      command = "python3 src/synthesis/z3_event_search_full.py $(option) $(run_id) $(shortest_length)"
     else
       if Sys.islinux() 
-        command = "gtimeout $(timeout) python3 scratch/z3_event_search_full.py $(option) $(run_id) $(shortest_length)"
+        command = "gtimeout $(timeout) python3 src/synthesis/z3_event_search_full.py $(option) $(run_id) $(shortest_length)"
       else
-        command = "timeout $(timeout) python3 scratch/z3_event_search_full.py $(option) $(run_id) $(shortest_length)"
+        command = "timeout $(timeout) python3 src/synthesis/z3_event_search_full.py $(option) $(run_id) $(shortest_length)"
       end
     end
     z3_output = try 
@@ -2600,12 +2600,12 @@ function z3_event_search_full(run_id, observed_data_dict, event_vector_dict, red
 
       # re-run Z3 search with shortest length, for all options > 2
       if timeout == 0 
-        command = "python3 scratch/z3_event_search_full.py $(option) $(run_id) $(shortest_length)"
+        command = "python3 src/synthesis/z3_event_search_full.py $(option) $(run_id) $(shortest_length)"
       else
         if Sys.islinux() 
-          command = "gtimeout $(timeout) python3 scratch/z3_event_search_full.py $(option) $(run_id) $(shortest_length)"
+          command = "gtimeout $(timeout) python3 src/synthesis/z3_event_search_full.py $(option) $(run_id) $(shortest_length)"
         else
-          command = "timeout $(timeout) python3 scratch/z3_event_search_full.py $(option) $(run_id) $(shortest_length)"
+          command = "timeout $(timeout) python3 src/synthesis/z3_event_search_full.py $(option) $(run_id) $(shortest_length)"
         end
       end
       z3_output = try 
