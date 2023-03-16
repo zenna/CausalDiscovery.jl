@@ -22,7 +22,7 @@ end
 function test_compile_if()
   data = construct_data()
   aexpr = au"""(if (== x 3) then (= y 4) else (= y 5))"""
-  @test string(compile(aexpr, data)) == "if x == 3\n    y = 4\nelse\n    y = 5\nend"   
+  @test string(compile(aexpr, data)) == "if x == 3\n    y = 4\nelse\n    y = 5\nend"
 end
 
 function test_compile_assign()
@@ -79,30 +79,30 @@ function test_compile_particles()
     (external (: click Click))
 
     (: particles (List Particle))
-    (= particles (initnext (list) (if (occurred click) 
-                                then (push! (prev particles) (particleGen (Position 1 1))) 
+    (= particles (initnext (list) (if (occurred click)
+                                then (push! (prev particles) (particleGen (Position 1 1)))
                                 else (map nextParticle (prev particles)))))
     (: nparticles Int)
     (= nparticles (length particles))
-    
+
     (: isFree (-> Position Bool))
-    (= isFree (fn (position) 
+    (= isFree (fn (position)
                   (== (length (filter (--> particle (== (.. particle position) position)) (prev particles))) 0)))
 
     (: isWithinBounds (-> Position Bool))
-    (= isWithinBounds (fn (position) 
+    (= isWithinBounds (fn (position)
                           (& (>= (.. position x) 0) (& (< (.. position x) GRID_SIZE) (& (>= (.. position y) 0) (< (.. position y) GRID_SIZE))))))
-    
+
     (: adjacentPositions (-> Position (List Position)))
-    (= adjacentPositions (fn (position) 
-                            (let ((= x (.. position x)) 
-                                  (= y (.. position y)) 
+    (= adjacentPositions (fn (position)
+                            (let ((= x (.. position x))
+                                  (= y (.. position y))
                                   (= positions (filter isWithinBounds (list (Position (+ x 1) y) (Position (- x 1) y) (Position x (+ y 1)) (Position x (- y 1))))))
                                   positions)))
 
     (: nextParticle (-> Particle Particle))
-    (= nextParticle (fn (particle) 
-                        (let ((= freePositions (filter isFree (adjacentPositions (.. particle position))))) 
+    (= nextParticle (fn (particle)
+                        (let ((= freePositions (filter isFree (adjacentPositions (.. particle position)))))
                             (case freePositions
                                   (=> (list) particle)
                                   (=> _ (Particle (uniformChoice freePositions)))))))
@@ -135,4 +135,3 @@ end
   test_compile_particles()
   test_compile_types_inferred()
 end
-

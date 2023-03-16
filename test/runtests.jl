@@ -12,4 +12,7 @@ using Test
   # include("Autumn/transform.jl")
   include("Autumn/particles.jl")
   include("Autumn/compile.jl")
+  #commented out because it will not work until support for cells is added
+  # include("Autumn/best_effort_ranking.jl")
+
 end
