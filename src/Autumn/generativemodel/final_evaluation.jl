@@ -41,12 +41,12 @@ function run_model(model_name::String, algorithm, iteration, desired_per_matrix_
   # build desired directory structure
   date_string = Dates.format(Dates.now(), "yyyy-mm-dd HH:MM:SS")
 
-  directory_name = string("heuristic_final_results/results_$(date_string)")
+  directory_name = string("scratch/heuristic_final_results/results_$(date_string)")
   if !isdir(directory_name)
     mkdir(directory_name)
   end
 
-  directory_name = string("heuristic_final_results/results_$(date_string)/", model_name)
+  directory_name = string("scratch/heuristic_final_results/results_$(date_string)/", model_name)
   if !isdir(directory_name)
     mkdir(directory_name)
   end

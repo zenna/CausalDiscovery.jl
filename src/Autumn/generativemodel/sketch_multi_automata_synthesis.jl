@@ -1151,7 +1151,7 @@ function generate_global_multi_automaton_sketch(run_id, co_occurring_event, time
     end
 
     # save sketch program 
-    sketch_file_name = "multi_automata_sketch_$(run_id).sk"
+    sketch_file_name = "scratch/multi_automata_sketch_$(run_id).sk"
     open(sketch_file_name,"w") do io
       println(io, sketch_program)
     end
@@ -1180,8 +1180,12 @@ function generate_global_multi_automaton_sketch(run_id, co_occurring_event, time
       [([], [], [], init_global_var_dict)]
     else
       # update intAsChar and add main function to output cpp file 
-      cpp_file_name = "multi_automata_sketch_$(run_id).cpp"
-      cpp_out_file_name = "multi_automata_sketch_$(run_id).out"
+      cpp_file_name = "scratch/multi_automata_sketch_$(run_id).cpp"
+      cpp_out_file_name = "scratch/multi_automata_sketch_$(run_id).out"
+
+      # move output files to scratch directory
+      move_command_cpp = "mv $(replace(cpp_file_name, "scratch/" => "")) scratch/"
+      _ = readchomp(eval(Meta.parse("`$(move_command_cpp)`")))
 
       f = open(cpp_file_name, "r")
       cpp_content = read(f, String)
@@ -1240,6 +1244,9 @@ function generate_global_multi_automaton_sketch(run_id, co_occurring_event, time
       open(cpp_file_name, "w+") do io
         println(io, modified_cpp_content)
       end
+
+      move_command_h = "mv $(replace(replace(cpp_file_name, "scratch/" => ""), ".cpp" => ".h")) scratch/"
+      _ = readchomp(eval(Meta.parse("`$(move_command_h)`")))
 
       # compile modified cpp program 
       command = "g++ -o $(cpp_out_file_name) $(cpp_file_name)"
@@ -1664,7 +1671,7 @@ function generate_object_specific_multi_automaton_sketch(run_id, co_occurring_ev
     end
 
     ## save sketch program as file 
-    sketch_file_name = "multi_automata_sketch_$(run_id).sk"
+    sketch_file_name = "scratch/multi_automata_sketch_$(run_id).sk"
     open(sketch_file_name,"w") do io
       println(io, sketch_program)
     end
@@ -1690,8 +1697,13 @@ function generate_object_specific_multi_automaton_sketch(run_id, co_occurring_ev
 
     if !occursin("The sketch could not be resolved.", sketch_output) && sketch_output != ""
       # update intAsChar and add main function to output cpp file 
-      cpp_file_name = "multi_automata_sketch_$(run_id).cpp"
-      cpp_out_file_name = "multi_automata_sketch_$(run_id).out"
+      cpp_file_name = "scratch/multi_automata_sketch_$(run_id).cpp"
+      cpp_out_file_name = "scratch/multi_automata_sketch_$(run_id).out"
+      
+      # move output files to scratch directory
+      move_command_cpp = "mv $(replace(cpp_file_name, "scratch/" => "")) scratch/"
+      _ = readchomp(eval(Meta.parse("`$(move_command_cpp)`")))
+
       f = open(cpp_file_name, "r")
       cpp_content = read(f, String)
       close(f)
@@ -1718,6 +1730,9 @@ function generate_object_specific_multi_automaton_sketch(run_id, co_occurring_ev
       open(cpp_file_name, "w+") do io
         println(io, modified_cpp_content)
       end
+
+      move_command_h = "mv $(replace(replace(cpp_file_name, "scratch/" => ""), ".cpp" => ".h")) scratch/"
+      _ = readchomp(eval(Meta.parse("`$(move_command_h)`")))
 
       # compile modified cpp program 
       command = "g++ -o $(cpp_out_file_name) $(cpp_file_name)"

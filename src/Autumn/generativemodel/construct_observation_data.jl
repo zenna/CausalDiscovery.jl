@@ -1,4 +1,5 @@
-const saved_traces_directory = "/Users/riadas/Documents/urop/CausalDiscoveryApp/saved_test_traces_user_study/"
+# const saved_traces_directory = "/Users/riadas/Documents/urop/CausalDiscoveryApp/saved_test_traces_user_study/"
+const saved_traces_directory = "/Users/riadas/Documents/urop/CausalDiscoveryApp/saved_test_traces_feb/"
 
 # function shorten(arr)
 #   indices_to_remove = []

@@ -977,7 +977,7 @@ function generate_global_automaton_sketch(run_id, single_update_func_with_type, 
         end
       
         ## save sketch program as file 
-        sketch_file_name = "automata_sketch_$(run_id).sk"
+        sketch_file_name = "scratch/automata_sketch_$(run_id).sk"
         open(sketch_file_name,"w") do io
           println(io, sketch_program)
         end
@@ -1049,7 +1049,7 @@ function generate_global_automaton_sketch(run_id, single_update_func_with_type, 
             end
       
             ## save sketch program as file 
-            sketch_file_name = "automata_sketch_$(run_id).sk"
+            sketch_file_name = "scratch/automata_sketch_$(run_id).sk"
             open(sketch_file_name, "w") do io
               println(io, sketch_program)
             end
@@ -1085,8 +1085,13 @@ function generate_global_automaton_sketch(run_id, single_update_func_with_type, 
           else
             # println("SKETCH SUCCESS!")
             # update intAsChar and add main function to output cpp file 
-            cpp_file_name = "automata_sketch_$(run_id).cpp"
-            cpp_out_file_name = "automata_sketch_$(run_id).out"
+            cpp_file_name = "scratch/automata_sketch_$(run_id).cpp"
+            cpp_out_file_name = "scratch/automata_sketch_$(run_id).out"
+
+            # move output files to scratch directory
+            move_command_cpp = "mv $(replace(cpp_file_name, "scratch/" => "")) scratch/"
+            _ = readchomp(eval(Meta.parse("`$(move_command_cpp)`")))
+
             f = open(cpp_file_name, "r")
             cpp_content = read(f, String)
             close(f)
@@ -1184,6 +1189,9 @@ function generate_global_automaton_sketch(run_id, single_update_func_with_type, 
             open(cpp_file_name, "w+") do io
               println(io, modified_cpp_content)
             end
+
+            move_command_h = "mv $(replace(replace(cpp_file_name, "scratch/" => ""), ".cpp" => ".h")) scratch/"
+            _ = readchomp(eval(Meta.parse("`$(move_command_h)`")))
       
             # compile modified cpp program 
             command = "g++ -o $(cpp_out_file_name) $(cpp_file_name)"
@@ -2216,7 +2224,7 @@ function generate_object_specific_automaton_sketch(run_id, update_rule, update_f
       end
     
       ## save sketch program as file 
-      sketch_file_name = "automata_sketch_$(run_id).sk"
+      sketch_file_name = "scratch/automata_sketch_$(run_id).sk"
       open(sketch_file_name,"w") do io
         println(io, sketch_program)
       end
@@ -2243,8 +2251,12 @@ function generate_object_specific_automaton_sketch(run_id, update_rule, update_f
     
       if !occursin("The sketch could not be resolved.", sketch_output) && sketch_output != ""
         # update intAsChar and add main function to output cpp file 
-        cpp_file_name = "automata_sketch_$(run_id).cpp"
-        cpp_out_file_name = "automata_sketch_$(run_id).out" 
+        cpp_file_name = "scratch/automata_sketch_$(run_id).cpp"
+        cpp_out_file_name = "scratch/automata_sketch_$(run_id).out" 
+
+        # move output files to scratch directory
+        move_command_cpp = "mv $(replace(cpp_file_name, "scratch/" => "")) scratch/"
+        _ = readchomp(eval(Meta.parse("`$(move_command_cpp)`")))
 
         f = open(cpp_file_name, "r")
         cpp_content = read(f, String)
@@ -2273,7 +2285,10 @@ function generate_object_specific_automaton_sketch(run_id, update_rule, update_f
         open(cpp_file_name, "w+") do io
           println(io, modified_cpp_content)
         end
-    
+
+        move_command_h = "mv $(replace(replace(cpp_file_name, "scratch/" => ""), ".cpp" => ".h")) scratch/"
+        _ = readchomp(eval(Meta.parse("`$(move_command_h)`")))
+      
         # compile modified cpp program 
         command = "g++ -o $(cpp_out_file_name) $(cpp_file_name)"
         compile_output = readchomp(eval(Meta.parse("`$(command)`"))) 
