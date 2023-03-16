@@ -1,5 +1,5 @@
-include "src/Autumn/generativemodel/sketch/string.skh"; 
-include "src/Autumn/generativemodel/sketch/sm_equivalence.skh"; 
+include "src/synthesis/sketch/string.skh"; 
+include "src/synthesis/sketch/sm_equivalence.skh"; 
 
 bit matches([int N], int[N] automaton_traj, int[N] functions) {
   for (int i = 0; i < N; i++){
