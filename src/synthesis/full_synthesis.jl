@@ -1,5 +1,5 @@
 include("singletimestepsolution.jl");
-include("global_heuristic_automata_synthesis.jl")
+include("heuristic_automata_synthesis.jl")
 include("sketch_automata_synthesis.jl")
 include("sketch_multi_automata_synthesis.jl")
 function workshop_evaluation() 
