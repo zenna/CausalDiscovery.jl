@@ -1,4 +1,4 @@
-include("../generativemodel/full_synthesis.jl");
+include("../synthesis/full_synthesis.jl");
 using Combinatorics
 
 function compute_log_likelihood(program_, observations, user_events) 
@@ -16,28 +16,32 @@ function compute_log_likelihood(program_, observations, user_events)
   else
     for e in user_events 
       if isnothing(e) || e == "nothing"
-        push!(user_events_for_interpreter, Dict())
+        push!(user_events_for_interpreter, ())
       elseif e == "left"
-        push!(user_events_for_interpreter, Dict(:left => true))
+        push!(user_events_for_interpreter, (left=true,))
       elseif e == "right"
-        push!(user_events_for_interpreter, Dict(:right => true))
+        push!(user_events_for_interpreter, (right=true,))
       elseif e == "up"
-        push!(user_events_for_interpreter, Dict(:up => true))
+        push!(user_events_for_interpreter, (up=true,))
       elseif e == "down"
-        push!(user_events_for_interpreter, Dict(:down => true))
+        push!(user_events_for_interpreter, (down=true,))
       else
         x = parse(Int, split(e, " ")[2])
         y = parse(Int, split(e, " ")[3])
-        push!(user_events_for_interpreter, Dict(:click => AutumnStandardLibrary.Click(x, y)))
+        push!(user_events_for_interpreter, (click=AutumnStandardLibrary.Click(x, y),))
       end
     end
   end
+  user_events = user_events_for_interpreter
   
   # check initial frame match 
   init_frame, original_global_env = interpret_over_time_observations_and_env(aex, 0)
-  if (!check_observations_equivalence(init_frame, observations[1:1])) 
+  grid_size = original_global_env.current_var_values[:GRID_SIZE]
+  grid_size = grid_size isa AbstractArray ? grid_size[1] : grid_size
+  if (!check_observations_equivalence(init_frame, observations[1:1], grid_size)) 
     return -Inf 
   end
+
 
   global_envs = [[original_global_env, 1]]
   new_envs = []
@@ -107,7 +111,7 @@ function compute_log_likelihood(program_, observations, user_events)
             random_positions_str = "(randomPositions GRID_SIZE $(num_positions))"
   
             possible_positions = map(c -> c.position, observations[time + 1])
-            possible_positions_product = combinations(possible_positions, num_positions) |> collect
+            possible_positions_product = permutations(possible_positions, num_positions) |> collect
             for pos_tuple in possible_positions_product 
               new_updates_str = "(let ($(join(map(pos -> replace(update_, random_positions_str => "(list (Position $(pos.x) $(pos.y)))"), pos_tuple), "\n"))))"
               new_on_clause_str = "(on $(event isa Symbol ? string(event) : (event isa String ? event : repr(event)))\n$(new_updates_str))"
@@ -249,7 +253,9 @@ function compute_log_likelihood(program_, observations, user_events)
 
       end
 
+      # @show time
       # @show replacements_per_on_clause
+      # @show log_prob
 
       replacements_per_program = Iterators.product(map(r -> r[2], replacements_per_on_clause)...) |> collect
       probabilities_per_program = Iterators.product(map(r -> r[3], replacements_per_on_clause)...) |> collect
@@ -273,7 +279,9 @@ function compute_log_likelihood(program_, observations, user_events)
           deterministic_observations = AutumnStandardLibrary.renderScene(env.state.scene, env.state)
         end
         
-        if check_observations_equivalence([deterministic_observations], observations[time + 1:time + 1])
+        # @show deterministic_observations
+        # @show observations[time + 1]
+        if check_observations_equivalence([deterministic_observations], observations[time + 1:time + 1], grid_size)
           # println("woo")
           # println(new_program)
           add_prob = prod(probabilities_per_program[i])
@@ -331,10 +339,10 @@ function unique_envs(new_envs, total_prob)
   collect(values(envs_dict))
 end
 
-function check_observations_equivalence(observations1, observations2)
+function check_observations_equivalence(observations1, observations2, grid_size)
   for i in 1:length(observations1) 
-    obs1 = observations1[i]
-    obs2 = observations2[i]
+    obs1 = filter_out_of_bounds_cells([observations1[i]], grid_size)[1]
+    obs2 = filter_out_of_bounds_cells([observations2[i]], grid_size)[1]
     obs1_tuples = sort(map(cell -> (cell.position.x, cell.position.y, cell.color), obs1), by=x -> repr(x))
     obs2_tuples = sort(map(cell -> (cell.position.x, cell.position.y, cell.color), obs2), by=x -> repr(x))
   
