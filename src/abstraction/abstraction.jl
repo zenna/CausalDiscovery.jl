@@ -24,7 +24,9 @@ function inductiveleap(effect_on_clauses, transition_on_clauses)
   new_transition_on_clause_aexprs = deepcopy(transition_on_clause_aexprs)
   new_transition_on_clause_aexprs = map(aex -> aex, new_transition_on_clause_aexprs) # TODO
 
-  # Step 4:  
+  # Step 4: synthesize relationship between transition events and transition updates
+  
+  # Step 5: hallucination -- expand the domain of the globalVar variable based on similarities between elt's of current domain
 
 end
 
