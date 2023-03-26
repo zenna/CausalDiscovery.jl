@@ -36,8 +36,6 @@ function compute_log_likelihood(program_, observations, user_events)
   
   # check initial frame match 
   init_frame, original_global_env = interpret_over_time_observations_and_env(aex, 0)
-  grid_size = original_global_env.current_var_values[:GRID_SIZE]
-  grid_size = grid_size isa AbstractArray ? grid_size[1] : grid_size
   if (!check_observations_equivalence(init_frame, observations[1:1], grid_size)) 
     return -Inf 
   end
@@ -125,8 +123,13 @@ function compute_log_likelihood(program_, observations, user_events)
               a = parseautumn(added_obj_str)
               if occursin(".. (uniformChoice", added_obj_str)
                 list_value = map(x -> x.origin, interpret(a.args[end].args[1].args[end], global_env)[1])
+                num_positions = 1
+              elseif occursin("(map (--> obj", added_obj_str)
+                list_value = map(x -> x.origin, interpret(a.args[end].args[end - 1], global_env)[1])
+                num_positions = a.args[end].args[end]
               else
                 list_value = interpret(a.args[end].args[end], global_env)[1]
+                num_positions = 1
               end
               list_length = length(list_value)
               possible_positions_without_repeats = intersect(list_value, map(c -> c.position, observations[time + 1]))
@@ -135,17 +138,28 @@ function compute_log_likelihood(program_, observations, user_events)
                 push!(possible_positions, filter(p -> p == pos, list_value)...)
               end
 
-              for pos in possible_positions
-                if occursin(".. (uniformChoice", added_obj_str)
-                  new_added_obj_str = replace(added_obj_str, repr(a.args[end]) => "(Position $(pos.x) $(pos.y))")
-                else
-                  new_added_obj_str = replace(added_obj_str, repr(a.args[end].args[end]) => "(list (Position $(pos.x) $(pos.y)))")
+              if num_positions == 1
+                for pos in possible_positions
+                  if occursin(".. (uniformChoice", added_obj_str)
+                    new_added_obj_str = replace(added_obj_str, repr(a.args[end]) => "(Position $(pos.x) $(pos.y))")
+                  else
+                    new_added_obj_str = replace(added_obj_str, repr(a.args[end].args[end]) => "(list (Position $(pos.x) $(pos.y)))")
+                  end
+                  new_update_str = "(= $(var_to_update) (addObj $(var_to_update) $(new_added_obj_str)))"
+                  new_on_clause_str = "(on $(event isa Symbol ? string(event) : (event isa String ? event : repr(event)))\n$(new_update_str))"
+                  push!(on_clause_replacements, new_on_clause_str)  
                 end
-                new_update_str = "(= $(var_to_update) (addObj $(var_to_update) $(new_added_obj_str)))"
-                new_on_clause_str = "(on $(event isa Symbol ? string(event) : (event isa String ? event : repr(event)))\n$(new_update_str))"
-                push!(on_clause_replacements, new_on_clause_str)  
+              else
+                possible_positions_tuples = permutations(possible_positions, num_positions) |> collect
+                for pos_tup in possible_positions_tuples
+                  new_added_obj_str = replace(replace(added_obj_str, repr(a.args[end]) => "(list $(join(map(pos -> "(Position $(pos.x) $(pos.y))", pos_tup), " ")))"), "(.. obj origin)" => "obj")
+                  new_update_str = "(= $(var_to_update) (addObj $(var_to_update) $(new_added_obj_str)))"
+                  new_on_clause_str = "(on $(event isa Symbol ? string(event) : (event isa String ? event : repr(event)))\n$(new_update_str))"
+                  push!(on_clause_replacements, new_on_clause_str)  
+                end
               end
-              push!(replacements_per_on_clause, ["(on $(event isa Symbol ? string(event) : (event isa String ? event : repr(event))) $(update_))", on_clause_replacements, [event_prob_factor/(length(list_value)) for i in 1:length(on_clause_replacements)]])
+
+              push!(replacements_per_on_clause, ["(on $(event isa Symbol ? string(event) : (event isa String ? event : repr(event))) $(update_))", on_clause_replacements, [(event_prob_factor/(length(list_value)))^num_positions for i in 1:length(on_clause_replacements)]])
             end
           end
         elseif occursin("updateObj", update_) && occursin("-->", update_) && occursin("uniformChoice", update_)
@@ -313,8 +327,8 @@ function compute_log_likelihood(program_, observations, user_events)
       else
         log_prob += log2(prob)
       end
-      # @show time 
-      # @show log_prob
+      @show time 
+      @show log_prob
     end
 
   end
@@ -341,8 +355,8 @@ end
 
 function check_observations_equivalence(observations1, observations2, grid_size)
   for i in 1:length(observations1) 
-    obs1 = filter_out_of_bounds_cells([observations1[i]], grid_size)[1]
-    obs2 = filter_out_of_bounds_cells([observations2[i]], grid_size)[1]
+    obs1 = filter_out_of_bounds_cells([filter(c -> c.color != "white", observations1[i])], grid_size)[1]
+    obs2 = filter_out_of_bounds_cells([filter(c -> c.color != "white", observations2[i])], grid_size)[1]
     obs1_tuples = sort(map(cell -> (cell.position.x, cell.position.y, cell.color), obs1), by=x -> repr(x))
     obs2_tuples = sort(map(cell -> (cell.position.x, cell.position.y, cell.color), obs2), by=x -> repr(x))
   
