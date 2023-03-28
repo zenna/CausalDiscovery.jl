@@ -3488,7 +3488,7 @@ function format_on_clause_full_program(on_clause, object_decomposition, matrix)
   end
 end
 
-function full_program_given_on_clauses(on_clauses, new_object_decomposition, global_var_dict, grid_size, matrix)
+function full_program_given_on_clauses(on_clauses, new_object_decomposition, global_var_dict, grid_size, matrix; format=true)
   # # @show new_object_decomposition
   object_types, object_mapping, background, _ = new_object_decomposition
 
@@ -3506,7 +3506,7 @@ function full_program_given_on_clauses(on_clauses, new_object_decomposition, glo
   on_clauses = unique(on_clauses)
 
   # format on_clauses with fields
-  on_clauses = map(c -> format_on_clause_full_program(c, new_object_decomposition, matrix), on_clauses)
+  on_clauses = format ? map(c -> format_on_clause_full_program(c, new_object_decomposition, matrix), on_clauses) : on_clauses
   filter!(c -> !occursin("fake_time", c), on_clauses)
   # true_on_clauses = filter(on_clause -> occursin("on true", on_clause), on_clauses)
   # user_event_on_clauses = filter(on_clause -> !(on_clause in true_on_clauses) && foldl(|, map(event -> occursin(event, on_clause) , ["clicked", "left", "right", "down", "up"])), on_clauses)
@@ -3521,7 +3521,11 @@ function full_program_given_on_clauses(on_clauses, new_object_decomposition, glo
   inits = []
   for key in collect(keys(global_var_dict))
     global_var_init_val = global_var_dict[key][1]
-    push!(inits, """\n\t (: globalVar$(key) Int)\n\t (= globalVar$(key) (initnext $(global_var_init_val) (prev globalVar$(key))))""")
+    if global_var_init_val isa String 
+      push!(inits, """\n\t (: globalVar$(key) String)\n\t (= globalVar$(key) (initnext \"$(global_var_init_val)\" (prev globalVar$(key))))""")
+    else
+      push!(inits, """\n\t (: globalVar$(key) Int)\n\t (= globalVar$(key) (initnext $(global_var_init_val) (prev globalVar$(key))))""")
+    end
   end
   program_no_update_rules = string(program_no_update_rules[1:end-2], inits..., ")")
   
