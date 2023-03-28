@@ -1,7 +1,8 @@
 include("../synthesis/full_synthesis.jl");
 using MLStyle
+using Combinatorics
 
-function inductiveleap(effect_on_clauses, transition_on_clauses, object_decomposition, global_var_dict, user_events, small=true)
+function inductiveleap(effect_on_clauses, transition_on_clauses, object_decomposition, global_var_dict, user_events; small=true)
   effect_on_clause_aexprs = map(oc -> parseautumn(oc), effect_on_clauses)
   transition_on_clause_aexprs = map(oc -> parseautumn(oc), transition_on_clauses)
 
@@ -14,17 +15,49 @@ function inductiveleap(effect_on_clauses, transition_on_clauses, object_decompos
 
   # Step 3: construct mapping between old state values and new state values and perform 
   # replacement in effect and transition on-clauses
-  effect_state_values = finddifference(map(x -> x.args[1], effect_on_clause_aexprs))[1] # map(aex -> parse(Int, replace(split(aex.args[1], "== (prev globalVar1) ")[end], ")" => "")), effect_on_clause_aexprs)
-  old_to_new_states_map = Dict(zip(effect_state_values, effect_differences))
+  if length(effect_on_clause_aexprs) > 1 
+    effect_state_values = finddifference(map(x -> x.args[1], effect_on_clause_aexprs))[1] # map(aex -> parse(Int, replace(split(aex.args[1], "== (prev globalVar1) ")[end], ")" => "")), effect_on_clause_aexprs)
+    old_to_new_states_map = Dict(zip(effect_state_values, effect_differences))
+  
+    @show old_to_new_states_map
+    ## construct new global_var_dict
+    global_var_dict[1] = map(state -> old_to_new_states_map[state], global_var_dict[1])
+  
+    ## construct new effect on-clause
+    new_effect_on_clause_aexpr = deepcopy(effect_on_clause_aexprs[1])
+    new_effect_on_clause_aexpr.args[1] = filter(x -> !occursin("globalVar1", repr(x)), new_effect_on_clause_aexpr.args[1].args)[end] # the co-occurring event only, without the globalVar dependence
+    new_effect_on_clause_aexpr.args[2] = parseautumn(replace(repr(new_effect_on_clause_aexpr.args[2]), " $(repr(effect_differences[1]))" => " (prev globalVar1)"))
+  else # if there is only one effect on-clause, no compression with globalVar, but can try performing a permutation (TODO: generalize this appropriately)
+    state_value_changes = unique(filter(tup -> tup[1] != tup[2], (zip(global_var_dict[1], [global_var_dict[1][2:end]..., nothing]) |> collect)[1:end-1]))
+    nonconsec_changes = filter(tup -> abs(tup[1] - tup[2]) > 1, state_value_changes)
+    flattened_vals =  collect(Iterators.flatten(nonconsec_changes))
+    min_val = minimum(flattened_vals)
+    max_val = maximum(flattened_vals)
+    init = collect(min_val:max_val)
+    perms = collect(permutations(init))
+    old_to_new_states_map = Dict()
+    for perm in perms 
+      if perm != init 
+        mapping = Dict(zip(init, perm))
+        permuted_nonconsec_changes = map(tup -> (mapping[tup[1]], mapping[tup[2]]), state_value_changes)
+        if filter(tup -> abs(tup[1] - tup[2]) > 1, permuted_nonconsec_changes) == []
+          old_to_new_states_map = mapping
+          break
+        end
+      end
+    end
 
-  @show old_to_new_states_map
-  ## construct new global_var_dict
-  global_var_dict[1] = map(state -> old_to_new_states_map[state], global_var_dict[1])
+    if length(collect(keys(old_to_new_states_map))) != 0
+      global_var_dict[1] = map(state -> old_to_new_states_map[state], global_var_dict[1])
+    end
 
-  ## construct new effect on-clause
-  new_effect_on_clause_aexpr = deepcopy(effect_on_clause_aexprs[1])
-  new_effect_on_clause_aexpr.args[1] = filter(x -> !occursin("globalVar1", repr(x)), new_effect_on_clause_aexpr.args[1].args)[end] # the co-occurring event only, without the globalVar dependence
-  new_effect_on_clause_aexpr.args[2] = parseautumn(replace(repr(new_effect_on_clause_aexpr.args[2]), repr(effect_differences[1]) => "(prev globalVar1)"))
+    new_effect_on_clause_aexpr = deepcopy(effect_on_clause_aexprs[1])
+    event_str = repr(new_effect_on_clause_aexpr.args[1])
+    for (old_v, new_v) in old_to_new_states_map
+      event_str = replace(event_str, " $(old_v)" => " $(new_v)")
+    end
+    new_effect_on_clause_aexpr.args[1] = parseautumn(event_str)
+  end
 
   ## construct new transition on-clauses
   new_transition_on_clause_aexprs = []
@@ -32,9 +65,7 @@ function inductiveleap(effect_on_clauses, transition_on_clauses, object_decompos
     new_str = repr(aex)
     # update transition update
     changed_new_state = nothing
-    for i in 1:length(effect_state_values) 
-      old_v = effect_state_values[i]
-      new_v = effect_differences[i]
+    for (old_v, new_v) in old_to_new_states_map
       if occursin("(= globalVar1 $(old_v))", new_str) 
         new_str = replace(new_str, "(= globalVar1 $(old_v))" => """(= globalVar1 $(new_v isa String ? "\"$(new_v)\"" : new_v))""")
         changed_new_state = new_v
@@ -43,14 +74,9 @@ function inductiveleap(effect_on_clauses, transition_on_clauses, object_decompos
     end
 
     # update transition event
-    for i in 1:length(effect_state_values) 
-      old_v = effect_state_values[i]
-      new_v = effect_differences[i]
+    for (old_v, new_v) in old_to_new_states_map
       if occursin("(== (prev globalVar1) $(old_v))", new_str) 
         new_str = replace(new_str, "(== (prev globalVar1) $(old_v))" => """(== (prev globalVar1) $(new_v isa String ? "\"$(new_v)\"" : new_v))""")
-        if !changed_new_state 
-          new_str = replace(new_str, " $(old_v)" => " (prev globalVar1)") # TODO: only perform this if globalVar trajectory allows for it
-        end
         break
       end
     end
@@ -58,10 +84,8 @@ function inductiveleap(effect_on_clauses, transition_on_clauses, object_decompos
     # update transition event
     new_aex = parseautumn(new_str)
     event_str = repr(new_aex.args[1])
-    if !isnothing(changed_new_state)
-      for i in 1:length(effect_state_values) 
-        old_v = effect_state_values[i]
-        new_v = effect_differences[i]
+    if !isnothing(changed_new_state) && length(unique(global_var_dict[1])) == 2
+      for (old_v, new_v) in old_to_new_states_map
         if new_v != changed_new_state || old_v == new_v
           event_str = replace(event_str, " $(old_v)" => " (% (- GRID_SIZE (+ 1 (prev globalVar1))) (- GRID_SIZE 1))") # TODO: only perform this if globalVar trajectory allows for it
         end
@@ -73,19 +97,58 @@ function inductiveleap(effect_on_clauses, transition_on_clauses, object_decompos
   end
 
   # Step 4: synthesize relationship between transition events and transition updates
-  new_transition_update_expr, state_domain = synthesize_new_transition_update(new_transition_on_clause_aexprs, object_decomposition, global_var_dict, user_events)
-  
+  ## cluster transition on-clauses based on event similarities first 
+  transition_clusters = Dict()
+  for aex in new_transition_on_clause_aexprs 
+    if length(keys(transition_clusters)) == 0 
+      transition_clusters[1] = [aex]
+    else
+      assigned = false
+      for k in keys(transition_clusters)
+        aex2 = transition_clusters[k][1]
+        if occursin("== (prev globalVar1)", repr(aex.args[1]))
+          event_part_1 = filter(x -> !occursin("== (prev globalVar1)", repr(x)), aex.args[1].args)[end]
+        else
+          event_part_1 = aex.args[1]
+        end
+
+        if occursin("== (prev globalVar1)", repr(aex2.args[1]))
+          event_part_2 = filter(x -> !occursin("== (prev globalVar1)", repr(x)), aex2.args[1].args)[end]
+        else
+          event_part_2 = aex2.args[1]
+        end
+        difference, _ = finddifference([event_part_1, event_part_2])
+        if isnothing(difference[1])
+          push!(transition_clusters[k], aex)
+          assigned = true 
+          break
+        end
+      end
+
+      if !assigned
+        new_k = maximum(collect(keys(transition_clusters))) + 1 
+        transition_clusters[new_k] = [aex]
+      end
+
+    end
+  end
+
+  new_transition_on_clause_aexprs_and_domains = map(aexprs -> synthesize_new_transition_update(aexprs, object_decomposition, global_var_dict, user_events), collect(values(transition_clusters)))
+  state_domains = map(tup -> tup[2], new_transition_on_clause_aexprs_and_domains)
+  @show state_domains
+
   # Step 5: hallucination -- expand the domain of the globalVar variable based on similarities between elt's of current domain
-  expanded_state_domain_expr = state_domain # generalize_domain(state_domain, object_decomposition)
+  expanded_transition_on_clause_aexprs_and_domains = new_transition_on_clause_aexprs_and_domains # generalize_domain(state_domain, object_decomposition)
+  # expanded_transition_on_clause_aexprs_and_domains, new_effect_on_clause_aexpr = expand_domain(new_transition_on_clause_aexprs_and_domains, new_effect_on_clause_aexpr, object_decomposition, global_var_dict, user_event)
 
   # (repr(new_effect_on_clause_aexpr), repr(new_transition_update_expr))
-  on_clauses = [repr(new_effect_on_clause_aexpr), repr(new_transition_update_expr)]
+  on_clauses = [repr(new_effect_on_clause_aexpr), map(x -> repr(x[1]), expanded_transition_on_clause_aexprs_and_domains)...]
   program = full_program_given_on_clauses(on_clauses, object_decomposition, global_var_dict, grid_size, nothing, format=false)
   program
 end
 
 # helper functions
-function generalize_domain(state_domain_expr, object_decomposition)
+function generalize_domain(new_transition_on_clause_aexprs_and_domains, new_effect_on_clause_aexpr)
 
 end
 
@@ -125,7 +188,7 @@ function synthesize_new_transition_update(new_transition_on_clause_aexprs, objec
     push!(environments, env)
   end
   @show environments
-  new_state_expr = synthesize_state_expr(environments, new_state_values, object_decomposition, global_var_dict, user_events)
+  new_state_expr = synthesize_state_expr(new_transition_on_clause_aexprs, environments, new_state_values, object_decomposition, global_var_dict, user_events)
 
   if isnothing(new_state_expr)
     return (nothing, nothing)
@@ -142,21 +205,28 @@ function synthesize_new_transition_update(new_transition_on_clause_aexprs, objec
     state_domain = union(map(env -> env["arrow"], environments)...)
   else
     state_domain = union(map(env -> env["globalVar1"], environments)...)
+    new_event_state_dependence = parseautumn("(in (prev globalVar1) (list $(join(state_domain, " "))))")
+    if foldl(&, map(aex -> occursin("== (prev globalVar1)", repr(aex.args[1])), new_transition_on_clause_aexprs), init=true)
+      old_state_dependence = filter(x -> occursin("== (prev globalVar1)", repr(x)), new_transition_on_clause_aexprs[1].args[1].args)[end]
+      new_transition_on_clause_aex = parseautumn(new_transition_on_clause_str)
+      new_transition_on_clause_aex.args[1] = parseautumn(replace(repr(new_transition_on_clause_aexprs[1].args[1]), repr(old_state_dependence) => repr(new_event_state_dependence)))
+      new_transition_on_clause_str = repr(new_transition_on_clause_aex)
+    end
   end 
 
   parseautumn(new_transition_on_clause_str), state_domain
 end
 
-function synthesize_state_expr(environments, new_state_values, object_decomposition, global_var_dict, user_events)
+function synthesize_state_expr(new_transition_on_clause_aexprs, environments, new_state_values, object_decomposition, global_var_dict, user_events)
   object_types, object_mapping, background, _ = object_decomposition
 
   possible_expressions = []
   objects = union(map(env -> "objects" in keys(env) ? env["objects"] : [], environments)...)
 
-  @show environments
-  @show objects
+  # @show environments
+  # @show objects
   if new_state_values[1] isa Int || new_state_values[1] isa BigInt
-    push!(possible_expressions, "(- 0 globalVar1)")
+    push!(possible_expressions, ["(- 0 (prev globalVar1))", "(- (prev globalVar1) 1)", "(+ (prev globalVar1) 1)"]...) #
   elseif new_state_values[1] isa String
     push!(possible_expressions, "(.. (objClicked click (vcat $(join(map(obj -> repr(obj), objects), " ")))) color)")
   end
@@ -182,15 +252,21 @@ function synthesize_state_expr(environments, new_state_values, object_decomposit
     end
   end
   
-  @show possible_expressions
+  # @show possible_expressions
   for new_state_expr in possible_expressions 
     correct = true
-    for state_val in new_state_values
+    for i in 1:length(new_state_values)
+      state_val = new_state_values[i]
       event_expr = "(== $(new_state_expr) $(state_val isa String ? "\"$(state_val)\"" : state_val))"
-      @show event_expr 
+      # @show event_expr
       times = findall(tup -> tup[1] != state_val && tup[2] == state_val, consec_state_value_tuples)
+      # @show times
       for time in times
-        init_state_val, _ = consec_state_value_tuples[time] 
+        if !("globalVar1" in keys(environments[i]))
+          init_state_val, _ = consec_state_value_tuples[time] 
+        else
+          init_state_val = environments[i]["globalVar1"]
+        end
         # prev_existing_objects = filter(obj -> !isnothing(obj), [object_mapping[id][time - 1] for id in 1:length(collect(keys(object_mapping)))])
         # prev_removed_object_ids = filter(id -> isnothing(object_mapping[id][time - 1]) && (unique(object_mapping[id][1:time - 1]) != [nothing]), collect(keys(object_mapping)))
         # prev_removed_objects = deepcopy(map(id -> filter(obj -> !isnothing(obj), object_mapping[id][1:time - 1])[1], prev_removed_object_ids))
@@ -208,9 +284,13 @@ function synthesize_state_expr(environments, new_state_values, object_decomposit
 
         hypothesis_program = string(hypothesis_program[1:end-2], global_var_string, arrow_string, event_string, "\n)")
 
+        # println(hypothesis_program)
+
         hypothesis_frame_state = interpret_over_time(parseautumn(hypothesis_program), 1, user_events_for_interpreter[time:time]).state
         event_value = map(key -> hypothesis_frame_state.histories[:event][key], sort(collect(keys(hypothesis_frame_state.histories[:event]))))[end]
+        # @show event_value
         if !event_value 
+          # @show time
           correct = false 
           break
         end
