@@ -138,18 +138,55 @@ function inductiveleap(effect_on_clauses, transition_on_clauses, object_decompos
   @show state_domains
 
   # Step 5: hallucination -- expand the domain of the globalVar variable based on similarities between elt's of current domain
-  expanded_transition_on_clause_aexprs_and_domains = new_transition_on_clause_aexprs_and_domains # generalize_domain(state_domain, object_decomposition)
-  # expanded_transition_on_clause_aexprs_and_domains, new_effect_on_clause_aexpr = expand_domain(new_transition_on_clause_aexprs_and_domains, new_effect_on_clause_aexpr, object_decomposition, global_var_dict, user_event)
+  # expanded_transition_on_clause_aexprs_and_domains = new_transition_on_clause_aexprs_and_domains # generalize_domain(state_domain, object_decomposition)
+  expanded_transition_on_clause_aexprs, new_effect_on_clause_aexpr = generalize_domain(new_transition_on_clause_aexprs_and_domains, new_effect_on_clause_aexpr, object_decomposition, global_var_dict, user_events)
 
   # (repr(new_effect_on_clause_aexpr), repr(new_transition_update_expr))
-  on_clauses = [repr(new_effect_on_clause_aexpr), map(x -> repr(x[1]), expanded_transition_on_clause_aexprs_and_domains)...]
+  on_clauses = [repr(new_effect_on_clause_aexpr), map(x -> repr(x), expanded_transition_on_clause_aexprs)...]
+  # @show on_clauses
   program = full_program_given_on_clauses(on_clauses, object_decomposition, global_var_dict, grid_size, nothing, format=false)
   program
 end
 
 # helper functions
-function generalize_domain(new_transition_on_clause_aexprs_and_domains, new_effect_on_clause_aexpr)
+function generalize_domain(new_transition_on_clause_aexprs_and_domains, new_effect_on_clause_aexpr, object_decomposition, global_var_dict, user_events)
+  generalized_transitions = []
+  generalized_effect_on_clause_aexpr = deepcopy(new_effect_on_clause_aexpr)
 
+  for tup in new_transition_on_clause_aexprs_and_domains
+    transition_aexpr, domain = tup 
+    if domain[1] isa Int || domain[1] isa BigInt # generalizing over integers
+      min_val = minimum(domain) 
+      if min_val == 1 
+        state_dependence = filter(x -> occursin("globalVar1", repr(x)), transition_aexpr.args[1].args)[end]
+        transition_aexpr.args[1] = filter(x -> !occursin("globalVar1", repr(x)), transition_aexpr.args[1].args)[end]
+        push!(generalized_transitions, transition_aexpr)
+        if occursin(repr(state_dependence), repr(generalized_effect_on_clause_aexpr))
+          generalized_effect_on_clause_aexpr.args[1] = filter(x -> !occursin("globalVar1", repr(x)), generalized_effect_on_clause_aexpr.args[1].args)[end]
+        end
+      else
+        old_state_dependence = "(in (prev globalVar1) (list $(join(map(x -> "$(x)", domain)," "))))"
+        new_state_dependence = "(!= (prev globalVar1) 1)"
+        transition_aexpr_str = replace(repr(transition_aexpr), old_state_dependence => new_state_dependence)
+        push!(generalized_transitions, parseautumn(transition_aexpr_str))
+        generalized_effect_on_clause_aexpr = parseautumn(replace(repr(generalized_effect_on_clause_aexpr), old_state_dependence => new_state_dependence))        
+      end
+    elseif domain[1] isa AExpr 
+      if occursin("Position", repr(domain[1])) # generalizing over positions
+        new_state_dependence = "(!= arrow (Position 0 0))"
+        transition_aexpr_str = replace(repr(transition_aexpr), repr(transition_aexpr.args[1]) => repr(new_state_dependence))
+        push!(generalized_transitions, parseautumn(transition_aexpr_str))
+      else # generalizing over objects
+        clicked_aex = findnode(transition_aexpr, :clicked)
+        object_expr = clicked_aex.args[end]
+        transition_aexpr_str = replace(repr(transition_aexpr), repr(object_expr) => "(filter (--> obj (== (.. (.. obj origin) y) 0)) addedObjType1List)")
+        push!(generalized_transitions, parseautumn(transition_aexpr_str))
+      end
+    else
+      push!(generalized_transitions, tup[1])
+    end
+  end
+  (generalized_transitions, generalized_effect_on_clause_aexpr)
 end
 
 function synthesize_new_transition_update(new_transition_on_clause_aexprs, object_decomposition, global_var_dict, user_events) 
