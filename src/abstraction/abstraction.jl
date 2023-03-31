@@ -1,8 +1,119 @@
-include("../synthesis/full_synthesis.jl");
-using MLStyle
+include("../synthesis/full_synthesis.jl")
+include("field_abstraction.jl")
 using Combinatorics
 
-function inductiveleap(effect_on_clauses, transition_on_clauses, object_decomposition, global_var_dict, user_events; global_var=true, id=1, small=true)
+function inductive_leap(program, object_decomposition_old, old_global_var_dict, observations, user_events; small=true)
+  object_decomposition = deepcopy(object_decomposition_old)
+  global_var_dict = deepcopy(old_global_var_dict)
+  on_clauses = map(a -> repr(a), filter(line_aex -> line_aex.head == :on, parseautumn(program).args))
+  inductive_leap(on_clauses, object_decomposition, global_var_dict, observations, user_events, small=small)
+end
+
+function inductive_leap(on_clauses::AbstractArray, object_decomposition, global_var_dict, observations, user_events; small=true)
+  object_types, object_mapping, _, _ = object_decomposition
+  all_solutions = []
+
+  # split on_clauses into each globalVar's effect/transition on-clauses and each field-based type's effect/transition on_clauses
+  effect_on_clauses_dict = Dict("globalVar" => Dict(), "field1" => Dict())
+  transition_on_clauses_dict = Dict("globalVar" => Dict(), "field1" => Dict())
+
+  # non state-based on-clauses
+  other_on_clauses = filter(oc -> !occursin("field1", oc), on_clauses)
+
+  # identify field-based on-clauses
+  for type in object_types 
+    if type.custom_fields != [] 
+      on_clauses_with_field_and_type = filter(oc -> occursin("= addedObjType$(type.id)List", oc) && occursin("field1", oc), on_clauses)
+      transition_on_clauses_dict["field1"][type.id] = filter(oc -> occursin("updateObj obj \"field1\"", replace(oc, "  " => " ")), on_clauses_with_field_and_type)
+      effect_on_clauses_with_field = filter(oc -> !occursin("updateObj obj \"field1\"", replace(oc, "  " => " ")), on_clauses_with_field_and_type)
+      
+      if effect_on_clauses_with_field != [] 
+        co_occurring_event = filter(x -> !occursin("field1", repr(x)), parseautumn(effect_on_clauses_with_field[1]).args[2].args[end].args[end].args[end].args)[end]
+        on_clauses_with_co_occurring_event = filter(oc -> occursin(co_occurring_event isa Symbol ? "--> obj $(string(co_occurring_event))" : "--> obj $(repr(co_occurring_event))", oc), on_clauses)
+        other_on_clauses = filter(x -> !(x in on_clauses_with_co_occurring_event), other_on_clauses)
+        max_val = maximum(vcat(map(id -> unique(vcat(map(obj -> obj.custom_field_values, filter(o -> !isnothing(o), object_mapping[id]))...)), collect(keys(object_mapping)))...))
+        for oc in on_clauses_with_co_occurring_event
+          new_aex = parseautumn(oc) 
+          new_aex.args[2].args[end].args[end].args[end] = parseautumn("(& $(co_occurring_event isa Symbol ? string(co_occurring_event) : repr(co_occurring_event)) (== (.. obj field1) $(max_val)))")
+          push!(effect_on_clauses_with_field, repr(new_aex))
+        end
+
+      end
+      effect_on_clauses_dict["field1"][type.id] = effect_on_clauses_with_field
+    end
+  end
+
+  # iterate through field1-based effect/transition sets and perform abstraction
+  for type_id in keys(effect_on_clauses_dict["field1"])
+    effect_on_clauses = effect_on_clauses_dict["field1"][type_id]
+    transition_on_clauses = transition_on_clauses_dict["field1"][type_id]
+
+    solutions = inductiveleap_field(effect_on_clauses, transition_on_clauses, other_on_clauses, object_decomposition, global_var_dict, observations, user_events, id=type_id, small=false, program=false)  
+    object_decomposition = solutions[1][2]
+    global_var_dict = solutions[1][3]
+    push!(all_solutions, map(s -> s[1], solutions))
+  end
+
+  if all_solutions == []
+    return []
+  end
+
+  on_clauses = unique(vcat(all_solutions[1]...))
+  other_on_clauses = filter(oc -> !occursin("globalVar", oc), on_clauses)
+  all_solutions = []
+  # identify globalVar-based on-clauses
+  for id in keys(global_var_dict)
+    on_clauses_with_globalVar = filter(oc -> occursin("globalVar$(id)", oc), on_clauses)
+    transition_on_clauses_with_globalVar = filter(oc -> occursin("= globalVar$(id)", oc), on_clauses_with_globalVar)
+    effect_on_clauses_with_globalVar = filter(oc -> !occursin("= globalVar$(id)", oc), on_clauses_with_globalVar)
+
+    if effect_on_clauses_with_globalVar != [] 
+      co_occurring_event = filter(x -> !occursin("globalVar", repr(x)), parseautumn(effect_on_clauses_with_globalVar[1]).args[1].args)[end]
+      on_clauses_with_co_occurring_event = filter(oc -> occursin(co_occurring_event isa Symbol ? "(on $(string(co_occurring_event))" : "on $(repr(co_occurring_event))", oc), on_clauses)
+      other_on_clauses = filter(x -> !(x in on_clauses_with_co_occurring_event), other_on_clauses)
+      max_val = maximum(global_var_dict[id])
+      for oc in on_clauses_with_co_occurring_event
+        new_aex = parseautumn(oc)
+        
+        new_aex.args[1] = parseautumn("(& (== (prev globalVar$(id)) $(max_val)) $(co_occurring_event isa Symbol ? string(co_occurring_event) : repr(co_occurring_event)))")
+        push!(effect_on_clauses_with_globalVar, repr(new_aex))
+      end
+    end
+
+    effect_on_clauses_dict["globalVar"][id] = effect_on_clauses_with_globalVar
+    transition_on_clauses_dict["globalVar"][id] = transition_on_clauses_with_globalVar
+  end
+  
+  # iterate through globalVar-based effect/transition sets and perform abstraction
+  for global_var_id in keys(effect_on_clauses_dict["globalVar"])
+    effect_on_clauses = effect_on_clauses_dict["globalVar"][global_var_id]
+    transition_on_clauses = transition_on_clauses_dict["globalVar"][global_var_id]
+
+    solutions = inductiveleap(effect_on_clauses, transition_on_clauses, other_on_clauses, object_decomposition, global_var_dict, observations, user_events, id=global_var_id, small=small, program=false)  
+    object_decomposition = solutions[1][2]
+    global_var_dict = solutions[1][3]
+    push!(all_solutions, map(s -> s[1], solutions))
+  end
+
+  on_clause_sets = all_solutions
+  @show on_clause_sets
+  on_clause_sets_prod = Iterators.product(on_clause_sets...) |> collect
+  programs = []
+  for tup in on_clause_sets_prod
+    # construct final program with abstracted on-clauses 
+    on_clauses = unique([vcat(tup...)...])
+    # @show on_clauses 
+    # @show tup
+    program = full_program_given_on_clauses(on_clauses, object_decomposition, global_var_dict, grid_size, nothing, format=false, arrow=true)
+    push!(programs, program)
+  end
+  programs
+end
+
+function inductiveleap(effect_on_clauses, transition_on_clauses, other_on_clauses, object_decomposition, global_var_dict, observations, user_events; global_var=true, id=1, small=true, program=true)
+  @show effect_on_clauses 
+  @show transition_on_clauses 
+
   effect_on_clause_aexprs = map(oc -> parseautumn(oc), effect_on_clauses)
   transition_on_clause_aexprs = map(oc -> parseautumn(oc), transition_on_clauses)
 
@@ -21,7 +132,7 @@ function inductiveleap(effect_on_clauses, transition_on_clauses, object_decompos
   
     @show old_to_new_states_map
     ## construct new global_var_dict
-    global_var_dict[1] = map(state -> old_to_new_states_map[state], global_var_dict[1])
+    global_var_dict[1] = map(state -> state in keys(old_to_new_states_map) ? old_to_new_states_map[state] : state, global_var_dict[1])
   
     ## construct new effect on-clause
     new_effect_on_clause_aexpr = deepcopy(effect_on_clause_aexprs[1])
@@ -117,8 +228,12 @@ function inductiveleap(effect_on_clauses, transition_on_clauses, object_decompos
         else
           event_part_2 = aex2.args[1]
         end
-        difference, _ = finddifference([event_part_1, event_part_2])
-        if isnothing(difference[1])
+        difference, parent = finddifference([event_part_1, event_part_2])
+        # @show event_part_1 
+        # @show event_part_2 
+        # @show difference 
+        # @show parent
+        if isnothing(difference[1]) || !isnothing(parent[1])
           push!(transition_clusters[k], aex)
           assigned = true 
           break
@@ -133,19 +248,44 @@ function inductiveleap(effect_on_clauses, transition_on_clauses, object_decompos
     end
   end
 
+  @show new_transition_on_clause_aexprs
+  @show transition_clusters
+
   new_transition_on_clause_aexprs_and_domains = map(aexprs -> synthesize_new_transition_update(aexprs, object_decomposition, global_var_dict, user_events, global_var=global_var, id=id), collect(values(transition_clusters)))
   state_domains = map(tup -> tup[2], new_transition_on_clause_aexprs_and_domains)
   @show state_domains
 
   # Step 5: hallucination -- expand the domain of the globalVar variable based on similarities between elt's of current domain
   # expanded_transition_on_clause_aexprs_and_domains = new_transition_on_clause_aexprs_and_domains # generalize_domain(state_domain, object_decomposition)
-  expanded_transition_on_clause_aexprs, new_effect_on_clause_aexpr = generalize_domain(new_transition_on_clause_aexprs_and_domains, new_effect_on_clause_aexpr, object_decomposition, global_var_dict, user_events, global_var=global_var, id=id)
+  expanded_transition_on_clause_possibilities, new_effect_on_clause_aexpr = generalize_domain(new_transition_on_clause_aexprs_and_domains, new_effect_on_clause_aexpr, object_decomposition, global_var_dict, user_events, global_var=global_var, id=id)
+  possible_transitions_product = Iterators.product(expanded_transition_on_clause_possibilities...) |> collect
+  solutions = []
 
-  # (repr(new_effect_on_clause_aexpr), repr(new_transition_update_expr))
-  on_clauses = [repr(new_effect_on_clause_aexpr), map(x -> repr(x), expanded_transition_on_clause_aexprs)...]
-  # @show on_clauses
-  program = full_program_given_on_clauses(on_clauses, object_decomposition, global_var_dict, grid_size, nothing, format=false)
-  program
+  @show length(possible_transitions_product)
+
+  for tup in possible_transitions_product 
+    expanded_transition_on_clause_aexprs = [tup...]
+    on_clauses = [other_on_clauses..., map(x -> repr(x), expanded_transition_on_clause_aexprs)..., repr(new_effect_on_clause_aexpr)]
+    @show on_clauses
+    prog = full_program_given_on_clauses(on_clauses, object_decomposition, global_var_dict, grid_size, nothing, format=false, arrow=true)
+
+    println(prog)
+
+    # check if prog reproduces observations
+    user_events_for_interpreter = format_user_events(user_events)
+    new_observations = interpret_over_time_observations(parseautumn(prog), length(user_events), user_events_for_interpreter)
+    if check_observations_equivalence(observations, new_observations)
+      if program 
+        prog = full_program_given_on_clauses(on_clauses, object_decomposition, global_var_dict, grid_size, nothing, format=false, arrow=true)
+        push!(solutions, prog)
+      else
+        push!(solutions, (on_clauses, object_decomposition, global_var_dict))
+      end
+    end
+  end
+
+  @show length(solutions)
+  solutions
 end
 
 # helper functions
@@ -153,44 +293,82 @@ function generalize_domain(new_transition_on_clause_aexprs_and_domains, new_effe
   generalized_transitions = []
   generalized_effect_on_clause_aexpr = deepcopy(new_effect_on_clause_aexpr)
 
+  println("sad")
+  @show new_transition_on_clause_aexprs_and_domains
   for tup in new_transition_on_clause_aexprs_and_domains
     transition_aexpr, domain = tup 
+    @show domain 
+    possibilities = []
     if domain[1] isa Int || domain[1] isa BigInt # generalizing over integers
       min_val = minimum(domain) 
       if min_val == 1 
         state_dependence = filter(x -> occursin("globalVar$(id)", repr(x)), transition_aexpr.args[1].args)[end]
         transition_aexpr.args[1] = filter(x -> !occursin("globalVar$(id)", repr(x)), transition_aexpr.args[1].args)[end]
-        push!(generalized_transitions, transition_aexpr)
         if occursin(repr(state_dependence), repr(generalized_effect_on_clause_aexpr))
           generalized_effect_on_clause_aexpr.args[1] = filter(x -> !occursin("globalVar$(id)", repr(x)), generalized_effect_on_clause_aexpr.args[1].args)[end]
         end
+        push!(possibilities, transition_aexpr)
       else
         old_state_dependence = "(in (prev globalVar$(id)) (list $(join(map(x -> "$(x)", domain)," "))))"
         new_state_dependence = "(!= (prev globalVar$(id)) 1)"
         transition_aexpr_str = replace(repr(transition_aexpr), old_state_dependence => new_state_dependence)
-        push!(generalized_transitions, parseautumn(transition_aexpr_str))
+        push!(possibilities, parseautumn(transition_aexpr_str))
         generalized_effect_on_clause_aexpr = parseautumn(replace(repr(generalized_effect_on_clause_aexpr), old_state_dependence => new_state_dependence))        
       end
+      push!(generalized_transitions, possibilities)
     elseif domain[1] isa AExpr 
       if occursin("Position", repr(domain[1])) # generalizing over positions
         new_state_dependence = "(!= arrow (Position 0 0))"
-        transition_aexpr_str = replace(repr(transition_aexpr), repr(transition_aexpr.args[1]) => repr(new_state_dependence))
-        push!(generalized_transitions, parseautumn(transition_aexpr_str))
+        transition_aexpr_str = replace(repr(transition_aexpr), repr(transition_aexpr.args[1]) => new_state_dependence)
+        push!(possibilities, parseautumn(transition_aexpr_str))
+        push!(generalized_transitions, possibilities)
+        generalized_effect_on_clause_aexpr.args[1] = parseautumn("(& $(generalized_effect_on_clause_aexpr.args[1] isa AExpr ? repr(generalized_effect_on_clause_aexpr.args[1]) : generalized_effect_on_clause_aexpr.args[1]) (!= (prev globalVar$(id)) (Position 0 0)))")
       else # generalizing over objects
         clicked_aex = findnode(transition_aexpr, :clicked)
         object_expr = clicked_aex.args[end]
-        transition_aexpr_str = replace(repr(transition_aexpr), repr(object_expr) => "(filter (--> obj (== (.. (.. obj origin) y) 0)) addedObjType1List)")
-        push!(generalized_transitions, parseautumn(transition_aexpr_str))
+
+        # evaluate object_expr 
+        hypothesis_program = program_string_synth_standard_groups(object_decomposition)
+        event_string = "\n\t (= event (initnext (list) $(repr(object_expr))))\n"
+        hypothesis_program = string(hypothesis_program[1:end-2], event_string, "\n)")
+        hypothesis_frame_state = interpret_over_time(parseautumn(hypothesis_program), 1, user_events_for_interpreter[time:time]).state
+        event_value = map(key -> hypothesis_frame_state.histories[:event][key], sort(collect(keys(hypothesis_frame_state.histories[:event]))))[end]
+
+        object_ids = map(obj -> obj.id, event_value)
+        possible_domain_expansions = [
+                                      "(filter (--> obj (== (.. (.. obj origin) y) 0)) (prev addedObjType1List))",
+                                      "(filter (--> obj (in (.. obj color) (map (--> obj2 (.. obj2 color)) $(repr(object_expr))))) (prev addedObjType1List))",
+                                     ]
+
+        for possible_expr in possible_domain_expansions 
+          hypothesis_program = program_string_synth_standard_groups(object_decomposition)
+          event_string = "\n\t (= event (initnext (list) $(possible_expr)))\n"
+          hypothesis_program = string(hypothesis_program[1:end-2], event_string, "\n)")
+          hypothesis_frame_state = interpret_over_time(parseautumn(hypothesis_program), 1, user_events_for_interpreter[time:time]).state
+          event_value = map(key -> hypothesis_frame_state.histories[:event][key], sort(collect(keys(hypothesis_frame_state.histories[:event]))))[end]          
+          new_object_ids = map(obj -> obj.id, event_value)
+          if Set(intersect(new_object_ids, object_ids)) == Set(object_ids)
+            push!(possibilities, replace(repr(transition_aexpr), repr(object_expr) => possible_expr))
+            bare_bones_possible_expr = "(filter (--> obj (in (.. obj id) (list $(join(new_object_ids, " "))))) (prev addedObjType1List))"
+            push!(possibilities, replace(repr(transition_aexpr), repr(object_expr) => bare_bones_possible_expr))
+          end
+        end
+
+        # transition_aexpr_str = replace(repr(transition_aexpr), repr(object_expr) => "(filter (--> obj (== (.. (.. obj origin) y) 0)) addedObjType1List)")
+        # push!(generalized_transitions, parseautumn(transition_aexpr_str))
+        push!(generalized_transitions, map(x -> parseautumn(x), possibilities))
       end
     else
-      push!(generalized_transitions, tup[1])
+      push!(generalized_transitions, [tup[1]])
     end
   end
-  (generalized_transitions, generalized_effect_on_clause_aexpr)
+  generalized_transitions, generalized_effect_on_clause_aexpr
 end
 
 function synthesize_new_transition_update(new_transition_on_clause_aexprs, object_decomposition, global_var_dict, user_events; global_var=true, id=1) 
   consec_state_value_tuples = (zip(global_var_dict[1], [global_var_dict[1][2:end]..., nothing]) |> collect)[1:end-1]
+
+  @show consec_state_value_tuples
 
   new_state_values = map(oc -> oc.args[end].args[end], new_transition_on_clause_aexprs)
   environments = []
@@ -226,7 +404,7 @@ function synthesize_new_transition_update(new_transition_on_clause_aexprs, objec
   end
   @show environments
   new_state_expr = synthesize_state_expr(new_transition_on_clause_aexprs, environments, new_state_values, object_decomposition, global_var_dict, user_events, global_var=global_var, id=id)
-
+  @show new_state_expr
   if isnothing(new_state_expr)
     return (nothing, nothing)
   end
@@ -239,7 +417,8 @@ function synthesize_new_transition_update(new_transition_on_clause_aexprs, objec
     new_transition_on_clause_aex.args[1] = parseautumn(new_event)
     new_transition_on_clause_str = repr(new_transition_on_clause_aex)
   elseif occursin("arrow", new_transition_on_clause_str)
-    state_domain = union(map(env -> env["arrow"], environments)...)
+    state_domain = union(map(env -> env["arrow"], environments))
+    global_var_dict[id][1] = parseautumn("(Position 0 0)")
   else
     state_domain = union(map(env -> env["globalVar$(id)"], environments)...)
     new_event_state_dependence = parseautumn("(in (prev globalVar$(id)) (list $(join(state_domain, " "))))")
@@ -260,12 +439,15 @@ function synthesize_state_expr(new_transition_on_clause_aexprs, environments, ne
   possible_expressions = []
   objects = union(map(env -> "objects" in keys(env) ? env["objects"] : [], environments)...)
 
+  @show new_state_values
   # @show environments
   # @show objects
   if new_state_values[1] isa Int || new_state_values[1] isa BigInt
     push!(possible_expressions, ["(- 0 (prev globalVar$(id)))", "(- (prev globalVar$(id)) 1)", "(+ (prev globalVar$(id)) 1)"]...) #
   elseif new_state_values[1] isa String
     push!(possible_expressions, "(.. (objClicked click (vcat $(join(map(obj -> repr(obj), objects), " ")))) color)")
+  elseif new_state_values[1] isa AExpr && occursin("Position", repr(new_state_values[1]))
+    push!(possible_expressions, "arrow")
   end
 
   consec_state_value_tuples = (zip(global_var_dict[1], [global_var_dict[1][2:end]..., nothing]) |> collect)[1:end-1]
@@ -346,147 +528,4 @@ function synthesize_state_expr(new_transition_on_clause_aexprs, environments, ne
   end
 
   return nothing
-end
-
-user_events_to_arrow = Dict(["nothing" => AutumnStandardLibrary.Position(0, 0), 
-                             "left" => AutumnStandardLibrary.Position(-1, 0),
-                             "right" => AutumnStandardLibrary.Position(1, 0),
-                             "up" => AutumnStandardLibrary.Position(0, -1),
-                             "down" => AutumnStandardLibrary.Position(0, 1),
-])
-
-function findnode(aex::AExpr, subaex, parent=nothing)
-  if repr(aex) == repr(subaex)
-    return parent
-  else
-    for i in 1:length(aex.args)
-      soln = findnode(aex.args[i], subaex, aex)
-      if !isnothing(soln)
-        return soln
-      end
-    end
-  end
-  return nothing
-end
-
-function findnode(aex, subaex, parent=nothing)
-  if repr(aex) == repr(subaex)
-    parent
-  else
-    nothing
-  end
-end
-
-function finddifference(aexs::Array{AExpr}, parents=nothing) 
-  if length(unique(map(x -> repr(x), aexs))) == 1 
-    return ([nothing for i in aexs], !isnothing(parents) ? parents : [nothing for i in aexs])
-  elseif !(length(unique(map(x -> x.head, aexs))) == 1 && length(unique(map(x -> length(x.args), aexs))) == 1)
-    return (aexs, !isnothing(parents) ? parents : [nothing for i in aexs])
-  else
-    for i in 1:length(aexs[1].args)
-      ith_args = map(x -> x.args[i], aexs)
-      arg_difference = finddifference(ith_args, aexs)
-      if !isnothing(arg_difference[1][1])
-        return arg_difference
-      end
-    end
-  end
-end
-
-function finddifference(aexs, parents=nothing)
-  if length(unique(map(x -> repr(x), aexs))) == 1 
-    return ([nothing for i in aexs], !isnothing(parents) ? parents : [nothing for i in aexs])
-  else
-    return (aexs, !isnothing(parents) ? parents : [nothing for i in aexs])
-  end
-end
-
-function defaultsub(aex::AExpr) 
-  new_aex = deepcopy(aex)
-  for x in [:moveLeft, :moveRight, :moveUp, :moveDown, :left, :right, :up, :down]
-    new_aex = defaultsub(new_aex, x)    
-  end
-  new_aex
-end
-
-function defaultsub(aex::AExpr, x::Symbol)
-  if x == :moveLeft 
-    sub(aex, (x, function lam1(a)
-                    a.args[1] = :move 
-                    push!(a.args, parseautumn("(Position -1 0)"))
-                    a
-                  end))
-  elseif x == :moveRight 
-    sub(aex, (x, function lam2(a)
-                    a.args[1] = :move 
-                    push!(a.args, parseautumn("(Position 1 0)"))
-                    a
-                  end))
-  elseif x == :moveUp 
-    sub(aex, (x, function lam3(a)
-                    a.args[1] = :move 
-                    push!(a.args, parseautumn("(Position 0 -1)"))
-                    a
-                  end))
-  elseif x == :moveDown 
-    sub(aex, (x, function lam4(a)
-                    a.args[1] = :move                   
-                    push!(a.args, parseautumn("(Position 0 1)"))
-                    a
-                  end))
-  elseif x == :left 
-    sub(aex, x => parseautumn("(== arrow (Position -1 0))"))
-  elseif x == :right 
-    sub(aex, x => parseautumn("(== arrow (Position 1 0))"))
-  elseif x == :up 
-    sub(aex, x => parseautumn("(== arrow (Position 0 -1))"))
-  elseif x == :down
-    sub(aex, x => parseautumn("(== arrow (Position 0 1))"))
-  else 
-    error("Could not defaultsub $(aex)")
-  end
-end
-
-function sub(aex::AExpr, (x, v))
-  # println("sub 1")
-  # @show aex 
-  # @show x
-
-  if (aex.args != [] && aex.args[1] == x) && (occursin("var", repr(typeof(v))) || occursin("typeof", repr(typeof(v)))) # v is a lambda function taking x as input
-    new_arg = sub(aex.args[2], (x, v))
-    # @show new_arg
-    aex.args[2] = new_arg
-    # println("here")
-    # @show aex
-    return v(aex)
-  end
-
-  arr = [aex.head, aex.args...]
-  if (x isa AExpr) && ([x.head, x.args...] == arr)  
-    v
-  else
-    MLStyle.@match arr begin
-      [:fn, args, body]                                       => AExpr(:fn, args, sub(body, x => v))
-      [:if, c, t, e]                                          => AExpr(:if, sub(c, x => v), sub(t, x => v), sub(e, x => v))
-      [:assign, a1, a2]                                       => AExpr(:assign, a1, sub(a2, x => v))
-      [:list, args...]                                        => AExpr(:list, map(arg -> sub(arg, x => v), args)...)
-      [:typedecl, args...]                                    => AExpr(:typedecl, args...)
-      [:let, args...]                                         => AExpr(:let, map(arg -> sub(arg, x => v), args)...)      
-      [:lambda, args, body]                                   => AExpr(:lambda, args, sub(body, x => v))
-      [:call, f, args...]                                     => AExpr(:call, f, map(arg -> sub(arg, x => v) , args)...)      
-      [:field, o, fieldname]                                  => AExpr(:field, sub(o, x => v), fieldname)
-      [:object, args...]                                      => AExpr(:object, args...)
-      [:on, event, update]                                    => AExpr(:on, sub(event, x => v), sub(update, x => v))
-      [args...]                                               => error(string("Invalid AExpr Head: ", new_state_expr.head))
-      _                                                       => error("Could not sub $arr")
-    end
-  end
-end
-
-function sub(aex, (x, v))
-  if (aex == x) && !(occursin("var", repr(typeof(v))) || occursin("typeof", repr(typeof(v))))
-    v
-  else
-    aex
-  end
 end

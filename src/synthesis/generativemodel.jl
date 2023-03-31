@@ -377,6 +377,8 @@ function gen_event_bool_human_prior(object_decomposition, object_id, type_id, us
 
     push!(choices, "(clicked (filter (--> obj (== (.. obj id) $(object_id))) (prev addedObjType$(type.id)List)))")
 
+    push!(choices, "(in true (map (--> obj (& (isWithinBounds (moveLeft (prev obj))) (! (isWithinBounds (moveLeft (moveLeft (prev obj)) ))))) (filter (--> obj (== (.. obj id) $(object_id))) (prev addedObjType$(type.id)List))))")
+
     for type2 in object_types 
       if type2.id != type.id 
         # push!(choices, "(intersects (prev addedObjType$(type.id)List) (prev addedObjType$(type2.id)List))")
@@ -565,6 +567,9 @@ function gen_event_bool(object_decomposition, object_id, type_id, update_rule, u
     for dir in ["Left", "Right", "Up", "Down"]
       push!(choices, "(! (intersects (map (--> obj (.. (move$(dir)NoCollision (prev obj)) origin)) $(filtered_list)) (map (--> obj (.. (prev obj) origin)) $(filtered_list))))")
     end
+
+    # push!(choices, "(in 1 (map (--> obj (.. (.. obj origin) x)) $(filtered_list)))")
+    push!(choices, "(in true (map (--> obj (& (isWithinBounds (moveLeft (prev obj))) (! (isWithinBounds (moveLeft (moveLeft (prev obj)) ))))) (filter (--> obj (== (.. obj id) $(object_id))) (prev addedObjType$(type.id)List))))")
 
     # for type2 in object_types
     #   for type3 in object_types 

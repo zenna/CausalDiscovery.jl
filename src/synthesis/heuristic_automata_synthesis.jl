@@ -1,5 +1,5 @@
 """On-clause generation, where we collect all unsolved (latent state dependent) on-clauses at the end"""
-function generate_on_clauses_GLOBAL(run_id, random, matrix, unformatted_matrix, object_decomposition, user_events, global_event_vector_dict, redundant_events_set, grid_size=16, desired_solution_count=1, desired_per_matrix_solution_count=1, interval_painting_param=false, sketch=false, z3_option="partial", time_based=false, z3_timeout=0, sketch_timeout=0, co_occurring_param=false, transition_param=false, co_occurring_distinct=1, co_occurring_same=1, co_occurring_threshold=1, transition_distinct=1, transition_same=1, transition_threshold=1, num_transition_decisions=15, symmetry=false; stop_times=[])
+function generate_on_clauses_GLOBAL(run_id, random, matrix, unformatted_matrix, object_decomposition, user_events, global_event_vector_dict, redundant_events_set, grid_size=16, desired_solution_count=1, desired_per_matrix_solution_count=1, interval_painting_param=false, sketch=false, z3_option="full", time_based=false, z3_timeout=0, sketch_timeout=0, co_occurring_param=false, transition_param=false, co_occurring_distinct=1, co_occurring_same=1, co_occurring_threshold=1, transition_distinct=1, transition_same=1, transition_threshold=1, num_transition_decisions=15, symmetry=false; stop_times=[])
   start_time = Dates.now()
   object_types, object_mapping, background, dim = object_decomposition
   solutions = []
@@ -1850,8 +1850,10 @@ function generate_new_object_specific_state_GLOBAL(global_events, co_occurring_e
   object_ids = filter(k -> filter(obj -> !isnothing(obj), object_mapping[k])[1].type.id == type_id, collect(keys(object_mapping)))
 
   atomic_events = gen_event_bool_human_prior(object_decomposition, "x", type_id, ["nothing"], global_var_dict, update_functions[1])
-
+  
   small_event_vector_dict = deepcopy(event_vector_dict)    
+  # println("huh")
+  # @show small_event_vector_dict
   for e in keys(event_vector_dict)
     if occursin("globalVar", e) || occursin("field", e) || occursin("adj", e) || !(e in atomic_events) # && foldl(|, map(x -> occursin(x, e), atomic_events))
       delete!(small_event_vector_dict, e)
@@ -1867,7 +1869,7 @@ function generate_new_object_specific_state_GLOBAL(global_events, co_occurring_e
   # choices, event_vector_dict, redundant_events_set, object_decomposition
   
   for e in keys(event_vector_dict)
-    if (occursin("true", e) || occursin("|", e)) && e in keys(small_event_vector_dict)
+    if (occursin("true", e) || occursin("|", e)) && e in keys(small_event_vector_dict) && e != "(in true (map (--> obj (& (isWithinBounds (moveLeft (prev obj))) (! (isWithinBounds (moveLeft (moveLeft (prev obj)) ))))) (filter (--> obj (== (.. obj id) x)) (prev addedObjType1List))))"
       delete!(small_event_vector_dict, e)
     end
   end

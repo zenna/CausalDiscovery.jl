@@ -3488,7 +3488,7 @@ function format_on_clause_full_program(on_clause, object_decomposition, matrix)
   end
 end
 
-function full_program_given_on_clauses(on_clauses, new_object_decomposition, global_var_dict, grid_size, matrix; format=true)
+function full_program_given_on_clauses(on_clauses, new_object_decomposition, global_var_dict, grid_size, matrix; format=true, arrow=false)
   # # @show new_object_decomposition
   object_types, object_mapping, background, _ = new_object_decomposition
 
@@ -3528,8 +3528,9 @@ function full_program_given_on_clauses(on_clauses, new_object_decomposition, glo
     end
   end
   program_no_update_rules = string(program_no_update_rules[1:end-2], inits..., ")")
-  
-  t = """(: time Int)\n  (= time (initnext 0 (+ time 1)))"""
+
+  arrow_str = """(: arrow Position)\n  (= arrow (initnext (Position 0 0) (prev arrow)))\n  (on true\n(= arrow (if left then (Position -1 0) else (if right then (Position 1 0) else (if up then (Position 0 -1) else (if down then (Position 0 1) else (Position 0 0)))))))"""  
+  t = """(: time Int)\n  (= time (initnext 0 (+ time 1))) $(arrow ? arrow_str : "")"""
 
   update_rules = join(on_clauses, "\n  ")
   
