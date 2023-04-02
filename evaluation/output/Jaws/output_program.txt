@@ -1,0 +1,63 @@
+ 
+(program
+  (= GRID_SIZE (list 210 90))
+  (= background "white")
+  (object ObjType1  (map (--> pos (Cell pos  "green" )) (rect (Position -9 -4) (Position 0 5))))
+  (object ObjType2  (map (--> pos (Cell pos  "lklwdd" )) (rect (Position -9 -4) (Position 0 5))))
+  (object ObjType3  (map (--> pos (Cell pos  "dlljev" )) (rect (Position -9 -4) (Position 0 5))))
+  (object ObjType4  (map (--> pos (Cell pos  "darkblue" )) (rect (Position -9 -4) (Position 0 5))))
+  (object ObjType5  (map (--> pos (Cell pos  "orange" )) (rect (Position -9 -4) (Position 0 5))))
+  (object ObjType6 (: field1 Int) (map (--> pos (Cell pos  "brown" )) (rect (Position -9 -4) (Position 0 5))))
+  (object ObjType7 (: field1 Int) (map (--> pos (Cell pos  "red" )) (rect (Position -9 -4) (Position 0 5))))
+  
+  (: addedObjType1List (List ObjType1))
+  (: obj4 ObjType2)
+  (: addedObjType3List (List ObjType3))
+  (: obj8 ObjType4)
+  
+  (: addedObjType2List (List ObjType2))
+  (: addedObjType4List (List ObjType4))
+  (: addedObjType5List (List ObjType5))
+  (: addedObjType6List (List ObjType6))
+  (: addedObjType7List (List ObjType7))
+  
+  (= addedObjType1List (initnext (list (ObjType1  (Position 209 24)) (ObjType1  (Position 209 44)) (ObjType1  (Position 209 64))) (prev addedObjType1List)))
+  (= obj4 (initnext (ObjType2  (Position 109 84)) (prev obj4)))
+  (= addedObjType3List (initnext (list (ObjType3  (Position 9 54)) (ObjType3  (Position 9 34)) (ObjType3  (Position 9 74))) (prev addedObjType3List)))
+  (= obj8 (initnext (ObjType4  (Position 109 14)) (prev obj8)))
+  
+  (= addedObjType2List (initnext (list) (prev addedObjType2List)))
+  (= addedObjType4List (initnext (list) (prev addedObjType4List)))
+  (= addedObjType5List (initnext (list) (prev addedObjType5List)))
+  (= addedObjType6List (initnext (list) (prev addedObjType6List)))
+  (= addedObjType7List (initnext (list) (prev addedObjType7List)))
+
+
+  (: arrow Position)
+  (= arrow (initnext (Position 0 0) (prev arrow)))
+  (on true
+(= arrow (if left then (Position -10 0) else (if right then (Position 10 0) else (if up then (Position 0 -10) else (if down then (Position 0 10) else (Position 0 0)))))))
+
+  (: time Int)
+  (= time (initnext 0 (+ time 1)))
+
+  (on true
+(= addedObjType7List (updateObj addedObjType7List (--> obj (moveNoCollisionColor (prev obj) -1 0 "darkgray")) (--> obj (& true (== (.. obj field1) 1))))))
+  (on (!= arrow (Position 0 0))
+(= obj8 (moveNoCollisionColor (prev obj8) (.. arrow x) (.. arrow y) "darkgray")))
+  (on (& (== (% (prev time) 2) 0) (adj (prev obj8) (prev addedObjType5List) 10))
+(= obj8 (removeObj (prev obj8))))
+  (on (& (isWithinBounds (move (prev obj8) 0 -20)) (== (% (prev time) 2) 0))
+(= addedObjType5List (updateObj addedObjType5List (--> obj (moveNoCollisionColor (prev obj) (closestRandom (prev obj) (list ObjType4) 1) "darkgray")) (--> obj true))))
+  (on true
+(= addedObjType6List (updateObj addedObjType6List (--> obj (moveNoCollisionColor (prev obj) 1 0 "darkgray")) (--> obj (& true (== (.. obj field1) 1))))))
+  (on true
+(= addedObjType7List (updateObj addedObjType7List (--> obj (updateObj obj "field1" 1)) (--> obj true) )))
+  (on true
+(= addedObjType6List (updateObj addedObjType6List (--> obj (updateObj obj "field1" 1)) (--> obj true) )))
+  (on (& (== (% (prev time) 10) 9) (== (uniformChoice (list 1 2 3 4 5 6 7 8 9 10)) 1))
+(= addedObjType7List (addObj addedObjType7List (ObjType7 2  (.. (uniformChoice (vcat (prev addedObjType1List) (prev addedObjType1List) (prev addedObjType1List) (prev addedObjType1List) (prev addedObjType1List) (prev addedObjType1List))) origin)))))
+  (on (& (.. (prev obj4) alive) (== (uniformChoice (list 1 2 3 4 5 6 7 8 9 10)) 1))
+(let ((= addedObjType5List (addObj addedObjType5List (ObjType5  (Position 109 84)))) (= obj4 (removeObj (prev obj4))))))
+  (on (& (== (% (prev time) 10) 9) (== (uniformChoice (list 1 2 3 4 5 6 7 8 9 10)) 1))
+(= addedObjType6List (addObj addedObjType6List (ObjType6 2  (.. (uniformChoice (vcat (prev addedObjType3List) (prev addedObjType3List) (prev addedObjType3List) (prev addedObjType3List) (prev addedObjType3List) (prev addedObjType3List))) origin))))))

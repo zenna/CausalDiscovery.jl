@@ -1,0 +1,57 @@
+ 
+(program
+  (= GRID_SIZE (list 320 140))
+  (= background "white")
+  (object ObjType1  (map (--> pos (Cell pos  "sqyliy" )) (rect (Position -9 -4) (Position 0 5))))
+  (object ObjType2  (map (--> pos (Cell pos  "cckqqb" )) (rect (Position -9 -4) (Position 0 5))))
+  (object ObjType3  (map (--> pos (Cell pos  "bvutfd" )) (rect (Position -9 -4) (Position 0 5))))
+  (object ObjType4 (: field1 Int) (map (--> pos (Cell pos  "orange" )) (rect (Position -9 -4) (Position 0 5))))
+  (object ObjType5 (: field1 Int) (map (--> pos (Cell pos  "purple" )) (rect (Position -9 -4) (Position 0 5))))
+  
+  (: obj1 ObjType1)
+  (: addedObjType2List (List ObjType2))
+  (: addedObjType3List (List ObjType3))
+  
+  (: addedObjType1List (List ObjType1))
+  (: addedObjType4List (List ObjType4))
+  (: addedObjType5List (List ObjType5))
+  
+  (= obj1 (initnext (ObjType1  (Position 169 124)) (prev obj1)))
+  (= addedObjType2List (initnext (list (ObjType2  (Position 269 14)) (ObjType2  (Position 179 14)) (ObjType2  (Position 109 14)) (ObjType2  (Position 169 14)) (ObjType2  (Position 199 14)) (ObjType2  (Position 309 14)) (ObjType2  (Position 29 14)) (ObjType2  (Position 19 14)) (ObjType2  (Position 89 14)) (ObjType2  (Position 299 14)) (ObjType2  (Position 49 14)) (ObjType2  (Position 259 14)) (ObjType2  (Position 229 14)) (ObjType2  (Position 239 14)) (ObjType2  (Position 289 14)) (ObjType2  (Position 119 14)) (ObjType2  (Position 209 14)) (ObjType2  (Position 149 14)) (ObjType2  (Position 79 14)) (ObjType2  (Position 139 14)) (ObjType2  (Position 59 14))) (prev addedObjType2List)))
+  (= addedObjType3List (initnext (list (ObjType3  (Position 69 14)) (ObjType3  (Position 159 14)) (ObjType3  (Position 249 14)) (ObjType3  (Position 189 14)) (ObjType3  (Position 219 14)) (ObjType3  (Position 279 14)) (ObjType3  (Position 39 14)) (ObjType3  (Position 99 14)) (ObjType3  (Position 129 14))) (prev addedObjType3List)))
+  
+  (= addedObjType1List (initnext (list) (prev addedObjType1List)))
+  (= addedObjType4List (initnext (list) (prev addedObjType4List)))
+  (= addedObjType5List (initnext (list) (prev addedObjType5List)))
+
+
+  (: arrow Position)
+  (= arrow (initnext (Position 0 0) (prev arrow)))
+  (on true
+(= arrow (if left then (Position -10 0) else (if right then (Position 10 0) else (if up then (Position 0 -10) else (if down then (Position 0 10) else (Position 0 0)))))))
+
+  (: time Int)
+  (= time (initnext 0 (+ time 1)))
+
+  (on true
+(= addedObjType4List (updateObj addedObjType4List (--> obj (moveNoCollisionColor (prev obj) 0 8 "darkgray")) (--> obj (& true (== (.. obj field1) 2))))))
+  (on true
+(= addedObjType4List (updateObj addedObjType4List (--> obj (moveNoCollisionColor (prev obj) 0 -8 "darkgray")) (--> obj (& true (== (.. obj field1) 1))))))
+  (on true
+(= addedObjType4List (removeObj addedObjType4List (--> obj (| (adj (prev obj1) (list (prev obj)) 10) (intersects (move (prev obj1) 0 -10) (list (prev obj))))))))
+  (on true
+(= addedObjType5List (updateObj addedObjType5List (--> obj (moveNoCollisionColor (prev obj) 0 8 "darkgray")) (--> obj (& true (== (.. obj field1) 1))))))
+  (on (!= arrow (Position 0 0))
+(= obj1 (moveNoCollisionColor (prev obj1) (.. arrow x) (.. arrow y) "darkgray")))
+  (on true
+(= addedObjType5List (updateObj addedObjType5List (--> obj (updateObj obj "field1" 1)) (--> obj true) )))
+  (on true
+(= addedObjType4List (updateObj addedObjType4List (--> obj (updateObj obj "field1" 2)) (--> obj (& true (intersects (list 3) (map (--> obj (.. obj field1)) (list (prev obj)))))) )))
+  (on true
+(= addedObjType4List (updateObj addedObjType4List (--> obj (updateObj obj "field1" 1)) (--> obj (in true (map (--> obj (isOutsideBounds obj)) (map (--> obj (move (prev obj) 0 8)) (list (prev obj)))))) )))
+  (on true
+(= addedObjType4List (updateObj addedObjType4List (--> obj (updateObj obj "field1" 2)) (--> obj (in true (map (--> obj (isOutsideBounds obj)) (map (--> obj (move (prev obj) 0 -8)) (list (prev obj)))))) )))
+  (on (& (== (% (prev time) 16) 15) (== (uniformChoice (list 1 2 3 4 5 6 7 8 9 10)) 1))
+(= addedObjType4List (addObj addedObjType4List (ObjType4 3  (.. (uniformChoice (vcat (prev addedObjType2List) (prev addedObjType2List) (prev addedObjType2List) (prev addedObjType2List) (prev addedObjType2List) (prev addedObjType2List))) origin)))))
+  (on (& (== (% (prev time) 12) 11) (== (uniformChoice (list 1 2 3 4 5 6 7 8 9 10)) 1))
+(= addedObjType5List (addObj addedObjType5List (ObjType5 2  (.. (uniformChoice (vcat (prev addedObjType3List) (prev addedObjType3List) (prev addedObjType3List) (prev addedObjType3List) (prev addedObjType3List) (prev addedObjType3List))) origin))))))
