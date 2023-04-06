@@ -11,6 +11,10 @@ function inductiveleap_field(effect_on_clauses, transition_on_clauses, other_on_
   @show effect_on_clauses 
   @show transition_on_clauses
 
+  if effect_on_clauses == [] && transition_on_clauses == []
+    return []
+  end
+
   # Step 1: rewrite left/right/up/down and moveLeft/Right/Up/Down with definitions
   effect_on_clause_aexprs = map(defaultsub, effect_on_clause_aexprs)
   transition_on_clause_aexprs = map(defaultsub, transition_on_clause_aexprs)
