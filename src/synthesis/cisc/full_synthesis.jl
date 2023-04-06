@@ -222,7 +222,7 @@ function synthesize_program(model_name::String;
     # end    
   end
   
-  # open("/Users/riadas/Documents/urop/CausalDiscovery.jl/src/synthesis/workshop/$(model_name).txt","w") do io
+  # open("/Users/riadas/Documents/urop/CausalDiscovery.jl/src/synthesis/cisc/workshop/$(model_name).txt","w") do io
   #   if model_name != "ants" 
   #     println(io, program_strings[1])
   #   else
@@ -230,7 +230,7 @@ function synthesize_program(model_name::String;
   #   end
   # end
 
-  # open("/Users/riadas/Documents/urop/CausalDiscovery.jl/src/synthesis/conference/$(model_name).txt","a") do io
+  # open("/Users/riadas/Documents/urop/CausalDiscovery.jl/src/synthesis/cisc/conference/$(model_name).txt","a") do io
   #   println(io, string("BEGIN UPDATE FUNC SPACE: ", upd_func_spaces[1], "\n\n\n"))
   #   for program_string in program_strings
   #     println(io, program_string)

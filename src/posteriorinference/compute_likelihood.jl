@@ -1,4 +1,4 @@
-include("../synthesis/full_synthesis.jl");
+include("../synthesis/cisc/full_synthesis.jl");
 using Combinatorics
 
 function compute_log_likelihood(program_, observations, user_events) 

@@ -1,4 +1,4 @@
-include("../synthesis/full_synthesis.jl")
+include("../synthesis/cisc/full_synthesis.jl")
 include("field_abstraction.jl")
 using Combinatorics
 

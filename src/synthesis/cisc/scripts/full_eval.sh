@@ -109,7 +109,7 @@ do
     for model_name in ${model_names[@]} ### Inner for loop ###
     do
       echo "model_name: $model_name, algorithm: $algorithm, repeat: $i "
-      nohup timeout 86400 /scratch/riadas/julia-1.5.4/bin/julia --project=. src/synthesis/scripts/full_eval.jl $model_name $algorithm $curr_date $i > OCTOBER_TESTING_OUTS/$model_name.$algorithm.out & 
+      nohup timeout 86400 /scratch/riadas/julia-1.5.4/bin/julia --project=. src/synthesis/cisc/scripts/full_eval.jl $model_name $algorithm $curr_date $i > OCTOBER_TESTING_OUTS/$model_name.$algorithm.out & 
       sleep 60
     done
     sleep 28800  
@@ -118,9 +118,9 @@ done
 
 #> APRIL_TESTING_OUTS/$model_name.$algorithm.out &
 
-# julia --project=. src/synthesis/scripts/compute_output_accuracy.jl
-# julia --project=. src/synthesis/scripts/compute_average_accuracies.jl
-#  nohup /scratch/riadas/julia-1.5.4/bin/julia --project=. src/synthesis/scripts/full_eval.jl $model_name $algorithm $curr_date $i > APRIL_TESTING_OUTS/$model_name.$algorithm.out &
+# julia --project=. src/synthesis/cisc/scripts/compute_output_accuracy.jl
+# julia --project=. src/synthesis/cisc/scripts/compute_average_accuracies.jl
+#  nohup /scratch/riadas/julia-1.5.4/bin/julia --project=. src/synthesis/cisc/scripts/full_eval.jl $model_name $algorithm $curr_date $i > APRIL_TESTING_OUTS/$model_name.$algorithm.out &
 
-# /scratch/riadas/julia-1.5.3/bin/julia --project=. src/synthesis/scripts/compute_output_accuracy.jl
-# /scratch/riadas/julia-1.5.3/bin/julia --project=. src/synthesis/scripts/compute_average_accuracies.jl
+# /scratch/riadas/julia-1.5.3/bin/julia --project=. src/synthesis/cisc/scripts/compute_output_accuracy.jl
+# /scratch/riadas/julia-1.5.3/bin/julia --project=. src/synthesis/cisc/scripts/compute_average_accuracies.jl

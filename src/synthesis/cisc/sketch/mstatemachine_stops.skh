@@ -1,5 +1,5 @@
-include "src/synthesis/sketch/string.skh"; 
-include "src/synthesis/sketch/sm_equivalence.skh"; 
+include "src/synthesis/cisc/sketch/string.skh"; 
+include "src/synthesis/cisc/sketch/sm_equivalence.skh"; 
 
 bit matches([int N], int[N] automaton_traj, int[N] functions) {
   for (int i = 0; i < N; i++){
@@ -11,7 +11,7 @@ bit matches([int N], int[N] automaton_traj, int[N] functions) {
   return 1;
 }
 
-int[N] MSM([int N], char[N] in, char true_char, int min_states, int min_transitions, int start){
+int[N] MSM([int N, int P], char[N] in, char true_char, int min_states, int min_transitions, int start, int[P] stop_times, int min_stop_val, int[N] desired_out) {
     int[N] out;
     int[N + 1] states;
     int maxstates = 13;
@@ -43,7 +43,27 @@ int[N] MSM([int N], char[N] in, char true_char, int min_states, int min_transiti
         // minimize(num_transitions);
         int Q = 0;
         minimize(2 * state + num_transitions);
-        repeat(num_transitions){
+
+        bit stop_handled = false;
+        for (int j=0; j < P; j++) {
+          if (i == stop_times[j] - 1) {
+            println(newStr("TRANSITION START"));
+            println(newStr({ intAsChar(old_state), '\0'}));
+            
+            println(newStr("TRANSITION LABEL"));
+            println(newStr({ in[i], '\0'}));
+
+            state = desired_out[i + 1] - 1;
+            assert old_state != state;
+
+            println(newStr("TRANSITION END"));
+            println(newStr({ intAsChar(state), '\0'})); 
+            stop_handled = true;           
+          }
+        }
+
+        if (!stop_handled) {
+          repeat(num_transitions){
             if(in[i] == ?? && old_state==??){
                 assert in[i] != true_char;
                 println(newStr("TRANSITION START"));
@@ -59,6 +79,7 @@ int[N] MSM([int N], char[N] in, char true_char, int min_states, int min_transiti
                 println(newStr({ intAsChar(state), '\0'}));
             }
             assert ++Q < 26; // 28
+        }
         }
 
         assert old_state < maxstates;
@@ -86,7 +107,7 @@ int[N] MSM([int N], char[N] in, char true_char, int min_states, int min_transiti
     return out;
 }
 
-int[N] MSM_unique([int N, int M], char[N] in, int[N][M] old_state_seqs, char true_char, int min_states, int min_transitions, int start) {
+int[N] MSM_unique([int N, int M, int P], char[N] in, int[N][M] old_state_seqs, char true_char, int min_states, int min_transitions, int start, int[P] stop_times, int min_stop_val, int[N] desired_out) {
     int[N] out;
     int[N] states;
     int maxstates = 13;
@@ -112,22 +133,44 @@ int[N] MSM_unique([int N, int M], char[N] in, int[N][M] old_state_seqs, char tru
         old_state = state;
         int Q = 0;
         minimize(2 * state + num_transitions);
-        repeat(num_transitions){
-            if(in[i] == ?? && old_state==??){
-                assert in[i] != true_char;
-                println(newStr("TRANSITION START"));
-                println(newStr({ intAsChar(old_state), '\0'}));
-                
-                println(newStr("TRANSITION LABEL"));
-                println(newStr({ in[i], '\0'}));
 
-                state = ??;
+        bit stop_handled = false;
+        for (int j=0; j < P; j++) {
+          if (i == stop_times[j] - 1) {
+            println(newStr("TRANSITION START"));
+            println(newStr({ intAsChar(old_state), '\0'}));
+            
+            println(newStr("TRANSITION LABEL"));
+            println(newStr({ in[i], '\0'}));
 
-                println(newStr("TRANSITION END"));
-                println(newStr({ intAsChar(state), '\0'}));
-            }
-            assert ++Q < 26; // 28, 33
+            state = desired_out[i + 1] - 1;
+            assert old_state != state;
+
+            println(newStr("TRANSITION END"));
+            println(newStr({ intAsChar(state), '\0'})); 
+            stop_handled = true;           
+          }
         }
+
+        if (!stop_handled) {
+          repeat(num_transitions){
+              if(in[i] == ?? && old_state==??){
+                  assert in[i] != true_char;
+                  println(newStr("TRANSITION START"));
+                  println(newStr({ intAsChar(old_state), '\0'}));
+                  
+                  println(newStr("TRANSITION LABEL"));
+                  println(newStr({ in[i], '\0'}));
+
+                  state = ??;
+
+                  println(newStr("TRANSITION END"));
+                  println(newStr({ intAsChar(state), '\0'}));
+              }
+              assert ++Q < 26; // 28, 33
+          }
+        }
+
         assert old_state < maxstates;
         out[i] = T[old_state];
         states[i] = old_state;
@@ -164,7 +207,7 @@ int[N] MSM_unique([int N, int M], char[N] in, int[N][M] old_state_seqs, char tru
 //                               2,
 //                               1);
 
-int[N] MSM_obj_specific([int N], char[N] in, int start_state, char true_char, int min_states, int min_transitions) {
+int[N] MSM_obj_specific([int N, int P], char[N] in, int start_state, char true_char, int min_states, int min_transitions, int[P] stop_times, int min_stop_val, int[N] desired_out) {
     int[N] out;
     int[N + 1] states;
     int maxstates = 13;
@@ -193,97 +236,61 @@ int[N] MSM_obj_specific([int N], char[N] in, int start_state, char true_char, in
         minimize(state);
         int Q = 0;
         minimize(2 * state + num_transitions);
-        repeat(num_transitions){
-            if(in[i] == ?? && old_state==??) {
-                assert in[i] != true_char;
-                println(newStr("TRANSITION START"));
-                println(newStr({ intAsChar(old_state), '\0'}));
-                
-                println(newStr("TRANSITION LABEL"));
-                println(newStr({ in[i], '\0'}));
 
-                state = ??;
+        bit stop_handled = false;
+        for (int j=0; j < P; j++) {
+          if (i == stop_times[j] - 1) {
+            println(newStr("TRANSITION START"));
+            println(newStr({ intAsChar(old_state), '\0'}));
+            
+            println(newStr("TRANSITION LABEL"));
+            println(newStr({ in[i], '\0'}));
 
-                assert state != old_state;
+            state = desired_out[i + 1] - 1;
+            assert old_state != state;
 
-                println(newStr("TRANSITION END"));
-                println(newStr({ intAsChar(state), '\0'}));
-            }
-            assert ++Q < 26;
+            println(newStr("TRANSITION END"));
+            println(newStr({ intAsChar(state), '\0'})); 
+            stop_handled = true;           
+          }
+
+          if (i == stop_times[j]) {
+            println(newStr("TRANSITION START"));
+            println(newStr({ intAsChar(old_state), '\0'}));
+            
+            println(newStr("TRANSITION LABEL"));
+            println(newStr({ in[i], '\0'}));
+
+            state = states[0];
+            assert old_state != state;
+
+            println(newStr("TRANSITION END"));
+            println(newStr({ intAsChar(state), '\0'})); 
+            stop_handled = true;           
+          }
+
         }
 
+        if (!stop_handled) {
+          repeat(num_transitions){
+              if(in[i] == ?? && old_state==??) {
+                  assert in[i] != true_char;
+                  println(newStr("TRANSITION START"));
+                  println(newStr({ intAsChar(old_state), '\0'}));
+                  
+                  println(newStr("TRANSITION LABEL"));
+                  println(newStr({ in[i], '\0'}));
 
-        // if(in[i] == '1' && old_state==10) {
-        //     assert in[i] != true_char;
-        //     state = 9;
-        // }
-        // assert ++Q < 12;
+                  state = ??;
 
-        // if(in[i] == '1' && old_state==9) {
-        //     assert in[i] != true_char;
-        //     state = 8;
-        // }
-        // assert ++Q < 12;
+                  assert state != old_state;
 
-
-
-        // if(in[i] == '1' && old_state==8) {
-        //     assert in[i] != true_char;
-        //     state = 7;
-        // }
-        // assert ++Q < 12;
-
-        // if(in[i] == '1' && old_state==7) {
-        //     assert in[i] != true_char;
-        //     state = 6;
-        // }
-        // assert ++Q < 12;
-
-        // if(in[i] == '1' && old_state==6) {
-        //     assert in[i] != true_char;
-        //     state = 5;
-        // }
-        // assert ++Q < 12;
-
-
-
-        // if(in[i] == '1' && old_state==5) {
-        //     assert in[i] != true_char;
-        //     state = 4;
-        // }
-        // assert ++Q < 12;
-
-        // if(in[i] == '1' && old_state==4) {
-        //     assert in[i] != true_char;
-        //     state = 3;
-        // }
-        // assert ++Q < 12;
-
-        // if(in[i] == '1' && old_state==3) {
-        //     assert in[i] != true_char;
-        //     state = 2;
-        // }
-        // assert ++Q < 12;
-
-        
-        
-        // if(in[i] == '1' && old_state==2) {
-        //     assert in[i] != true_char;
-        //     state = 1;
-        // }
-        // assert ++Q < 12;
-        
-        // if(in[i] == '1' && old_state==1) {
-        //     assert in[i] != true_char;
-        //     state = 0;
-        // }
-        // assert ++Q < 12;
-
-        // if(in[i] == '1' && old_state==0) {
-        //     assert in[i] != true_char;
-        //     state = 9;
-        // }
-        // assert ++Q < 12;
+                  println(newStr("TRANSITION END"));
+                  println(newStr({ intAsChar(state), '\0'}));
+              }
+              assert ++Q < 26;
+          }
+        }
 
         assert old_state < maxstates;
         out[i] = T[old_state];
