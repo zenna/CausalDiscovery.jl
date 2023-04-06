@@ -8,10 +8,10 @@ run_id = sys.argv[2]
 shortest_length = int(sys.argv[3])
 
 # dictionary of event strings to their observed bit-vectors
-event_vector_dict = pickle.load(open('./event_vector_dict_'+ run_id + '.pkl', 'rb')) # {"up" : [1,0,0,1], "down" : [1, 1, 1, 0], "right" : {1 : [0, 1, 1, 1], 2 : [1, 1, 1, 0]}}
+event_vector_dict = pickle.load(open('scratch/event_vector_dict_'+ run_id + '.pkl', 'rb')) # {"up" : [1,0,0,1], "down" : [1, 1, 1, 0], "right" : {1 : [0, 1, 1, 1], 2 : [1, 1, 1, 0]}}
 
 # dictionary of object_id's to their observed vectors (-1/0/1)
-observed_data_dict = pickle.load(open('./observed_data_dict_'+ run_id + '.pkl', 'rb')) # {1 : [1, 0, 0, 0], 2 : [1, 0, 0, 0]}  
+observed_data_dict = pickle.load(open('scratch/observed_data_dict_'+ run_id + '.pkl', 'rb')) # {1 : [1, 0, 0, 0], 2 : [1, 0, 0, 0]}  
 
 # sorted list of object_id's
 object_ids = sorted(list(observed_data_dict.keys()))

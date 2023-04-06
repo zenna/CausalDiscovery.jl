@@ -4699,13 +4699,12 @@ end
 
 function z3_event_search_full(run_id, observed_data_dict, event_vector_dict, redundant_events_set, partial=false, timeout=0)
   println("Z3_EVENT_SEARCH_FULL")
-  println("WOWEE")
   @show length(collect(keys(event_vector_dict)))
   @show observed_data_dict 
   @show event_vector_dict
-  Pickle.store("./observed_data_dict_$(run_id).pkl", observed_data_dict)
-  Pickle.store("./event_vector_dict_$(run_id).pkl", event_vector_dict)
-  Pickle.store("./redundant_events_set_$(run_id).pkl", redundant_events_set)
+  Pickle.store("scratch/observed_data_dict_$(run_id).pkl", observed_data_dict)
+  Pickle.store("scratch/event_vector_dict_$(run_id).pkl", event_vector_dict)
+  Pickle.store("scratch/redundant_events_set_$(run_id).pkl", redundant_events_set)
 
   # activate autumn environment containing z3
   # command = "conda activate autumn"
