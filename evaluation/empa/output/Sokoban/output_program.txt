@@ -1,0 +1,38 @@
+ 
+(program
+  (= GRID_SIZE (list 130 90))
+  (= background "white")
+  (object ObjType1  (map (--> pos (Cell pos  "darkgray" )) (rect (Position -9 -4) (Position 0 5))))
+  (object ObjType2  (map (--> pos (Cell pos  "green" )) (rect (Position -9 -4) (Position 0 5))))
+  (object ObjType3  (map (--> pos (Cell pos  "red" )) (rect (Position -9 -4) (Position 0 5))))
+  (object ObjType4  (map (--> pos (Cell pos  "darkblue" )) (rect (Position -9 -4) (Position 0 5))))
+  
+  (: addedObjType1List (List ObjType1))
+  (: addedObjType2List (List ObjType2))
+  (: addedObjType3List (List ObjType3))
+  (: obj60 ObjType4)
+  
+  (: addedObjType4List (List ObjType4))
+  
+  (= addedObjType1List (initnext (list (ObjType1  (Position 9 64)) (ObjType1  (Position 129 4)) (ObjType1  (Position 99 4)) (ObjType1  (Position 99 44)) (ObjType1  (Position 59 4)) (ObjType1  (Position 89 54)) (ObjType1  (Position 39 84)) (ObjType1  (Position 69 4)) (ObjType1  (Position 119 64)) (ObjType1  (Position 59 84)) (ObjType1  (Position 129 74)) (ObjType1  (Position 9 34)) (ObjType1  (Position 119 34)) (ObjType1  (Position 49 84)) (ObjType1  (Position 89 4)) (ObjType1  (Position 129 24)) (ObjType1  (Position 19 84)) (ObjType1  (Position 119 74)) (ObjType1  (Position 69 84)) (ObjType1  (Position 129 64)) (ObjType1  (Position 129 34)) (ObjType1  (Position 109 84)) (ObjType1  (Position 29 4)) (ObjType1  (Position 49 4)) (ObjType1  (Position 9 14)) (ObjType1  (Position 109 4)) (ObjType1  (Position 129 14)) (ObjType1  (Position 119 4)) (ObjType1  (Position 129 44)) (ObjType1  (Position 89 84)) (ObjType1  (Position 99 84)) (ObjType1  (Position 49 44)) (ObjType1  (Position 9 74)) (ObjType1  (Position 19 4)) (ObjType1  (Position 119 84)) (ObjType1  (Position 19 44)) (ObjType1  (Position 79 84)) (ObjType1  (Position 89 34)) (ObjType1  (Position 109 44)) (ObjType1  (Position 9 4)) (ObjType1  (Position 29 44)) (ObjType1  (Position 129 54)) (ObjType1  (Position 29 84)) (ObjType1  (Position 89 44)) (ObjType1  (Position 39 4)) (ObjType1  (Position 99 14)) (ObjType1  (Position 129 84)) (ObjType1  (Position 9 84)) (ObjType1  (Position 9 44)) (ObjType1  (Position 79 4)) (ObjType1  (Position 9 24)) (ObjType1  (Position 119 44)) (ObjType1  (Position 9 54))) (prev addedObjType1List)))
+  (= addedObjType2List (initnext (list (ObjType2  (Position 49 24)) (ObjType2  (Position 59 44)) (ObjType2  (Position 29 64)) (ObjType2  (Position 69 34))) (prev addedObjType2List)))
+  (= addedObjType3List (initnext (list (ObjType3  (Position 109 54)) (ObjType3  (Position 109 34))) (prev addedObjType3List)))
+  (= obj60 (initnext (ObjType4  (Position 49 34)) (prev obj60)))
+  
+  (= addedObjType4List (initnext (list) (prev addedObjType4List)))
+
+
+  (: arrow Position)
+  (= arrow (initnext (Position 0 0) (prev arrow)))
+  (on true
+(= arrow (if left then (Position -10 0) else (if right then (Position 10 0) else (if up then (Position 0 -10) else (if down then (Position 0 10) else (Position 0 0)))))))
+
+  (: time Int)
+  (= time (initnext 0 (+ time 1)))
+
+  (on (| (| (moveIntersects arrow (prev obj60) (prev addedObjType3List)) (pushConfiguration arrow (prev obj60) (prev addedObjType2List))) (| (pushConfiguration arrow (prev obj60) (prev addedObjType2List) (prev addedObjType3List)) (isFree (.. (move (prev obj60) arrow) origin))))
+(= obj60 (moveNoCollisionColor (prev obj60) (.. arrow x) (.. arrow y) "darkgray")))
+  (on true
+(= addedObjType2List (updateObj addedObjType2List (--> obj (moveNoCollisionColor (prev obj) (.. arrow x) (.. arrow y) "darkgray")) (--> obj (pushConfiguration arrow (prev obj60) (list (prev obj)))))))
+  (on true
+(= addedObjType2List (removeObj addedObjType2List (--> obj (pushConfiguration arrow (prev obj60) (list (prev obj)) (prev addedObjType3List)))))))

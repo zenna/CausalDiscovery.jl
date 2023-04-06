@@ -1,0 +1,113 @@
+ 
+(program
+  (= GRID_SIZE (list 240 220))
+  (= background "white")
+  (object ObjType1  (map (--> pos (Cell pos  "purple" )) (rect (Position -9 -4) (Position 0 5))))
+  (object ObjType2  (map (--> pos (Cell pos  "darkblue" )) (rect (Position -9 -4) (Position 0 5))))
+  (object ObjType3 (: field1 Int) (map (--> pos (Cell pos  "orange" )) (rect (Position -9 -4) (Position 0 5))))
+  (object ObjType4  (map (--> pos (Cell pos  "darkgray" )) (rect (Position -9 -4) (Position 0 5))))
+  (object ObjType5  (map (--> pos (Cell pos  "yellow" )) (rect (Position -9 -4) (Position 0 5))))
+  (object ObjType6 (: field1 Int) (map (--> pos (Cell pos  "lightred" )) (rect (Position -9 -4) (Position 0 5))))
+  (object ObjType7  (map (--> pos (Cell pos  "green" )) (rect (Position -9 -4) (Position 0 5))))
+  
+  (: addedObjType1List (List ObjType1))
+  (: obj6 ObjType2)
+  (: addedObjType3List (List ObjType3))
+  (: addedObjType4List (List ObjType4))
+  (: addedObjType5List (List ObjType5))
+  
+  (: addedObjType2List (List ObjType2))
+  (: addedObjType6List (List ObjType6))
+  (: addedObjType7List (List ObjType7))
+  
+  (= addedObjType1List (initnext (list (ObjType1  (Position 229 44)) (ObjType1  (Position 89 14)) (ObjType1  (Position 129 14)) (ObjType1  (Position 169 14)) (ObjType1  (Position 19 44))) (prev addedObjType1List)))
+  (= obj6 (initnext (ObjType2  (Position 129 164)) (prev obj6)))
+  (= addedObjType3List (initnext (list (ObjType3 11 (Position 229 44))) (prev addedObjType3List)))
+  (= addedObjType4List (initnext (list (ObjType4  (Position 159 194)) (ObjType4  (Position 239 4)) (ObjType4  (Position 109 54)) (ObjType4  (Position 229 14)) (ObjType4  (Position 59 14)) (ObjType4  (Position 99 24)) (ObjType4  (Position 219 4)) (ObjType4  (Position 239 194)) (ObjType4  (Position 149 214)) (ObjType4  (Position 9 214)) (ObjType4  (Position 199 54)) (ObjType4  (Position 109 14)) (ObjType4  (Position 9 74)) (ObjType4  (Position 199 214)) (ObjType4  (Position 29 14)) (ObjType4  (Position 219 204)) (ObjType4  (Position 239 14)) (ObjType4  (Position 219 34)) (ObjType4  (Position 169 4)) (ObjType4  (Position 149 24)) (ObjType4  (Position 9 104)) (ObjType4  (Position 99 194)) (ObjType4  (Position 69 214)) (ObjType4  (Position 149 204)) (ObjType4  (Position 239 204)) (ObjType4  (Position 9 94)) (ObjType4  (Position 209 4)) (ObjType4  (Position 9 14)) (ObjType4  (Position 69 34)) (ObjType4  (Position 79 194)) (ObjType4  (Position 69 44)) (ObjType4  (Position 139 44)) (ObjType4  (Position 159 34)) (ObjType4  (Position 199 34)) (ObjType4  (Position 139 54)) (ObjType4  (Position 9 154)) (ObjType4  (Position 239 44)) (ObjType4  (Position 119 214)) (ObjType4  (Position 49 14)) (ObjType4  (Position 229 24)) (ObjType4  (Position 139 194)) (ObjType4  (Position 19 24)) (ObjType4  (Position 149 14)) (ObjType4  (Position 199 14)) (ObjType4  (Position 9 134)) (ObjType4  (Position 159 204)) (ObjType4  (Position 239 84)) (ObjType4  (Position 79 14)) (ObjType4  (Position 109 44)) (ObjType4  (Position 9 144)) (ObjType4  (Position 9 124)) (ObjType4  (Position 209 14)) (ObjType4  (Position 19 54)) (ObjType4  (Position 129 4)) (ObjType4  (Position 239 34)) (ObjType4  (Position 49 194)) (ObjType4  (Position 239 184)) (ObjType4  (Position 9 54)) (ObjType4  (Position 219 194)) (ObjType4  (Position 219 24)) (ObjType4  (Position 199 4)) (ObjType4  (Position 9 194)) (ObjType4  (Position 169 214)) (ObjType4  (Position 39 24)) (ObjType4  (Position 49 24)) (ObjType4  (Position 9 44)) (ObjType4  (Position 79 204)) (ObjType4  (Position 149 54)) (ObjType4  (Position 39 34)) (ObjType4  (Position 189 44)) (ObjType4  (Position 99 54)) (ObjType4  (Position 39 4)) (ObjType4  (Position 89 204)) (ObjType4  (Position 119 194)) (ObjType4  (Position 9 64)) (ObjType4  (Position 129 214)) (ObjType4  (Position 209 204)) (ObjType4  (Position 179 44)) (ObjType4  (Position 159 214)) (ObjType4  (Position 29 24)) (ObjType4  (Position 159 24)) (ObjType4  (Position 169 204)) (ObjType4  (Position 179 54)) (ObjType4  (Position 179 24)) (ObjType4  (Position 99 34)) (ObjType4  (Position 79 34)) (ObjType4  (Position 59 194)) (ObjType4  (Position 39 214)) (ObjType4  (Position 239 214)) (ObjType4  (Position 119 14)) (ObjType4  (Position 189 4)) (ObjType4  (Position 109 194)) (ObjType4  (Position 29 204)) (ObjType4  (Position 129 204)) (ObjType4  (Position 189 34)) (ObjType4  (Position 79 24)) (ObjType4  (Position 209 24)) (ObjType4  (Position 19 34)) (ObjType4  (Position 229 204)) (ObjType4  (Position 119 204)) (ObjType4  (Position 59 4)) (ObjType4  (Position 59 44)) (ObjType4  (Position 229 54)) (ObjType4  (Position 99 4)) (ObjType4  (Position 169 194)) (ObjType4  (Position 139 4)) (ObjType4  (Position 9 24)) (ObjType4  (Position 109 204)) (ObjType4  (Position 39 14)) (ObjType4  (Position 159 14)) (ObjType4  (Position 119 34)) (ObjType4  (Position 229 4)) (ObjType4  (Position 189 24)) (ObjType4  (Position 189 204)) (ObjType4  (Position 59 34)) (ObjType4  (Position 9 204)) (ObjType4  (Position 69 4)) (ObjType4  (Position 149 4)) (ObjType4  (Position 179 34)) (ObjType4  (Position 149 34)) (ObjType4  (Position 69 54)) (ObjType4  (Position 19 204)) (ObjType4  (Position 229 194)) (ObjType4  (Position 239 114)) (ObjType4  (Position 109 24)) (ObjType4  (Position 209 34)) (ObjType4  (Position 29 214)) (ObjType4  (Position 239 64)) (ObjType4  (Position 119 24)) (ObjType4  (Position 189 54)) (ObjType4  (Position 129 194)) (ObjType4  (Position 239 54)) (ObjType4  (Position 239 134)) (ObjType4  (Position 239 164)) (ObjType4  (Position 159 44)) (ObjType4  (Position 179 14)) (ObjType4  (Position 239 144)) (ObjType4  (Position 239 154)) (ObjType4  (Position 239 24)) (ObjType4  (Position 139 34)) (ObjType4  (Position 79 54)) (ObjType4  (Position 229 214)) (ObjType4  (Position 79 4)) (ObjType4  (Position 69 14)) (ObjType4  (Position 179 204)) (ObjType4  (Position 199 44)) (ObjType4  (Position 49 214)) (ObjType4  (Position 99 214)) (ObjType4  (Position 89 194)) (ObjType4  (Position 139 204)) (ObjType4  (Position 9 184)) (ObjType4  (Position 139 24)) (ObjType4  (Position 29 194)) (ObjType4  (Position 49 4)) (ObjType4  (Position 149 194)) (ObjType4  (Position 69 194)) (ObjType4  (Position 49 204)) (ObjType4  (Position 219 214)) (ObjType4  (Position 99 44)) (ObjType4  (Position 29 54)) (ObjType4  (Position 19 194)) (ObjType4  (Position 219 14)) (ObjType4  (Position 9 114)) (ObjType4  (Position 179 194)) (ObjType4  (Position 39 54)) (ObjType4  (Position 239 94)) (ObjType4  (Position 89 4)) (ObjType4  (Position 119 54)) (ObjType4  (Position 69 204)) (ObjType4  (Position 209 194)) (ObjType4  (Position 109 214)) (ObjType4  (Position 189 14)) (ObjType4  (Position 139 14)) (ObjType4  (Position 189 214)) (ObjType4  (Position 119 44)) (ObjType4  (Position 199 24)) (ObjType4  (Position 99 204)) (ObjType4  (Position 19 14)) (ObjType4  (Position 239 124)) (ObjType4  (Position 9 4)) (ObjType4  (Position 9 174)) (ObjType4  (Position 119 4)) (ObjType4  (Position 9 34)) (ObjType4  (Position 239 174)) (ObjType4  (Position 189 194)) (ObjType4  (Position 149 44)) (ObjType4  (Position 79 44)) (ObjType4  (Position 29 34)) (ObjType4  (Position 139 214)) (ObjType4  (Position 59 214)) (ObjType4  (Position 199 194)) (ObjType4  (Position 159 4)) (ObjType4  (Position 59 204)) (ObjType4  (Position 9 164)) (ObjType4  (Position 39 194)) (ObjType4  (Position 59 24)) (ObjType4  (Position 29 4)) (ObjType4  (Position 179 214)) (ObjType4  (Position 239 74)) (ObjType4  (Position 109 4)) (ObjType4  (Position 179 4)) (ObjType4  (Position 49 34)) (ObjType4  (Position 99 14)) (ObjType4  (Position 59 54)) (ObjType4  (Position 239 104)) (ObjType4  (Position 89 214)) (ObjType4  (Position 209 214)) (ObjType4  (Position 79 214)) (ObjType4  (Position 69 24)) (ObjType4  (Position 39 204)) (ObjType4  (Position 19 214)) (ObjType4  (Position 229 34)) (ObjType4  (Position 109 34)) (ObjType4  (Position 9 84)) (ObjType4  (Position 19 4)) (ObjType4  (Position 199 204)) (ObjType4  (Position 159 54))) (prev addedObjType4List)))
+  (= addedObjType5List (initnext (list (ObjType5  (Position 89 184)) (ObjType5  (Position 49 184)) (ObjType5  (Position 169 184)) (ObjType5  (Position 129 184)) (ObjType5  (Position 209 184))) (prev addedObjType5List)))
+  
+  (= addedObjType2List (initnext (list) (prev addedObjType2List)))
+  (= addedObjType6List (initnext (list) (prev addedObjType6List)))
+  (= addedObjType7List (initnext (list) (prev addedObjType7List)))
+
+	 (: globalVar1 Int)
+	 (= globalVar1 (initnext 3 (prev globalVar1)))
+
+  (: arrow Position)
+  (= arrow (initnext (Position 0 0) (prev arrow)))
+  (on true
+(= arrow (if left then (Position -10 0) else (if right then (Position 10 0) else (if up then (Position 0 -10) else (if down then (Position 0 10) else (Position 0 0)))))))
+
+  (: time Int)
+  (= time (initnext 0 (+ time 1)))
+
+  (on (!= arrow (Position 0 0))
+(= obj6 (moveNoCollisionColor (prev obj6) (.. arrow x) (.. arrow y) "darkgray")))
+  (on true
+(= addedObjType3List (updateObj addedObjType3List (--> obj (moveNoCollisionColor (prev obj) (closestRandom (prev obj) (list ObjType5) 10) "darkgray")) (--> obj (& true (== (.. obj field1) 1))))))
+  (on true
+(= addedObjType3List (removeObj addedObjType3List (--> obj (| (in 1 (map (--> obj (.. obj field1)) (filter (--> obj (intersects (move (prev obj) 0 10) (prev addedObjType5List))) (list (prev obj))))) (in 5 (map (--> obj (.. obj field1)) (filter (--> obj (intersects (move (prev obj) 0 10) (prev addedObjType6List))) (list (prev obj))))))))))
+  (on true
+(= addedObjType5List (removeObj addedObjType5List (--> obj (adj (list (prev obj)) (filter (--> obj2 (== (.. obj2 field1) 1)) (prev addedObjType3List)) 10)))))
+  (on true
+(= addedObjType6List (updateObj addedObjType6List (--> obj (moveNoCollisionColor (prev obj) 0 -10 "darkgray")) (--> obj (& true (== (.. obj field1) 2))))))
+  (on true
+(= addedObjType6List (updateObj addedObjType6List (--> obj (moveNoCollisionColor (prev obj) -10 0 "darkgray")) (--> obj (& true (== (.. obj field1) 1))))))
+  (on true
+(= addedObjType6List (updateObj addedObjType6List (--> obj (moveNoCollisionColor (prev obj) 10 0 "darkgray")) (--> obj (& true (== (.. obj field1) 4))))))
+  (on true
+(= addedObjType6List (removeObj addedObjType6List (--> obj (| (intersects (map (--> obj (move (prev obj) 20 0)) (list (prev obj))) (prev addedObjType5List)) (| (| (in true (map (--> obj (isOutsideBounds obj)) (map (--> obj (move (prev obj) -20 0)) (list (prev obj))))) (in false (map (--> obj (isWithinBounds obj)) (map (--> obj (move (prev obj) 20 0)) (list (prev obj)))))) (| (in 5 (map (--> obj (.. obj field1)) (filter (--> obj (intersects (move (prev obj) 0 10) (list (prev obj)))) (prev addedObjType3List)))) (in false (map (--> obj (isFree (.. obj origin) obj)) (map (--> obj (move (prev obj) 0 0)) (list (prev obj))))))))))))
+  (on true
+(= addedObjType6List (updateObj addedObjType6List (--> obj (moveNoCollisionColor (prev obj) 0 10 "darkgray")) (--> obj (& true (== (.. obj field1) 3))))))
+  (on (== (uniformChoice (list 1 2 3 4 5 6 7 8 9 10)) 1)
+(= addedObjType1List (removeObj addedObjType1List (uniformChoice (prev addedObjType1List)))))
+  (on left
+(= globalVar1 1))
+  (on right
+(= globalVar1 2))
+  (on down
+(= globalVar1 4))
+  (on up
+(= globalVar1 3))
+  (on true
+(= addedObjType3List (updateObj addedObjType3List (--> obj (updateObj obj "field1" 10)) (--> obj (& true (intersects (list 11) (map (--> obj (.. obj field1)) (list (prev obj)))))) )))
+  (on true
+(= addedObjType3List (updateObj addedObjType3List (--> obj (updateObj obj "field1" 9)) (--> obj (& true (intersects (list 10) (map (--> obj (.. obj field1)) (list (prev obj)))))) )))
+  (on true
+(= addedObjType3List (updateObj addedObjType3List (--> obj (updateObj obj "field1" 8)) (--> obj (& true (intersects (list 9) (map (--> obj (.. obj field1)) (list (prev obj)))))) )))
+  (on true
+(= addedObjType3List (updateObj addedObjType3List (--> obj (updateObj obj "field1" 7)) (--> obj (& true (intersects (list 8) (map (--> obj (.. obj field1)) (list (prev obj)))))) )))
+  (on true
+(= addedObjType3List (updateObj addedObjType3List (--> obj (updateObj obj "field1" 6)) (--> obj (& true (intersects (list 7) (map (--> obj (.. obj field1)) (list (prev obj)))))) )))
+  (on true
+(= addedObjType3List (updateObj addedObjType3List (--> obj (updateObj obj "field1" 5)) (--> obj (& true (intersects (list 6) (map (--> obj (.. obj field1)) (list (prev obj)))))) )))
+  (on true
+(= addedObjType3List (updateObj addedObjType3List (--> obj (updateObj obj "field1" 4)) (--> obj (& true (intersects (list 5) (map (--> obj (.. obj field1)) (list (prev obj)))))) )))
+  (on true
+(= addedObjType3List (updateObj addedObjType3List (--> obj (updateObj obj "field1" 3)) (--> obj (& true (intersects (list 4) (map (--> obj (.. obj field1)) (list (prev obj)))))) )))
+  (on true
+(= addedObjType3List (updateObj addedObjType3List (--> obj (updateObj obj "field1" 2)) (--> obj (& true (intersects (list 3) (map (--> obj (.. obj field1)) (list (prev obj)))))) )))
+  (on true
+(= addedObjType3List (updateObj addedObjType3List (--> obj (updateObj obj "field1" 1)) (--> obj (& true (intersects (list 2) (map (--> obj (.. obj field1)) (list (prev obj)))))) )))
+  (on true
+(= addedObjType3List (updateObj addedObjType3List (--> obj (updateObj obj "field1" 10)) (--> obj (& true (intersects (list 1) (map (--> obj (.. obj field1)) (list (prev obj)))))) )))
+  (on true
+(= addedObjType6List (updateObj addedObjType6List (--> obj (updateObj obj "field1" 1)) (--> obj (intersects (move (prev obj6) -10 0) (list (prev obj)))) )))
+  (on true
+(= addedObjType6List (updateObj addedObjType6List (--> obj (updateObj obj "field1" 3)) (--> obj (intersects (move (prev obj6) 0 10) (list (prev obj)))) )))
+  (on true
+(= addedObjType6List (updateObj addedObjType6List (--> obj (updateObj obj "field1" 2)) (--> obj (intersects (move (prev obj6) 0 -10) (list (prev obj)))) )))
+  (on true
+(= addedObjType6List (updateObj addedObjType6List (--> obj (updateObj obj "field1" 4)) (--> obj (intersects (move (prev obj6) 10 0) (list (prev obj)))) )))
+  (on (isOutsideBounds (move (prev obj6) 0 0))
+(let ((= addedObjType7List (addObj addedObjType7List (ObjType7  (firstWithDefault (map (--> obj (.. obj origin)) (filter (--> obj (<= (distance (prev obj) (prev addedObjType3List)) 20)) (prev addedObjType5List))))))))))
+  (on (& (& (== (% (prev time) 8) 7) (!= (prev addedObjType1List) (list))) (== (uniformChoice (list 1 2 3 4 5 6 7 8 9 10)) 1))
+(let ((= addedObjType3List (addObj addedObjType3List (ObjType3 11  (.. (uniformChoice (vcat (prev addedObjType1List) (prev addedObjType1List) (prev addedObjType1List) (prev addedObjType1List) (prev addedObjType1List) (prev addedObjType1List))) origin)))) (= addedObjType1List (removeObj addedObjType1List (uniformChoice (prev addedObjType1List)))))))
+  (on (& (== (prev globalVar1) 3) clicked)
+(= addedObjType6List (addObj addedObjType6List (ObjType6 5  (move (.. (prev obj6) origin) (Position 0 -10))))))
+  (on (& (== (prev globalVar1) 1) clicked)
+(= addedObjType6List (addObj addedObjType6List (ObjType6 5  (move (.. (prev obj6) origin) (Position -10 0))))))
+  (on (& (== (prev globalVar1) 2) clicked)
+(= addedObjType6List (addObj addedObjType6List (ObjType6 5  (move (.. (prev obj6) origin) (Position 10 0))))))
+  (on (| (& (== (% (prev time) 10) 9) clicked) (& clicked (<= (distance (prev obj6) (prev addedObjType5List)) 20)))
+(= addedObjType6List (addObj addedObjType6List (ObjType6 5  (move (.. (prev obj6) origin) (Position 0 10)))))))
