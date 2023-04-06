@@ -7,7 +7,17 @@ iteration = ARGS[4]
 
 println("CURRENTLY WORKING ON $(model_name)")
 
-directory_name = "APRIL_FINAL_RESULTS/$(curr_date)"
+directory_name = "scratch"
+if !isdir(directory_name)
+  mkdir(directory_name)
+end
+
+directory_name = "scratch/APRIL_FINAL_RESULTS"
+if !isdir(directory_name)
+  mkdir(directory_name)
+end
+
+directory_name = "scratch/APRIL_FINAL_RESULTS/$(curr_date)"
 if !isdir(directory_name)
   mkdir(directory_name)
 end
@@ -32,6 +42,12 @@ end
 
 # write final program string to program_strings text file 
 open("$(alg_subdirectory_name)/program_strings.txt", "a") do io 
+  println(io, join(x.value, "\n\n\n\n"))
+  println(io, "\n\n\n\n")
+end
+
+# write final program string to program_strings text file 
+open("evaluation/cisc/output/$(model_name).txt", "a") do io 
   println(io, join(x.value, "\n\n\n\n"))
   println(io, "\n\n\n\n")
 end

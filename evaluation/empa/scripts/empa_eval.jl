@@ -5,8 +5,17 @@ algorithm = ARGS[2]
 curr_date = ARGS[3]
 iteration = ARGS[4]
 
+directory_name = "scratch"
+if !isdir(directory_name)
+  mkdir(directory_name)
+end
 
-directory_name = "NEW_PEDRO_FINAL_RESULTS/$(curr_date)"
+directory_name = "scratch/NEW_PEDRO_FINAL_RESULTS/"
+if !isdir(directory_name)
+  mkdir(directory_name)
+end
+
+directory_name = "scratch/NEW_PEDRO_FINAL_RESULTS/$(curr_date)"
 if !isdir(directory_name)
   mkdir(directory_name)
 end
@@ -81,12 +90,9 @@ x = @timed begin
     end
   end
 
-  results_directory = "NEW_NEW_OOH2_TRACES_october_final_results_bulk/$(model_name)"
-  if !isdir(results_directory)
-      mkdir(results_directory)
-  end
+  results_directory = "evaluation/empa/output"
 
-  open("$(results_directory)/output_program.txt", "w+") do io
+  open("$(results_directory)/$(model_name).txt", "w+") do io
     println(io, join(program_strings, "\n"))
   end
 
