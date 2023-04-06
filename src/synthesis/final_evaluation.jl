@@ -1,5 +1,7 @@
 import Pkg; Pkg.add("Pickle")
 using Autumn
+using JLD 
+using Dates
 include("test_synthesis.jl")
 
 function run_multi_trace(model_name, singlecell=false, pedro=false; indices=[])
@@ -36,10 +38,20 @@ function run_multi_trace(model_name, singlecell=false, pedro=false; indices=[])
 end
 
 
-function run_model(model_name::String, algorithm, iteration, desired_per_matrix_solution_count, desired_solution_count; multi_trace=false, indices=[], observations_tup=[])
+function run_model(model_name::String, algorithm, iteration=1, desired_per_matrix_solution_count=1, desired_solution_count=1; multi_trace=false, indices=[], observations_tup=[])
   run_id = string(model_name, "_", algorithm, "_", iteration)
   # build desired directory structure
   date_string = Dates.format(Dates.now(), "yyyy-mm-dd HH:MM:SS")
+
+  directory_name = string("./scratch")
+  if !isdir(directory_name)
+    mkdir(directory_name)
+  end
+
+  directory_name = string("scratch/heuristic_final_results")
+  if !isdir(directory_name)
+    mkdir(directory_name)
+  end
 
   directory_name = string("scratch/heuristic_final_results/results_$(date_string)")
   if !isdir(directory_name)
