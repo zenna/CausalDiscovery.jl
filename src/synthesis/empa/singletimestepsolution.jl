@@ -4650,53 +4650,6 @@ for event in events_to_try
 end
 """
 
-function z3_event_search_partial(observed_data_dict, event_vector_dict, timeout=0)
-  # # # println("Z3_EVENT_SEARCH_PARTIAL")
-  Pickle.store("./observed_data_dict.pkl", observed_data_dict)
-  Pickle.store("./event_vector_dict.pkl", event_vector_dict)
-  # # @show observed_data_dict 
-  # # @show event_vector_dict
-
-  # activate autumn environment containing z3
-  # command = "conda activate autumn"
-  # output = readchomp(eval(Meta.parse("`$(command)`")))
-  event = ""
-  # run python command for z3 event search 
-  for option in [1, 2]
-    if timeout == 0 
-      command = "python3 src/synthesis/empa/z3_event_search.py $(option)"
-    else
-      if Sys.islinux() 
-        command = "gtimeout $(timeout) python3 src/synthesis/empa/z3_event_search.py $(option)"
-      else
-        command = "timeout $(timeout) python3 src/synthesis/empa/z3_event_search.py $(option)"
-      end
-    end
-    z3_output = try 
-                  readchomp(eval(Meta.parse("`$(command)`")))
-                catch e 
-                  ""
-                end
-
-    # parse output 
-    if z3_output != "" 
-      lines = split(z3_output, "\n")
-      if lines[1] == "sat"
-        event_1 = lines[3]
-        event_2 = lines[4]
-        # check which of four possible event combinations matches observed_data_dict 
-        if option == 1
-          event = "(& $(event_1) $(event_2))"
-        elseif option == 2 
-          event = "(| $(event_1) $(event_2))"
-        end
-        break
-      end
-    end
-  end
-  event
-end
-
 function z3_event_search_full(run_id, observed_data_dict, event_vector_dict, redundant_events_set, partial=false, timeout=0)
   println("Z3_EVENT_SEARCH_FULL")
   @show length(collect(keys(event_vector_dict)))
