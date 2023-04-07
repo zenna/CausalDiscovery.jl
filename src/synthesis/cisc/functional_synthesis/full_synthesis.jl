@@ -1,105 +1,7 @@
 include("singletimestepsolution.jl");
-include("heuristic_automata_synthesis.jl")
-include("sketch_automata_synthesis.jl")
-include("sketch_multi_automata_synthesis.jl")
-function workshop_evaluation() 
-  sols = synthesize_program("wind", singlecell=false, interval_painting_param=true, upd_func_spaces=[1])
-  sols = synthesize_program("disease", singlecell=false, upd_func_spaces=[2]) # remove lines 515, 516, 518, 519
-  sols = synthesize_program("particles", singlecell=true, upd_func_spaces=[1])
-  sols = synthesize_program("chase", singlecell=true, upd_func_spaces=[5])
-  sols = synthesize_program("lights", singlecell=true, upd_func_spaces=[5])
-  sols = synthesize_program("ants", singlecell=true, desired_solution_count=2, upd_func_spaces=[5]) # take second solution (random)
-  sols = synthesize_program("ice", singlecell=false, desired_solution_count=1, upd_func_spaces=[3]) # remove "(== (% (prev time) 4) 2)"
-  sols = synthesize_program("space_invaders", singlecell=true, upd_func_spaces=[1]) # no bullet intersection in obs. seq.
-  sols = synthesize_program("mario", singlecell=false, desired_per_matrix_solution_count=5, upd_func_spaces=[4]) # first out of 4 sols
-  sols = synthesize_program("paint", singlecell=false, desired_solution_count=1, upd_func_spaces=[1])
-  sols = synthesize_program("water_plug", singlecell=true, desired_solution_count=1, upd_func_spaces=[1]) # add "|"-based transition events to event space
-  sols = synthesize_program("sokoban_i", singlecell=true, desired_solution_count=1, upd_func_spaces=[1])
-  sols = synthesize_program("magnets_i", singlecell=false, desired_solution_count=1, upd_func_spaces=[1])
-  sols = synthesize_program("gravity_i", singlecell=false, desired_solution_count=1, upd_func_spaces=[2])
-  sols = synthesize_program("gravity_ii", singlecell=false, desired_solution_count=1, upd_func_spaces=[2]) # add special case, remove line 477 + single.jl line 1929 
-  # grow: not including
-end
-
-# sols = synthesize_program("wind", singlecell=false, interval_painting_param=true, upd_func_spaces=[1])
-# sols = synthesize_program("disease", singlecell=false, upd_func_spaces=[2]) # remove lines 515, 516, 518, 519
-# sols = synthesize_program("particles", singlecell=true, upd_func_spaces=[1])
-# sols = synthesize_program("chase", singlecell=true, upd_func_spaces=[5]) # TIME-BASED
-# sols = synthesize_program("lights", singlecell=true, upd_func_spaces=[5])
-# sols = synthesize_program("ants", singlecell=true, desired_solution_count=2, upd_func_spaces=[5]) # take second solution (random)
-# sols = synthesize_program("ice", singlecell=false, desired_solution_count=1, upd_func_spaces=[3]) # remove "(== (% (prev time) 4) 2)"
-# sols = synthesize_program("space_invaders", singlecell=true, upd_func_spaces=[1]) YAY # TIME-BASED
-# sols = synthesize_program("mario", singlecell=false, desired_per_matrix_solution_count=5, upd_func_spaces=[4]) # first out of 4 sols
-# sols = synthesize_program("paint", singlecell=false, desired_solution_count=1, upd_func_spaces=[1])
-# sols = synthesize_program("water_plug", singlecell=true, desired_solution_count=1, upd_func_spaces=[6]) # add "|"-based transition events to event space
-# sols = synthesize_program("sokoban_i", singlecell=true, desired_solution_count=1, upd_func_spaces=[1]) 
-# sols = synthesize_program("magnets_i", singlecell=false, desired_solution_count=1, upd_func_spaces=[1]) YAY
-# sols = synthesize_program("gravity_i", singlecell=false, desired_solution_count=1, upd_func_spaces=[2])
-# sols = synthesize_program("gravity_ii", singlecell=false, desired_solution_count=1, upd_func_spaces=[2]) # add special case
-
-
-function conf_evaluation() 
-  # for upd_func_space in [1,2,3,4,5,6]
-  #   sols = synthesize_program("wind", singlecell=false, interval_painting_param=true, upd_func_spaces=[upd_func_space], time_based=true)
-  # end
-
-  # for upd_func_space in [1,2,3,4,5,6]
-  #   sols = synthesize_program("disease", singlecell=false, upd_func_spaces=[upd_func_space]) # remove lines 515, 516, 518, 519
-  # end
-
-  # for upd_func_space in [1,2,3,4,5,6]
-  #   sols = synthesize_program("particles", singlecell=true, upd_func_spaces=[upd_func_space])
-  # end
-
-  for upd_func_space in [1,2,3,4,5,6]
-    sols = synthesize_program("chase", singlecell=true, upd_func_spaces=[upd_func_space], time_based=true) # TIME-BASED
-  end
-
-  for upd_func_space in [1,2,3,4,5,6]
-    sols = synthesize_program("lights", singlecell=true, upd_func_spaces=[upd_func_space])
-  end
-
-  for upd_func_space in [1,2,3,4,5,6]
-    sols = synthesize_program("ants", singlecell=true, desired_solution_count=2, upd_func_spaces=[upd_func_space]) # take second solution (random)
-  end
-
-  for upd_func_space in [1,2,3,4,5,6]
-    sols = synthesize_program("ice", singlecell=false, desired_solution_count=1, upd_func_spaces=[upd_func_space]) # remove "(== (% (prev time) 4) 2)"
-  end
-
-  for upd_func_space in [1,2,3,4,5,6]
-    sols = synthesize_program("space_invaders", singlecell=true, upd_func_spaces=[upd_func_space], time_based=true) # YAY # TIME-BASED
-  end
-
-  for upd_func_space in [1,2,3,4,5,6]
-    sols = synthesize_program("mario", singlecell=false, desired_per_matrix_solution_count=5, upd_func_spaces=[upd_func_space]) # first out of 4 sols
-  end
-
-  for upd_func_space in [1,2,3,4,5,6]
-    sols = synthesize_program("paint", singlecell=false, desired_solution_count=1, upd_func_spaces=[upd_func_space])
-  end
-
-  # for upd_func_space in [1,2,3,4,5,6]
-  #   sols = synthesize_program("water_plug", singlecell=true, desired_solution_count=1, upd_func_spaces=[upd_func_space]) # add "|"-based transition events to event space
-  # end
-
-  for upd_func_space in [1,2,3,4,5,6]
-    sols = synthesize_program("sokoban_i", singlecell=true, desired_solution_count=1, upd_func_spaces=[upd_func_space]) 
-  end
-
-  for upd_func_space in [1,2,3,4,5,6]
-    sols = synthesize_program("magnets_i", singlecell=false, desired_solution_count=1, upd_func_spaces=[upd_func_space]) # YAY
-  end
-
-  for upd_func_space in [1,2,3,4,5,6]
-    sols = synthesize_program("gravity_i", singlecell=false, desired_solution_count=1, upd_func_spaces=[upd_func_space])
-  end
-
-  for upd_func_space in [1,2,3,4,5,6]
-    sols = synthesize_program("gravity_ii", singlecell=false, desired_solution_count=1, upd_func_spaces=[upd_func_space]) # add special case
-  end
-
-end
+include("../automata_synthesis/heuristic_automata_synthesis.jl")
+include("../automata_synthesis/sketch_automata_synthesis.jl")
+include("../automata_synthesis/sketch_multi_automata_synthesis.jl")
 
 function synthesize_program_given_decomp(run_id, random, decomp, observation_tuple, global_event_vector_dict, redundant_events_set; 
                                           pedro = false,
@@ -155,7 +57,6 @@ function synthesize_program_given_decomp(run_id, random, decomp, observation_tup
   end
   program_strings                              
 end
-
 
 function synthesize_program(model_name::String; 
                             singlecell = false,
@@ -241,12 +142,6 @@ function synthesize_program(model_name::String;
 
   program_strings
 end
-
-function synthesis_program_pedro(observations::AbstractArray)
-
-end
-
-
 
 function generate_observations(model_name::String)
   if occursin(":", model_name)

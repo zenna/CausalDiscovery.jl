@@ -1,4 +1,5 @@
-include("../test_synthesis.jl")
+using JLD 
+using Dates
 using Statistics 
 
 results_folders = readdir("FINAL_RESULTS")

@@ -2,7 +2,7 @@ import Pkg; Pkg.add("Pickle")
 using Autumn
 using JLD 
 using Dates
-include("test_synthesis.jl")
+include("functional_synthesis/full_synthesis.jl")
 
 function run_multi_trace(model_name, singlecell=false, pedro=false; indices=[])
   model_folders = readdir("multi_trace_data")

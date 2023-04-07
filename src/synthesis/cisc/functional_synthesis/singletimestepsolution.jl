@@ -4,9 +4,9 @@ using StatsBase
 using Random
 using Pickle
 include("generativemodel.jl")
-include("state_construction_utils.jl")
+include("../automata_synthesis/state_construction_utils.jl")
 include("construct_observation_data.jl")
-include("multi_trace_synthesis.jl")
+include("multi_trace_perception.jl")
 
 displacement_dict = Dict((0, 0) => "(= objX objX)", 
                          (0, 1) => "(= objX (moveDown objX))", 
@@ -2429,12 +2429,12 @@ function z3_event_search_full(run_id, observed_data_dict, event_vector_dict, red
   for option in options
     shortest_length = 0
     if timeout == 0 
-      command = "python3 src/synthesis/cisc/z3_event_search_full.py $(option) $(run_id) $(shortest_length)"
+      command = "python3 src/synthesis/cisc/functional_synthesis/z3_event_search_full.py $(option) $(run_id) $(shortest_length)"
     else
       if Sys.islinux() 
-        command = "gtimeout $(timeout) python3 src/synthesis/cisc/z3_event_search_full.py $(option) $(run_id) $(shortest_length)"
+        command = "gtimeout $(timeout) python3 src/synthesis/cisc/functional_synthesis/z3_event_search_full.py $(option) $(run_id) $(shortest_length)"
       else
-        command = "timeout $(timeout) python3 src/synthesis/cisc/z3_event_search_full.py $(option) $(run_id) $(shortest_length)"
+        command = "timeout $(timeout) python3 src/synthesis/cisc/functional_synthesis/z3_event_search_full.py $(option) $(run_id) $(shortest_length)"
       end
     end
     z3_output = try 
@@ -2514,12 +2514,12 @@ function z3_event_search_full(run_id, observed_data_dict, event_vector_dict, red
 
       # re-run Z3 search with shortest length, for all options > 2
       if timeout == 0 
-        command = "python3 src/synthesis/cisc/z3_event_search_full.py $(option) $(run_id) $(shortest_length)"
+        command = "python3 src/synthesis/cisc/functional_synthesis/z3_event_search_full.py $(option) $(run_id) $(shortest_length)"
       else
         if Sys.islinux() 
-          command = "gtimeout $(timeout) python3 src/synthesis/cisc/z3_event_search_full.py $(option) $(run_id) $(shortest_length)"
+          command = "gtimeout $(timeout) python3 src/synthesis/cisc/functional_synthesis/z3_event_search_full.py $(option) $(run_id) $(shortest_length)"
         else
-          command = "timeout $(timeout) python3 src/synthesis/cisc/z3_event_search_full.py $(option) $(run_id) $(shortest_length)"
+          command = "timeout $(timeout) python3 src/synthesis/cisc/functional_synthesis/z3_event_search_full.py $(option) $(run_id) $(shortest_length)"
         end
       end
       z3_output = try 
