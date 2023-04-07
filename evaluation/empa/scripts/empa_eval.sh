@@ -1,7 +1,7 @@
 #!/bin/bash
 
 curr_date=$(date '+%Y-%m-%d_%H:%M:%S')
-algorithms=("sketch_single")
+# algorithms=("sketch_single")
 algorithms=("heuristic")
 num_repeats=1
 
@@ -76,6 +76,7 @@ model_names=("Antagonist"
 #             "Lemmings_small"
 #	     "PlaqueAttack"
 #	     "Survivezombies")
+# model_names=("Bait")
 for (( i = 1 ; i <= $num_repeats; i++ )) ### Inner for loop ###
 do
   for algorithm in ${algorithms[@]}
@@ -83,7 +84,7 @@ do
     for model_name in ${model_names[@]}
     do
       echo "model_name: $model_name, algorithm: $algorithm, repeat: $i "
-      nohup /scratch/riadas/julia-1.5.4/bin/julia --project=. evaluation/empa/scripts/empa_eval.jl $model_name $algorithm $curr_date $i > /dev/null &
+      nohup julia --project=. evaluation/empa/scripts/empa_eval.jl $model_name $algorithm $curr_date $i > deleteme_empa.out &
       sleep 60
     done  
   done

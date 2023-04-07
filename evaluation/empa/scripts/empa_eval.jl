@@ -33,15 +33,17 @@ end
 x = @timed begin
 
   if model_name == "Explore_Exploit"
-    pedro_interface_output_folder = "../data/traces_may7"
+    pedro_interface_output_folder = "evaluation/empa/data/traces_may7"
   elseif model_name in ["Helper2", "Lemmings_small_take3", "Lemmings_small_take4", "Watergame2", "Relational_end", "Lemmings_small_take2", "Lemmings_small", "closing_gates5", "Sokoban2", "Butterflies2", "Antagonist", "Bait", "closing_gates", "Helper", "Jaws", "Plaqueattack", "Relational", "Sokoban", "Watergame", "Lemmings2", "Lemmings"]
-    pedro_interface_output_folder = "../data/october_traces_new"
+    pedro_interface_output_folder = "evaluation/empa/data/october_traces_new"
   else
-    pedro_interface_output_folder = "../data/new_traces_fixed"
+    pedro_interface_output_folder = "evaluation/empa/data/new_traces_fixed"
   end
 
   # pedro_interface_output_folder = "/scratch/riadas/EMPA_Data_Collection_Interface/new_traces_fixed" # new_traces_fixed  traces_may7
   observations, user_events, grid_size = generate_observations_pedro_interface(model_name)
+
+  @show observations
 
   singlecell = true 
   pedro = true
@@ -85,14 +87,17 @@ x = @timed begin
       on_clauses, new_object_decomposition, global_var_dict = solution
       @show on_clauses
 
-      program = full_program_given_on_clauses(on_clauses, new_object_decomposition, global_var_dict, grid_size, matrix)
+      program = full_program_given_on_clauses(on_clauses, new_object_decomposition, global_var_dict, grid_size, matrix, user_events)
       push!(program_strings, program)
     end
   end
 
-  results_directory = "evaluation/empa/output"
+  results_directory = "evaluation/empa/output/$(model_name)"
+  if !isdir(results_directory)
+    mkdir(results_directory)
+  end
 
-  open("$(results_directory)/$(model_name).txt", "w+") do io
+  open("$(results_directory)/output.txt", "w+") do io
     println(io, join(program_strings, "\n"))
   end
 
