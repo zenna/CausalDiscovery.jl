@@ -1,0 +1,54 @@
+ 
+(program
+  (= GRID_SIZE (list 130 70))
+  (= background "white")
+  (object ObjType1  (map (--> pos (Cell pos  "darkgray" )) (rect (Position -9 -4) (Position 0 5))))
+  (object ObjType2  (map (--> pos (Cell pos  "mpuyei" )) (rect (Position -9 -4) (Position 0 5))))
+  (object ObjType3  (map (--> pos (Cell pos  "nuphkk" )) (rect (Position -9 -4) (Position 0 5))))
+  (object ObjType4  (map (--> pos (Cell pos  "red" )) (rect (Position -9 -4) (Position 0 5))))
+  (object ObjType5  (map (--> pos (Cell pos  "darkblue" )) (rect (Position -9 -4) (Position 0 5))))
+  (object ObjType6  (map (--> pos (Cell pos  "green" )) (rect (Position -9 -4) (Position 0 5))))
+  
+  (: addedObjType1List (List ObjType1))
+  (: addedObjType2List (List ObjType2))
+  (: obj42 ObjType3)
+  (: obj43 ObjType4)
+  (: obj44 ObjType5)
+  
+  (: addedObjType3List (List ObjType3))
+  (: addedObjType4List (List ObjType4))
+  (: addedObjType5List (List ObjType5))
+  (: addedObjType6List (List ObjType6))
+  
+  (= addedObjType1List (initnext (list (ObjType1  (Position 39 64)) (ObjType1  (Position 129 54)) (ObjType1  (Position 39 34)) (ObjType1  (Position 9 24)) (ObjType1  (Position 59 64)) (ObjType1  (Position 129 64)) (ObjType1  (Position 59 4)) (ObjType1  (Position 9 14)) (ObjType1  (Position 119 4)) (ObjType1  (Position 129 14)) (ObjType1  (Position 129 24)) (ObjType1  (Position 9 34)) (ObjType1  (Position 129 4)) (ObjType1  (Position 99 64)) (ObjType1  (Position 49 4)) (ObjType1  (Position 109 64)) (ObjType1  (Position 39 24)) (ObjType1  (Position 69 64)) (ObjType1  (Position 109 4)) (ObjType1  (Position 89 64)) (ObjType1  (Position 79 4)) (ObjType1  (Position 49 64)) (ObjType1  (Position 69 4)) (ObjType1  (Position 79 64)) (ObjType1  (Position 29 4)) (ObjType1  (Position 9 54)) (ObjType1  (Position 129 34)) (ObjType1  (Position 19 64)) (ObjType1  (Position 9 4)) (ObjType1  (Position 99 4)) (ObjType1  (Position 39 14)) (ObjType1  (Position 119 64)) (ObjType1  (Position 39 4)) (ObjType1  (Position 89 4)) (ObjType1  (Position 9 44)) (ObjType1  (Position 129 44)) (ObjType1  (Position 19 4)) (ObjType1  (Position 9 64)) (ObjType1  (Position 29 64))) (prev addedObjType1List)))
+  (= addedObjType2List (initnext (list (ObjType2  (Position 89 14)) (ObjType2  (Position 49 44))) (prev addedObjType2List)))
+  (= obj42 (initnext (ObjType3  (Position 79 34)) (prev obj42)))
+  (= obj43 (initnext (ObjType4  (Position 119 54)) (prev obj43)))
+  (= obj44 (initnext (ObjType5  (Position 19 14)) (prev obj44)))
+  
+  (= addedObjType3List (initnext (list) (prev addedObjType3List)))
+  (= addedObjType4List (initnext (list) (prev addedObjType4List)))
+  (= addedObjType5List (initnext (list) (prev addedObjType5List)))
+  (= addedObjType6List (initnext (list) (prev addedObjType6List)))
+
+
+  (: arrow Position)
+  (= arrow (initnext (Position 0 0) (prev arrow)))
+  (on true
+(= arrow (if left then (Position -10 0) else (if right then (Position 10 0) else (if up then (Position 0 -10) else (if down then (Position 0 10) else (Position 0 0)))))))
+
+  (: time Int)
+  (= time (initnext 0 (+ time 1)))
+
+  (on (moveIntersects arrow (prev obj44) (prev obj43))
+(= obj43 (removeObj (prev obj43))))
+  (on true
+(= addedObjType2List (removeObj addedObjType2List (--> obj (moveIntersects arrow (prev obj44) (list (prev obj)))))))
+  (on (!= arrow (Position 0 0))
+(= obj44 (moveNoCollisionColor (prev obj44) (.. arrow x) (.. arrow y) "darkgray")))
+  (on true
+(= addedObjType6List (updateObj addedObjType6List (--> obj (uniformChoice (list   (prev obj)  (moveNoCollisionColor (prev obj) 0 -6 "darkgray")  (moveNoCollisionColor (prev obj) -6 0 "darkgray")  (moveNoCollisionColor (prev obj) 6 0 "darkgray")  (moveNoCollisionColor (prev obj) 0 6 "darkgray"))))) (--> obj true)))
+  (on (& (& (.. (prev obj42) alive) (== (uniformChoice (list 1 2 3 4 5 6 7 8 9 10)) 1)) (<= (distance (prev obj42) (prev addedObjType6List)) 20))
+(let ((= addedObjType6List (addObj addedObjType6List (ObjType6  (Position 79 34)))) (= obj42 (removeObj (prev obj42))))))
+  (on (moveIntersects arrow (prev obj44) (prev addedObjType2List))
+(= addedObjType6List (addObj addedObjType6List (ObjType6  (move (.. (prev obj44) origin) (Position 10 0)))))))

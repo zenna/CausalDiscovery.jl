@@ -1,6 +1,6 @@
 # TEMP: DELETE LATER AFTER INTEGRATING WITH ABSTRACTION.JL
 
-include("../synthesis/full_synthesis.jl");
+include("../synthesis/cisc/full_synthesis.jl");
 include("abstraction_utils.jl")
 using Combinatorics
 
