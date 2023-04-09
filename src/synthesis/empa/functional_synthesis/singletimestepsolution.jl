@@ -4668,12 +4668,12 @@ function z3_event_search_full(run_id, observed_data_dict, event_vector_dict, red
   for option in options
     shortest_length = 0
     if timeout == 0 
-      command = "python3 src/synthesis/empa/z3_event_search_full.py $(option) $(run_id) $(shortest_length)"
+      command = "python3 src/synthesis/empa/functional_synthesis/z3_event_search_full.py $(option) $(run_id) $(shortest_length)"
     else
       if Sys.islinux() 
-        command = "gtimeout $(timeout) python3 src/synthesis/empa/z3_event_search_full.py $(option) $(run_id) $(shortest_length)"
+        command = "gtimeout $(timeout) python3 src/synthesis/empa/functional_synthesis/z3_event_search_full.py $(option) $(run_id) $(shortest_length)"
       else
-        command = "timeout $(timeout) python3 src/synthesis/empa/z3_event_search_full.py $(option) $(run_id) $(shortest_length)"
+        command = "timeout $(timeout) python3 src/synthesis/empa/functional_synthesis/z3_event_search_full.py $(option) $(run_id) $(shortest_length)"
       end
     end
     z3_output = try 
@@ -4765,12 +4765,12 @@ function z3_event_search_full(run_id, observed_data_dict, event_vector_dict, red
 
       # re-run Z3 search with shortest length, for all options > 2
       if timeout == 0 
-        command = "python3 src/synthesis/empa/z3_event_search_full.py $(option) $(run_id) $(shortest_length)"
+        command = "python3 src/synthesis/empa/functional_synthesis/z3_event_search_full.py $(option) $(run_id) $(shortest_length)"
       else
         if Sys.islinux() 
-          command = "gtimeout $(timeout) python3 src/synthesis/empa/z3_event_search_full.py $(option) $(run_id) $(shortest_length)"
+          command = "gtimeout $(timeout) python3 src/synthesis/empa/functional_synthesis/z3_event_search_full.py $(option) $(run_id) $(shortest_length)"
         else
-          command = "timeout $(timeout) python3 src/synthesis/empa/z3_event_search_full.py $(option) $(run_id) $(shortest_length)"
+          command = "timeout $(timeout) python3 src/synthesis/empa/functional_synthesis/z3_event_search_full.py $(option) $(run_id) $(shortest_length)"
         end
       end
       z3_output = try 
