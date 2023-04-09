@@ -1,107 +1,9 @@
 include("singletimestepsolution.jl");
-include("sketch_automata_synthesis.jl")
-include("sketch_multi_automata_synthesis.jl")
-include("global_heuristic_automata_synthesis.jl")
-function workshop_evaluation() 
-  sols = synthesize_program("wind", singlecell=false, interval_painting_param=true, upd_func_spaces=[1])
-  sols = synthesize_program("disease", singlecell=false, upd_func_spaces=[2]) # remove lines 515, 516, 518, 519
-  sols = synthesize_program("particles", singlecell=true, upd_func_spaces=[1])
-  sols = synthesize_program("chase", singlecell=true, upd_func_spaces=[5])
-  sols = synthesize_program("lights", singlecell=true, upd_func_spaces=[5])
-  sols = synthesize_program("ants", singlecell=true, desired_solution_count=2, upd_func_spaces=[5]) # take second solution (random)
-  sols = synthesize_program("ice", singlecell=false, desired_solution_count=1, upd_func_spaces=[3]) # remove "(== (% (prev time) 4) 2)"
-  sols = synthesize_program("space_invaders", singlecell=true, upd_func_spaces=[1]) # no bullet intersection in obs. seq.
-  sols = synthesize_program("mario", singlecell=false, desired_per_matrix_solution_count=5, upd_func_spaces=[4]) # first out of 4 sols
-  sols = synthesize_program("paint", singlecell=false, desired_solution_count=1, upd_func_spaces=[1])
-  sols = synthesize_program("water_plug", singlecell=true, desired_solution_count=1, upd_func_spaces=[1]) # add "|"-based transition events to event space
-  sols = synthesize_program("sokoban_i", singlecell=true, desired_solution_count=1, upd_func_spaces=[1])
-  sols = synthesize_program("magnets_i", singlecell=false, desired_solution_count=1, upd_func_spaces=[1])
-  sols = synthesize_program("gravity_i", singlecell=false, desired_solution_count=1, upd_func_spaces=[2])
-  sols = synthesize_program("gravity_ii", singlecell=false, desired_solution_count=1, upd_func_spaces=[2]) # add special case, remove line 477 + single.jl line 1929 
-  # grow: not including
-end
+include("../automata_synthesis/heuristic_automata_synthesis.jl")
+include("../automata_synthesis/sketch_automata_synthesis.jl")
+include("../automata_synthesis/sketch_multi_automata_synthesis.jl")
 
-# sols = synthesize_program("wind", singlecell=false, interval_painting_param=true, upd_func_spaces=[1])
-# sols = synthesize_program("disease", singlecell=false, upd_func_spaces=[2]) # remove lines 515, 516, 518, 519
-# sols = synthesize_program("particles", singlecell=true, upd_func_spaces=[1])
-# sols = synthesize_program("chase", singlecell=true, upd_func_spaces=[5]) # TIME-BASED
-# sols = synthesize_program("lights", singlecell=true, upd_func_spaces=[5])
-# sols = synthesize_program("ants", singlecell=true, desired_solution_count=2, upd_func_spaces=[5]) # take second solution (random)
-# sols = synthesize_program("ice", singlecell=false, desired_solution_count=1, upd_func_spaces=[3]) # remove "(== (% (prev time) 4) 2)"
-# sols = synthesize_program("space_invaders", singlecell=true, upd_func_spaces=[1]) YAY # TIME-BASED
-# sols = synthesize_program("mario", singlecell=false, desired_per_matrix_solution_count=5, upd_func_spaces=[4]) # first out of 4 sols
-# sols = synthesize_program("paint", singlecell=false, desired_solution_count=1, upd_func_spaces=[1])
-# sols = synthesize_program("water_plug", singlecell=true, desired_solution_count=1, upd_func_spaces=[6]) # add "|"-based transition events to event space
-# sols = synthesize_program("sokoban_i", singlecell=true, desired_solution_count=1, upd_func_spaces=[1]) 
-# sols = synthesize_program("magnets_i", singlecell=false, desired_solution_count=1, upd_func_spaces=[1]) YAY
-# sols = synthesize_program("gravity_i", singlecell=false, desired_solution_count=1, upd_func_spaces=[2])
-# sols = synthesize_program("gravity_ii", singlecell=false, desired_solution_count=1, upd_func_spaces=[2]) # add special case
-
-
-function conf_evaluation() 
-  # for upd_func_space in [1,2,3,4,5,6]
-  #   sols = synthesize_program("wind", singlecell=false, interval_painting_param=true, upd_func_spaces=[upd_func_space], time_based=true)
-  # end
-
-  # for upd_func_space in [1,2,3,4,5,6]
-  #   sols = synthesize_program("disease", singlecell=false, upd_func_spaces=[upd_func_space]) # remove lines 515, 516, 518, 519
-  # end
-
-  # for upd_func_space in [1,2,3,4,5,6]
-  #   sols = synthesize_program("particles", singlecell=true, upd_func_spaces=[upd_func_space])
-  # end
-
-  for upd_func_space in [1,2,3,4,5,6]
-    sols = synthesize_program("chase", singlecell=true, upd_func_spaces=[upd_func_space], time_based=true) # TIME-BASED
-  end
-
-  for upd_func_space in [1,2,3,4,5,6]
-    sols = synthesize_program("lights", singlecell=true, upd_func_spaces=[upd_func_space])
-  end
-
-  for upd_func_space in [1,2,3,4,5,6]
-    sols = synthesize_program("ants", singlecell=true, desired_solution_count=2, upd_func_spaces=[upd_func_space]) # take second solution (random)
-  end
-
-  for upd_func_space in [1,2,3,4,5,6]
-    sols = synthesize_program("ice", singlecell=false, desired_solution_count=1, upd_func_spaces=[upd_func_space]) # remove "(== (% (prev time) 4) 2)"
-  end
-
-  for upd_func_space in [1,2,3,4,5,6]
-    sols = synthesize_program("space_invaders", singlecell=true, upd_func_spaces=[upd_func_space], time_based=true) # YAY # TIME-BASED
-  end
-
-  for upd_func_space in [1,2,3,4,5,6]
-    sols = synthesize_program("mario", singlecell=false, desired_per_matrix_solution_count=5, upd_func_spaces=[upd_func_space]) # first out of 4 sols
-  end
-
-  for upd_func_space in [1,2,3,4,5,6]
-    sols = synthesize_program("paint", singlecell=false, desired_solution_count=1, upd_func_spaces=[upd_func_space])
-  end
-
-  # for upd_func_space in [1,2,3,4,5,6]
-  #   sols = synthesize_program("water_plug", singlecell=true, desired_solution_count=1, upd_func_spaces=[upd_func_space]) # add "|"-based transition events to event space
-  # end
-
-  for upd_func_space in [1,2,3,4,5,6]
-    sols = synthesize_program("sokoban_i", singlecell=true, desired_solution_count=1, upd_func_spaces=[upd_func_space]) 
-  end
-
-  for upd_func_space in [1,2,3,4,5,6]
-    sols = synthesize_program("magnets_i", singlecell=false, desired_solution_count=1, upd_func_spaces=[upd_func_space]) # YAY
-  end
-
-  for upd_func_space in [1,2,3,4,5,6]
-    sols = synthesize_program("gravity_i", singlecell=false, desired_solution_count=1, upd_func_spaces=[upd_func_space])
-  end
-
-  for upd_func_space in [1,2,3,4,5,6]
-    sols = synthesize_program("gravity_ii", singlecell=false, desired_solution_count=1, upd_func_spaces=[upd_func_space]) # add special case
-  end
-
-end
-
-function synthesize_program_given_decomp(decomp, observation_tuple, global_event_vector_dict, redundant_events_set; 
+function synthesize_program_given_decomp(run_id, random, decomp, observation_tuple, global_event_vector_dict, redundant_events_set; 
                                           pedro = false,
                                           desired_solution_count = 1, # 2
                                           desired_per_matrix_solution_count = 1, # 5
@@ -113,8 +15,9 @@ function synthesize_program_given_decomp(decomp, observation_tuple, global_event
                                           transition_param=false,
                                           algorithm="heuristic",
                                           sketch_timeout=0,
-                                          symmetry=false) 
+                                          stop_times=[]) 
 
+  @show run_id
   program_strings = []
 
   # reset global_event_vector_dict and redundant_events_set for each new context:
@@ -134,11 +37,11 @@ function synthesize_program_given_decomp(decomp, observation_tuple, global_event
   matrix, unformatted_matrix, object_decomposition, prev_used_rules = decomp                                        
 
   if algorithm == "heuristic"
-    solutions = generate_on_clauses_GLOBAL(matrix, unformatted_matrix, object_decomposition, user_events, global_event_vector_dict, redundant_events_set, grid_size, desired_solution_count, desired_per_matrix_solution_count, interval_painting_param, false, z3_option, time_based, 0, sketch_timeout, co_occurring_param, transition_param, state_synthesis_algorithm="heuristic", symmetry=symmetry)
+    solutions = generate_on_clauses_GLOBAL(run_id, random, matrix, unformatted_matrix, object_decomposition, user_events, global_event_vector_dict, redundant_events_set, grid_size, desired_solution_count, desired_per_matrix_solution_count, interval_painting_param, false, z3_option, time_based, 0, sketch_timeout, co_occurring_param, transition_param, stop_times=stop_times)
   elseif algorithm == "sketch_single"
-    solutions = generate_on_clauses_GLOBAL(matrix, unformatted_matrix, object_decomposition, user_events, global_event_vector_dict, redundant_events_set, grid_size, desired_solution_count, desired_per_matrix_solution_count, interval_painting_param, false, z3_option, time_based, 0, sketch_timeout, co_occurring_param, transition_param, state_synthesis_algorithm="sketch_single", symmetry=symmetry)
+    solutions = generate_on_clauses_SKETCH_SINGLE(run_id, random, matrix, unformatted_matrix, object_decomposition, user_events, global_event_vector_dict, redundant_events_set, grid_size, desired_solution_count, desired_per_matrix_solution_count, interval_painting_param, z3_option, time_based, 0, sketch_timeout, co_occurring_param, transition_param, stop_times=stop_times)
   elseif algorithm == "sketch_multi"
-    solutions = generate_on_clauses_GLOBAL(matrix, unformatted_matrix, object_decomposition, user_events, global_event_vector_dict, redundant_events_set, grid_size, desired_solution_count, desired_per_matrix_solution_count, interval_painting_param, false, z3_option, time_based, 0, sketch_timeout, co_occurring_param, transition_param, state_synthesis_algorithm="sketch_multi", symmetry=symmetry)
+    solutions = generate_on_clauses_SKETCH_MULTI(run_id, random, matrix, unformatted_matrix, object_decomposition, user_events, global_event_vector_dict, redundant_events_set, grid_size, desired_solution_count, desired_per_matrix_solution_count, interval_painting_param, z3_option, time_based, 0, sketch_timeout, co_occurring_param, transition_param, stop_times=stop_times)
   else 
     error("algorithm $(algorithm) does not exist")
   end
@@ -146,15 +49,14 @@ function synthesize_program_given_decomp(decomp, observation_tuple, global_event
   for solution in solutions 
     if solution[1] != [] 
       on_clauses, new_object_decomposition, global_var_dict = solution
-      # @show on_clauses 
+      # # @show on_clauses 
       
-      program = full_program_given_on_clauses(on_clauses, new_object_decomposition, global_var_dict, grid_size, matrix, user_events)
+      program = full_program_given_on_clauses(on_clauses, new_object_decomposition, global_var_dict, grid_size, matrix)
       push!(program_strings, program)
     end
   end
   program_strings                              
 end
-
 
 function synthesize_program(model_name::String; 
                             singlecell = false,
@@ -170,14 +72,17 @@ function synthesize_program(model_name::String;
                             algorithm="heuristic",
                             sketch_timeout=0,
                             )
-  println(string("CURRENTLY WORKING ON: ", model_name))
+  # println(string("CURRENTLY WORKING ON: ", model_name))
+  
+  run_id = string(model_name, "_", algorithm)
+
   if pedro 
     observations, user_events, grid_size = generate_observations_pedro(model_name)
   else
     observations, user_events, grid_size = generate_observations(model_name)
   end
 
-  # @show (observations, user_events, grid_size)
+  # # @show (observations, user_events, grid_size)
 
   program_strings = []
   global_event_vector_dict = Dict()
@@ -194,21 +99,21 @@ function synthesize_program(model_name::String;
     #                                            matrix, unformatted_matrix, object_decomposition, user_events, global_event_vector_dict, redundant_events_set, grid_size=16, desired_solution_count=1, desired_per_matrix_solution_count=1, interval_painting_param=false, z3_option="none", time_based=false, z3_timeout=0, sketch_timeout=0, co_occurring_param=false, transition_param=false
     
     if algorithm == "heuristic"
-      solutions = generate_on_clauses_GLOBAL(matrix, unformatted_matrix, object_decomposition, user_events, global_event_vector_dict, redundant_events_set, grid_size, desired_solution_count, desired_per_matrix_solution_count, interval_painting_param, false, z3_option, time_based, 0, sketch_timeout, co_occurring_param, transition_param)
+      solutions = generate_on_clauses_GLOBAL(run_id, matrix, unformatted_matrix, object_decomposition, user_events, global_event_vector_dict, redundant_events_set, grid_size, desired_solution_count, desired_per_matrix_solution_count, interval_painting_param, false, z3_option, time_based, 0, sketch_timeout, co_occurring_param, transition_param)
     elseif algorithm == "sketch_single"
-      solutions = generate_on_clauses_SKETCH_SINGLE(matrix, unformatted_matrix, object_decomposition, user_events, global_event_vector_dict, redundant_events_set, grid_size, desired_solution_count, desired_per_matrix_solution_count, interval_painting_param, z3_option, time_based, 0, sketch_timeout, co_occurring_param, transition_param)
+      solutions = generate_on_clauses_SKETCH_SINGLE(run_id, matrix, unformatted_matrix, object_decomposition, user_events, global_event_vector_dict, redundant_events_set, grid_size, desired_solution_count, desired_per_matrix_solution_count, interval_painting_param, z3_option, time_based, 0, sketch_timeout, co_occurring_param, transition_param)
     elseif algorithm == "sketch_multi"
-      solutions = generate_on_clauses_SKETCH_MULTI(matrix, unformatted_matrix, object_decomposition, user_events, global_event_vector_dict, redundant_events_set, grid_size, desired_solution_count, desired_per_matrix_solution_count, interval_painting_param, z3_option, time_based, 0, sketch_timeout, co_occurring_param, transition_param)
+      solutions = generate_on_clauses_SKETCH_MULTI(run_id, matrix, unformatted_matrix, object_decomposition, user_events, global_event_vector_dict, redundant_events_set, grid_size, desired_solution_count, desired_per_matrix_solution_count, interval_painting_param, z3_option, time_based, 0, sketch_timeout, co_occurring_param, transition_param)
     else 
       error("algorithm $(algorithm) does not exist")
     end
-    # @show solutions
+    # # @show solutions
     for solution in solutions 
       if solution[1] != [] 
         on_clauses, new_object_decomposition, global_var_dict = solution
-        # @show on_clauses 
+        # # @show on_clauses 
         
-        program = full_program_given_on_clauses(on_clauses, new_object_decomposition, global_var_dict, grid_size, matrix, user_events)
+        program = full_program_given_on_clauses(on_clauses, new_object_decomposition, global_var_dict, grid_size, matrix)
         push!(program_strings, program)
       end
     end
@@ -218,7 +123,7 @@ function synthesize_program(model_name::String;
     # end    
   end
   
-  # open("/Users/riadas/Documents/urop/CausalDiscovery.jl/src/Autumn/generativemodel/workshop/$(model_name).txt","w") do io
+  # open("/Users/riadas/Documents/urop/CausalDiscovery.jl/src/synthesis/cisc/workshop/$(model_name).txt","w") do io
   #   if model_name != "ants" 
   #     println(io, program_strings[1])
   #   else
@@ -226,7 +131,7 @@ function synthesize_program(model_name::String;
   #   end
   # end
 
-  # open("/Users/riadas/Documents/urop/CausalDiscovery.jl/src/Autumn/generativemodel/conference/$(model_name).txt","a") do io
+  # open("/Users/riadas/Documents/urop/CausalDiscovery.jl/src/synthesis/cisc/conference/$(model_name).txt","a") do io
   #   println(io, string("BEGIN UPDATE FUNC SPACE: ", upd_func_spaces[1], "\n\n\n"))
   #   for program_string in program_strings
   #     println(io, program_string)
@@ -238,11 +143,35 @@ function synthesize_program(model_name::String;
   program_strings
 end
 
-function synthesis_program_pedro(observations::AbstractArray)
-
-end
-
 function generate_observations(model_name::String)
+  if occursin(":", model_name)
+    # take from logged dir 
+    observation_file_name = "/Users/riadas/Documents/urop/today_temp/CausalDiscovery.jl/logged_observations/$(model_name).jld"
+    event_file_name = "/Users/riadas/Documents/urop/today_temp/CausalDiscovery.jl/logged_observations/$(model_name)_EVENTS.txt"
+    observations = JLD.load(observation_file_name)["observations"]
+    open(event_file_name,"r") do io
+      user_events = map(line -> line == "nothing" ? nothing : line, filter(x -> x != "", split(read(io, String), "\n")))
+    end
+    
+    return observations, user_events, 16
+  end
+
+  if model_name == "grow_ii"
+    observations, user_events, grid_size = generate_observations_grow2(nothing)
+    return observations, user_events, grid_size
+  elseif model_name == "mario_ii"
+    observations, user_events, grid_size = generate_observations_mario2(nothing)
+    return observations, user_events, grid_size
+  elseif model_name == "coins"
+    return generate_observations_coins(nothing)
+  elseif model_name == "coins_5"
+    return generate_observations_coins5(nothing)
+  elseif model_name == "coins_7"
+    return generate_observations_coins7(nothing)
+  elseif model_name == "coins_9"
+    return generate_observations_coins9(nothing)
+  end
+
   if occursin("double_count_", model_name)
     program_expr = compiletojulia(parseautumn(programs["double_count"]))
   elseif occursin("count_", model_name)
@@ -250,6 +179,7 @@ function generate_observations(model_name::String)
   else
     program_expr = compiletojulia(parseautumn(programs[model_name]))  
   end
+
   m = eval(program_expr)
   if model_name == "particles"
     observations, user_events, grid_size = generate_observations_particles(m)
@@ -313,6 +243,8 @@ function generate_observations(model_name::String)
     observations, user_events, grid_size = generate_observations_count_3(m)
   elseif model_name == "count_4"
     observations, user_events, grid_size = generate_observations_count_4(m)
+  elseif model_name == "count_5"
+    observations, user_events, grid_size = generate_observations_count_5(m)
   elseif model_name == "gravity_iv"
     observations, user_events, grid_size = generate_observations_gravity4(m)
   elseif model_name == "double_count_1"
@@ -324,6 +256,7 @@ function generate_observations(model_name::String)
   else
     error("model $(model_name) does not exist")
   end
+  filter_out_of_bounds_cells(observations, grid_size), user_events, grid_size
 end
 
 function generate_observations_custom_input(model_name::String, user_events)
@@ -334,9 +267,9 @@ function generate_observations_custom_input(model_name::String, user_events)
   else
     program_expr = compiletojulia(parseautumn(programs[model_name]))  
   end
-  # @show typeof(program_expr)
+  # # @show typeof(program_expr)
   m = eval(program_expr)
-  # @show typeof(m)
+  # # @show typeof(m)
   generate_observations_custom_input(m, user_events)
 end
 
@@ -467,31 +400,30 @@ programs = Dict("particles"                                 => """(program
                 "tetris" => ""
                 ,"snake" => ""
                 ,"magnets_i"                                  => """(program
-                                                                (= GRID_SIZE 16)
-                                                                
-                                                                (object Magnet (: color String) (list (Cell 0 0 color) (Cell 0 1 color)))
-                                                                
-                                                                (: fixedMagnet Magnet)
-                                                                (= fixedMagnet (initnext (Magnet "red" (Position 7 7)) (prev fixedMagnet)))
-                                                              
-                                                                (: mobileMagnet Magnet)
-                                                                (= mobileMagnet (initnext (Magnet "blue" (Position 4 7)) (prev mobileMagnet)))
-                                                              
-                                                                (on clicked (= mobileMagnet (rotateNoCollision (prev mobileMagnet))))
-                                                                (on left (= mobileMagnet (moveNoCollision (prev mobileMagnet) -1 0)))
-                                                                (on right (= mobileMagnet (moveNoCollision (prev mobileMagnet) 1 0)))
-                                                                (on up (= mobileMagnet (moveNoCollision (prev mobileMagnet) 0 -1)))
-                                                                (on down (= mobileMagnet (moveNoCollision (prev mobileMagnet) 0 1)))
-                                                                (on (adjacent (posPole mobileMagnet) (posPole fixedMagnet)) (= mobileMagnet (prev mobileMagnet)))
-                                                                (on (adjacent (negPole mobileMagnet) (negPole fixedMagnet)) (= mobileMagnet (prev mobileMagnet)))
-                                                                (on (in (displacement (posPole mobileMagnet) (negPole fixedMagnet)) attractVectors) (= mobileMagnet (move mobileMagnet    (unitVector (displacement (posPole mobileMagnet) (negPole fixedMagnet))))))
-                                                                (on (in (displacement (negPole mobileMagnet) (posPole fixedMagnet)) attractVectors) (= mobileMagnet (move mobileMagnet (unitVector (displacement (negPole mobileMagnet) (posPole fixedMagnet))))))
-                                                                  
-                                                                (= posPole (fn (magnet) (first (render magnet))))  
-                                                                (= negPole (fn (magnet) (last (render magnet))))  
-                                                              
-                                                                (= attractVectors (list (Position 0 2) (Position 2 0) (Position -2 0) (Position 0 -2)))
-                                                              )"""
+                (= GRID_SIZE 16)
+                
+                (object Magnet (: color String) (list (Cell 0 0 color) (Cell 0 1 color)))
+                
+                (: fixedMagnet Magnet)
+                (= fixedMagnet (initnext (Magnet "red" (Position 7 7)) (prev fixedMagnet)))
+                
+                (: mobileMagnet Magnet)
+                (= mobileMagnet (initnext (Magnet "blue" (Position 4 7)) (prev mobileMagnet)))
+                
+                (on left (= mobileMagnet (moveNoCollision (prev mobileMagnet) -1 0)))
+                (on right (= mobileMagnet (moveNoCollision (prev mobileMagnet) 1 0)))
+                (on up (= mobileMagnet (moveNoCollision (prev mobileMagnet) 0 -1)))
+                (on down (= mobileMagnet (moveNoCollision (prev mobileMagnet) 0 1)))
+                (on (adjacent (posPole mobileMagnet) (posPole fixedMagnet) 1) (= mobileMagnet (prev mobileMagnet)))
+                (on (adjacent (negPole mobileMagnet) (negPole fixedMagnet) 1) (= mobileMagnet (prev mobileMagnet)))
+                (on (in (displacement (posPole mobileMagnet) (negPole fixedMagnet)) attractVectors) (= mobileMagnet (move mobileMagnet    (unitVector (displacement (posPole mobileMagnet) (negPole fixedMagnet))))))
+                (on (in (displacement (negPole mobileMagnet) (posPole fixedMagnet)) attractVectors) (= mobileMagnet (move mobileMagnet (unitVector (displacement (negPole mobileMagnet) (posPole fixedMagnet))))))
+                  
+                (= posPole (fn (magnet) (first (render magnet))))  
+                (= negPole (fn (magnet) (last (render magnet))))  
+                
+                (= attractVectors (list (Position 0 2) (Position 2 0) (Position -2 0) (Position 0 -2)))
+                )"""
                 ,"magnets_ii" => ""
                 ,"magnets_iii" => ""
                 ,"disease"                                    => """(program
@@ -531,13 +463,13 @@ programs = Dict("particles"                                 => """(program
                                                             (: enemies1 (List Enemy))
                                                             (= enemies1 (initnext (map 
                                                                                     (--> pos (Enemy pos)) 
-                                                                                    (filter (--> pos (& (== (.. pos y) 1) (== (% (.. pos x) 2) 0))) (allPositions GRID_SIZE)))
+                                                                                    (filter (--> pos (& (== (.. pos y) 1) (== (% (.. pos x) 3) 1))) (allPositions GRID_SIZE)))
                                                                                   (prev enemies1)))
                                                           
                                                             (: enemies2 (List Enemy))
                                                             (= enemies2 (initnext (map 
                                                                                     (--> pos (Enemy pos)) 
-                                                                                    (filter (--> pos (& (== (.. pos y) 3) (== (% (.. pos x) 2) 1))) (allPositions GRID_SIZE)))
+                                                                                    (filter (--> pos (& (== (.. pos y) 3) (== (% (.. pos x) 3) 2))) (allPositions GRID_SIZE)))
                                                                                   (prev enemies2)))
                                                           
                                                             
@@ -555,8 +487,8 @@ programs = Dict("particles"                                 => """(program
                                                             
                                                             (on true (= enemyBullets (updateObj enemyBullets (--> obj (moveDown obj)))))
                                                             (on true (= bullets (updateObj bullets (--> obj (moveUp obj)))))
-                                                            (on left (= hero (moveLeftNoCollision (prev hero))))
-                                                            (on right (= hero (moveRightNoCollision (prev hero))))
+                                                            (on left (= hero (moveLeft (prev hero))))
+                                                            (on right (= hero (moveRight (prev hero))))
                                                             (on (& up (.. (prev hero) alive)) (= bullets (addObj bullets (Bullet (.. (prev hero) origin)))))  
                                                           
                                                             (on (== (% time 10) 5) (= enemies1 (updateObj enemies1 (--> obj (moveLeft obj)))))
@@ -575,7 +507,7 @@ programs = Dict("particles"                                 => """(program
                                                                     (= enemies2 (removeObj enemies2 (--> obj (intersects (prev obj) (prev bullets)))))))
                                                             )
                                                                     
-                                                            (on (== (% time 5) 2) (= enemyBullets (addObj enemyBullets (EnemyBullet (uniformChoice (map (--> obj (.. obj origin)) (prev enemies2)))))))         
+                                                            (on (== (% time 5) 2) (= enemyBullets (addObj enemyBullets (EnemyBullet (uniformChoice (map (--> obj (.. obj origin)) (vcat (prev enemies1) (prev enemies2))))))))         
                                                             (on (intersects (prev hero) (prev enemyBullets)) (= hero (removeObj (prev hero))))
                                                           
                                                             (on (intersects (prev bullets) (prev enemyBullets)) 
@@ -585,94 +517,93 @@ programs = Dict("particles"                                 => """(program
                                                           )"""
                 ,"gol" => ""
                 ,"sokoban_i" =>                               """(program
-                                                                  (= GRID_SIZE 16)
-                                                                  
-                                                                  (object Agent (Cell 0 0 "blue"))
-                                                                  (object Box (Cell 0 0 "black"))
-                                                                  (object Goal (Cell 0 0 "red"))
-                                                                  
-                                                                  (: agent Agent)
-                                                                  (= agent (initnext (Agent (Position 7 4)) (prev agent)))
+                                                                    (= GRID_SIZE 16)
                                                                     
-                                                                  (: boxes (List Box))
-                                                                  (= boxes (initnext (list (Box (Position 1 2)) (Box (Position 0 4)) (Box (Position 4 4)) (Box (Position 9 9)) (Box (Position 10 9)) (Box (Position 0 11))) (prev boxes)))
-                                                                
-                                                                  (: goal Goal)
-                                                                  (= goal (initnext (Goal (Position 0 0)) (prev goal)))
-                                                                  
-                                                                  (on left (let ((= boxes (moveBoxes (prev boxes) (prev agent) (prev goal) -1 0)) 
-                                                                                (= agent (moveAgent (prev agent) (prev boxes) (prev goal) -1 0))))) 
-                                                                
-                                                                  (on right (let ((= boxes (moveBoxes (prev boxes) (prev agent) (prev goal) 1 0)) 
-                                                                                  (= agent (moveAgent (prev agent) (prev boxes) (prev goal) 1 0))))) 
-                                                                
-                                                                  (on up (let ((= boxes (moveBoxes (prev boxes) (prev agent) (prev goal) 0 -1)) 
-                                                                              (= agent (moveAgent (prev agent) (prev boxes) (prev goal) 0 -1))))) 
-                                                                
-                                                                  (on down (let ((= boxes (moveBoxes (prev boxes) (prev agent) (prev goal) 0 1)) 
-                                                                                (= agent (moveAgent (prev agent) (prev boxes) (prev goal) 0 1))))) 
-                                                                  
-                                                                  (on (& clicked (isFree click)) (= boxes (addObj boxes (Box (Position (.. click x) (.. click y))))))
-                                                                
-                                                                  (: moveBoxes (-> (List Box) Agent Goal Int Int (List Box)))
-                                                                  (= moveBoxes (fn (boxes agent goal x y) 
-                                                                                  (updateObj boxes 
-                                                                                    (--> obj (if (intersects (move obj x y) goal) then (removeObj obj) else (moveNoCollision obj x y))) 
-                                                                                    (--> obj (== (displacement (.. obj origin) (.. agent origin)) (Position (- 0 x) (- 0 y)))))))
-                                                                
-                                                                  (: moveAgent (-> Agent (List Box) Goal Int Int Agent))
-                                                                  (= moveAgent (fn (agent boxes goal x y) 
-                                                                                  (if (| (intersects (list (move agent x y)) (moveBoxes boxes agent goal x y)) 
-                                                                                          (! (isWithinBounds (move agent x y)))) 
-                                                                                    then agent 
-                                                                                    else (move agent x y))))
-                                                                )"""
+                                                                    (object Agent (Cell 0 0 "blue"))
+                                                                    (object Box (Cell 0 0 "black"))
+                                                                    (object Goal (Cell 0 0 "red"))
+                                                                    
+                                                                    (: agent Agent)
+                                                                    (= agent (initnext (Agent (Position 7 4)) (prev agent)))
+                                                                      
+                                                                    (: boxes (List Box))
+                                                                    (= boxes (initnext (list (Box (Position 14 2)) (Box (Position 9 14)) (Box (Position 1 2)) (Box (Position 0 4)) (Box (Position 4 4)) (Box (Position 9 9)) (Box (Position 10 9)) (Box (Position 0 11))) (prev boxes)))
+                                                                    
+                                                                    (: goal Goal)
+                                                                    (= goal (initnext (Goal (Position 0 0)) (prev goal)))
+                                                                    
+                                                                    (on left (let ((= boxes (moveBoxes (prev boxes) (prev agent) (prev goal) -1 0)) 
+                                                                                  (= agent (moveAgent (prev agent) (prev boxes) (prev goal) -1 0))))) 
+                                                                    
+                                                                    (on right (let ((= boxes (moveBoxes (prev boxes) (prev agent) (prev goal) 1 0)) 
+                                                                                    (= agent (moveAgent (prev agent) (prev boxes) (prev goal) 1 0))))) 
+                                                                    
+                                                                    (on up (let ((= boxes (moveBoxes (prev boxes) (prev agent) (prev goal) 0 -1)) 
+                                                                                (= agent (moveAgent (prev agent) (prev boxes) (prev goal) 0 -1))))) 
+                                                                    
+                                                                    (on down (let ((= boxes (moveBoxes (prev boxes) (prev agent) (prev goal) 0 1)) 
+                                                                                  (= agent (moveAgent (prev agent) (prev boxes) (prev goal) 0 1))))) 
+                                                                    
+                                                                    (on (& clicked (isFree click)) (= boxes (addObj boxes (Box (Position (.. click x) (.. click y))))))
+                                                                    
+                                                                    (: moveBoxes (-> (List Box) Agent Goal Int Int (List Box)))
+                                                                    (= moveBoxes (fn (boxes agent goal x y) 
+                                                                                    (updateObj boxes 
+                                                                                      (--> obj (if (intersects (move obj x y) goal) then (removeObj obj) else (moveNoCollision obj x y))) 
+                                                                                      (--> obj (== (displacement (.. obj origin) (.. agent origin)) (Position (- 0 x) (- 0 y)))))))
+                                                                    
+                                                                    (: moveAgent (-> Agent (List Box) Goal Int Int Agent))
+                                                                    (= moveAgent (fn (agent boxes goal x y) 
+                                                                                    (if (intersects (list (move agent x y)) (moveBoxes boxes agent goal x y))
+                                                                                      then agent 
+                                                                                      else (move agent x y))))
+                                                                    )"""
                 ,"sokoban_ii" => ""
                 ,"grow"                                      => """(program
-                                                                  (= GRID_SIZE 8)
-                                                                  
-                                                                  (object Water (Cell 0 0 "blue"))
-                                                                  (object Leaf (: color String) (Cell 0 0 color))
-                                                                  (object Cloud (list (Cell -1 0 "gray") (Cell 0 0 "gray") (Cell 1 0 "gray")
-                                                                                      (Cell -1 1 "gray") (Cell 0 1 "gray") (Cell 1 1 "gray")))
-                                                                  
-                                                                  (object Sun (: movingLeft Bool) (list (Cell 0 0 "gold")
-                                                                                                (Cell 0 1 "gold")
-                                                                                                (Cell 1 0 "gold")
-                                                                                                (Cell 1 1 "gold")))
-                                                                
-                                                                  (: sun Sun)
-                                                                  (= sun (initnext (Sun false (Position 0 0)) (prev sun)))
-                                                                
-                                                                  (: water (List Water))
-                                                                  (= water (initnext (list) (updateObj (prev water) (--> obj (if (! (isWithinBounds obj)) then (removeObj obj) else (moveDown obj))))))
-                                                                  
-                                                                  (: cloud Cloud)
-                                                                  (= cloud (initnext (Cloud (Position 6 0)) (prev cloud)))
-                                                                  
-                                                                  (: leaves (List Leaf))
-                                                                  (= leaves (initnext (list (Leaf "green" (Position 1 7) ) (Leaf "green" (Position 3 7)) (Leaf "green" (Position 5 7)) ) (prev leaves)))
-                                                                                                                                      
-                                                                  (on (intersects (map (--> obj (moveDown obj)) (prev water) ) (prev leaves))
-                                                                    (= water (removeObj (prev water) (--> obj (intersects (moveDown obj) (prev leaves))) ) ) )
-                                                                
-                                                                  (on (& (intersects (map (--> obj (moveDown obj)) (prev water)) (filter (--> obj (== (.. obj color) "green")) (prev leaves))) (! (intersects (prev sun) (prev cloud))))
-                                                                    (= leaves (addObj (prev leaves) (map (--> obj (Leaf (if (== (.. (.. (moveUp obj) origin) y) 4) then "mediumpurple" else "green") (.. (moveUp obj) origin))) (filter (--> obj (intersects (moveUp obj) (prev water))) (prev leaves))))))
+(= GRID_SIZE 7)
 
-                                                                  (on down
-                                                                    (= water (addObj water (Water (.. (moveDown (prev cloud)) origin)))))
-                                                                    
-                                                                  (on left (= cloud (moveLeft (prev cloud))))
-                                                                  (on right (= cloud (moveRight (prev cloud))))
-                                                                
-                                                                  (on (== (.. (.. (prev sun) origin) x) 0) (= sun (updateObj (prev sun) "movingLeft" false)))
-                                                                  (on (== (.. (.. (prev sun) origin) x) 6) (= sun (updateObj (prev sun) "movingLeft" true)))
-                                                                
-                                                                  (on (clicked (prev sun)) (= sun (if (.. (prev sun) movingLeft) then (moveLeft (prev sun)) else (moveRight (prev sun)))))
-                                                                )"""
-                ,"mario"                                       => """(program
+(object Water (Cell 0 0 "blue"))
+(object Leaf (: color String) (Cell 0 0 color))
+(object Cloud (list (Cell -1 0 "gray") (Cell 0 0 "gray") (Cell 1 0 "gray")
+                    (Cell -1 1 "gray") (Cell 0 1 "gray") (Cell 1 1 "gray")))
+
+(object Sun (: movingLeft Bool) (list (Cell 0 0 "gold")
+                              (Cell 0 1 "gold")
+                                (Cell 1 0 "gold")
+                              (Cell 1 1 "gold")))
+
+(: sun Sun)
+(= sun (initnext (Sun false (Position 0 0)) (prev sun)))
+
+(: water (List Water))
+(= water (initnext (list) (updateObj (prev water) (--> obj (if (! (isWithinBounds obj)) then (removeObj obj) else (moveDown obj))))))
+
+(: cloud Cloud)
+(= cloud (initnext (Cloud (Position 5 0)) (prev cloud)))
+
+(: leaves (List Leaf))
+(= leaves (initnext (list (Leaf "green" (Position 1 6) ) (Leaf "green" (Position 3 6)) (Leaf "green" (Position 5 6)) ) (prev leaves)))
+    
+(on (intersects (map (--> obj (moveDown obj)) (prev water) ) (prev leaves))
+  (= water (removeObj water (--> obj (intersects (moveDown obj) (prev leaves))) ) ) )
+
+(on down
+  (= water (addObj water (Water (.. (moveDown (prev cloud)) origin)))))
+    
+(on (& (intersects (map (--> obj (moveDown obj)) (prev water)) (filter (--> obj (== (.. obj color) "green")) (prev leaves))) (! (intersects (prev sun) (prev cloud))))
+  (= leaves (addObj (prev leaves) (map (--> obj (Leaf (if (== (.. (.. (moveUp obj) origin) y) 4) then "mediumpurple" else "green") (.. (moveUp obj) origin))) (filter (--> obj (intersects (moveUp obj) (prev water))) (prev leaves))))))
+  
+(on left (= cloud (moveLeft (prev cloud))))
+(on right (= cloud (moveRight (prev cloud))))
+
+(on (== (.. (.. (prev sun) origin) x) 0) (= sun (updateObj (prev sun) "movingLeft" false)))
+(on (== (.. (.. (prev sun) origin) x) 5) (= sun (updateObj (prev sun) "movingLeft" true)))
+
+(on (clicked (prev sun)) (= sun (if (.. (prev sun) movingLeft) then (moveLeft (prev sun)) else (moveRight (prev sun)))))
+)"""
+                ,"mario_3"                                       => """(program
                                                                       (= GRID_SIZE 16)
-                                                                      (= background "skyblue")
+                                                                      (= background "white")
                                                                       
                                                                       (object Mario (: bullets Int) (Cell 0 0 "red"))
                                                                       (object Step (list (Cell -1 0 "darkorange") (Cell 0 0 "darkorange") (Cell 1 0 "darkorange")))
@@ -688,7 +619,7 @@ programs = Dict("particles"                                 => """(program
                                                                       (= steps (initnext (list (Step (Position 4 13)) (Step (Position 8 10)) (Step (Position 11 7))) (prev steps)))
                                                                     
                                                                       (: coins (List Coin))
-                                                                      (= coins (initnext (list (Coin (Position 4 12)) (Coin (Position 7 4)) (Coin (Position 11 6))) (prev coins)))
+                                                                      (= coins (initnext (list (Coin (Position 14 15)) (Coin (Position 4 7)) (Coin (Position 15 5)) (Coin (Position 4 12)) (Coin (Position 7 4)) (Coin (Position 11 6))) (prev coins)))
                                                                     
                                                                       (: enemy Enemy)
                                                                       (= enemy (initnext (Enemy true 1 (Position 7 0)) (if (.. (prev enemy) movingLeft) then (moveLeft (prev enemy)) else (moveRight (prev enemy)))))
@@ -719,6 +650,157 @@ programs = Dict("particles"                                 => """(program
                                                                               (= enemy (if (== (prev enemyLives) 1) then (removeObj (prev enemy)) else (if (.. (prev enemy) movingLeft) then (moveLeft (prev enemy)) else (moveRight (prev enemy))) ))
                                                                               (= enemyLives (- (prev enemyLives) 1)))))
                                                                     )"""
+                                                                    ,"mario"                                       => """(program
+                                                                    (= GRID_SIZE 16)
+                                                                    (= background "white")
+                                                                    
+                                                                    (object Mario (: bullets Int) (Cell 0 0 "red"))
+                                                                    (object Step (list (Cell -1 0 "darkorange") (Cell 0 0 "darkorange") (Cell 1 0 "darkorange")))
+                                                                    (object Coin (Cell 0 0 "gold"))
+                                                                    (object Enemy (: movingLeft Bool) (: lives Int) (list (Cell -1 0 "blue") (Cell 0 0 "blue") (Cell 1 0 "blue")
+                                                                                                        (Cell -1 1 "blue") (Cell 0 1 "blue") (Cell 1 1 "blue")))
+                                                                    (object Bullet (Cell 0 0 "mediumpurple"))
+                                                                    
+                                                                    (: mario Mario)
+                                                                    (= mario (initnext (Mario 0 (Position 7 15)) (if (intersects (moveDown (prev mario)) (prev coins)) then (moveDown (prev mario)) else (moveDownNoCollision (prev mario)))))
+                                                                    
+                                                                    (: steps (List Step))
+                                                                    (= steps (initnext (list (Step (Position 4 13)) (Step (Position 8 10)) (Step (Position 11 7))) (prev steps)))
+                                                                    
+                                                                    (: coins (List Coin))
+                                                                    (= coins (initnext (list (Coin (Position 4 12)) (Coin (Position 7 4)) (Coin (Position 11 6))) (prev coins)))
+                                                                    
+                                                                    (: enemy Enemy)
+                                                                    (= enemy (initnext (Enemy true 1 (Position 7 0)) (if (.. (prev enemy) movingLeft) then (moveLeft (prev enemy)) else (moveRight (prev enemy)))))
+                                                                    
+                                                                    (: bullets (List Bullet))
+                                                                    (= bullets (initnext (list) (updateObj (prev bullets) (--> obj (if (intersects (moveUp obj) (prev steps)) then (removeObj obj) else (moveUp obj))))))
+                                                                    
+                                                                    (: enemyLives Int)
+                                                                    (= enemyLives (initnext 1 (prev enemyLives)))
+                                                                    
+                                                                    (: numBullets Int)
+                                                                    (= numBullets (initnext 0 (prev numBullets)))
+                                                                    
+                                                                    (on (== (.. (.. (prev enemy) origin) x) 1) (= enemy (moveRight (updateObj (prev enemy) "movingLeft" false))))
+                                                                    (on (== (.. (.. (prev enemy) origin) x) 14) (= enemy (moveLeft (updateObj (prev enemy) "movingLeft" true))))
+                                                                    
+                                                                    (on left (= mario (if (intersects (moveLeft (prev mario)) (prev coins)) then (moveLeft (prev mario)) else (moveLeftNoCollision (prev mario)))))
+                                                                    (on right (= mario (if (intersects (moveRight (prev mario)) (prev coins)) then (moveRight (prev mario)) else (moveRightNoCollision (prev mario)))))
+                                                                    (on (& up (== (moveDownNoCollision (prev mario)) (prev mario))) (= mario (moveNoCollision (prev mario) 0 -4)))
+                                                                    
+                                                                    (on (intersects (prev mario) (prev coins)) 
+                                                                      (let ((= coins (removeObj (prev coins) (--> obj (intersects obj (prev mario))))) 
+                                                                            (= numBullets (+ (prev numBullets) 1)))) )
+                                                                    
+                                                                    (on (& clicked (> (prev numBullets) 0)) 
+                                                                      (let ((= bullets (addObj (prev bullets) (Bullet (.. (prev mario) origin)))) 
+                                                                            (= numBullets (- (prev numBullets) 1)))))
+                                                                    
+                                                                    (on (intersects (prev enemy) (prev bullets))
+                                                                      (let ((= bullets (removeObj (prev bullets) (--> obj (intersects obj (prev enemy))))) 
+                                                                            (= enemy (if (== (prev enemyLives) 1) then (removeObj (prev enemy)) else (if (.. (prev enemy) movingLeft) then (moveLeft (prev enemy)) else (moveRight (prev enemy))) ))
+                                                                            (= enemyLives (- (prev enemyLives) 1)))))
+                                                                    )"""
+                                                                  ,"mario_3"                                       => """(program
+                                                                  (= GRID_SIZE 16)
+                                                                  (= background "white")
+                                                                  
+                                                                  (object Mario (: bullets Int) (Cell 0 0 "red"))
+                                                                  (object Step (list (Cell -1 0 "darkorange") (Cell 0 0 "darkorange") (Cell 1 0 "darkorange")))
+                                                                  (object Coin (Cell 0 0 "gold"))
+                                                                  (object Enemy (: movingLeft Bool) (: lives Int) (list (Cell -1 0 "blue") (Cell 0 0 "blue") (Cell 1 0 "blue")
+                                                                                                      (Cell -1 1 "blue") (Cell 0 1 "blue") (Cell 1 1 "blue")))
+                                                                  (object Bullet (Cell 0 0 "mediumpurple"))
+                                                                  
+                                                                  (: mario Mario)
+                                                                  (= mario (initnext (Mario 0 (Position 7 15)) (if (intersects (moveDown (prev mario)) (prev coins)) then (moveDown (prev mario)) else (moveDownNoCollision (prev mario)))))
+                                                                
+                                                                  (: steps (List Step))
+                                                                  (= steps (initnext (list (Step (Position 4 13)) (Step (Position 8 10)) (Step (Position 11 7))) (prev steps)))
+                                                                
+                                                                  (: coins (List Coin))
+                                                                  (= coins (initnext (list (Coin (Position 14 15)) (Coin (Position 4 7)) (Coin (Position 15 5)) (Coin (Position 4 12)) (Coin (Position 7 4)) (Coin (Position 11 6))) (prev coins)))
+                                                                
+                                                                  (: enemy Enemy)
+                                                                  (= enemy (initnext (Enemy true 1 (Position 7 0)) (if (.. (prev enemy) movingLeft) then (moveLeft (prev enemy)) else (moveRight (prev enemy)))))
+                                                                
+                                                                  (: bullets (List Bullet))
+                                                                  (= bullets (initnext (list) (updateObj (prev bullets) (--> obj (if (intersects (moveUp obj) (prev steps)) then (removeObj obj) else (moveUp obj))))))
+                                                                  
+                                                                  (: enemyLives Int)
+                                                                  (= enemyLives (initnext 1 (prev enemyLives)))
+                                                                
+                                                                  (on (== (.. (.. (prev enemy) origin) x) 1) (= enemy (moveRight (updateObj (prev enemy) "movingLeft" false))))
+                                                                  (on (== (.. (.. (prev enemy) origin) x) 14) (= enemy (moveLeft (updateObj (prev enemy) "movingLeft" true))))
+                                                                
+                                                                  (on left (= mario (if (intersects (moveLeft (prev mario)) (prev coins)) then (moveLeft (prev mario)) else (moveLeftNoCollision (prev mario)))))
+                                                                  (on right (= mario (if (intersects (moveRight (prev mario)) (prev coins)) then (moveRight (prev mario)) else (moveRightNoCollision (prev mario)))))
+                                                                  (on (& up (== (moveDownNoCollision (prev mario)) (prev mario))) (= mario (moveNoCollision (prev mario) 0 -4)))
+                                                                
+                                                                  (on (intersects (prev mario) (prev coins)) 
+                                                                    (let ((= coins (removeObj (prev coins) (--> obj (intersects obj (prev mario))))) 
+                                                                          (= mario (moveDownNoCollision (updateObj (prev mario) "bullets" (+ (.. (prev mario) bullets) 1)))))) )
+                                                                
+                                                                  (on (& clicked (> (.. (prev mario) bullets) 0)) 
+                                                                    (let ((= bullets (addObj (prev bullets) (Bullet (.. (prev mario) origin)))) 
+                                                                          (= mario (moveDownNoCollision (updateObj (prev mario) "bullets" (- (.. (prev mario) bullets) 1)))))))
+                                                                
+                                                                  (on (intersects (prev enemy) (prev bullets))
+                                                                    (let ((= bullets (removeObj (prev bullets) (--> obj (intersects obj (prev enemy))))) 
+                                                                          (= enemy (if (== (prev enemyLives) 1) then (removeObj (prev enemy)) else (if (.. (prev enemy) movingLeft) then (moveLeft (prev enemy)) else (moveRight (prev enemy))) ))
+                                                                          (= enemyLives (- (prev enemyLives) 1)))))
+                                                                )"""
+                                                                ,"mario_4"                                       => """(program
+                                                                (= GRID_SIZE 16)
+                                                                (= background "white")
+                                                                
+                                                                (object Mario (: bullets Int) (Cell 0 0 "red"))
+                                                                (object Step (list (Cell -1 0 "darkorange") (Cell 0 0 "darkorange") (Cell 1 0 "darkorange")))
+                                                                (object Coin (Cell 0 0 "gold"))
+                                                                (object Enemy (: movingLeft Bool) (: lives Int) (list (Cell -1 0 "blue") (Cell 0 0 "blue") (Cell 1 0 "blue")
+                                                                                                    (Cell -1 1 "blue") (Cell 0 1 "blue") (Cell 1 1 "blue")))
+                                                                (object Bullet (Cell 0 0 "mediumpurple"))
+                                                                
+                                                                (: mario Mario)
+                                                                (= mario (initnext (Mario 0 (Position 7 15)) (if (intersects (moveDown (prev mario)) (prev coins)) then (moveDown (prev mario)) else (moveDownNoCollision (prev mario)))))
+                                                              
+                                                                (: steps (List Step))
+                                                                (= steps (initnext (list (Step (Position 4 13)) (Step (Position 8 10)) (Step (Position 11 7))) (prev steps)))
+                                                              
+                                                                (: coins (List Coin))
+                                                                (= coins (initnext (list (Coin (Position 10 12)) (Coin (Position 0 14)) (Coin (Position 3 6)) (Coin (Position 15 9))  (Coin (Position 14 15)) (Coin (Position 4 7)) (Coin (Position 15 5)) (Coin (Position 4 12)) (Coin (Position 7 4)) (Coin (Position 11 6))) (prev coins)))
+                                                              
+                                                                (: enemy Enemy)
+                                                                (= enemy (initnext (Enemy true 1 (Position 7 0)) (if (.. (prev enemy) movingLeft) then (moveLeft (prev enemy)) else (moveRight (prev enemy)))))
+                                                              
+                                                                (: bullets (List Bullet))
+                                                                (= bullets (initnext (list) (updateObj (prev bullets) (--> obj (if (intersects (moveUp obj) (prev steps)) then (removeObj obj) else (moveUp obj))))))
+                                                                
+                                                                (: enemyLives Int)
+                                                                (= enemyLives (initnext 1 (prev enemyLives)))
+                                                              
+                                                                (on (== (.. (.. (prev enemy) origin) x) 1) (= enemy (moveRight (updateObj (prev enemy) "movingLeft" false))))
+                                                                (on (== (.. (.. (prev enemy) origin) x) 14) (= enemy (moveLeft (updateObj (prev enemy) "movingLeft" true))))
+                                                              
+                                                                (on left (= mario (if (intersects (moveLeft (prev mario)) (prev coins)) then (moveLeft (prev mario)) else (moveLeftNoCollision (prev mario)))))
+                                                                (on right (= mario (if (intersects (moveRight (prev mario)) (prev coins)) then (moveRight (prev mario)) else (moveRightNoCollision (prev mario)))))
+                                                                (on (& up (== (moveDownNoCollision (prev mario)) (prev mario))) (= mario (moveNoCollision (prev mario) 0 -4)))
+                                                              
+                                                                (on (intersects (prev mario) (prev coins)) 
+                                                                  (let ((= coins (removeObj (prev coins) (--> obj (intersects obj (prev mario))))) 
+                                                                        (= mario (moveDownNoCollision (updateObj (prev mario) "bullets" (+ (.. (prev mario) bullets) 1)))))) )
+                                                              
+                                                                (on (& clicked (> (.. (prev mario) bullets) 0)) 
+                                                                  (let ((= bullets (addObj (prev bullets) (Bullet (.. (prev mario) origin)))) 
+                                                                        (= mario (moveDownNoCollision (updateObj (prev mario) "bullets" (- (.. (prev mario) bullets) 1)))))))
+                                                              
+                                                                (on (intersects (prev enemy) (prev bullets))
+                                                                  (let ((= bullets (removeObj (prev bullets) (--> obj (intersects obj (prev enemy))))) 
+                                                                        (= enemy (if (== (prev enemyLives) 1) then (removeObj (prev enemy)) else (if (.. (prev enemy) movingLeft) then (moveLeft (prev enemy)) else (moveRight (prev enemy))) ))
+                                                                        (= enemyLives (- (prev enemyLives) 1)))))
+                                                              )"""                                                                  
+
                 ,"sand"                                      => """(program
                                                                       (= GRID_SIZE 10)
                                                                     
@@ -985,12 +1067,12 @@ programs = Dict("particles"                                 => """(program
                                                                       (on clicked (= foods (addObj foods (map Food (randomPositions GRID_SIZE 2)))))
                                                                     )"""
                 ,"bullets" =>                                     """(program
-                                                                      (= GRID_SIZE 16)
+                                                                      (= GRID_SIZE 200)
                                                                       (object Particle (Cell 0 0 "blue"))
                                                                       (object Bullet (: dir String) (Cell 0 0 "red"))
                                                                       
                                                                       (: particle Particle)
-                                                                      (= particle (initnext (Particle (Position 8 8)) (prev particle)))
+                                                                      (= particle (initnext (Particle (Position 100 100)) (prev particle)))
                                                                       
                                                                       (: bullets (List Bullet))
                                                                       (= bullets (initnext (list) (prev bullets)))
@@ -1124,38 +1206,110 @@ programs = Dict("particles"                                 => """(program
                                                                 
                                                                 )"""
                , "swap"                                    => """(program
-                                                                  (= GRID_SIZE 100)
-                                                                    
-                                                                  (object Button (: color String) (Cell 0 0 color))
-                                                                  (object Blob (list (Cell 0 0 "blue")))
-                                                                  
-                                                                  (: blobs (List Blob))
-                                                                  (= blobs (initnext (list (Blob (Position 49 49))) (prev blobs)))
-                                                                  
-                                                                  (: gravity String)
-                                                                  (= gravity (initnext "left" (prev gravity)))
-                                                                  
-                                                                  (on (== gravity "left") (= blobs (updateObj (prev blobs) (--> obj (move obj -1 0)))))
-                                                                  (on (== gravity "right") (= blobs (updateObj (prev blobs) (--> obj (move obj 1 0)))))
-                                                                  (on (== gravity "up") (= blobs (updateObj (prev blobs) (--> obj (move obj 0 -1)))))
-                                                                  (on (== gravity "down") (= blobs (updateObj (prev blobs) (--> obj (move obj 0 1)))))
-                                                                  
-                                                                  (on (== gravity "diag1") (= blobs (updateObj (prev blobs) (--> obj (move obj -1 -1)))))
-                                                                  (on (== gravity "diag2") (= blobs (updateObj (prev blobs) (--> obj (move obj 1 -1)))))
-                                                                  (on (== gravity "diag3") (= blobs (updateObj (prev blobs) (--> obj (move obj 1 1)))))
-                                                                  (on (== gravity "diag4") (= blobs (updateObj (prev blobs) (--> obj (move obj -1 1)))))
-                                                                  
-                                                                  (on (& left (in (prev gravity) (list "left" "right" "up" "down"))) (= gravity "left"))
-                                                                  (on (& right (in (prev gravity) (list "left" "right" "up" "down"))) (= gravity "right"))
-                                                                  (on (& up (in (prev gravity) (list "left" "right" "up" "down"))) (= gravity "up"))
-                                                                  (on (& down (in (prev gravity) (list "left" "right" "up" "down"))) (= gravity "down"))
-                                                                
-                                                                  (on (& left (in (prev gravity) (list "diag1" "diag2" "diag3" "diag4"))) (= gravity "diag1"))
-                                                                  (on (& right (in (prev gravity) (list "diag1" "diag2" "diag3" "diag4"))) (= gravity "diag2"))
-                                                                  (on (& up (in (prev gravity) (list "diag1" "diag2" "diag3" "diag4"))) (= gravity "diag3"))
-                                                                  (on (& down (in (prev gravity) (list "diag1" "diag2" "diag3" "diag4"))) (= gravity "diag4"))
-                                                                
-                                                                  (on (& clicked (in (prev gravity) (list "diag1" "diag2" "diag3" "diag4"))) (= gravity "left"))
-                                                                  (on (& clicked (in (prev gravity) (list "left" "right" "up" "down"))) (= gravity "diag1"))
-                                                                )"""
+               (= GRID_SIZE 40)
+               (= background "black")
+               
+               (object Blob (map (--> pos (Cell pos "mediumpurple")) (rect (Position 0 0) (Position 1 1))))
+               (object Button (: color String) (Cell 0 0 color))
+               
+               (: button1 Button)
+               (= button1 (initnext (Button "red" (Position 0 3)) (prev button1)))
+               
+               (: button2 Button)
+               (= button2 (initnext (Button "gold" (Position 0 6)) (prev button2)))
+               
+               (: button3 Button)
+               (= button3 (initnext (Button "green" (Position 0 9)) (prev button3)))
+               
+               (: button4 Button)
+               (= button4 (initnext (Button "blue" (Position 0 12)) (prev button4)))
+               
+               (: button5 Button)
+               (= button5 (initnext (Button "red" (Position (- GRID_SIZE 1) 3)) (prev button5)))
+               
+               (: button6 Button)
+               (= button6 (initnext (Button "gold" (Position (- GRID_SIZE 1) 6)) (prev button6)))
+               
+               (: button7 Button)
+               (= button7 (initnext (Button "green" (Position (- GRID_SIZE 1) 9)) (prev button7)))
+             
+               (: button8 Button)
+               (= button8 (initnext (Button "blue" (Position (- GRID_SIZE 1) 12)) (prev button8)))
+               
+               (: swapButton Button)
+               (= swapButton (initnext (Button "red" (Position (/ GRID_SIZE 2) 0)) (prev swapButton)))
+             
+               (: blob Blob)
+               (= blob (initnext (Blob (Position (/ GRID_SIZE 2) (/ GRID_SIZE 2))) (prev blob)))  
+               
+               (: globalState String)
+               (= globalState (initnext "none" (prev globalState)))
+               
+               (: swapState String)
+               (= swapState (initnext 1 (prev swapState)))
+               
+               (on (== globalState "left") (= blob (moveLeftNoCollision blob)))
+               (on (== globalState "right") (= blob (moveRightNoCollision blob)))
+               (on (== globalState "up") (= blob (moveUpNoCollision blob)))
+               (on (== globalState "down") (= blob (moveDownNoCollision blob)))
+               
+               (on (== globalState "left-up") (= blob (moveLeftNoCollision (moveUpNoCollision blob))))
+               (on (== globalState "right-up") (= blob (moveRightNoCollision (moveUpNoCollision blob))))
+               (on (== globalState "left-down") (= blob (moveLeftNoCollision (moveDownNoCollision blob))))
+               (on (== globalState "right-down") (= blob (moveRightNoCollision (moveDownNoCollision blob))))
+             
+               (on (& (== swapState 1) (clicked button1)) (= globalState "left"))
+               (on (& (== swapState 1) (clicked button2)) (= globalState "right"))
+               (on (& (== swapState 1) (clicked button3)) (= globalState "up"))
+               (on (& (== swapState 1) (clicked button4)) (= globalState "down"))
+               
+               (on (& (== swapState 2) (clicked button5)) (= globalState "left-up"))
+               (on (& (== swapState 2) (clicked button6)) (= globalState "right-up"))
+               (on (& (== swapState 2) (clicked button7)) (= globalState "left-down"))
+               (on (& (== swapState 2) (clicked button8)) (= globalState "right-down"))
+               
+               (on (& (== (prev swapState) 1) (clicked swapButton)) 
+                 (let ((= swapState 2)
+                       (= globalState "left-up"))))
+               
+               (on (& (== (prev swapState) 2) (clicked swapButton)) 
+                 (let ((= swapState 1)
+                       (= globalState "left"))))
+             
+             )
+             """,
+             "coins" => """(program
+             (= GRID_SIZE 16)
+             
+             (object Agent (Cell 0 0 "red"))
+             (object Coin (Cell 0 0 "gold"))
+             (object Bullet (Cell 0 0 "mediumpurple"))
+           
+             (: agent Agent)
+             (= agent (initnext (Agent (Position 7 9)) (prev agent)))
+           
+             (: coins (List Coin))
+             (= coins (initnext (map (--> pos (Coin pos)) (filter (--> p (& (== (% (.. p y) 2) 0) (== (% (.. p x) 2) 0))) (rect (Position 3 2) (Position 12 4)))) (prev coins)))
+           
+             (: bullets (List Bullet))
+             (= bullets (initnext (list) (prev bullets)))
+             
+             (: numBullets Int)
+             (= numBullets (initnext 0 (prev numBullets)))
+             
+             (on left (= agent (moveLeft agent)))
+             (on right (= agent (moveRight agent)))
+             (on up (= agent (moveUp agent)))
+             (on down (= agent (moveDown agent)))
+           
+             (on true (= bullets (updateObj bullets (--> obj (moveUp (prev obj))))))
+             
+             (on (& clicked (> (prev numBullets) 0)) 
+                 (let ((= numBullets (- (prev numBullets) 1)) 
+                       (= bullets (addObj bullets (Bullet (.. (prev agent) origin)))))))  
+           
+             (on (intersects (prev agent) (prev coins)) 
+                 (let ((= numBullets (+ (prev numBullets) 1)) 
+                       (= coins (removeObj coins (--> obj (intersects (prev obj) (prev agent))))))))
+           )"""
                 )

@@ -1,4 +1,4 @@
-include("../test_synthesis.jl")
+include("../empa.jl")
 using Statistics 
 
 results_folders = readdir("FINAL_RESULTS")

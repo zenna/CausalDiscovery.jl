@@ -4,7 +4,7 @@ using StatsBase
 using Random
 using Pickle
 include("generativemodel.jl")
-include("state_construction_utils.jl")
+include("../automata_synthesis/state_construction_utils.jl")
 include("construct_observation_data.jl")
 include("multi_trace_synthesis.jl")
 

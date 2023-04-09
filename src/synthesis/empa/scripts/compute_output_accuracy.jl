@@ -1,5 +1,5 @@
-include("../test_synthesis.jl")
-include("../output_match_testing_functions.jl")
+include("../empa.jl")
+include("output_match_testing_functions.jl")
 
 # ----- BEGIN SCRIPT ----- # 
 

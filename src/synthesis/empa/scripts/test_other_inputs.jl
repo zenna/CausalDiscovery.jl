@@ -1,4 +1,3 @@
-include("test_synthesis.jl")
 include("output_match_testing_functions.jl")
 
 function test_random_other_inputs_given_orig(model_name, new_program_str; num_inputs::Int=10, input_len::Int=30, nothing_threshold=0.5)

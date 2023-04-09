@@ -1,6 +1,6 @@
 import Pkg; Pkg.add("Pickle")
 using Autumn
-include("test_synthesis.jl")
+include("functional_synthesis/full_synthesis.jl")
 
 # function to be run on remote processes; 
 # function do_work(jobs, results) # define work function everywhere
