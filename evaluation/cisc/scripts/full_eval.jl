@@ -1,4 +1,4 @@
-include("../../../src/synthesis/cisc/final_evaluation.jl")
+include("../../../src/synthesis/cisc/cisc.jl")
 
 model_name = ARGS[1]
 algorithm = ARGS[2]

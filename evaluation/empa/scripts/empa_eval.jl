@@ -1,4 +1,4 @@
-include("../../../src/synthesis/empa/final_evaluation.jl")
+include("../../../src/synthesis/empa/empa.jl")
 
 model_name = ARGS[1]
 algorithm = ARGS[2]
