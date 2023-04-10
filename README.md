@@ -181,4 +181,4 @@ julia> program = full_program_given_on_clauses(solutions[1]..., grid_size, matri
 julia> println(program)
 ```
 # Web Interface
-[Autumnal.js](https://github.com/riadas/Autumnal.js)
+[Autumnal.js (live link in README)](https://github.com/riadas/Autumnal.js)
