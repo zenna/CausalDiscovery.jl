@@ -5,7 +5,7 @@ curr_date=$(date '+%Y-%m-%d_%H:%M:%S')
 #             "sketch_multi"
 #             "sketch_single")
 algorithms=("heuristic")
-num_repeats=3
+num_repeats=1
 
 # model_names=("paint"
 #              "lights"
@@ -64,13 +64,13 @@ model_names=("paint"
             "mario"
             "wind" 
             "ice"
-            "particles"
             "ants"
             "chase"
             "magnets_i"
             "space_invaders"
             "sokoban_i"
             "water_plug"
+	    "coins"
             )
 
 # model_names=("paint"
@@ -100,7 +100,7 @@ model_names=("paint"
 # #              "space_invaders"
 # #              "sokoban")
 # # # "space_invaders"
-# model_names=("ice")
+# model_names=("count_1")
 
 for  (( i = 1 ; i <= $num_repeats; i++ ))
 do
@@ -109,7 +109,7 @@ do
     for model_name in ${model_names[@]} ### Inner for loop ###
     do
       echo "model_name: $model_name, algorithm: $algorithm, repeat: $i "
-      nohup timeout 86400 julia --project=. evaluation/cisc/scripts/full_eval.jl $model_name $algorithm $curr_date $i > /dev/null & # OCTOBER_TESTING_OUTS/$model_name.$algorithm.out & 
+      nohup timeout 86400 /scratch/riadas/julia-1.5.4/bin/julia --project=. evaluation/cisc/scripts/full_eval.jl $model_name $algorithm $curr_date $i > /dev/null & # OCTOBER_TESTING_OUTS/$model_name.$algorithm.out & 
       sleep 60
     done
     sleep 28800  

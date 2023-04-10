@@ -1,0 +1,56 @@
+ 
+(program
+  (= GRID_SIZE 30)
+  (= background "white")
+  (object ObjType1 (: color String) (list (Cell 0 0 color)))
+  (object ObjType2 (: color String) (list (Cell 0 -1 color) (Cell 0 0 color) (Cell 1 -1 color) (Cell 1 0 color)))
+
+  (: addedObjType1List (List ObjType1))
+
+  (: addedObjType2List (List ObjType2))
+
+  (= addedObjType1List (initnext (list (ObjType1  "red"  (Position 0 14)) (ObjType1  "darkorange"  (Position 29 14)) (ObjType1  "gold"  (Position 14 0)) (ObjType1  "green"  (Position 14 29))) (prev addedObjType1List)))
+  
+  (= addedObjType2List (initnext (list) (prev addedObjType2List)))
+
+	 (: globalVar2 Int)
+	 (= globalVar2 (initnext 4 (prev globalVar2)))
+	 (: globalVar1 Int)
+	 (= globalVar1 (initnext 3 (prev globalVar1)))
+
+  (: time Int)
+  (= time (initnext 0 (+ time 1))) 
+
+  (on true
+(= addedObjType2List (updateObj addedObjType2List (--> obj (moveDown (prev obj))) (--> obj true))))
+  (on (& (== (prev globalVar2) 1) true)
+(= addedObjType2List (updateObj addedObjType2List (--> obj (moveUp (prev obj))) (--> obj true))))
+  (on (& (== (prev globalVar2) 3) true)
+(= addedObjType2List (updateObj addedObjType2List (--> obj (moveRight (prev obj))) (--> obj true))))
+  (on (& (== (prev globalVar2) 2) true)
+(= addedObjType2List (updateObj addedObjType2List (--> obj (moveLeft (prev obj))) (--> obj true))))
+  (on (clicked (filter (--> obj (== (.. obj color) "red")) (prev addedObjType1List)))
+(= globalVar2 2))
+  (on (clicked (filter (--> obj (== (.. obj color) "green")) (prev addedObjType1List)))
+(= globalVar2 4))
+  (on (clicked (filter (--> obj (== (.. obj color) "darkorange")) (prev addedObjType1List)))
+(= globalVar2 3))
+  (on (clicked (filter (--> obj (== (.. obj color) "gold")) (prev addedObjType1List)))
+(= globalVar2 1))
+  (on (& (& clicked (isFree click)) (== (prev globalVar1) 3))
+(= globalVar1 2))
+  (on (& (& clicked (isFree click)) (== (prev globalVar1) 2))
+(= globalVar1 1))
+  (on (& (& clicked (isFree click)) (== (prev globalVar1) 1))
+(= globalVar1 3))
+  (on (& (== (prev globalVar1) 3) (& clicked (isFree click)))
+(= addedObjType2List (addObj addedObjType2List (ObjType2  "mediumpurple"  (Position (.. click x) (.. click y))))))
+  (on (& (== (prev globalVar1) 2) (& clicked (isFree click)))
+(= addedObjType2List (addObj addedObjType2List (ObjType2  "magenta"  (Position (.. click x) (.. click y))))))
+  (on (& (== (prev globalVar1) 1) (& clicked (isFree click)))
+(= addedObjType2List (addObj addedObjType2List (ObjType2  "blue"  (Position (.. click x) (.. click y)))))))
+
+
+
+
+

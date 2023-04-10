@@ -1,0 +1,57 @@
+ 
+(program
+  (= GRID_SIZE 16)
+  (= background "white")
+  (object ObjType1 (: color String) (list (Cell 0 0 color)))
+
+  (: addedObjType1List (List ObjType1))
+
+  
+
+  (= addedObjType1List (initnext (list (ObjType1  "gray"  (Position 1 14)) (ObjType1  "gray"  (Position 5 5))) (prev addedObjType1List)))
+  
+  
+
+
+  (: time Int)
+  (= time (initnext 0 (+ time 1))) 
+
+  (on true
+(= addedObjType1List (updateObj addedObjType1List (--> obj (uniformChoice (list (prev obj) (moveRight (prev obj)) (moveUp (prev obj)) (moveLeft (prev obj)) (moveLeftNoCollision (prev obj)) (moveDown (prev obj))))))))
+  (on true
+(= addedObjType1List (removeObj addedObjType1List (--> obj (& (intersects (list "red") (map (--> obj (.. obj color)) (list (prev obj)))) (intersects (list (prev obj)) (filter (--> obj (== (.. obj color) "gray")) (prev addedObjType1List))))))))
+  (on clicked
+(= addedObjType1List (addObj addedObjType1List (map (--> pos (ObjType1  "red"  pos)) (randomPositions GRID_SIZE 2))))))
+
+
+
+ 
+(program
+  (= GRID_SIZE 16)
+  (= background "white")
+  (object ObjType1  (list (Cell 0 0  "gray" )))
+  (object ObjType2  (list (Cell 0 0  "red" )))
+
+  (: addedObjType1List (List ObjType1))
+
+  (: addedObjType2List (List ObjType2))
+
+  (= addedObjType1List (initnext (list (ObjType1  (Position 5 5)) (ObjType1  (Position 1 14))) (prev addedObjType1List)))
+  
+  (= addedObjType2List (initnext (list) (prev addedObjType2List)))
+
+
+  (: time Int)
+  (= time (initnext 0 (+ time 1))) 
+
+  (on true
+(= addedObjType2List (removeObj addedObjType2List (--> obj (intersects (list (prev obj)) (prev addedObjType1List))))))
+  (on true
+(= addedObjType1List (updateObj addedObjType1List (--> obj (move (prev obj) (unitVector (prev obj) (closest (prev obj) ObjType2)))) (--> obj true))))
+  (on clicked
+(= addedObjType2List (addObj addedObjType2List (map (--> pos (ObjType2 pos)) (randomPositions GRID_SIZE 2))))))
+
+
+
+
+
