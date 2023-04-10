@@ -155,3 +155,26 @@ julia> println(sols[1])
   ```
 </details>
 
+# Under the Hood
+CISC:
+```
+julia> include("src/synthesis/cisc/cisc.jl")
+julia> model_name = "ice"
+julia> observations, user_events, grid_size = generate_observations(model_name)
+julia> matrix, unformatted_matrix, object_decomposition, prev_used_rules = singletimestepsolution_matrix(observations, user_events, grid_size, singlecell=false, pedro=false)
+julia> global_event_vector_dict = Dict(); redundant_events_set = Set()
+julia> solutions = generate_on_clauses_GLOBAL(model_name, false, matrix, unformatted_matrix, object_decomposition, user_events, global_event_vector_dict, redundant_events_set, grid_size)
+julia> program = full_program_given_on_clauses(solutions[1]..., grid_size, matrix)
+julia> println(program)
+```
+EMPA: 
+```
+julia> include("src/synthesis/empa/empa.jl")
+julia> model_name = "Bait"
+julia> observations, user_events, grid_size = generate_observations_empa(model_name)
+julia> matrix, unformatted_matrix, object_decomposition, prev_used_rules = singletimestepsolution_matrix(observations, user_events, grid_size, singlecell=true, pedro=true)
+julia> global_event_vector_dict = Dict(); redundant_events_set = Set()
+julia> solutions = generate_on_clauses_GLOBAL(model_name, matrix, unformatted_matrix, object_decomposition, user_events, global_event_vector_dict, redundant_events_set, grid_size, state_synthesis_algorithm="heuristic", symmetry=true)
+julia> program = full_program_given_on_clauses(solutions[1]..., grid_size, matrix, user_events)
+julia> println(program)
+```
