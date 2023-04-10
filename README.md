@@ -4,6 +4,8 @@
 [![Dev](https://img.shields.io/badge/docs-dev-blue.svg)](https://zenna.github.io/CausalDiscovery.jl/dev)
 [![Codecov](https://codecov.io/gh/zenna/CausalDiscovery.jl/branch/master/graph/badge.svg)](https://codecov.io/gh/zenna/CausalDiscovery.jl)
 
+Code for the paper [Combining Functional and Automata Synthesis to Discover Causal Reactive Programs](https://dspace.mit.edu/bitstream/handle/1721.1/147690/3571249.pdf?sequence=1&isAllowed=y).
+
 # Installation
 
 Install Julia 1.5.4 from [older releases](https://julialang.org/downloads/oldreleases/) and [Python 3](https://www.python.org/downloads/).
