@@ -1,0 +1,47 @@
+ 
+(program
+  (= GRID_SIZE 16)
+  (= background "white")
+  (object ObjType1 (: color String) (list (Cell 0 0 color) (Cell 0 1 color)))
+
+  (: addedObjType1List (List ObjType1))
+
+  
+
+  (= addedObjType1List (initnext (list (ObjType1  "red"  (Position 7 7)) (ObjType1  "blue"  (Position 4 7))) (prev addedObjType1List)))
+  
+  
+
+
+  (: time Int)
+  (= time (initnext 0 (+ time 1))) 
+
+  (on true
+(= addedObjType1List (updateObj addedObjType1List (--> obj (moveRight (prev obj))) (--> obj (& (& (& right (! (in (Position -2 0) (map (--> obj2 (displacement (.. obj2 origin) (if (== 0 (length (list (prev obj)))) then (Position -10 -10) else (.. (first (list (prev obj))) origin)))) (filter (--> obj2 (== (.. obj2 color) "red")) (prev addedObjType1List)))))) (! (intersects (map (--> obj (moveLeft obj)) (list (prev obj))) (filter (--> obj (== (.. obj color) "red")) (prev addedObjType1List))))) (intersects (list "blue") (map (--> obj (.. obj color)) (list (prev obj)))))))))
+  (on true
+(= addedObjType1List (updateObj addedObjType1List (--> obj (moveLeft (prev obj))) (--> obj (& (& (intersects (list "blue") (map (--> obj (.. obj color)) (list (prev obj)))) (! (intersects (map (--> obj (moveRight obj)) (list (prev obj))) (filter (--> obj (== (.. obj color) "red")) (prev addedObjType1List))))) (& left (! (in (Position 2 0) (map (--> obj2 (displacement (.. obj2 origin) (if (== 0 (length (list (prev obj)))) then (Position -10 -10) else (.. (first (list (prev obj))) origin)))) (filter (--> obj2 (== (.. obj2 color) "red")) (prev addedObjType1List)))))))))))
+  (on true
+(= addedObjType1List (updateObj addedObjType1List (--> obj (moveUp (prev obj))) (--> obj (& up (! (intersects (map (--> obj (moveDown obj)) (list (prev obj))) (filter (--> obj (== (.. obj color) "red")) (prev addedObjType1List)))))))))
+  (on true
+(= addedObjType1List (updateObj addedObjType1List (--> obj (moveDown (prev obj))) (--> obj (& (! (intersects (map (--> obj (moveUp obj)) (list (prev obj))) (filter (--> obj (== (.. obj color) "red")) (prev addedObjType1List)))) down)))))
+  (on true
+(= addedObjType1List (updateObj addedObjType1List (--> obj (move (prev obj) -1 1)) (--> obj (| (| (& down (in (Position 2 0) (map (--> obj2 (displacement (.. obj2 origin) (if (== 0 (length (list (prev obj)))) then (Position -10 -10) else (.. (first (list (prev obj))) origin)))) (filter (--> obj2 (== (.. obj2 color) "red")) (prev addedObjType1List))))) (& left (in (Position 1 -3) (map (--> obj2 (displacement (.. obj2 origin) (if (== 0 (length (list (prev obj)))) then (Position -10 -10) else (.. (first (list (prev obj))) origin)))) (filter (--> obj2 (== (.. obj2 color) "red")) (prev addedObjType1List)))))) (& down (in (Position 2 -2) (map (--> obj2 (displacement (.. obj2 origin) (if (== 0 (length (list (prev obj)))) then (Position -10 -10) else (.. (first (list (prev obj))) origin)))) (filter (--> obj2 (== (.. obj2 color) "red")) (prev addedObjType1List))))))))))
+  (on true
+(= addedObjType1List (updateObj addedObjType1List (--> obj (move (prev obj) -1 -1)) (--> obj (| (| (& up (in (Position 2 2) (map (--> obj2 (displacement (.. obj2 origin) (if (== 0 (length (list (prev obj)))) then (Position -10 -10) else (.. (first (list (prev obj))) origin)))) (filter (--> obj2 (== (.. obj2 color) "red")) (prev addedObjType1List))))) (& left (in (Position 1 3) (map (--> obj2 (displacement (.. obj2 origin) (if (== 0 (length (list (prev obj)))) then (Position -10 -10) else (.. (first (list (prev obj))) origin)))) (filter (--> obj2 (== (.. obj2 color) "red")) (prev addedObjType1List)))))) (& up (in (Position 2 0) (map (--> obj2 (displacement (.. obj2 origin) (if (== 0 (length (list (prev obj)))) then (Position -10 -10) else (.. (first (list (prev obj))) origin)))) (filter (--> obj2 (== (.. obj2 color) "red")) (prev addedObjType1List))))))))))
+  (on true
+(= addedObjType1List (updateObj addedObjType1List (--> obj (move (prev obj) -2 0)) (--> obj (| (in (Position 3 -1) (map (--> obj2 (displacement (.. obj2 origin) (if (== 0 (length (list (prev obj)))) then (Position -10 -10) else (.. (first (list (prev obj))) origin)))) (filter (--> obj2 (== (.. obj2 color) "red")) (prev addedObjType1List)))) (in (Position 3 1) (map (--> obj2 (displacement (.. obj2 origin) (if (== 0 (length (list (prev obj)))) then (Position -10 -10) else (.. (first (list (prev obj))) origin)))) (filter (--> obj2 (== (.. obj2 color) "red")) (prev addedObjType1List)))))))))
+  (on true
+(= addedObjType1List (updateObj addedObjType1List (--> obj (move (prev obj) 1 1)) (--> obj (| (| (& down (in (Position -2 0) (map (--> obj2 (displacement (.. obj2 origin) (if (== 0 (length (list (prev obj)))) then (Position -10 -10) else (.. (first (list (prev obj))) origin)))) (filter (--> obj2 (== (.. obj2 color) "red")) (prev addedObjType1List))))) (& down (in (Position -2 -2) (map (--> obj2 (displacement (.. obj2 origin) (if (== 0 (length (list (prev obj)))) then (Position -10 -10) else (.. (first (list (prev obj))) origin)))) (filter (--> obj2 (== (.. obj2 color) "red")) (prev addedObjType1List)))))) (in (Position -1 -3) (map (--> obj2 (displacement (.. obj2 origin) (if (== 0 (length (list (prev obj)))) then (Position -10 -10) else (.. (first (list (prev obj))) origin)))) (filter (--> obj2 (== (.. obj2 color) "red")) (prev addedObjType1List)))))))))
+  (on true
+(= addedObjType1List (updateObj addedObjType1List (--> obj (move (prev obj) 1 -1)) (--> obj (| (| (& up (in (Position -2 0) (map (--> obj2 (displacement (.. obj2 origin) (if (== 0 (length (list (prev obj)))) then (Position -10 -10) else (.. (first (list (prev obj))) origin)))) (filter (--> obj2 (== (.. obj2 color) "red")) (prev addedObjType1List))))) (& right (in (Position -1 3) (map (--> obj2 (displacement (.. obj2 origin) (if (== 0 (length (list (prev obj)))) then (Position -10 -10) else (.. (first (list (prev obj))) origin)))) (filter (--> obj2 (== (.. obj2 color) "red")) (prev addedObjType1List)))))) (& up (in (Position -2 2) (map (--> obj2 (displacement (.. obj2 origin) (if (== 0 (length (list (prev obj)))) then (Position -10 -10) else (.. (first (list (prev obj))) origin)))) (filter (--> obj2 (== (.. obj2 color) "red")) (prev addedObjType1List))))))))))
+  (on true
+(= addedObjType1List (updateObj addedObjType1List (--> obj (move (prev obj) 2 0)) (--> obj (| (in (Position -3 -1) (map (--> obj2 (displacement (.. obj2 origin) (if (== 0 (length (list (prev obj)))) then (Position -10 -10) else (.. (first (list (prev obj))) origin)))) (filter (--> obj2 (== (.. obj2 color) "red")) (prev addedObjType1List)))) (in (Position -3 1) (map (--> obj2 (displacement (.. obj2 origin) (if (== 0 (length (list (prev obj)))) then (Position -10 -10) else (.. (first (list (prev obj))) origin)))) (filter (--> obj2 (== (.. obj2 color) "red")) (prev addedObjType1List)))))))))
+  (on true
+(= addedObjType1List (updateObj addedObjType1List (--> obj (move (prev obj) 0 2)) (--> obj (in (Position 0 -4) (map (--> obj2 (displacement (.. obj2 origin) (if (== 0 (length (list (prev obj)))) then (Position -10 -10) else (.. (first (list (prev obj))) origin)))) (filter (--> obj2 (== (.. obj2 color) "red")) (prev addedObjType1List))))))))
+  (on true
+(= addedObjType1List (updateObj addedObjType1List (--> obj (move (prev obj) 0 -2)) (--> obj (& up (in (Position 0 4) (map (--> obj2 (displacement (.. obj2 origin) (if (== 0 (length (list (prev obj)))) then (Position -10 -10) else (.. (first (list (prev obj))) origin)))) (filter (--> obj2 (== (.. obj2 color) "red")) (prev addedObjType1List))))))))))
+
+
+
+
+

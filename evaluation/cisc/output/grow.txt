@@ -1,0 +1,55 @@
+ 
+(program
+  (= GRID_SIZE 7)
+  (= background "white")
+  (object ObjType1  (list (Cell 0 -1  "gold" ) (Cell 0 0  "gold" ) (Cell 1 -1  "gold" ) (Cell 1 0  "gold" )))
+  (object ObjType2  (list (Cell -1 -1  "gray" ) (Cell -1 0  "gray" ) (Cell 0 -1  "gray" ) (Cell 0 0  "gray" ) (Cell 1 -1  "gray" ) (Cell 1 0  "gray" )))
+  (object ObjType3 (: color String) (list (Cell 0 0 color)))
+
+  (: obj1 ObjType1)
+  (: obj2 ObjType2)
+  (: addedObjType3List (List ObjType3))
+
+  (: addedObjType1List (List ObjType1))
+  (: addedObjType2List (List ObjType2))
+
+  (= obj1 (initnext (ObjType1  (Position 0 1)) (prev obj1)))
+  (= obj2 (initnext (ObjType2  (Position 5 1)) (prev obj2)))
+  (= addedObjType3List (initnext (list (ObjType3  "green"  (Position 1 6)) (ObjType3  "green"  (Position 3 6)) (ObjType3  "green"  (Position 5 6))) (prev addedObjType3List)))
+  
+  (= addedObjType1List (initnext (list) (prev addedObjType1List)))
+  (= addedObjType2List (initnext (list) (prev addedObjType2List)))
+
+	 (: globalVar1 Int)
+	 (= globalVar1 (initnext 2 (prev globalVar1)))
+
+  (: time Int)
+  (= time (initnext 0 (+ time 1))) 
+
+  (on right
+(= obj2 (moveRight (prev obj2))))
+  (on left
+(= obj2 (moveLeft (prev obj2))))
+  (on true
+(= addedObjType3List (updateObj addedObjType3List (--> obj (moveDown (prev obj))) (--> obj (intersects (list "blue") (map (--> obj (.. obj color)) (list (prev obj))))))))
+  (on true
+(= addedObjType3List (removeObj addedObjType3List (--> obj (& (intersects (map (--> obj (.. (moveDownNoCollision obj) origin)) (list (prev obj))) (map (--> obj (.. obj origin)) (list (prev obj)))) (intersects (list "blue") (map (--> obj (.. obj color)) (list (prev obj)))))))))
+  (on true
+(= addedObjType3List (updateObj addedObjType3List (--> obj (updateObj (prev obj) "color" "green")) (--> obj (& (& (& (! (intersects (prev obj1) (prev obj2))) (intersects (list "blue") (map (--> obj (.. obj color)) (list (prev obj))))) (intersects (map (--> obj (moveDown obj)) (list (prev obj))) (filter (--> obj (== (.. obj color) "green")) (prev addedObjType3List)))) (! (intersects (list "green") (map (--> obj (.. obj color)) (list (prev obj))))))))))
+  (on true
+(= addedObjType3List (updateObj addedObjType3List (--> obj (updateObj (prev obj) "color" "mediumpurple")) (--> obj (& (& (& (in true (map (--> obj (isWithinBounds obj)) (map (--> obj (move obj 0 2)) (list (prev obj))))) (! (intersects (prev obj1) (prev obj2)))) (intersects (map (--> obj (moveDown obj)) (list (prev obj))) (filter (--> obj (== (.. obj color) "green")) (prev addedObjType3List)))) (! (intersects (list "mediumpurple") (map (--> obj (.. obj color)) (list (prev obj))))))))))
+  (on (clicked (prev obj1))
+(= obj1 (moveRight (prev obj1))))
+  (on (& (== (prev globalVar1) 1) (clicked (prev obj1)))
+(= obj1 (moveLeft (prev obj1))))
+  (on (== (.. (.. (prev obj1) origin) x) 5)
+(= globalVar1 1))
+  (on (== (.. (.. (prev obj1) origin) x) 0)
+(= globalVar1 2))
+  (on down
+(= addedObjType3List (addObj addedObjType3List (ObjType3  "blue"  (.. (prev obj2) origin))))))
+
+
+
+
+

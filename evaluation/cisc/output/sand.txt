@@ -1,0 +1,39 @@
+ 
+(program
+  (= GRID_SIZE 10)
+  (= background "white")
+  (object ObjType1 (: color String) (list (Cell 0 0 color)))
+
+  (: addedObjType1List (List ObjType1))
+
+  
+
+  (= addedObjType1List (initnext (list (ObjType1  "red"  (Position 2 0)) (ObjType1  "green"  (Position 7 0))) (prev addedObjType1List)))
+  
+  
+
+	 (: globalVar1 Int)
+	 (= globalVar1 (initnext 1 (prev globalVar1)))
+
+  (: time Int)
+  (= time (initnext 0 (+ time 1))) 
+
+  (on true
+(= addedObjType1List (updateObj addedObjType1List (--> obj (nextLiquid (prev obj))) (--> obj (| (intersects (list "skyblue") (map (--> obj (.. obj color)) (list (prev obj)))) (intersects (list "sandybrown") (map (--> obj (.. obj color)) (list (prev obj)))))))))
+  (on true
+(= addedObjType1List (updateObj addedObjType1List (--> obj (moveDownNoCollision (prev obj))) (--> obj (intersects (list "tan") (map (--> obj (.. obj color)) (list (prev obj))))))))
+  (on true
+(= addedObjType1List (updateObj addedObjType1List (--> obj (updateObj (prev obj) "color" "sandybrown")) (--> obj (& (& (intersects (unfold (map (--> obj (adjacentObjs obj 1)) (list (prev obj)))) (filter (--> obj (== (.. obj color) "skyblue")) (prev addedObjType1List))) (intersects (list "tan") (map (--> obj (.. obj color)) (list (prev obj))))) (! (intersects (list "sandybrown") (map (--> obj (.. obj color)) (list (prev obj))))))))))
+  (on (clicked (filter (--> obj (== (.. obj id) 2)) (prev addedObjType1List)))
+(= globalVar1 2))
+  (on (clicked (filter (--> obj (== (.. obj id) 1)) (prev addedObjType1List)))
+(= globalVar1 1))
+  (on (& (== (prev globalVar1) 1) (& clicked (isFree click)))
+(= addedObjType1List (addObj addedObjType1List (ObjType1  "tan"  (Position (.. click x) (.. click y))))))
+  (on (& (== (prev globalVar1) 2) (& clicked (isFree click)))
+(= addedObjType1List (addObj addedObjType1List (ObjType1  "skyblue"  (Position (.. click x) (.. click y)))))))
+
+
+
+
+

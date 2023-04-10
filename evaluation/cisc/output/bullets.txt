@@ -1,0 +1,60 @@
+ 
+(program
+  (= GRID_SIZE 200)
+  (= background "white")
+  (object ObjType1  (list (Cell 0 0  "blue" )))
+  (object ObjType2 (: field1 Int) (list (Cell 0 0  "red" )))
+
+  (: obj1 ObjType1)
+
+  (: addedObjType1List (List ObjType1))
+  (: addedObjType2List (List ObjType2))
+
+  (= obj1 (initnext (ObjType1  (Position 100 100)) (prev obj1)))
+  
+  (= addedObjType1List (initnext (list) (prev addedObjType1List)))
+  (= addedObjType2List (initnext (list) (prev addedObjType2List)))
+
+	 (: globalVar1 Int)
+	 (= globalVar1 (initnext 5 (prev globalVar1)))
+
+  (: time Int)
+  (= time (initnext 0 (+ time 1))) 
+
+  (on true
+(= addedObjType2List (updateObj addedObjType2List (--> obj (moveLeft (prev obj))) (--> obj true))))
+  (on true
+(= addedObjType2List (updateObj addedObjType2List (--> obj (moveDown (prev obj))) (--> obj (& true (== (.. obj field1) 1))))))
+  (on true
+(= addedObjType2List (updateObj addedObjType2List (--> obj (moveUp (prev obj))) (--> obj (& true (== (.. obj field1) 3))))))
+  (on true
+(= addedObjType2List (updateObj addedObjType2List (--> obj (moveRight (prev obj))) (--> obj (& true (== (.. obj field1) 2))))))
+  (on down
+(= obj1 (moveDown (prev obj1))))
+  (on left
+(= obj1 (moveLeft (prev obj1))))
+  (on right
+(= obj1 (moveRight (prev obj1))))
+  (on up
+(= obj1 (moveUp (prev obj1))))
+  (on left
+(= globalVar1 3))
+  (on up
+(= globalVar1 4))
+  (on right
+(= globalVar1 2))
+  (on down
+(= globalVar1 1))
+  (on (& (== (prev globalVar1) 3) clicked)
+(= addedObjType2List (addObj addedObjType2List (ObjType2 4  (move (.. (prev obj1) origin) (Position -1 0))))))
+  (on (& (== (prev globalVar1) 4) clicked)
+(= addedObjType2List (addObj addedObjType2List (ObjType2 3  (move (.. (prev obj1) origin) (Position 0 -1))))))
+  (on (& (== (prev globalVar1) 2) clicked)
+(= addedObjType2List (addObj addedObjType2List (ObjType2 2  (move (.. (prev obj1) origin) (Position 1 0))))))
+  (on (& (== (prev globalVar1) 1) clicked)
+(= addedObjType2List (addObj addedObjType2List (ObjType2 1  (move (.. (prev obj1) origin) (Position 0 1)))))))
+
+
+
+
+
