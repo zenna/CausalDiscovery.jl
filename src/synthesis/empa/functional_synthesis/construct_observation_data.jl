@@ -1726,3 +1726,45 @@ function generate_observations_pedro_interface(game_name, index=1)
 
   observations, user_events[1:end-1], map(x -> Int(round(x)), grid_size .* 0.5)
 end
+
+function generate_observations_empa(model_name, index=1)
+  if model_name == "Explore_Exploit"
+    global pedro_interface_output_folder = "evaluation/empa/data/traces_may7"
+  elseif model_name in ["Helper2", "Lemmings_small_take3", "Lemmings_small_take4", "Watergame2", "Relational_end", "Lemmings_small_take2", "Lemmings_small", "closing_gates5", "Sokoban2", "Butterflies2", "Antagonist", "Bait", "closing_gates", "Helper", "Jaws", "Plaqueattack", "Relational", "Sokoban", "Watergame", "Lemmings2", "Lemmings"]
+    global pedro_interface_output_folder = "evaluation/empa/data/october_traces_new"
+  else
+    global pedro_interface_output_folder = "evaluation/empa/data/new_traces_fixed"
+  end
+
+  # pedro_interface_output_folder = "/scratch/riadas/EMPA_Data_Collection_Interface/new_traces_fixed" # new_traces_fixed  traces_may7
+  observations, user_events, grid_size = generate_observations_pedro_interface(model_name, 1)
+  if model_name == "closing_gates" || model_name == "closing_gates5"
+    singlecell = false
+  elseif model_name == "MyAliens"
+    observations = observations[1:127]
+    user_events = user_events[1:126]
+  elseif model_name == "Survivezombies"
+    observations = observations[1:end-1]
+    user_events = user_events[1:end-1]
+  elseif model_name == "Plaqueattack"
+    observations = map(obs -> filter(c -> c.color != "white", obs), observations)
+  elseif model_name == "Watergame"
+    observations = map(obs -> filter(c -> c.color != "white", obs), observations)
+  elseif model_name == "Lemmings2"
+    observations, user_events, grid_size = generate_observations_pedro_interface(model_name, 1)
+  elseif model_name == "Sokoban2"
+    observations, user_events, grid_size = generate_observations_pedro_interface(model_name, 2)
+  elseif model_name == "Lemmings_small"
+    user_events[189] = "right"
+    user_events[203] = "right"
+  elseif model_name == "Lemmings_small_take3"
+    observations, user_events, grid_size = generate_observations_pedro_interface(model_name, 2)  
+  elseif model_name == "Lemmings_small_take4"
+    observations, user_events, grid_size = generate_observations_pedro_interface(model_name, 1)  
+  elseif model_name == "Watergame2"
+    observations, user_events, grid_size = generate_observations_pedro_interface(model_name, 2)
+    observations = map(obs -> filter(c -> c.color != "white", obs), observations)
+  end
+
+  observations, user_events, grid_size
+end

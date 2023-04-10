@@ -31,7 +31,7 @@ function find_global_index(update_function)
 end
 
 """Construct matrix of single timestep solutions"""
-function singletimestepsolution_matrix(observations, old_user_events, grid_size; singlecell=false, pedro=false, upd_func_space=1, multiple_traces=false)
+function singletimestepsolution_matrix(observations, old_user_events, grid_size; singlecell=false, pedro=false, upd_func_space=6, multiple_traces=false)
   if multiple_traces 
     object_types, object_mapping, background, _, linked_ids = parse_and_map_objects_multiple_traces(observations, grid_size, singlecell=singlecell, pedro=pedro)
     stop_times = map(i -> 1 + length(observations[i]) + (i == 1 ? 0 : sum(map(j -> length(observations[j]), 1:(i - 1)))), 1:(length(observations) - 1))
@@ -171,7 +171,7 @@ expr = nothing
 mod = nothing
 global_iters = 0
 """Synthesize a set of update functions that """
-function synthesize_update_functions(object_id, time, object_decomposition, user_events, prev_used_rules, prev_abstract_positions, stationary_types, grid_size=16, max_iters=11, upd_func_space=1; pedro=false, stop_times=[])
+function synthesize_update_functions(object_id, time, object_decomposition, user_events, prev_used_rules, prev_abstract_positions, stationary_types, grid_size=16, max_iters=11, upd_func_space=6; pedro=false, stop_times=[])
   if time in stop_times 
     return [""], [""], prev_used_rules, prev_abstract_positions
   end
@@ -3352,7 +3352,7 @@ function is_no_change_rule(update_rule)
   !foldl(|, map(x -> occursin(x, update_rule), update_functions))
 end 
 
-function full_program(observations, user_events, matrix, grid_size=16; singlecell=false, pedro=false, upd_func_space=1)
+function full_program(observations, user_events, matrix, grid_size=16; singlecell=false, pedro=false, upd_func_space=6)
   matrix, unformatted_matrix, object_decomposition, _ = singletimestepsolution_matrix(observations, user_events, grid_size, singlecell=singlecell, pedro=pedro, upd_func_space=upd_func_space)
 
   object_types, object_mapping, background, _ = object_decomposition
