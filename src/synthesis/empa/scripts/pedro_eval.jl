@@ -54,7 +54,7 @@ x = @timed begin
       on_clauses, new_object_decomposition, global_var_dict = solution
       @show on_clauses
 
-      program = full_program_given_on_clauses(on_clauses, new_object_decomposition, global_var_dict, grid_size, matrix)
+      program = full_program_given_on_clauses(on_clauses, new_object_decomposition, global_var_dict, grid_size, matrix, unformatted_matrix)
       push!(program_strings, program)
     end
   end
