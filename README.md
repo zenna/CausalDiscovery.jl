@@ -175,7 +175,7 @@ julia> observations, user_events, grid_size = generate_observations_empa(model_n
 julia> matrix, unformatted_matrix, object_decomposition, prev_used_rules = singletimestepsolution_matrix(observations, user_events, grid_size, singlecell=true, pedro=true)
 julia> global_event_vector_dict = Dict(); redundant_events_set = Set()
 julia> solutions = generate_on_clauses_GLOBAL(model_name, matrix, unformatted_matrix, object_decomposition, user_events, global_event_vector_dict, redundant_events_set, grid_size, state_synthesis_algorithm="heuristic", symmetry=true)
-julia> program = full_program_given_on_clauses(solutions[1]..., grid_size, matrix, user_events)
+julia> program = full_program_given_on_clauses(solutions[1]..., grid_size, matrix, unformatted_matrix, user_events)
 julia> println(program)
 ```
 # Web Interface
