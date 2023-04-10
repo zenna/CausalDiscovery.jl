@@ -33,10 +33,3 @@ julia> include("src/synthesis/cisc/cisc.jl")
 julia> @timed sols = run_model("ice", "heuristic")
 julia> println(sols[1])
 ```
-
-EMPA:
-``` 
-julia> include("src/synthesis/empa/empa.jl")
-julia> @timed sols = run_model("Bait", "heuristic")
-julia> println(sols[1])
-```
