@@ -43,7 +43,7 @@ x = @timed begin
   # pedro_interface_output_folder = "/scratch/riadas/EMPA_Data_Collection_Interface/new_traces_fixed" # new_traces_fixed  traces_may7
   observations, user_events, grid_size = generate_observations_pedro_interface(model_name)
 
-  @show observations
+  @show length(observations)
 
   singlecell = true 
   pedro = true

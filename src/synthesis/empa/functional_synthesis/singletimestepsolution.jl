@@ -1046,7 +1046,7 @@ end
 
 """Parse observations into object types and objects, and assign 
    objects in current observed frame to objects in next frame"""
-function parse_and_map_objects(observations, gridsize=16; singlecell=false, pedro=false)
+function parse_and_map_objects(observations, grid_size=16; singlecell=false, pedro=false)
   object_mapping = Dict{Int, Array{Union{Nothing, Obj}}}()
 
   if pedro 
@@ -1063,33 +1063,33 @@ function parse_and_map_objects(observations, gridsize=16; singlecell=false, pedr
   ## initialize object_types based on first observation frame
   if !pedro 
     if overlapping_cells
-      object_types, _, background, dim = parsescene_autumn_singlecell(observations[1], "white", gridsize)
+      object_types, _, background, dim = parsescene_autumn_singlecell(observations[1], "white", grid_size)
     else
-      object_types, _, background, dim = parsescene_autumn(observations[1], gridsize)
+      object_types, _, background, dim = parsescene_autumn(observations[1], grid_size)
     end
   
     ## iteratively build object_types through each subsequent observation frame
     for time in 2:length(observations)
       if overlapping_cells
-        object_types, _, _, _ = parsescene_autumn_singlecell_given_types(observations[time], object_types, "white", gridsize)
+        object_types, _, _, _ = parsescene_autumn_singlecell_given_types(observations[time], object_types, "white", grid_size)
       else
-        object_types, _, _, _ = parsescene_autumn_given_types(observations[time], object_types, gridsize)
+        object_types, _, _, _ = parsescene_autumn_given_types(observations[time], object_types, grid_size)
       end
     end
     # # println("HERE 1")
     # println(object_types)
   
     if overlapping_cells
-      _, objects, _, _ = parsescene_autumn_singlecell_given_types(observations[1], object_types, "white", gridsize)
+      _, objects, _, _ = parsescene_autumn_singlecell_given_types(observations[1], object_types, "white", grid_size)
     else
-      _, objects, _, _ = parsescene_autumn_given_types(observations[1], object_types, gridsize)
+      _, objects, _, _ = parsescene_autumn_given_types(observations[1], object_types, grid_size)
     end
     # # println("HERE 2")
     # println(object_types)  
   else
     if singlecell 
       # compute union of all colors seen across observations
-      object_types_list = vcat(map(obs -> parsescene_autumn_pedro(obs, gridsize isa Int ? gridsize : gridsize[1], "white")[1], observations)...)
+      object_types_list = vcat(map(obs -> parsescene_autumn_pedro(obs, grid_size isa Int ? grid_size : grid_size[1], "white")[1], observations)...)
       all_colors = unique(map(t -> t.color, object_types_list))
       @show object_types_list 
       shape = filter(t -> t.color != "black", object_types_list)[1].shape
@@ -1100,9 +1100,9 @@ function parse_and_map_objects(observations, gridsize=16; singlecell=false, pedr
         push!(object_types, ObjType(shape, colors[i], [], "black" in all_colors ? i + 1 : i))
       end
 
-      _, objects, _, _ = parsescene_autumn_pedro_given_types(observations[1], object_types, gridsize, "white")
+      _, objects, _, _ = parsescene_autumn_pedro_given_types(observations[1], object_types, grid_size, "white")
     else
-      object_types, objects, _, _ = parsescene_autumn_pedro_multicell(observations[1], gridsize, "white")
+      object_types, objects, _, _ = parsescene_autumn_pedro_multicell(observations[1], grid_size, "white")
     end
   end
 
@@ -1126,16 +1126,16 @@ function parse_and_map_objects(observations, gridsize=16; singlecell=false, pedr
     # # println(object_types)
     if !pedro 
       if overlapping_cells
-        _, next_objects, _, _ = parsescene_autumn_singlecell_given_types(observations[time], deepcopy(object_types), "white", gridsize) # parsescene_autumn_singlecell
+        _, next_objects, _, _ = parsescene_autumn_singlecell_given_types(observations[time], deepcopy(object_types), "white", grid_size) # parsescene_autumn_singlecell
       else
         _, next_objects, _, _ = parsescene_autumn_given_types(observations[time], deepcopy(object_types)) # parsescene_autumn_singlecell
       end
   
     else
       if singlecell 
-        _, next_objects, _, _ = parsescene_autumn_pedro_given_types(observations[time], deepcopy(object_types), gridsize, "white")
+        _, next_objects, _, _ = parsescene_autumn_pedro_given_types(observations[time], deepcopy(object_types), grid_size, "white")
       else
-        _, next_objects, _, _ = parsescene_autumn_pedro_multicell_given_types(observations[time], object_types, gridsize, "white")
+        _, next_objects, _, _ = parsescene_autumn_pedro_multicell_given_types(observations[time], object_types, grid_size, "white")
       end
 
     end
@@ -1300,7 +1300,7 @@ function parse_and_map_objects(observations, gridsize=16; singlecell=false, pedr
   #   end
   # end
 
-  (object_types, object_mapping, "white", gridsize)  
+  (object_types, object_mapping, "white", grid_size)  
 end
 
 function sort_closest_objects_by_age(tuples)
@@ -2717,9 +2717,11 @@ function construct_brownian_motion_matrix(matrix, unformatted_matrix, object_dec
   new_matrix
 end
 
-function construct_filtered_matrices_pedro(old_matrix, object_decomposition, user_events, symmetry=true; stop_times=[])
+function construct_filtered_matrices_pedro(old_matrix, unformatted_matrix, object_decomposition, user_events, symmetry=true; stop_times=[])
   object_types, object_mapping, _, grid_size = object_decomposition 
   
+  @show object_types 
+
   # construct type_displacements
   for type in object_types 
     type_displacements[type.id] = []
@@ -5605,7 +5607,7 @@ function is_no_change_rule(update_rule)
   !foldl(|, map(x -> occursin(x, update_rule), update_functions))
 end 
 
-function full_program(observations, user_events, matrix, grid_size=16; singlecell=false, pedro=false, upd_func_space=1)
+function full_program(observations, user_events, matrix, unformatted_matrix, grid_size=16; singlecell=false, pedro=false, upd_func_space=1)
   matrix, unformatted_matrix, object_decomposition, _ = singletimestepsolution_matrix(observations, user_events, grid_size, singlecell=singlecell, pedro=pedro, upd_func_space=upd_func_space)
 
   object_types, object_mapping, background, _ = object_decomposition
@@ -5619,7 +5621,7 @@ function full_program(observations, user_events, matrix, grid_size=16; singlecel
   matrix = new_matrix
 
   on_clauses, new_object_decomposition, global_var_dict = generate_on_clauses(matrix, unformatted_matrix, object_decomposition, user_events, grid_size)[1]
-  s = full_program_given_on_clauses(on_clauses, new_object_decomposition, global_var_dict, grid_size, matrix, user_events)
+  s = full_program_given_on_clauses(on_clauses, new_object_decomposition, global_var_dict, grid_size, matrix, unformatted_matrix, user_events)
 end
 
 function format_on_clause_full_program(on_clause, object_decomposition, matrix)
@@ -5656,17 +5658,17 @@ function format_on_clause_full_program(on_clause, object_decomposition, matrix)
   end
 end
 
-function type_contains_update_function(type_id, update_function, matrix, user_events, object_decomposition)
+function type_contains_update_function(type_id, update_function, matrix, unformatted_matrix, user_events, object_decomposition)
   object_types, object_mapping, background, _ = object_decomposition
 
-  filtered_matrices = construct_filtered_matrices_pedro(matrix, object_decomposition, user_events, true, stop_times=[])
+  filtered_matrices = construct_filtered_matrices_pedro(matrix, unformatted_matrix, object_decomposition, user_events, true, stop_times=[])
   filtered_matrix = filtered_matrices[1]
 
   object_ids_with_type = filter(id -> filter(obj -> !isnothing(obj), object_mapping[id])[1].type.id == type_id, collect(keys(object_mapping)))
   occursin(update_function, join(vcat(vcat(map(id -> filtered_matrix[id, :], object_ids_with_type)...)...), ""))
 end
 
-function full_program_given_on_clauses(on_clauses, new_object_decomposition, global_var_dict, grid_size, matrix, user_events)
+function full_program_given_on_clauses(on_clauses, new_object_decomposition, global_var_dict, grid_size, matrix, unformatted_matrix, user_events)
   # @show new_object_decomposition
   object_types, object_mapping, background, _ = new_object_decomposition
 
@@ -5706,7 +5708,7 @@ function full_program_given_on_clauses(on_clauses, new_object_decomposition, glo
           other_type_id = filter(obj -> !isnothing(obj), object_mapping[other_object_id])[1].type.id        
         end
 
-        if type_contains_update_function(other_type_id, "closestRandom", matrix, user_events, object_decomposition)
+        if type_contains_update_function(other_type_id, "closestRandom", matrix, unformatted_matrix, user_events, object_decomposition)
           # enemy object moves randomly, but not removed object 
           if !isnothing(other_object_id)
             new_event = """(& (moveIntersects arrow (prev obj$(object_id)) (moveNoCollisionColor (prev obj$(other_object_id)) (closestRandom (prev obj$(other_object_id)) (list ObjType$(type_id)) 10) "darkgray")) (adjCorner (prev obj$(object_id)) (prev obj$(other_object_id)) 10))"""
@@ -5741,7 +5743,7 @@ function full_program_given_on_clauses(on_clauses, new_object_decomposition, glo
           other_object_id = parse(Int, split(split(on_clause, "adj (prev obj")[2], ")")[1])
           other_type_id = filter(obj -> !isnothing(obj), object_mapping[other_object_id])[1].type.id        
           
-          if type_contains_update_function(other_type_id, "closestRandom", matrix, user_events, object_decomposition)
+          if type_contains_update_function(other_type_id, "closestRandom", matrix, unformatted_matrix, user_events, object_decomposition)
             new_event = """(& (moveIntersects arrow obj (moveNoCollisionColor (prev obj$(other_object_id)) (closestRandom (prev obj$(other_object_id)) (list ObjType$(type_id)) 10) "darkgray")) (adjCorner obj (prev obj$(other_object_id)) 10))"""
 
             # add time-based trigger if it exists 

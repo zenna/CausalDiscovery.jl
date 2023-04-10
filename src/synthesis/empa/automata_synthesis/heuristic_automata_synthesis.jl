@@ -53,7 +53,7 @@ function generate_on_clauses_GLOBAL(run_id, matrix, unformatted_matrix, object_d
     return solutions
   end
 
-  filtered_matrices = construct_filtered_matrices_pedro(matrix, object_decomposition, user_events, symmetry, stop_times=stop_times)
+  filtered_matrices = construct_filtered_matrices_pedro(matrix, unformatted_matrix, object_decomposition, user_events, symmetry, stop_times=stop_times)
 
   # filtered_matrices[2][9, 11] = ["(= addedObjType5List (updateObj addedObjType5List (--> obj (prev obj)) (--> obj (== (.. obj id) 9))))"]
   # filtered_matrices[2][11, 21] = ["(= addedObjType5List (updateObj addedObjType5List (--> obj (prev obj)) (--> obj (== (.. obj id) 9))))"]
