@@ -178,3 +178,5 @@ julia> solutions = generate_on_clauses_GLOBAL(model_name, matrix, unformatted_ma
 julia> program = full_program_given_on_clauses(solutions[1]..., grid_size, matrix, user_events)
 julia> println(program)
 ```
+# Web Interface
+[Autumnal.js](https://github.com/riadas/Autumnal.js)
