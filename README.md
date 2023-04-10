@@ -29,6 +29,7 @@ julia> ] activate .
 # Quick Start
 CISC:
 ``` 
+julia> ] activate .
 julia> include("src/synthesis/cisc/cisc.jl")
 julia> @timed sols = run_model("ice", "heuristic")
 julia> println(sols[1])
