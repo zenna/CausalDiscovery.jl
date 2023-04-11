@@ -2524,7 +2524,7 @@ function special_addObj_removeObj_handling(update_function, filtered_matrix, co_
             addObj_on_clause = "(on $(new_event)\n$(parts[2])"
             if occursin("id) x", addObj_on_clause)
               removeObj_type_id = parse(Int, split(split(removeObj_update_function, "= addedObjType")[2], "List")[1])
-              addObj_on_clause = replace(addObj_on_clause, "(== (.. obj id) x)" => replace(proximity_based_co_occurring_events[1], "(prev addedObjType$(type_id)List)" => "(prev obj)"))
+              addObj_on_clause = replace(addObj_on_clause, "(== (.. obj id) x)" => replace(proximity_based_co_occurring_events[1], "(prev addedObjType$(removeObj_type_id)List)" => "(prev obj)"))
             end
           end
     
