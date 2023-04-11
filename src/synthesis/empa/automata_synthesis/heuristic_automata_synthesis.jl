@@ -251,6 +251,7 @@ function generate_on_clauses_GLOBAL(run_id, matrix, unformatted_matrix, object_d
       @show global_event_vector_dict
       for type_id in collect(keys(state_based_update_functions_dict))
         update_functions = filter(u -> !(u in linked_removeObj_update_functions), state_based_update_functions_dict[type_id])
+        @show update_functions
         for update_function in update_functions 
           if type_id isa Tuple 
             object_ids_with_type = filter(k -> filter(obj -> !isnothing(obj), object_mapping[k])[1].type.id in collect(type_id), collect(keys(object_mapping)))
@@ -277,7 +278,20 @@ function generate_on_clauses_GLOBAL(run_id, matrix, unformatted_matrix, object_d
           # compute co-occurring event 
           update_function_times_dict = Dict(map(obj_id -> obj_id => findall(r -> r == [update_function], anonymized_filtered_matrix[obj_id, :]), object_ids_with_type))
           co_occurring_events = []
-          for event in events
+
+          possible_co_occurring_events = events
+          @show update_function 
+          @show update_function_times_dict
+          if occursin("removeObj (prev obj", update_function) && length(collect(keys(update_function_times_dict))) == 1
+            removed_id = collect(keys(update_function_times_dict))[1]
+            if filter(t -> t.color == "darkblue", object_types) != [] 
+              agent_type_id = filter(t -> t.color == "darkblue", object_types)[1].id 
+              agent_id = filter(id -> filter(obj -> !isnothing(obj), object_mapping[id])[1].type.id == agent_type_id, collect(keys(object_mapping)))[1]
+              possible_co_occurring_events = [events..., filter(k -> occursin("moveIntersects", k) && occursin("prev obj$(removed_id)", k) && occursin("prev obj$(agent_id)", k), collect(keys(global_event_vector_dict)))...]
+            end
+          end
+          @show possible_co_occurring_events
+          for event in possible_co_occurring_events
             @show event 
             if global_event_vector_dict[event] isa AbstractArray
               if occursin("addObj", update_function)
