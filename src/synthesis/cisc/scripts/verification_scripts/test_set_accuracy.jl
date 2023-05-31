@@ -1,6 +1,6 @@
-include("../final_evaluation.jl")
+include("src/synthesis/cisc/cisc.jl")
 
-test_trace_directory = "/Users/riadas/Documents/urop/CausalDiscoveryApp/saved_test_traces_user_study/"
+test_trace_directory = "evaluation/cisc/data/test/" # "/Users/riadas/Documents/urop/CausalDiscoveryApp/saved_test_traces_user_study/"
 
 function check_model_against_test_traces(model_name, program_str)
   model_directory = string(test_trace_directory, model_name)

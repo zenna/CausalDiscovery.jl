@@ -198,7 +198,7 @@ function generate_observations_space_invaders(m::Module)
   # end
   # # observations, user_events, 16
   # filter_out_of_bounds_cells(observations, 16), user_events, 16
-  observations, user_events, grid_size = JLD.load("evaluation/cisc/data/deterministic_space_invaders_output_2.jld", "chase")
+  observations, user_events, grid_size = JLD.load("evaluation/cisc/data/observed/deterministic_space_invaders_output_2.jld", "chase")
   user_events[end-1] = "up"
   observations, user_events, grid_size
 end
@@ -698,7 +698,7 @@ function generate_observations_grow(m::Module)
 end
 
 function generate_observations_magnets(m::Module)
-  observations, user_events, grid_size = JLD.load("evaluation/cisc/data/magnets_final.jld", "data") # JLD.load("magnets_i_observations.jld")["observations"]
+  observations, user_events, grid_size = JLD.load("evaluation/cisc/data/observed/magnets_final.jld", "data") # JLD.load("magnets_i_observations.jld")["observations"]
   observations = observations[1]
   user_events = user_events[1]
   observations, user_events, grid_size 
@@ -839,7 +839,7 @@ function generate_observations_gravity2(m::Module)
 end
 
 function generate_observations_particles(m::Module)
-  observations, user_events, grid_size = JLD.load("evaluation/cisc/data/deterministic_particles_input.jld", "particles")
+  observations, user_events, grid_size = JLD.load("evaluation/cisc/data/observed/deterministic_particles_input.jld", "particles")
   # state = Base.invokelatest(m.init, nothing, nothing, nothing, nothing, nothing)
   # observations = []
   # user_events = []
@@ -865,7 +865,7 @@ function generate_observations_particles(m::Module)
 end
 
 function generate_observations_chase(m::Module) 
-  JLD.load("evaluation/cisc/data/deterministic_chase_output_4.jld")["data"]
+  JLD.load("evaluation/cisc/data/observed/deterministic_chase_output_4.jld")["data"]
   # state = Base.invokelatest(m.init, nothing, nothing, nothing, nothing, nothing)
   # observations = []
   # user_events = []
@@ -907,7 +907,7 @@ function generate_observations_chase(m::Module)
 end
 
 function generate_observations_ants(m::Module)
-  JLD.load("evaluation/cisc/data/deterministic_ants_input.jld", "ants")
+  JLD.load("evaluation/cisc/data/observed/deterministic_ants_input.jld", "ants")
   # state = Base.invokelatest(m.init, nothing, nothing, nothing, nothing, nothing)
   # observations = []
   # user_events = []
@@ -1030,7 +1030,7 @@ function generate_observations_sokoban(m::Module)
   #   push!(observations, Base.invokelatest(m.render, state.scene))
   # end
   # observations, user_events, 16
-  observations, user_events, grid_size = JLD.load("evaluation/cisc/data/final_sokoban_observations.jld", "data")
+  observations, user_events, grid_size = JLD.load("evaluation/cisc/data/observed/final_sokoban_observations.jld", "data")
   observations = observations[1]
   user_events = user_events[1]
   
@@ -1395,7 +1395,7 @@ function generate_observations_count_5(m::Module)
 end
 
 function generate_observations_coins(m)
-  observations, user_events, grid_size = JLD.load("evaluation/cisc/data/coins_full_reverse.jld", "data")
+  observations, user_events, grid_size = JLD.load("evaluation/cisc/data/observed/coins_full_reverse.jld", "data")
   observations = observations[1]
   user_events = user_events[1]
 
@@ -1404,29 +1404,29 @@ end
 
 function generate_observations_coins5(m)
   # 5 coins
-  JLD.load("evaluation/cisc/data/new_coins_data_5.jld")["data"]
+  JLD.load("evaluation/cisc/data/observed/new_coins_data_5.jld")["data"]
 end
 
 function generate_observations_coins7(m)
   # 7 coins 
-  JLD.load("evaluation/cisc/data/new_coins_data_7.jld")["data"]
+  JLD.load("evaluation/cisc/data/observed/new_coins_data_7.jld")["data"]
 end
 
 function generate_observations_coins9(m)
   # 9 coins?
-  observations, user_events, grid_size = JLD.load("evaluation/cisc/data/new_coins_data_9.jld")["data"]
+  observations, user_events, grid_size = JLD.load("evaluation/cisc/data/observed/new_coins_data_9.jld")["data"]
   user_events[195] = "click 7 10"
   user_events[197] = "click 7 10"
   observations, user_events, grid_size
 end
 
 function generate_observations_grow2(m)
-  observations, user_events, grid_size = JLD.load("evaluation/cisc/data/observations_grow_ii.jld")["observations"]
+  observations, user_events, grid_size = JLD.load("evaluation/cisc/data/observed/observations_grow_ii.jld")["observations"]
   observations, user_events, grid_size
 end
 
 function generate_observations_mario2(m)
-  observations, user_events, grid_size = JLD.load("evaluation/cisc/data/observations_mario_ii.jld")["observations"]
+  observations, user_events, grid_size = JLD.load("evaluation/cisc/data/observed/observations_mario_ii.jld")["observations"]
   user_events, observations, grid_size
 end
 
@@ -1782,7 +1782,7 @@ function generate_observations_gravity4(m::Module)
 end
 
 function generate_observations_swap(m::Module)
-  observations, user_events, grid_size = JLD.load("evaluation/cisc/data/observations_swap_FINAL.jld")["observations"]
+  observations, user_events, grid_size = JLD.load("evaluation/cisc/data/observed/observations_swap_FINAL.jld")["observations"]
   observations, user_events, grid_size
   # state = Base.invokelatest(m.init, nothing, nothing, nothing, nothing, nothing)
   # observations = []
