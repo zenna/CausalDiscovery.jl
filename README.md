@@ -12,8 +12,7 @@ Install Julia 1.5.4 from [older releases](https://julialang.org/downloads/oldrel
 
 Install Python dependencies:
 ``` 
-pip install z3-solver 
-pip install bitstring
+pip install -r requirements.txt
 ```
 Clone repository:
 ```
