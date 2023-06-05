@@ -47,7 +47,7 @@ open("$(alg_subdirectory_name)/program_strings.txt", "a") do io
 end
 
 # write final program string to program_strings text file 
-open("evaluation/cisc/output/$(model_name).txt", "a") do io 
+open("test/cisc/output/$(model_name).txt", "a") do io 
   println(io, join(x.value, "\n\n\n\n"))
   println(io, "\n\n\n\n")
 end

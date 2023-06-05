@@ -84,7 +84,7 @@ do
     for model_name in ${model_names[@]}
     do
       echo "model_name: $model_name, algorithm: $algorithm, repeat: $i "
-      nohup julia --project=. evaluation/empa/scripts/empa_eval.jl $model_name $algorithm $curr_date $i > deleteme_empa.out &
+      nohup julia --project=. test/empa/scripts/empa_eval.jl $model_name $algorithm $curr_date $i > deleteme_empa.out &
       sleep 60
     done  
   done

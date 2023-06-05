@@ -33,11 +33,11 @@ end
 x = @timed begin
 
   if model_name == "Explore_Exploit"
-    pedro_interface_output_folder = "evaluation/empa/data/traces_may7"
+    pedro_interface_output_folder = "test/empa/data/traces_may7"
   elseif model_name in ["Helper2", "Lemmings_small_take3", "Lemmings_small_take4", "Watergame2", "Relational_end", "Lemmings_small_take2", "Lemmings_small", "closing_gates5", "Sokoban2", "Butterflies2", "Antagonist", "Bait", "closing_gates", "Helper", "Jaws", "Plaqueattack", "Relational", "Sokoban", "Watergame", "Lemmings2", "Lemmings"]
-    pedro_interface_output_folder = "evaluation/empa/data/october_traces_new"
+    pedro_interface_output_folder = "test/empa/data/october_traces_new"
   else
-    pedro_interface_output_folder = "evaluation/empa/data/new_traces_fixed"
+    pedro_interface_output_folder = "test/empa/data/new_traces_fixed"
   end
 
   # pedro_interface_output_folder = "/scratch/riadas/EMPA_Data_Collection_Interface/new_traces_fixed" # new_traces_fixed  traces_may7
@@ -92,7 +92,7 @@ x = @timed begin
     end
   end
 
-  results_directory = "evaluation/empa/output/$(model_name)"
+  results_directory = "test/empa/output/$(model_name)"
   if !isdir(results_directory)
     mkdir(results_directory)
   end

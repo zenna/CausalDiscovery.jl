@@ -30,11 +30,11 @@ end
 function run_pedro_model_single_trace(model_name, state_synthesis_algorithm)
   
   if model_name == "Explore_Exploit"
-    global pedro_interface_output_folder = "evaluation/empa/data/traces_may7"
+    global pedro_interface_output_folder = "test/empa/data/traces_may7"
   elseif model_name in ["Helper2", "Lemmings_small_take3", "Lemmings_small_take4", "Watergame2", "Relational_end", "Lemmings_small_take2", "Lemmings_small", "closing_gates5", "Sokoban2", "Butterflies2", "Antagonist", "Bait", "closing_gates", "Helper", "Jaws", "Plaqueattack", "Relational", "Sokoban", "Watergame", "Lemmings2", "Lemmings"]
-    global pedro_interface_output_folder = "evaluation/empa/data/october_traces_new"
+    global pedro_interface_output_folder = "test/empa/data/october_traces_new"
   else
-    global pedro_interface_output_folder = "evaluation/empa/data/new_traces_fixed"
+    global pedro_interface_output_folder = "test/empa/data/new_traces_fixed"
   end
 
   # pedro_interface_output_folder = "/scratch/riadas/EMPA_Data_Collection_Interface/new_traces_fixed" # new_traces_fixed  traces_may7

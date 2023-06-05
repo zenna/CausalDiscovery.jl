@@ -109,7 +109,7 @@ do
     for model_name in ${model_names[@]} ### Inner for loop ###
     do
       echo "model_name: $model_name, algorithm: $algorithm, repeat: $i "
-      nohup timeout 86400 /scratch/riadas/julia-1.5.4/bin/julia --project=. evaluation/cisc/scripts/full_eval.jl $model_name $algorithm $curr_date $i > /dev/null & # OCTOBER_TESTING_OUTS/$model_name.$algorithm.out & 
+      nohup timeout 86400 /scratch/riadas/julia-1.5.4/bin/julia --project=. test/cisc/scripts/full_eval.jl $model_name $algorithm $curr_date $i > /dev/null & # OCTOBER_TESTING_OUTS/$model_name.$algorithm.out & 
       sleep 60
     done
     sleep 28800  
