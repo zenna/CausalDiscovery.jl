@@ -12,6 +12,7 @@ Install Julia 1.5.4 from [older releases](https://julialang.org/downloads/oldrel
 
 Install Python dependencies:
 ``` 
+cd CausalDiscovery.jl
 pip install -r requirements.txt
 ```
 Clone repository:
@@ -20,7 +21,6 @@ git clone https://github.com/zenna/CausalDiscovery.jl.git
 ```
 Install [Autumn.jl](https://github.com/riadas/Autumn.jl):
 ```
-shell> cd CausalDiscovery.jl
 shell> julia
 julia> ] activate .
 (@v1.5) pkg> rm Autumn
