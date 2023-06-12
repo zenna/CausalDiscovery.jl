@@ -10,15 +10,17 @@ Code for the paper [Combining Functional and Automata Synthesis to Discover Caus
 
 Install Julia 1.5.4 from [older releases](https://julialang.org/downloads/oldreleases/) and [Python 3](https://www.python.org/downloads/).
 
+Clone repository:
+```
+git clone https://github.com/zenna/CausalDiscovery.jl.git
+```
+
 Install Python dependencies:
 ``` 
 cd CausalDiscovery.jl
 pip install -r requirements.txt
 ```
-Clone repository:
-```
-git clone https://github.com/zenna/CausalDiscovery.jl.git
-```
+
 Install [Autumn.jl](https://github.com/riadas/Autumn.jl):
 ```
 shell> julia
