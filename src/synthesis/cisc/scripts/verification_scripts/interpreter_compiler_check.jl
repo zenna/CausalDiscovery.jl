@@ -1,5 +1,3 @@
-include("../final_evaluation.jl")
-
 function check_observations_equivalence(observations1, observations2)
   for i in 1:length(observations1) 
     obs1 = observations1[i]
@@ -11,9 +9,9 @@ function check_observations_equivalence(observations1, observations2)
     # # # @show obs2_tuples
 
     if obs1_tuples != obs2_tuples
-      # @show i
-      # # # @show obs1_tuples 
-      # # # @show obs2_tuples
+      @show i
+      @show obs1_tuples 
+      @show obs2_tuples
       return false
     end
   end
@@ -60,7 +58,7 @@ end
 
 all_deterministic_model_names = [
   # "magnets_i",
-  # "sokoban_i",
+  "sokoban_i",
   # "ice",
   # "lights",
   # "disease",
@@ -80,7 +78,7 @@ all_deterministic_model_names = [
   # "double_count_2",
   # "wind",
   # "paint",
-  # "mario",
+  "mario",
   # "water_plug",
 ]
 
