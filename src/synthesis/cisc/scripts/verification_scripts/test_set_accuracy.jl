@@ -1,4 +1,4 @@
-include("src/synthesis/cisc/cisc.jl")
+include("../../../../../src/synthesis/cisc/cisc.jl")
 
 test_trace_directory = "test/cisc/data/test/" # "/Users/riadas/Documents/urop/CausalDiscoveryApp/saved_test_traces_user_study/"
 
@@ -11,9 +11,6 @@ function check_model_against_test_traces(model_name, program_str)
     @show file_index
     _, user_events, _ = generate_observations_interface(model_name, file_index, dir=test_trace_directory)
 
-    # if i == 2 
-      @show user_events
-    # end
     try 
       acc = check_match_synthesized_and_original(model_name, program_str, user_events) 
       @show acc
@@ -48,12 +45,9 @@ function check_match_synthesized_and_original(model_name, program_str, user_even
     end
   end
 
-  if occursin("double_count", model_name)
-    ground_truth_program_str = programs["double_count"]
-  elseif occursin("count", model_name)
-    ground_truth_program_str = programs["count"]
-  else
-    ground_truth_program_str = programs[model_name]
+  ground_truth_program_str = ""
+  open("test/cisc/data/observed/programs/$(model_name).txt", "r") do io
+    ground_truth_program_str = read(io, String)
   end
 
   _, _, grid_size = generate_observations(model_name)
@@ -88,4 +82,17 @@ function check_observations_equivalence(observations1, observations2)
   1
 end
 
+function filter_out_of_bounds_cells(observations, grid_size) 
+  map(obs -> filter(cell -> cell.position.x in collect(0:(grid_size - 1)) && cell.position.y in collect(0:(grid_size - 1)), obs), observations)
+end
 
+function generate_observations_interface(model_name, i=1; dir="")
+  directory_location = dir == "" ? string(saved_traces_directory, model_name) : string(dir, model_name)
+  index = length(filter(f -> occursin(".jld", f), readdir(directory_location))) - (i-1) # take most recently created file
+  file_location = string(directory_location, "/", index, ".jld")
+  observations_dict = JLD.load(file_location)
+  observations = map(obs -> map(cell -> Autumn.AutumnStandardLibrary.Cell(cell[1], cell[2], cell[3]), obs[2:end]), observations_dict["observations"])
+  user_events = observations_dict["user_events"]
+  grid_size = observations_dict["grid_size"]
+  filter_out_of_bounds_cells(observations, grid_size), user_events, grid_size
+end
