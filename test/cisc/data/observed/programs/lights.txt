@@ -1,0 +1,11 @@
+(program
+  (= GRID_SIZE 10)
+
+  (object Light (: on Bool) (Cell 0 0 (if on then "yellow" else "white")))
+
+  (: lights (List Light))
+  (= lights (initnext (map (--> pos (Light false pos)) (filter (--> pos (== (.. pos x) (.. pos y))) (allPositions GRID_SIZE))) 
+                      (prev lights)))
+
+  (on clicked (= lights (updateObj lights (--> obj (updateObj obj "on" (! (.. obj on)))))))
+)

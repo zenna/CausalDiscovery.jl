@@ -1,0 +1,42 @@
+(program
+(= GRID_SIZE 7)
+
+(object Water (Cell 0 0 "blue"))
+(object Leaf (: color String) (Cell 0 0 color))
+(object Cloud (list (Cell -1 0 "gray") (Cell 0 0 "gray") (Cell 1 0 "gray")
+                    (Cell -1 1 "gray") (Cell 0 1 "gray") (Cell 1 1 "gray")))
+
+(object Sun (: movingLeft Bool) (list (Cell 0 0 "gold")
+                              (Cell 0 1 "gold")
+                                (Cell 1 0 "gold")
+                              (Cell 1 1 "gold")))
+
+(: sun Sun)
+(= sun (initnext (Sun false (Position 0 0)) (prev sun)))
+
+(: water (List Water))
+(= water (initnext (list) (updateObj (prev water) (--> obj (if (! (isWithinBounds obj)) then (removeObj obj) else (moveDown obj))))))
+
+(: cloud Cloud)
+(= cloud (initnext (Cloud (Position 5 0)) (prev cloud)))
+
+(: leaves (List Leaf))
+(= leaves (initnext (list (Leaf "green" (Position 1 6) ) (Leaf "green" (Position 3 6)) (Leaf "green" (Position 5 6)) ) (prev leaves)))
+    
+(on (intersects (map (--> obj (moveDown obj)) (prev water) ) (prev leaves))
+  (= water (updateObj (prev water) (--> obj (removeObj obj)) (--> obj (intersects (moveDown obj) (prev leaves))) ) ) )
+
+(on down
+  (= water (addObj water (Water (.. (moveDown (prev cloud)) origin)))))
+    
+(on (& (intersects (map (--> obj (moveDown obj)) (prev water)) (filter (--> obj (== (.. obj color) "green")) (prev leaves))) (! (intersects (prev sun) (prev cloud))))
+  (= leaves (addObj (prev leaves) (map (--> obj (Leaf (if (== (.. (.. (moveUp obj) origin) y) 4) then "mediumpurple" else "green") (.. (moveUp obj) origin))) (filter (--> obj (intersects (moveUp obj) (prev water))) (prev leaves))))))
+  
+(on left (= cloud (moveLeft (prev cloud))))
+(on right (= cloud (moveRight (prev cloud))))
+
+(on (== (.. (.. (prev sun) origin) x) 0) (= sun (updateObj (prev sun) "movingLeft" false)))
+(on (== (.. (.. (prev sun) origin) x) 5) (= sun (updateObj (prev sun) "movingLeft" true)))
+
+(on (clicked (prev sun)) (= sun (if (.. (prev sun) movingLeft) then (moveLeft (prev sun)) else (moveRight (prev sun)))))
+)

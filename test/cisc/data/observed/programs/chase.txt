@@ -1,0 +1,26 @@
+(program
+  (= GRID_SIZE 16)
+  
+  (object Ant (Cell 0 0 "red"))
+  (object Agent (Cell 0 0 "green"))
+
+  (: ants (List Ant))
+  (= ants (initnext (list ) 
+                    (prev ants)))
+
+  (: agent Agent)
+  (= agent (initnext (Agent (Position 13 13)) (prev agent))) 
+                                                                                                                  
+  (: time Int)
+  (= time (initnext 0 (+ (prev time) 1)))                                                                                                                   
+                                  
+  (on true (= ants (updateObj (prev ants) (--> obj (move obj (unitVector obj (closest obj Agent)))) )))
+  (on (== (% time 10) 5) (= ants (addObj ants (map Ant (randomPositions GRID_SIZE 1)))))
+  
+  (on left (= agent (moveLeft (prev agent))))
+  (on right (= agent (moveRight (prev agent))))
+  (on up (= agent (moveUp (prev agent))))
+  (on down (= agent (moveDown (prev agent))))
+          
+  (on (intersects (prev agent) (prev ants)) (= agent (removeObj (prev agent))))                                                                                                                   
+)

@@ -1313,4 +1313,4 @@ programs = Dict("particles"                                 => """(program
                  (let ((= numBullets (+ (prev numBullets) 1)) 
                        (= coins (removeObj coins (--> obj (intersects (prev obj) (prev agent))))))))
            )"""
-                )
+                ) 

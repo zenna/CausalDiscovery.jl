@@ -1,0 +1,23 @@
+(program
+  (= GRID_SIZE 100)
+    
+  (object Button (: color String) (Cell 0 0 color))
+  (object Blob (list (Cell 0 0 "blue")))
+  
+  (: blobs (List Blob))
+  (= blobs (initnext (list (Blob (Position 49 49))) (prev blobs)))
+  
+  (: xVel Int)
+  (= xVel (initnext 0 (prev xVel)))
+  
+  (: yVel Int)
+  (= yVel (initnext 0 (prev yVel)))
+    
+  (on (& left (== (prev yVel) 0)) (= xVel (- (prev xVel) 1)))
+  (on (& right (== (prev yVel) 0)) (= xVel (+ (prev xVel) 1)))
+
+  (on (& up (== (prev xVel) 0)) (= yVel (- (prev yVel) 1)))
+  (on (& down (== (prev xVel) 0)) (= yVel (+ (prev yVel) 1)))
+
+  (on true (= blobs (updateObj blobs (--> obj (move obj (Position (sign (prev xVel)) (sign (prev yVel))))))))
+)

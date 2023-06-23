@@ -57,36 +57,60 @@ function check_evaluation_equivalence(model_name)
 end
 
 all_deterministic_model_names = [
-  # "magnets_i",
+  "magnets_i",
   "sokoban_i",
-  # "ice",
-  # "lights",
-  # "disease",
-  # "grow",
-  # "sand",
-  # "bullets",
-  # "gravity_i",
-  # "gravity_ii",
-  # "gravity_iii",
-  # "gravity_iv",
-  # "count_1",
-  # "count_2",
-  # "count_3",
-  # "count_4",
-  # "count_5",
-  # "double_count_1",
-  # "double_count_2",
-  # "wind",
-  # "paint",
+  "ice",
+  "lights",
+  "disease",
+  "grow",
+  "sand",
+  "bullets",
+  "gravity_i",
+  "gravity_ii",
+  "gravity_iii",
+  "gravity_iv",
+  "count_1",
+  "count_2",
+  "count_3",
+  "count_4",
+  "count_5",
+  "double_count_1",
+  "double_count_2",
+  "wind",
+  "paint",
   "mario",
-  # "water_plug",
+  "water_plug",
+  "coins",
+  "ants",
+  "chase",
+  "space_invaders"
 ]
 
 for model_name in all_deterministic_model_names
-  # @show model_name
-  if !check_evaluation_equivalence(model_name)
-    println("$(model_name): FALSE") 
+  @show model_name
+
+  if occursin("double_count", model_name)
+    program_str = programs["double_count"]
+  elseif occursin("count", model_name)
+    program_str = programs["count"]
   else
-    println("$(model_name): TRUE")
+    program_str = programs[model_name]
   end
+
+  open("/Users/riadas/Documents/urop/refactor/CausalDiscovery.jl/test/cisc/data/observed/programs/$(model_name).txt", "w") do io
+    println(io, program_str)
+  end
+
+  x = generate_observations(model_name)
+  JLD.save("/Users/riadas/Documents/urop/refactor/CausalDiscovery.jl/test/cisc/data/observed/old_observations/$(model_name).jld", "data", x)
+
+  # # x = generate_observations(model_name)
+  # observations_compiler, user_events, grid_size = JLD.load("/Users/riadas/Documents/urop/refactor/CausalDiscovery.jl/test/cisc/data/observed/old_observations/$(model_name).jld", "data")
+  # observations_interpreter, user_events, grid_size = JLD.load("/Users/riadas/Documents/urop/refactor/CausalDiscovery.jl/test/cisc/data/observed/observations/$(model_name).jld", "data")
+    
+  # if !check_observations_equivalence(observations_compiler, observations_interpreter)
+  #   println("$(model_name): FALSE") 
+  # else
+  #   println("$(model_name): TRUE")
+  # end
 end

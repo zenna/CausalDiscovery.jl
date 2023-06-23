@@ -1,0 +1,34 @@
+(program
+  (= GRID_SIZE 200)
+  (object Particle (Cell 0 0 "blue"))
+  (object Bullet (: dir String) (Cell 0 0 "red"))
+  
+  (: particle Particle)
+  (= particle (initnext (Particle (Position 100 100)) (prev particle)))
+  
+  (: bullets (List Bullet))
+  (= bullets (initnext (list) (prev bullets)))
+  
+  (: dir String)
+  (= dir (initnext "none" (prev dir)))
+  
+  (on true (= bullets (updateObj bullets (--> obj (moveLeft obj)) (--> obj (== (.. obj dir) "left")))))
+  (on true (= bullets (updateObj bullets (--> obj (moveRight obj)) (--> obj (== (.. obj dir) "right")))))
+  (on true (= bullets (updateObj bullets (--> obj (moveUp obj)) (--> obj (== (.. obj dir) "up")))))
+  (on true (= bullets (updateObj bullets (--> obj (moveDown obj)) (--> obj (== (.. obj dir) "down")))))
+  
+  (on left (let ((= dir "left")
+                (= particle (moveLeft particle)))))
+  (on right (let ((= dir "right")
+                  (= particle (moveRight particle)))))
+  (on up (let ((= dir "up")
+              (= particle (moveUp particle)))))
+  (on down (let ((= dir "down")
+                (= particle (moveDown particle)))))
+
+  
+  (on (& clicked (== dir "left")) (= bullets (addObj bullets (Bullet "left" (.. (moveLeft particle) origin)))))
+  (on (& clicked (== dir "right")) (= bullets (addObj bullets (Bullet "right" (.. (moveRight particle) origin)))))
+  (on (& clicked (== dir "up")) (= bullets (addObj bullets (Bullet "up" (.. (moveUp particle) origin)))))
+  (on (& clicked (== dir "down")) (= bullets (addObj bullets (Bullet "down" (.. (moveDown particle) origin)))))
+)

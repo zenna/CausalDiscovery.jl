@@ -1,0 +1,25 @@
+(program
+(= GRID_SIZE 16)
+
+(object Magnet (: color String) (list (Cell 0 0 color) (Cell 0 1 color)))
+
+(: fixedMagnet Magnet)
+(= fixedMagnet (initnext (Magnet "red" (Position 7 7)) (prev fixedMagnet)))
+
+(: mobileMagnet Magnet)
+(= mobileMagnet (initnext (Magnet "blue" (Position 4 7)) (prev mobileMagnet)))
+
+(on left (= mobileMagnet (moveNoCollision (prev mobileMagnet) -1 0)))
+(on right (= mobileMagnet (moveNoCollision (prev mobileMagnet) 1 0)))
+(on up (= mobileMagnet (moveNoCollision (prev mobileMagnet) 0 -1)))
+(on down (= mobileMagnet (moveNoCollision (prev mobileMagnet) 0 1)))
+(on (adjacent (posPole mobileMagnet) (posPole fixedMagnet) 1) (= mobileMagnet (prev mobileMagnet)))
+(on (adjacent (negPole mobileMagnet) (negPole fixedMagnet) 1) (= mobileMagnet (prev mobileMagnet)))
+(on (in (displacement (posPole mobileMagnet) (negPole fixedMagnet)) attractVectors) (= mobileMagnet (move mobileMagnet    (unitVector (displacement (posPole mobileMagnet) (negPole fixedMagnet))))))
+(on (in (displacement (negPole mobileMagnet) (posPole fixedMagnet)) attractVectors) (= mobileMagnet (move mobileMagnet (unitVector (displacement (negPole mobileMagnet) (posPole fixedMagnet))))))
+  
+(= posPole (fn (magnet) (first (render magnet))))  
+(= negPole (fn (magnet) (last (render magnet))))  
+
+(= attractVectors (list (Position 0 2) (Position 2 0) (Position -2 0) (Position 0 -2)))
+)
