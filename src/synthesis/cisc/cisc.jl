@@ -4,40 +4,6 @@ using JLD
 using Dates
 include("functional_synthesis/full_synthesis.jl")
 
-function run_multi_trace(model_name, singlecell=false, pedro=false; indices=[])
-  model_folders = readdir("multi_trace_data")
-  if model_name in model_folders
-    files = filter(x -> occursin(".jld", x), readdir("multi_trace_data/$(model_name)"))
-    observation_tuples = []
-    for file in files 
-      push!(observation_tuples, JLD.load("multi_trace_data/$(model_name)/$(file)")["data"])
-    end
-
-    if indices != []
-      observation_tuples = map(i -> observation_tuples[i], indices)
-    end
-
-    observations = map(tup -> tup[1], observation_tuples)
-    old_user_events = map(tup -> tup[2], observation_tuples)
-
-    matrix, unformatted_matrix, object_decomposition, prev_used_rules = singletimestepsolution_matrix(observations, old_user_events, grid_size, singlecell=singlecell, pedro=pedro, upd_func_space=6, multiple_traces=true)
-
-    object_types, object_mapping, background, grid_size = object_decomposition
-
-    user_events = vcat(map(events -> vcat(events..., nothing), old_user_events)...)[1:end-1]
-    stop_times = map(i -> length(observations[i]) + (i == 1 ? 0 : sum(map(j -> length(observations[j]), 1:(i - 1)))), 1:(length(observations) - 1))
-
-    global_event_vector_dict = Dict()
-    redundant_events_set = Set()
-
-    solutions = generate_on_clauses_GLOBAL(model_name, false, matrix, unformatted_matrix, object_decomposition, user_events, global_event_vector_dict, redundant_events_set, grid_size, stop_times=stop_times)
-  else
-    solutions = []
-  end
-  solutions
-end
-
-
 function run_model(model_name::String, algorithm, iteration=1, desired_per_matrix_solution_count=1, desired_solution_count=1; multi_trace=false, indices=[], observations_tup=[])
   run_id = string(model_name, "_", algorithm, "_", iteration)
   # build desired directory structure
@@ -286,91 +252,35 @@ function run_model(model_name::String, algorithm, iteration=1, desired_per_matri
   all_sols
 end
 
-# function run_all_models(algorithm, desired_per_matrix_solution_count, desired_solution_count)
-#   # for model_name in model_names 
-#   #   # println(string("CURRENT MODEL:", model_name))
-#   #   task = @async(run_model(model_name, desired_per_matrix_solution_count, desired_solution_count))  # run everything via myfunc()
+function run_model_multi_trace(model_name, singlecell=false, pedro=false; indices=[])
+  model_folders = readdir("multi_trace_data")
+  if model_name in model_folders
+    files = filter(x -> occursin(".jld", x), readdir("multi_trace_data/$(model_name)"))
+    observation_tuples = []
+    for file in files 
+      push!(observation_tuples, JLD.load("multi_trace_data/$(model_name)/$(file)")["data"])
+    end
 
-#   #   # println("task is started: ", istaskstarted(task))
-#   #   # println("Task is done: ", istaskdone(task))
+    if indices != []
+      observation_tuples = map(i -> observation_tuples[i], indices)
+    end
 
-#   #   total_time = 0
-#   #   while !istaskdone(task) && total_time < 60*60*3 # 3 hours 
-#   #     sleep(10)
-#   #     total_time += 10
-#   #   end
+    observations = map(tup -> tup[1], observation_tuples)
+    old_user_events = map(tup -> tup[2], observation_tuples)
 
-#   #   if !istaskdone(task)
-#   #       # println("Killing task.")
-#   #       @async(Base.throwto(task, DivideError()))
-#   #   end
+    matrix, unformatted_matrix, object_decomposition, prev_used_rules = singletimestepsolution_matrix(observations, old_user_events, grid_size, singlecell=singlecell, pedro=pedro, upd_func_space=6, multiple_traces=true)
 
-#   #   # println("all done with $(model_name).")
-#   # end
-#   models = [
-#     # "particles", 
-#     #  "ants", 
-#     #  "chase",
-#     #  "lights",
-#     #  "ice",
-#     #  "paint", 
-#     #  "magnets_i",
-#     #  "sokoban_i",
-#     # "sand",
-#     # "gravity_i", 
-#     # "gravity_iii",
-#     "gravity_iv",
-#     # "disease", 
-#     # "gravity_ii",
-#     # # "space_invaders",
-#     # "wind",
-#     # "bullets", 
-#     # "count_1",
-#     # "count_2",
-#     # "double_count_1",
-#     # "water_plug",
-#     # "mario",
+    object_types, object_mapping, background, grid_size = object_decomposition
 
-#     # "count_3",
-#     # "count_4",
-#     # "double_count_2",
-     
-#     #  "grow",
-#     #  "egg",
-#     #  "double_count_3",
-#     #  "green_light",
-#     #  "
-#      ]
+    user_events = vcat(map(events -> vcat(events..., nothing), old_user_events)...)[1:end-1]
+    stop_times = map(i -> length(observations[i]) + (i == 1 ? 0 : sum(map(j -> length(observations[j]), 1:(i - 1)))), 1:(length(observations) - 1))
 
-#   for model_name in models
-#     run_model(model_name, desired_per_matrix_solution_count, desired_solution_count)
-#   end
-# end
+    global_event_vector_dict = Dict()
+    redundant_events_set = Set()
 
-# # function run()
-# #   # println("BEGIN RUN")
-# #   for desired_per_matrix_solution_count in [5] # [1, 5]
-# #     for desired_solution_count in [1]
-# #       run_all_models(desired_per_matrix_solution_count, desired_solution_count)
-# #     end
-# #   end
-# #   # println("END RUN")
-# # end
-
-# # global model_names = []
-
-# # function hack()
-# #   for model_name in global_model_names 
-# #     # # @show model_name
-# #     global model_names = [model_name]
-# #     run()
-# #   end
-# # end
-
-
-# # model_name = ARGS[1]
-# # x = @timed run_model(model_name, 5, 1)
-# # save(string("DONE/DONE_$(model_name)_heuristic.jld"), model_name, x)
-# # open("DONE/DONE_$(model_name)_TIME_heuristic.txt", "w") do io 
-# #   println(io, x.time)
-# # end
+    solutions = generate_on_clauses_GLOBAL(model_name, false, matrix, unformatted_matrix, object_decomposition, user_events, global_event_vector_dict, redundant_events_set, grid_size, stop_times=stop_times)
+  else
+    solutions = []
+  end
+  solutions
+end

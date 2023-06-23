@@ -955,7 +955,7 @@ function singletimestepsolution_program_given_matrix_NEW(matrix, object_decompos
     addObj_update_rule_times = []
   end
 
-  update_rules = join(map(time -> """(on (== actual_time $(time - 1))\n  (let\n    ($(join(map(id -> !occursin("--> obj (prev obj)", matrix_copy[id, time][1]) ? (occursin("addObj", matrix_copy[id, time][1]) ? format_matrix_function(matrix_copy[id, time][1], object_mapping[id][time + 1]) : matrix_copy[id, time][1]) : "", 
+  update_rules = join(map(time -> """(on (== (prev actual_time) $(time - 1))\n  (let\n    ($(join(map(id -> !occursin("--> obj (prev obj)", matrix_copy[id, time][1]) ? (occursin("addObj", matrix_copy[id, time][1]) ? format_matrix_function(matrix_copy[id, time][1], object_mapping[id][time + 1]) : matrix_copy[id, time][1]) : "", 
                           collect(1:size(matrix_copy)[1])), "\n    "))))\n  )""", update_rule_times), "\n  ")
                         
   for type in object_types
