@@ -26,7 +26,7 @@ Install [Autumn.jl](https://github.com/riadas/Autumn.jl):
 shell> julia
 julia> ] activate .
 (@v1.5) pkg> rm Autumn
-(@v1.5) pkg> add https://github.com/riadas/Autumn.jl#master
+(@v1.5) pkg> add https://github.com/riadas/Autumn.jl#cs-eachindex
 ```
 
 # Quick Start
