@@ -13,11 +13,11 @@
   (: yVel Int)
   (= yVel (initnext 0 (prev yVel)))
     
-  (on (& left (== (prev yVel) 0)) (= xVel (- (prev xVel) 1)))
-  (on (& right (== (prev yVel) 0)) (= xVel (+ (prev xVel) 1)))
+  (on (& (& left (== (prev yVel) 0)) (> (prev xVel) -2)) (= xVel (- (prev xVel) 1)))
+  (on (& (& right (== (prev yVel) 0)) (< (prev xVel) 2)) (= xVel (+ (prev xVel) 1)))
 
-  (on (& up (== (prev xVel) 0)) (= yVel (- (prev yVel) 1)))
-  (on (& down (== (prev xVel) 0)) (= yVel (+ (prev yVel) 1)))
+  (on (& (& up (== (prev xVel) 0)) (> (prev yVel) -2)) (= yVel (- (prev yVel) 1)))
+  (on (& (& down (== (prev xVel) 0)) (< (prev yVel) 2)) (= yVel (+ (prev yVel) 1)))
 
   (on true (= blobs (updateObj blobs (--> obj (move obj (Position (sign (prev xVel)) (sign (prev yVel))))))))
 )

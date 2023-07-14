@@ -4,13 +4,12 @@ test_trace_directory = "test/cisc/data/test/" # "/Users/riadas/Documents/urop/Ca
 
 function check_model_against_test_traces(model_name, program_str)
   model_directory = string(test_trace_directory, model_name)
-  files = filter(x -> occursin(".jld", x), readdir(model_directory))[1:7]
+  files = filter(x -> occursin(".jld", x), readdir(model_directory))
 
   accs = []
   for file_index in 1:length(files)
-    @show file_index
+    # @show file_index
     _, user_events, _ = generate_observations_interface(model_name, file_index, dir=test_trace_directory)
-
     try 
       acc = check_match_synthesized_and_original(model_name, program_str, user_events) 
       @show acc
@@ -19,6 +18,7 @@ function check_model_against_test_traces(model_name, program_str)
       @show e
     end
   end
+  println("------------------------ $(model_name) ------------------------")
   @show accs
   round(Statistics.mean(accs), digits=3)
 end
@@ -45,9 +45,9 @@ function check_match_synthesized_and_original(model_name, program_str, user_even
     end
   end
 
-  ground_truth_program_str = ""
+  global ground_truth_program_str = ""
   open("test/cisc/data/observed/programs/$(model_name).txt", "r") do io
-    ground_truth_program_str = read(io, String)
+    global ground_truth_program_str = read(io, String)
   end
 
   _, _, grid_size = generate_observations(model_name)
@@ -95,4 +95,44 @@ function generate_observations_interface(model_name, i=1; dir="")
   user_events = observations_dict["user_events"]
   grid_size = observations_dict["grid_size"]
   filter_out_of_bounds_cells(observations, grid_size), user_events, grid_size
+end
+
+all_deterministic_model_names = [
+  "magnets_i",
+  "sokoban_i",
+  "ice",
+  "lights",
+  "disease",
+  "grow",
+  "sand",
+  "bullets",
+  "gravity_i",
+  "gravity_ii",
+  "gravity_iii",
+  "gravity_iv",
+  "count_1",
+  "count_2",
+  "count_3",
+  "count_4",
+  "count_5",
+  "double_count_1",
+  "double_count_2",
+  "wind",
+  "paint",
+  "mario",
+  "water_plug",
+  # "coins",
+  # "ants",
+  # "chase",
+  # "space_invaders"
+]
+
+for model_name in all_deterministic_model_names
+  @show model_name
+
+  program_str = ""
+  open("test/cisc/output/$(model_name).txt", "r") do io
+    program_str = split(read(io, String), "\n\n\n\n\n\n")[1]
+  end
+  check_model_against_test_traces(model_name, program_str)
 end

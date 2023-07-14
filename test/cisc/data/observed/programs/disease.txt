@@ -1,26 +1,24 @@
+ 
 (program
   (= GRID_SIZE 8)
+  (= background "white")
+  (object Particle (: color String) (: active Bool) (list (Cell 0 0 color)))
+
+  (: particles (List Particle))
+  (= particles (initnext (list (Particle  "gray"  2 (Position 1 3)) (Particle  "gray"  2 (Position 2 1)) (Particle  "gray"  2 (Position 4 4)) (Particle  "gray"  2 (Position 5 3)) (Particle  "darkgreen"  1 (Position 0 0))) (prev particles)))
   
-  (object Particle (: health Bool) (Cell 0 0 (if health then "gray" else "darkgreen")))
-                                                      
-  (: inactiveParticles (List Particle))
-  (= inactiveParticles (initnext (list (Particle true (Position 5 3)) (Particle true (Position 2 1)) (Particle true (Position 4 4)) (Particle true (Position 1 3)) )  
-                      (updateObj (prev inactiveParticles) (--> obj (if (! (.. activeParticle health))
-                                                                    then (updateObj obj "health" false)
-                                                                    else obj)) 
-                                                                                                                  (--> obj (adjacent (.. obj origin) (.. (prev activeParticle) origin))))))   
-                                                      
-  (: activeParticle Particle)
-  (= activeParticle (initnext (Particle false (Position 0 0)) (prev activeParticle))) 
-                                                      
-  (on (!= (length (filter (--> obj (! (.. obj health))) (adjacentObjs activeParticle))) 0) (= activeParticle (updateObj (prev activeParticle) "health" false)))
-  (on (clicked (prev inactiveParticles)) 
-      (let ((= inactiveParticles (addObj (prev inactiveParticles) (prev activeParticle))) 
-            (= activeParticle (objClicked click (prev inactiveParticles)))
-            (= inactiveParticles (removeObj inactiveParticles (objClicked click (prev inactiveParticles))))
-          )))
-  (on left (= activeParticle (move (prev activeParticle) -1 0)))
-  (on right (= activeParticle (move (prev activeParticle) 1 0)))
-  (on up (= activeParticle (move (prev activeParticle) 0 -1)))
-  (on down (= activeParticle (move (prev activeParticle) 0 1)))
-)
+  (: time Int)
+  (= time (initnext 0 (+ time 1))) 
+
+  (on down (= particles (updateObj particles (--> obj (moveDown (prev obj))) (--> obj (& down (intersects (list 1) (map (--> obj (.. obj active)) (list (prev obj)))))))))
+  (on left (= particles (updateObj particles (--> obj (moveLeft (prev obj))) (--> obj (& left (intersects (list 1) (map (--> obj (.. obj active)) (list (prev obj)))))))))
+  (on up (= particles (updateObj particles (--> obj (moveUp (prev obj))) (--> obj (& up (== (.. obj active) 1))))))
+  (on right (= particles (updateObj particles (--> obj (moveRight (prev obj))) (--> obj (& (intersects (list 1) (map (--> obj (.. obj active)) (list (prev obj)))) right)))))
+  (on true (= particles (updateObj particles (--> obj (updateObj (prev obj) "color" "darkgreen")) (--> obj (& (intersects (unfold (map (--> obj (adjacentObjs obj 1)) (list (prev obj)))) (filter (--> obj (== (.. obj color) "darkgreen")) (prev particles))) (! (intersects (list "darkgreen") (map (--> obj (.. obj color)) (list (prev obj))))))))))
+  (on clicked (= particles (updateObj particles (--> obj (updateObj obj "active" false)) (--> obj (& clicked (! (in (objClicked click (prev particles)) (list (prev obj)))))) )))
+  (on clicked (= particles (updateObj particles (--> obj (updateObj obj "active" true)) (--> obj (clicked (list (prev obj)))) ))))
+
+
+
+
+

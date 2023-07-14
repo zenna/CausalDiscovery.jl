@@ -22,5 +22,5 @@
   (on (& up (!= (prev yVel) -1)) (= yVel (- (prev yVel) 1)))
   (on (& down (!= (prev yVel) 1)) (= yVel (+ (prev yVel) 1)))
   
-  (on true (= blobs (updateObj blobs (--> obj (moveNoCollision obj (Position (prev xVel) (prev yVel)))))))
+  (on true (= blobs (updateObj blobs (--> obj (move obj (Position (prev xVel) (prev yVel)))))))
 )

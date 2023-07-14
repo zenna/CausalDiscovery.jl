@@ -22,10 +22,10 @@
   (: gravity String)
   (= gravity (initnext "down" (prev gravity)))
   
-  (on (== gravity "left") (= blobs (updateObj blobs (--> obj (moveLeftNoCollision obj)))))
-  (on (== gravity "right") (= blobs (updateObj blobs (--> obj (moveRightNoCollision obj)))))
-  (on (== gravity "up") (= blobs (updateObj blobs (--> obj (moveUpNoCollision obj)))))
-  (on (== gravity "down") (= blobs (updateObj blobs (--> obj (moveDownNoCollision obj)))))
+  (on (== gravity "left") (= blobs (updateObj blobs (--> obj (moveLeft obj)))))
+  (on (== gravity "right") (= blobs (updateObj blobs (--> obj (moveRight obj)))))
+  (on (== gravity "up") (= blobs (updateObj blobs (--> obj (moveUp obj)))))
+  (on (== gravity "down") (= blobs (updateObj blobs (--> obj (moveDown obj)))))
   
   (on (& clicked (isFree click)) (= blobs (addObj blobs (Blob (Position (.. click x) (.. click y))))) )
   

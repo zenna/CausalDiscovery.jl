@@ -1547,13 +1547,13 @@ function singletimestepsolution_program_given_matrix_NEW(matrix, object_decompos
     update_rule_times = filter(time -> !(time in stop_times) && join(filter(r -> !occursin("addObj", r), map(l -> l[1], matrix_copy[:, time])), "") != "", [1:size(matrix_copy)[2]...])    
     addObj_update_rule_times = filter(time -> !(time in stop_times) && join(filter(r -> occursin("addObj", r), map(l -> l[1], matrix_copy[:, time])), "") != "", [1:size(matrix_copy)[2]...])
 
-    update_rules = join(map(time -> """(on (== actual_time $(time - 1))\n  (let\n    ($(join(map(id -> !occursin("--> obj (prev obj)", matrix_copy[id, time][1]) ? (occursin("addObj", matrix_copy[id, time][1]) ? "" : matrix_copy[id, time][1]) : "", 
+    update_rules = join(map(time -> """(on (== (prev actual_time) $(time - 1))\n  (let\n    ($(join(map(id -> !occursin("--> obj (prev obj)", matrix_copy[id, time][1]) ? (occursin("addObj", matrix_copy[id, time][1]) ? "" : matrix_copy[id, time][1]) : "", 
     collect(1:size(matrix_copy)[1])), "\n    "))))\n  )""", update_rule_times), "\n  ")
   else
     update_rule_times = filter(time -> !(time in stop_times) && join(map(l -> l[1], matrix_copy[:, time]), "") != "", [1:size(matrix_copy)[2]...])
     addObj_update_rule_times = []
 
-    update_rules = join(map(time -> """(on (== actual_time $(time - 1))\n  (let\n    ($(join(map(id -> !occursin("--> obj (prev obj)", matrix_copy[id, time][1]) ? (occursin("addObj", matrix_copy[id, time][1]) ? format_matrix_function(matrix_copy[id, time][1], object_mapping[id][time + 1]) : matrix_copy[id, time][1]) : "", 
+    update_rules = join(map(time -> """(on (== (prev actual_time) $(time - 1))\n  (let\n    ($(join(map(id -> !occursin("--> obj (prev obj)", matrix_copy[id, time][1]) ? (occursin("addObj", matrix_copy[id, time][1]) ? format_matrix_function(matrix_copy[id, time][1], object_mapping[id][time + 1]) : matrix_copy[id, time][1]) : "", 
     collect(1:size(matrix_copy)[1])), "\n    "))))\n  )""", update_rule_times), "\n  ")
   end
                         
@@ -1561,7 +1561,7 @@ function singletimestepsolution_program_given_matrix_NEW(matrix, object_decompos
     update_rules = replace(update_rules, "(prev addedObjType$(type.id)List)" => "addedObjType$(type.id)List")
   end
 
-  arrow = """(: arrow Position)\n  (= arrow (initnext (Position 0 0) (prev arrow)))\n  (on true\n(= arrow (if left then (Position -10 0) else (if right then (Position 10 0) else (if up then (Position 0 -10) else (if down then (Position 0 10) else (Position 0 0)))))))"""  
+  arrow = """(: arrow Position)\n  (= arrow (initnext (Position 0 0) (if left then (Position -10 0) else (if right then (Position 10 0) else (if up then (Position 0 -10) else (if down then (Position 0 10) else (Position 0 0)))))))\n"""  
 
   # multiple_traces reset update functions
   if stop_times != []
@@ -1600,7 +1600,7 @@ function singletimestepsolution_program_given_matrix_NEW(matrix, object_decompos
 
     if occursin("field1", join(state_update_on_clauses, "\n  "))
       # add addObj-based events to the end of the program
-      addObj_update_rules = join(map(time -> """(on (== time $(time - 1))\n  (let\n    ($(join(map(id -> !occursin("--> obj (prev obj)", matrix_copy[id, time][1]) ? (occursin("addObj", matrix_copy[id, time][1]) ? format_matrix_function(matrix_copy[id, time][1], object_mapping[id][time + 1]) : "") : "", 
+      addObj_update_rules = join(map(time -> """(on (== (prev time) $(time - 1))\n  (let\n    ($(join(map(id -> !occursin("--> obj (prev obj)", matrix_copy[id, time][1]) ? (occursin("addObj", matrix_copy[id, time][1]) ? format_matrix_function(matrix_copy[id, time][1], object_mapping[id][time + 1]) : "") : "", 
                                     collect(1:size(matrix_copy)[1])), "\n    "))))\n  )""", addObj_update_rule_times), "\n  ")
     
       for type in object_types
@@ -5784,7 +5784,7 @@ function full_program_given_on_clauses(on_clauses, new_object_decomposition, glo
   end
   program_no_update_rules = string(program_no_update_rules[1:end-2], inits..., ")")
   
-  arrow = """(: arrow Position)\n  (= arrow (initnext (Position 0 0) (prev arrow)))\n  (on true\n(= arrow (if left then (Position -10 0) else (if right then (Position 10 0) else (if up then (Position 0 -10) else (if down then (Position 0 10) else (Position 0 0)))))))"""  
+  arrow = """(: arrow Position)\n  (= arrow (initnext (Position 0 0) (if left then (Position -10 0) else (if right then (Position 10 0) else (if up then (Position 0 -10) else (if down then (Position 0 10) else (Position 0 0)))))))\n"""  
 
   t = """(: time Int)\n  (= time (initnext 0 (+ time 1)))"""
 

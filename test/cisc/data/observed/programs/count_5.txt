@@ -12,17 +12,10 @@
   
   (: yVel Int)
   (= yVel (initnext 0 (prev yVel)))
-  
-  (: xActive Bool)
-  (= xActive (initnext true (prev xActive)))
+    
+  (on (& left (> (prev xVel) -5)) (= xVel (- (prev xVel) 1)))
+  (on (& right (< (prev xVel) 5)) (= xVel (+ (prev xVel) 1)))
 
-  (on clicked (= xActive (! xActive)))
-  
-  (on (& left xActive) (= xVel (- (prev xVel) 1)))
-  (on (& right xActive) (= xVel (+ (prev xVel) 1)))
 
-  (on (& up (! xActive)) (= yVel (- (prev yVel) 1)))
-  (on (& down (! xActive)) (= yVel (+ (prev yVel) 1)))
-
-  (on true (= blobs (updateObj blobs (--> obj (moveNoCollision obj (Position (sign (prev xVel)) (sign (prev yVel))))))))
+  (on true (= blobs (updateObj blobs (--> obj (move obj (Position (sign (prev xVel)) 0))))))
 )

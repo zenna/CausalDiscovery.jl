@@ -24,7 +24,7 @@
 (= leaves (initnext (list (Leaf "green" (Position 1 6) ) (Leaf "green" (Position 3 6)) (Leaf "green" (Position 5 6)) ) (prev leaves)))
     
 (on (intersects (map (--> obj (moveDown obj)) (prev water) ) (prev leaves))
-  (= water (updateObj (prev water) (--> obj (removeObj obj)) (--> obj (intersects (moveDown obj) (prev leaves))) ) ) )
+  (= water (updateObj water (--> obj (removeObj obj)) (--> obj (intersects (moveDown (prev obj)) (prev leaves))) ) ) )
 
 (on down
   (= water (addObj water (Water (.. (moveDown (prev cloud)) origin)))))

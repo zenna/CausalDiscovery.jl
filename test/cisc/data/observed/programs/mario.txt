@@ -46,7 +46,7 @@
         (= numBullets (- (prev numBullets) 1)))))
 
 (on (intersects (prev enemy) (prev bullets))
-  (let ((= bullets (removeObj bullets (--> obj (intersects obj (prev enemy))))) 
+  (let ((= bullets (removeObj bullets (--> obj (intersects (prev obj) (prev enemy))))) 
         (= enemy (if (== (prev enemyLives) 1) then (removeObj (prev enemy)) else (if (.. (prev enemy) movingLeft) then (moveLeft (prev enemy)) else (moveRight (prev enemy))) ))
         (= enemyLives (- (prev enemyLives) 1)))))
 )

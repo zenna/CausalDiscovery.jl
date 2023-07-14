@@ -2256,6 +2256,11 @@ function generate_event(run_id, anonymized_update_rule, distinct_update_rules, o
             event_string = "\n\t (: event Bool) \n\t (= event (initnext false $(formatted_event)))\n"
             program_str = singletimestepsolution_program_given_matrix_NEW(matrix, object_decomposition, global_var_dict, state_update_on_clauses, event_string, grid_size, stop_times=stop_times) # CHANGE BACK TO DIM LATER
 
+            open("programs2.txt", "a") do io
+              println(io, program_str)
+              println(io, "\n")
+            end
+
             # # println(program_str)
             global expr = parseautumn(program_str)
             # global expr = striplines(compiletojulia(parseautumn(program_str)))

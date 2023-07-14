@@ -25,10 +25,10 @@
   (: blobColor Int)
   (= blobColor (initnext 0 (prev blobColor)))
   
-  (on (== gravity "left") (= blobs (updateObj (prev blobs) (--> obj (moveLeftNoCollision obj)))))
-  (on (== gravity "right") (= blobs (updateObj (prev blobs) (--> obj (moveRightNoCollision obj)))))
-  (on (== gravity "up") (= blobs (updateObj (prev blobs) (--> obj (moveUpNoCollision obj)))))
-  (on (== gravity "down") (= blobs (updateObj (prev blobs) (--> obj (moveDownNoCollision obj)))))
+  (on (== gravity "left") (= blobs (updateObj (prev blobs) (--> obj (moveLeft obj)))))
+  (on (== gravity "right") (= blobs (updateObj (prev blobs) (--> obj (moveRight obj)))))
+  (on (== gravity "up") (= blobs (updateObj (prev blobs) (--> obj (moveUp obj)))))
+  (on (== gravity "down") (= blobs (updateObj (prev blobs) (--> obj (moveDown obj)))))
   
   (on (& clicked (isFree click)) (= blobColor (% (+ (prev blobColor) 1) 3)))
   (on (& (& clicked (isFree click)) (== blobColor 0)) (= blobs (addObj blobs (Blob "blue" (Position (.. click x) (.. click y))))))
